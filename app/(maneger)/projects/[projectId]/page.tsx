@@ -62,7 +62,6 @@ export default function ProjectDashboard() {
     setTemplate(temp)
     setIsDialogOpen(true)
   };
-  console.log(project);
 
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault()
