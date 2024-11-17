@@ -14,6 +14,7 @@ const userSchema = new Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Invitation'
 },
+  permission: { type: [String], enum: ['canReview'], default: null },
   lastLogin: { type: Date, default: Date.now },
   // status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   created_at: { type: Date, default: Date.now },

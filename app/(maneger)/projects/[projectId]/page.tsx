@@ -37,7 +37,9 @@ export default function ProjectDashboard() {
         .then((data) => {
           if (data.success) {
             setProject(data.project);
-            if (data.project.templates)
+            if (data.project.name) {
+              setNewTemplateName(data.project.name); 
+            } if (data.project.templates)
               setTemplates(data.project.templates);
           }
         })
