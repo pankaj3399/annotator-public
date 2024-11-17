@@ -9,7 +9,7 @@ const userSchema = new Schema({
   phone: { type: String },
   lang: [{ type: String }],
   role: { type: String, enum: ['project manager', 'annotator'], required: true },
-  permission: { type: [String], enum: ['Not Allowed', 'Can Review'], default: ['Not Allowed'] },
+  permission: { type: [String], enum: ['No Permission', 'Allow Review'], default: ['Not Allowed'] },
   lastLogin: { type: Date, default: Date.now },
   // status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   created_at: { type: Date, default: Date.now },

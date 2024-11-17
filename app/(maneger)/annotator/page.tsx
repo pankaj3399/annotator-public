@@ -22,7 +22,7 @@ interface Option {
   label: string;
 }
 
-const permissions = ['Not Allowed', 'Can Review'];
+const permissions = ['No Permission', 'Allow Review'];
 const permissionOptions: Option[] = permissions.map((permission) => ({
   value: permission,
   label: permission,

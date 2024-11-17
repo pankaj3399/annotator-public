@@ -22,7 +22,7 @@ export function sortUserGroupsByLastMessage(userGroups: UserGroups[]): UserGroup
   });
 }
 
-const validPermissions = ['Not Allowed', 'Can Review'];
+const validPermissions = ['No Permission', 'Allow Review'];
 
 export const checkPermissions = (permissions: string[]) => {
   if (permissions.includes('Not Allowed') && permissions.length > 1) {
