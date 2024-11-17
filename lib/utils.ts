@@ -21,3 +21,15 @@ export function sortUserGroupsByLastMessage(userGroups: UserGroups[]): UserGroup
     return lastMessageB - lastMessageA;
   });
 }
+
+const validPermissions = ['Not Allowed', 'Can Review'];
+
+export const checkPermissions = (permissions: string[]) => {
+  if (permissions.includes('Not Allowed') && permissions.length > 1) {
+    return false
+  }
+
+  const areAllPermissionsValid = permissions.every((perm: string) => validPermissions.includes(perm));
+
+  return areAllPermissionsValid;
+};
