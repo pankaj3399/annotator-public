@@ -43,7 +43,7 @@ export default function AnnotatorsPage() {
 
       // Initialize the reviewPermissionsState with data from the database
       const initialPermissionsState = data.reduce((acc: { [key: string]: string[] }, user: User) => {
-        acc[user._id] = user.permission || ['Not Allowed'];
+        acc[user._id] = user.permission || ['No Permission'];
         return acc;
       }, {});
 

@@ -21,15 +21,20 @@ export function sortUserGroupsByLastMessage(userGroups: UserGroups[]): UserGroup
     return lastMessageB - lastMessageA;
   });
 }
-
-const validPermissions = ['No Permission', 'Allow Review'];
+const validPermissions = ['noPermission', 'canReview'];
+const permissionsMap: { [key: string]: string } = {
+  "No Permission": "noPermission",
+  "Allow Review": "canReview",
+};
 
 export const checkPermissions = (permissions: string[]) => {
-  if (permissions.includes('Not Allowed') && permissions.length > 1) {
-    return false
+  const mappedPermissions = permissions.map((perm) => permissionsMap[perm]);
+
+  if (mappedPermissions.includes('noPermission') && mappedPermissions.length > 1) {
+    return false;
   }
 
-  const areAllPermissionsValid = permissions.every((perm: string) => validPermissions.includes(perm));
+  const areAllPermissionsValid = mappedPermissions.every((perm) => validPermissions.includes(perm));
 
   return areAllPermissionsValid;
 };
