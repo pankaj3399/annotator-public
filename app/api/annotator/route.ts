@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     }
 
     try {
-        if (result && permission.includes('No Permission')) {
+        if (permission.includes('No Permission')) {
             await User.updateOne(
                 { _id: user_id },
                 { $set: { permission: null } }
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
         await User.updateOne(
             { _id: user_id },
-            { $set: { permission } }
+            { $set: { permission: result } }
         );
         const updatedUser = await User.find({ _id: user_id })
         return NextResponse.json({ success: true, updatedUser }, { status: 200 });

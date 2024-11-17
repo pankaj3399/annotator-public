@@ -36,5 +36,7 @@ export const checkPermissions = (permissions: string[]) => {
 
   const areAllPermissionsValid = mappedPermissions.every((perm) => validPermissions.includes(perm));
 
-  return areAllPermissionsValid;
+  if(!areAllPermissionsValid) return false;
+
+  return mappedPermissions
 };
