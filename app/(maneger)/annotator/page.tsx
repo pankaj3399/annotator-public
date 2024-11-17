@@ -129,7 +129,7 @@ export default function AnnotatorsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead>Reviewer Permission</TableHead>
+                  <TableHead>Permission</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Action</TableHead>
                 </TableRow>
