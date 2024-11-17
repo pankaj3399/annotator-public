@@ -10,18 +10,23 @@ import { useToast } from "@/hooks/use-toast"
 import Combobox from "@/components/ui/combobox"
 import { domains, languages, locations } from "@/lib/constants"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Pencil, Building2, CheckCircle2, DollarSign, Clock, Database, FileSpreadsheet, Globe, MapPin } from "lucide-react"
+import { Pencil, Building2, CheckCircle2, DollarSign, Clock, Database, FileSpreadsheet, Globe, MapPin, Mail } from "lucide-react"
 import MultiCombobox from "@/components/ui/multi-combobox"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface Option {
   value: string
   label: string
 }
 
+type Step = 'role' | 'invitation' | 'details'
+
 export default function AuthPageComponent() {
   const router = useRouter()
   const { toast } = useToast()
-  const [step, setStep] = useState<'role' | 'details'>('role')
+  const [step, setStep] = useState<Step>('role')
+  const [invitationMode, setInvitationMode] = useState<'enter' | 'request'>('enter')
+  const [isRequestSubmitted, setIsRequestSubmitted] = useState(false)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -31,6 +36,7 @@ export default function AuthPageComponent() {
     domain: [] as string[], 
     lang: [] as string[],
     location: "",
+    invitationCode: "",
   })
 
   const domainOptions: Option[] = domains.map(domain => ({ value: domain.toLowerCase(), label: domain }))
@@ -43,7 +49,69 @@ export default function AuthPageComponent() {
 
   const handleRoleSelect = (selectedRole: 'annotator' | 'project manager') => {
     setFormData({ ...formData, role: selectedRole })
-    setStep('details')
+    setStep(selectedRole === 'project manager' ? 'invitation' : 'details')
+  }
+
+  const handleInvitationRequest = async () => {
+    try {
+      const res = await fetch('/api/auth/request-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email }),
+      })
+
+      if (res.ok) {
+        setIsRequestSubmitted(true)
+        toast({
+          title: "Request submitted",
+          description: "We'll review your request and send an invitation code to your email if approved.",
+        })
+      } else {
+        const data = await res.json()
+        toast({
+          variant: "destructive",
+          title: "Request failed",
+          description: data.error,
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Request failed",
+        description: "An unexpected error occurred. Please try again.",
+      })
+    }
+  }
+
+  const verifyInvitationCode = async () => {
+    try {
+      const res = await fetch('/api/auth/verify-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: formData.invitationCode }),
+      })
+
+      if (res.ok) {
+        setStep('details')
+      } else {
+        const data = await res.json()
+        toast({
+          variant: "destructive",
+          title: "Invalid code",
+          description: data.error || "The invitation code is invalid or expired.",
+        })
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Verification failed",
+        description: "An unexpected error occurred. Please try again.",
+      })
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +132,15 @@ export default function AuthPageComponent() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: formData.role === "annotator" ? JSON.stringify(formData) : JSON.stringify({ email: formData.email, password: formData.password, role: formData.role, name: formData.name }),
+      body: formData.role === "annotator" 
+        ? JSON.stringify(formData) 
+        : JSON.stringify({ 
+            email: formData.email, 
+            password: formData.password, 
+            role: formData.role, 
+            name: formData.name,
+            invitationCode: formData.invitationCode 
+          }),
     })
 
     if (res.ok) {
@@ -146,7 +222,90 @@ export default function AuthPageComponent() {
             </Card>
           </div>
         </div>
+      </div>
+    )
+  }
 
+  if (step === 'invitation') {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="bg-white p-8 max-w-md w-full">
+          <h2 className="text-4xl font-bold text-center mb-6">
+            Project Manager Access
+          </h2>
+          
+          <div className="space-y-6">
+            <div className="flex justify-center gap-4">
+              <Button
+                variant={invitationMode === 'enter' ? "default" : "outline"}
+                onClick={() => setInvitationMode('enter')}
+              >
+                I have a code
+              </Button>
+              <Button
+                variant={invitationMode === 'request' ? "default" : "outline"}
+                onClick={() => setInvitationMode('request')}
+              >
+                Request access
+              </Button>
+            </div>
+
+            {invitationMode === 'enter' ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invitationCode">Invitation Code</Label>
+                  <Input
+                    id="invitationCode"
+                    value={formData.invitationCode}
+                    onChange={handleChange}
+                    placeholder="Enter your invitation code"
+                    required
+                  />
+                </div>
+                <Button onClick={verifyInvitationCode} className="w-full">
+                  Verify Code
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {!isRequestSubmitted ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="Enter your email"
+                        required
+                      />
+                    </div>
+                    <Button onClick={handleInvitationRequest} className="w-full">
+                      Request Invitation
+                    </Button>
+                  </>
+                ) : (
+                  <Alert>
+                    <Mail className="h-4 w-4" />
+                    <AlertDescription>
+                      Thanks for your interest! We'll review your request and send an invitation code to your email if approved.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            )}
+
+            <div className="text-center">
+              <button
+                className="text-sm text-gray-600 hover:underline"
+                onClick={() => setStep('role')}
+              >
+                ← Go back
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -164,24 +323,20 @@ export default function AuthPageComponent() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter your email" required />
+            <Input 
+              id="email" 
+              type="email" 
+              value={formData.email} 
+              onChange={handleChange} 
+              placeholder="Enter your email" 
+              required 
+              disabled={formData.role === "project manager" && invitationMode === "request" && isRequestSubmitted}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={formData.password} minLength={6} onChange={handleChange} placeholder="Enter your password" required />
           </div>
-         {formData.role === "annotator" && <div className="space-y-2">
-            <Label htmlFor="role">Role</Label>
-            <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })} disabled required>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="project manager">Project Manager</SelectItem>
-                <SelectItem value="annotator">Annotator</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>}
           {formData.role === "annotator" && (
             <>
               <div className="space-y-2">
