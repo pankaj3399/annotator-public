@@ -1,41 +1,100 @@
 'use client'
-
+import { useEffect, useState } from 'react'
 import { getAllAnnotators } from "@/app/actions/annotator"
 import { SheetMenu } from "@/components/admin-panel/sheet-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { format, parseISO } from "date-fns"
-import { CalendarIcon, Search } from "lucide-react"
-import { useEffect, useState } from 'react'
+import { CalendarIcon, Save, Search } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import MultiCombobox from "@/components/ui/multi-combobox"
 
 interface User {
   _id: string;
   name: string;
   email: string;
+  permission: string[];  
   lastLogin: Date;
 }
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+const permissions = ['No Permission', 'Allow Review'];
+const permissionOptions: Option[] = permissions.map((permission) => ({
+  value: permission,
+  label: permission,
+}));
 
 export default function AnnotatorsPage() {
   const [annotators, setAnnotators] = useState<User[]>([])
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [reviewPermissionsState, setReviewPermissionsState] = useState<{ [key: string]: string[] }>({});
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchAnnotators = async () => {
       const data = JSON.parse(await getAllAnnotators())
       setAnnotators(data)
       setFilteredAnnotators(data)
+
+      // Initialize the reviewPermissionsState with data from the database
+      const initialPermissionsState = data.reduce((acc: { [key: string]: string[] }, user: User) => {
+        acc[user._id] = user.permission || ['No Permission'];
+        return acc;
+      }, {});
+
+      setReviewPermissionsState(initialPermissionsState);
     }
+
     fetchAnnotators()
   }, [])
 
   useEffect(() => {
-    const filtered = annotators.filter(user => 
+    const filtered = annotators.filter(user =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     )
     setFilteredAnnotators(filtered)
   }, [searchTerm, annotators])
+
+  const savePermissions = (userId: string) => {
+
+    fetch(`/api/annotator`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+      body: JSON.stringify({ user_id: userId, permission: reviewPermissionsState[userId] }), 
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json();
+        toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: error.message,
+        });
+      } else {
+        const data = await res.json();
+        toast({
+          variant: "default",
+          title: "Success!",
+          description: data.message,
+        });
+      }
+    })
+    .catch((error) =>
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: error.message || "An unexpected error occurred.",
+      })
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -61,7 +120,7 @@ export default function AnnotatorsPage() {
         {filteredAnnotators.length === 0 ? (
           <div className="text-center py-10">
             <h2 className="text-xl font-semibold text-gray-900">No annotators found</h2>
-            <p className="mt-2 text-gray-600">Alll annotators will be shown here</p>
+            <p className="mt-2 text-gray-600">All annotators will be shown here</p>
           </div>
         ) : (
           <div className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -70,25 +129,51 @@ export default function AnnotatorsPage() {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Permission</TableHead>
                   <TableHead>Last Login</TableHead>
+                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAnnotators.map((user) => (
-                  <TableRow
-                    key={user._id}
-                    className="cursor-pointer hover:bg-gray-50"
-                  >
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center text-sm text-gray-500">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {format(parseISO(user.lastLogin.toString()), 'PPPpp')}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredAnnotators.map((user) => {
+                  const localReviewPermission = reviewPermissionsState[user._id] || ['Not Allowed'];
+
+                  return (
+                    <TableRow key={user._id} className="cursor-pointer hover:bg-gray-50">
+                      <TableCell className="font-medium">{user.name}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center w-2/3">
+                          <MultiCombobox
+                            options={permissionOptions}
+                            value={localReviewPermission}
+                            onChange={(value: string[]) => {
+                              setReviewPermissionsState(prevState => ({
+                                ...prevState,
+                                [user._id]: value,
+                              }));
+                            }}
+                            placeholder="Select Permission"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {format(parseISO(user.lastLogin.toString()), 'PPPpp')}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          className=""
+                          onClick={() => savePermissions(user._id)}
+                        >
+                          <Save className="h-4 w-4" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
