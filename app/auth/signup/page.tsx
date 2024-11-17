@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import InvitationStep from "@/components/invitationStep"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import Combobox from "@/components/ui/combobox"
@@ -228,85 +229,16 @@ export default function AuthPageComponent() {
 
   if (step === 'invitation') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white p-8 max-w-md w-full">
-          <h2 className="text-4xl font-bold text-center mb-6">
-            Project Manager Access
-          </h2>
-          
-          <div className="space-y-6">
-            <div className="flex justify-center gap-4">
-              <Button
-                variant={invitationMode === 'enter' ? "default" : "outline"}
-                onClick={() => setInvitationMode('enter')}
-              >
-                I have a code
-              </Button>
-              <Button
-                variant={invitationMode === 'request' ? "default" : "outline"}
-                onClick={() => setInvitationMode('request')}
-              >
-                Request access
-              </Button>
-            </div>
-
-            {invitationMode === 'enter' ? (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="invitationCode">Invitation Code</Label>
-                  <Input
-                    id="invitationCode"
-                    value={formData.invitationCode}
-                    onChange={handleChange}
-                    placeholder="Enter your invitation code"
-                    required
-                  />
-                </div>
-                <Button onClick={verifyInvitationCode} className="w-full">
-                  Verify Code
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {!isRequestSubmitted ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        placeholder="Enter your email"
-                        required
-                      />
-                    </div>
-                    <Button onClick={handleInvitationRequest} className="w-full">
-                      Request Invitation
-                    </Button>
-                  </>
-                ) : (
-                  <Alert>
-                    <Mail className="h-4 w-4" />
-                    <AlertDescription>
-                      Thanks for your interest! We'll review your request and send an invitation code to your email if approved.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
-
-            <div className="text-center">
-              <button
-                className="text-sm text-gray-600 hover:underline"
-                onClick={() => setStep('role')}
-              >
-                ← Go back
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <InvitationStep
+        formData={formData}
+        handleChange={handleChange}
+        verifyInvitationCode={verifyInvitationCode}
+        handleInvitationRequest={handleInvitationRequest}
+        isRequestSubmitted={isRequestSubmitted}
+        invitationMode={invitationMode}
+        setInvitationMode={setInvitationMode}
+        onBack={() => setStep('role')}
+      />
     )
   }
 
