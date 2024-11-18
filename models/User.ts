@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import mongoose, { Schema, model, models } from 'mongoose';
 
 const userSchema = new Schema({
   name: { type: String, required: true },
@@ -9,6 +9,11 @@ const userSchema = new Schema({
   phone: { type: String },
   lang: [{ type: String }],
   role: { type: String, enum: ['project manager', 'annotator'], required: true },
+
+  invitation: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Invitation'
+},
   permission: { type: [String], enum: ['canReview'], default: null },
   lastLogin: { type: Date, default: Date.now },
   // status: { type: String, enum: ['active', 'inactive'], default: 'active' },
