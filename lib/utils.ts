@@ -24,10 +24,10 @@ export function sortUserGroupsByLastMessage(userGroups: UserGroups[]): UserGroup
 const validPermissions = ['noPermission', 'canReview'];
 const permissionsMap: { [key: string]: string } = {
   "No Permission": "noPermission",
-  "Allow Review": "canReview",
+  "Can Review": "canReview",
 };
 
-export const checkPermissions = (permissions: string[]) => {
+export const checkPermissions = (permissions: string[]): string[] | false => {
   const mappedPermissions = permissions.map((perm) => permissionsMap[perm]);
 
   if (mappedPermissions.includes('noPermission') && mappedPermissions.length > 1) {
@@ -36,7 +36,7 @@ export const checkPermissions = (permissions: string[]) => {
 
   const areAllPermissionsValid = mappedPermissions.every((perm) => validPermissions.includes(perm));
 
-  if(!areAllPermissionsValid) return false;
+  if (!areAllPermissionsValid) return false;
 
-  return mappedPermissions
+  return mappedPermissions;
 };
