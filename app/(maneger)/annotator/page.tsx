@@ -13,7 +13,7 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  permission: string[];  
+  permission: string[];
   lastLogin: Date;
 }
 
@@ -22,7 +22,7 @@ interface Option {
   label: string;
 }
 
-const permissions = ['No Permission', 'Allow Review'];
+const permissions = ['No Permission', 'Can Review'];
 const permissionOptions: Option[] = permissions.map((permission) => ({
   value: permission,
   label: permission,
@@ -35,14 +35,26 @@ export default function AnnotatorsPage() {
   const [reviewPermissionsState, setReviewPermissionsState] = useState<{ [key: string]: string[] }>({});
   const { toast } = useToast()
 
+  const permissionMapping = {
+    noPermission: "No Permission",
+    canReview: 'Can Review',
+  };
+
   useEffect(() => {
     const fetchAnnotators = async () => {
       const data = JSON.parse(await getAllAnnotators())
-      setAnnotators(data)
+      const transformedData = data.map((data: { permission: string[] | null | undefined }) => ({
+        ...data,
+        permission: (data.permission || []).map(permission =>
+          permissionMapping[permission as keyof typeof permissionMapping] || permission
+        ),
+      }));
+
+      setAnnotators(transformedData)
       setFilteredAnnotators(data)
 
       // Initialize the reviewPermissionsState with data from the database
-      const initialPermissionsState = data.reduce((acc: { [key: string]: string[] }, user: User) => {
+      const initialPermissionsState = transformedData.reduce((acc: { [key: string]: string[] }, user: User) => {
         acc[user._id] = user.permission || ['No Permission'];
         return acc;
       }, {});
@@ -64,36 +76,36 @@ export default function AnnotatorsPage() {
   const savePermissions = (userId: string) => {
 
     fetch(`/api/annotator`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-      body: JSON.stringify({ user_id: userId, permission: reviewPermissionsState[userId] }), 
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        const error = await res.json();
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: userId, permission: reviewPermissionsState[userId] }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const error = await res.json();
+          toast({
+            variant: "destructive",
+            title: "Uh oh! Something went wrong.",
+            description: error.message,
+          });
+        } else {
+          const data = await res.json();
+          toast({
+            variant: "default",
+            title: "Success!",
+            description: data.message,
+          });
+        }
+      })
+      .catch((error) =>
         toast({
           variant: "destructive",
           title: "Uh oh! Something went wrong.",
-          description: error.message,
-        });
-      } else {
-        const data = await res.json();
-        toast({
-          variant: "default",
-          title: "Success!",
-          description: data.message,
-        });
-      }
-    })
-    .catch((error) =>
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: error.message || "An unexpected error occurred.",
-      })
-    );
+          description: error.message || "An unexpected error occurred.",
+        })
+      );
   }
 
   return (
