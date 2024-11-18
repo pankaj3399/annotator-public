@@ -1,4 +1,14 @@
-import { BookUser, Bot, ClipboardList, Folder, LayoutGrid, LucideIcon, MessageCircle, SquarePen, User } from "lucide-react";
+import {
+  BookUser,
+  Bot,
+  ClipboardList,
+  Folder,
+  LayoutGrid,
+  LucideIcon,
+  MessageCircle,
+  SquarePen,
+  User,
+} from "lucide-react";
 
 type Submenu = {
   href: string;
@@ -39,23 +49,23 @@ export function getMenuList(pathname: string): Group[] {
               label: "Dashboard",
               active: false,
               icon: LayoutGrid,
-              submenus: []
+              submenus: [],
             },
             {
               href: "/annotator",
               label: "Annotator",
               active: false,
               icon: BookUser,
-              submenus: []
+              submenus: [],
             },
             {
               href: "/chat",
               label: "Chat",
               active: false,
               icon: MessageCircle,
-              submenus: []
-            }
-          ]
+              submenus: [],
+            },
+          ],
         },
         {
           groupLabel: "Contents",
@@ -64,21 +74,21 @@ export function getMenuList(pathname: string): Group[] {
               href: "/",
               label: "Projects",
               active: false,
-              icon: Folder
+              icon: Folder,
             },
             {
               href: `/projects/${projectId}`,
               label: "Templates",
               active: false,
-              icon: SquarePen
+              icon: SquarePen,
             },
             {
               href: `/projects/task/${projectId}`,
               label: "Tasks",
               active: false,
-              icon: ClipboardList
-            }
-          ]
+              icon: ClipboardList,
+            },
+          ],
         },
         {
           groupLabel: "Project settings",
@@ -87,9 +97,9 @@ export function getMenuList(pathname: string): Group[] {
               href: `/projects/ai-config/${projectId}`,
               label: "AI Expert",
               active: false,
-              icon: Bot
-            }
-          ]
+              icon: Bot,
+            },
+          ],
         },
         {
           groupLabel: "User",
@@ -98,27 +108,34 @@ export function getMenuList(pathname: string): Group[] {
               href: "/tasks/profile",
               label: "Profile",
               active: true,
-              icon: User
-            }
-          ]
-        }
+              icon: User,
+            },
+          ],
+        },
       ];
     }
   }
 
-  if (fpath == 'tasks') {
+  if (fpath == "tasks") {
     return [
       {
         groupLabel: "",
         menus: [
           {
+            href: "/tasks/annotatorDashboard",
+            label: "Dashboard",
+            active: pathname.includes("/annotatorDashboard"),
+            icon: LayoutGrid,
+            submenus: [],
+          },
+          {
             href: "/tasks/chat",
             label: "Chat",
             active: pathname.includes("/chat"),
             icon: MessageCircle,
-            submenus: []
-          }
-        ]
+            submenus: [],
+          },
+        ],
       },
       {
         groupLabel: "Contents",
@@ -126,16 +143,19 @@ export function getMenuList(pathname: string): Group[] {
           {
             href: "/tasks",
             label: "Projects",
-            active: pathname.includes("/tasks") && !pathname.includes("/tasks/all"),
-            icon: Folder
+            active:
+              pathname.includes("/tasks") &&
+              !pathname.includes("/tasks/all") &&
+              !pathname.includes("/annotatorDashboard"),
+            icon: Folder,
           },
           {
             href: `/tasks/all`,
             label: "All Tasks",
-            active: pathname == '/tasks/all',
-            icon: ClipboardList
-          }
-        ]
+            active: pathname == "/tasks/all",
+            icon: ClipboardList,
+          },
+        ],
       },
       {
         groupLabel: "User",
@@ -144,14 +164,19 @@ export function getMenuList(pathname: string): Group[] {
             href: "/tasks/profile",
             label: "Profile",
             active: pathname.includes("/profile"),
-            icon: User
-          }
-        ]
-      }
+            icon: User,
+          },
+        ],
+      },
     ];
   }
 
-  if (projectId == "" || projectId == 'dashboard' || projectId == 'annotator' || projectId == 'chat') {
+  if (
+    projectId == "" ||
+    projectId == "dashboard" ||
+    projectId == "annotator" ||
+    projectId == "chat"
+  ) {
     return [
       {
         groupLabel: "",
@@ -161,23 +186,23 @@ export function getMenuList(pathname: string): Group[] {
             label: "Dashboard",
             active: pathname.includes("/dashboard"),
             icon: LayoutGrid,
-            submenus: []
+            submenus: [],
           },
           {
             href: "/annotator",
             label: "Annotator",
             active: pathname.includes("/annotator"),
             icon: BookUser,
-            submenus: []
+            submenus: [],
           },
           {
             href: "/chat",
             label: "Chat",
             active: pathname.includes("/chat"),
             icon: MessageCircle,
-            submenus: []
-          }
-        ]
+            submenus: [],
+          },
+        ],
       },
       {
         groupLabel: "Contents",
@@ -185,10 +210,10 @@ export function getMenuList(pathname: string): Group[] {
           {
             href: "/",
             label: "Projects",
-            active: pathname == '/',
+            active: pathname == "/",
             icon: SquarePen,
-          }
-        ]
+          },
+        ],
       },
       {
         groupLabel: "User",
@@ -197,10 +222,10 @@ export function getMenuList(pathname: string): Group[] {
             href: "/tasks/profile",
             label: "Profile",
             active: pathname.includes("/profile"),
-            icon: User
-          }
-        ]
-      }
+            icon: User,
+          },
+        ],
+      },
     ];
   }
 
@@ -213,23 +238,23 @@ export function getMenuList(pathname: string): Group[] {
           label: "Dashboard",
           active: pathname.includes("/dashboard/"),
           icon: LayoutGrid,
-          submenus: []
+          submenus: [],
         },
         {
           href: "/annotator",
           label: "Annotator",
           active: pathname.includes("/annotator"),
           icon: BookUser,
-          submenus: []
+          submenus: [],
         },
         {
           href: "/chat",
           label: "Chat",
           active: pathname.includes("/chat"),
           icon: MessageCircle,
-          submenus: []
-        }
-      ]
+          submenus: [],
+        },
+      ],
     },
     {
       groupLabel: "Contents",
@@ -237,22 +262,25 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/",
           label: "Projects",
-          active: pathname == '/',
-          icon: Folder
+          active: pathname == "/",
+          icon: Folder,
         },
         {
           href: `/projects/${projectId}`,
           label: "Templates",
-          active: pathname.includes("/projects") && !pathname.includes("/task") && !pathname.includes("/ai-config"),
-          icon: SquarePen
+          active:
+            pathname.includes("/projects") &&
+            !pathname.includes("/task") &&
+            !pathname.includes("/ai-config"),
+          icon: SquarePen,
         },
         {
           href: `/projects/task/${projectId}`,
           label: "Tasks",
           active: pathname.includes("/task"),
-          icon: ClipboardList
-        }
-      ]
+          icon: ClipboardList,
+        },
+      ],
     },
     {
       groupLabel: "Project settings",
@@ -260,10 +288,10 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: `/projects/ai-config/${projectId}`,
           label: "AI Expert",
-          active: pathname.includes('/ai-config'),
-          icon: Bot
-        }
-      ]
+          active: pathname.includes("/ai-config"),
+          icon: Bot,
+        },
+      ],
     },
     {
       groupLabel: "User",
@@ -272,9 +300,9 @@ export function getMenuList(pathname: string): Group[] {
           href: "/tasks/profile",
           label: "Profile",
           active: pathname.includes("/profile"),
-          icon: User
-        }
-      ]
-    }
+          icon: User,
+        },
+      ],
+    },
   ];
 }
