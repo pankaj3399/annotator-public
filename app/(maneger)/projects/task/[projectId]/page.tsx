@@ -29,6 +29,7 @@ export interface Task {
   status: string
   submitted: boolean
   annotator?: string
+  reviewer?: string // Added reviewer field
   timeTaken: number
   feedback: string
   ai: string
@@ -47,6 +48,7 @@ export default function Component() {
   const [annotators, setAnnotators] = useState<Annotator[]>([])
   const [judges, setJudges] = useState<Judge[]>([])
   const [activeTab, setActiveTab] = useState("all")
+  const [allReviewers, setAllReviewers] = useState<Annotator[]>([])
   const { removeJobByTaskid, setJob } = useJobList()
   const pathName = usePathname();
   const projectId = pathName.split("/")[3];
@@ -70,22 +72,49 @@ export default function Component() {
   
   useEffect(() => {
     async function init() {
-      setTasks(JSON.parse(await getAllTasks(projectId)))
-      setAnnotators(JSON.parse(await getAllAnnotators()))
-      fetchJudges()
-    }
-    init();
-  }, [projectId]);
+      if (!session?.user) return;
 
+      const tasksData = JSON.parse(await getAllTasks(projectId)) as Task[];
+      const annotatorsData = JSON.parse(await getAllAnnotators()) as Annotator[];
+      
+      // Add project manager to reviewers list
+      const projectManager: Annotator = {
+        _id: session.user.id,
+        name: session.user.name || 'Project Manager',
+        email: session.user.email || '',
+        lastLogin: new Date().toISOString()
+      };
+      
+      // Add project manager to both annotators and reviewers lists
+      setAnnotators([projectManager, ...annotatorsData]);
+      setAllReviewers([projectManager, ...annotatorsData]);
+      
+      setTasks(tasksData.map((task: Task) => ({
+        ...task,
+        reviewer: task.reviewer || projectManager._id // Set project manager as default reviewer
+      })));
+      
+      fetchJudges();
+    }
+    if (session) {
+      init();
+    }
+  }, [projectId, session]);
   if (!session) {
     return <Loader />;
   }
 
   if (session?.user?.role === 'annotator') router.push('/tasks');
 
-  async function handleAssignUser(annotatorId: string, taskId: string, ai: boolean) {
-    const res = JSON.parse(await changeAnnotator(taskId, annotatorId, ai))
-    setTasks(tasks.map(task => task._id === taskId ? res : task))
+  async function handleAssignUser(annotatorId: string, taskId: string, ai: boolean, isReviewer: boolean = false) {
+    // Assuming you'll need to modify the changeAnnotator action to handle reviewer assignment
+    const res = JSON.parse(await changeAnnotator(taskId, annotatorId, ai, isReviewer))
+    setTasks(tasks.map(task => {
+      if (task._id === taskId) {
+        return isReviewer ? { ...res, reviewer: annotatorId } : res
+      }
+      return task
+    }))
   }
 
   const handleCreateTemplate = async (e: React.FormEvent) => {
@@ -113,6 +142,51 @@ export default function Component() {
     }
   }
 
+  const handleBulkAssignReviewers = async () => {
+    if (allReviewers.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Bulk reviewer assignment failed",
+        description: "No reviewers available.",
+      });
+      return;
+    }
+
+    const tasksNeedingReviewer = tasks.filter(task => !task.reviewer);
+    const updatedTasks = [...tasks];
+
+    for (let i = 0; i < tasksNeedingReviewer.length; i++) {
+      const task = tasksNeedingReviewer[i];
+      const reviewerIndex = i % (allReviewers.length - 1) + 1; // Skip project manager in rotation
+      const reviewerId = allReviewers[reviewerIndex]._id;
+
+      if (reviewerId === task.annotator) {
+        // If reviewer would be same as annotator, assign project manager instead
+        await changeAnnotator(task._id, allReviewers[0]._id, false, true);
+        const taskIndex = updatedTasks.findIndex(t => t._id === task._id);
+        updatedTasks[taskIndex] = { 
+          ...task,
+          reviewer: allReviewers[0]._id
+        };
+      } else {
+        await changeAnnotator(task._id, reviewerId, false, true);
+        const taskIndex = updatedTasks.findIndex(t => t._id === task._id);
+        updatedTasks[taskIndex] = { 
+          ...task,
+          reviewer: reviewerId
+        };
+      }
+    }
+
+    setTasks(updatedTasks);
+    toast({
+      title: "Bulk reviewer assignment completed",
+      description: `${tasksNeedingReviewer.length} tasks have been assigned reviewers.`,
+    });
+  }
+
+
+  
   const handleAutoAssign = async () => {
     if (annotators.length === 0) {
       toast({
@@ -130,18 +204,31 @@ export default function Component() {
       const task = unassignedTasks[i];
       const annotatorIndex = i % annotators.length;
       const annotatorId = annotators[annotatorIndex]._id;
+      
+      // Try to assign a different annotator as reviewer, fall back to project manager
+      const availableReviewers = allReviewers.filter(r => r._id !== annotatorId);
+      const reviewerId = availableReviewers.length > 1 
+        ? availableReviewers[1]._id // Get first non-project-manager reviewer
+        : allReviewers[0]._id; // Fall back to project manager
 
-      await changeAnnotator(task._id, annotatorId, false);
+      await changeAnnotator(task._id, annotatorId, false, false);
+      await changeAnnotator(task._id, reviewerId, false, true);
+      
       const taskIndex = updatedTasks.findIndex(t => t._id === task._id);
-      updatedTasks[taskIndex] = { ...task, annotator: annotatorId };
+      updatedTasks[taskIndex] = { 
+        ...task, 
+        annotator: annotatorId,
+        reviewer: reviewerId
+      };
     }
 
     setTasks(updatedTasks);
     toast({
       title: "Auto-assign completed",
-      description: `${unassignedTasks.length} tasks have been assigned.`,
+      description: `${unassignedTasks.length} tasks have been assigned with annotators and reviewers.`,
     });
   }
+
 
   async function handleAssignAI() {
     const unassignedTasks = tasks.filter(task => !task.annotator && !task.ai && !task.submitted);
@@ -191,8 +278,9 @@ export default function Component() {
   const filteredTasks = {
     all: tasks,
     submitted: tasks.filter(task => task.submitted),
-    unassigned: tasks.filter(task => !task.annotator)
+    unassigned: tasks.filter(task => !task.annotator || !task.reviewer)
   }
+
 
   return (
     <div className="min-h-screen">
@@ -226,30 +314,72 @@ export default function Component() {
         ) : (
           <>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <div className="flex justify-between items-center mb-4 flex-wrap">
+              <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
                 <TabsList>
                   <TabsTrigger value="all">All Tasks</TabsTrigger>
                   <TabsTrigger value="submitted">Submitted Tasks</TabsTrigger>
                   <TabsTrigger value="unassigned">Unassigned Tasks</TabsTrigger>
                 </TabsList>
-                <div className="ml-auto mr-2">
+                
+                <div className="flex flex-wrap gap-2 items-center">
                   <TaskProgress setTasks={setTasks} />
+                  
+                  <div className="flex gap-2">
+                    <Button onClick={handleAutoAssign} variant="outline" size="sm">
+                      <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Annotators
+                    </Button>
+                    
+                    <Button onClick={handleBulkAssignReviewers} variant="outline" size="sm">
+                      <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Reviewers
+                    </Button>
+                    
+                    {judges.length > 0 && (
+                      <Button onClick={handleAssignAI} variant="outline" size="sm">
+                        <Bot className="mr-2 h-4 w-4" /> Assign AI
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                {judges.length > 0 && <Button onClick={handleAssignAI} variant="outline" >
-                  <Bot className="mr-2 h-4 w-4" /> Assign Tasks To AI
-                </Button>}
-                <Button onClick={handleAutoAssign} variant="outline" className="ml-2">
-                  <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Tasks
-                </Button>
               </div>
+
               <TabsContent value="all">
-                <TaskTable setTasks={setTasks}  tasks={filteredTasks.all} annotators={annotators} judges={judges} handleAssignUser={handleAssignUser} handleDeleteTemplate={handleDeleteTemplate} router={router} />
+                <TaskTable 
+                  setTasks={setTasks}  
+                  tasks={filteredTasks.all} 
+                  annotators={annotators}
+                  reviewers={allReviewers}
+                  judges={judges} 
+                  handleAssignUser={handleAssignUser} 
+                  handleDeleteTemplate={handleDeleteTemplate} 
+                  router={router}
+                  session={session} 
+                />
               </TabsContent>
               <TabsContent value="submitted">
-                <TaskTable setTasks={setTasks} tasks={filteredTasks.submitted} annotators={annotators} judges={judges} handleAssignUser={handleAssignUser} handleDeleteTemplate={handleDeleteTemplate} router={router} />
+                <TaskTable 
+                  setTasks={setTasks} 
+                  tasks={filteredTasks.submitted} 
+                  annotators={annotators}
+                  reviewers={allReviewers}
+                  judges={judges} 
+                  handleAssignUser={handleAssignUser} 
+                  handleDeleteTemplate={handleDeleteTemplate} 
+                  router={router}
+                  session={session}
+                />
               </TabsContent>
               <TabsContent value="unassigned">
-                <TaskTable setTasks={setTasks} tasks={filteredTasks.unassigned} annotators={annotators} judges={judges} handleAssignUser={handleAssignUser} handleDeleteTemplate={handleDeleteTemplate} router={router} />
+                <TaskTable 
+                  setTasks={setTasks} 
+                  tasks={filteredTasks.unassigned} 
+                  annotators={annotators}
+                  reviewers={allReviewers}
+                  judges={judges} 
+                  handleAssignUser={handleAssignUser} 
+                  handleDeleteTemplate={handleDeleteTemplate} 
+                  router={router}
+                  session={session}
+                />
               </TabsContent>
             </Tabs>
           </>

@@ -11,7 +11,7 @@ import Editor from './editor'
 import Timer from '@/components/floating-timer-submit'
 import useStatus from '@/hooks/use-status'
 
-export interface task  {
+export interface task {
   _id: string
   name: string
   project: string
@@ -19,6 +19,8 @@ export interface task  {
   content: string
   status: StatusType
   submitted: boolean
+  reviewer?: string    // Add reviewer field
+  annotator?: string   // Add annotator field
 }
 
 const Page = () => {
@@ -28,8 +30,7 @@ const Page = () => {
   const [task, setTask] = useState<task>()
   const [loading, setLoading] = useState(true)
   const { data: session } = useSession();
-  const { setStatus,setSubmitted } = useStatus();
-
+  const { setStatus, setSubmitted } = useStatus();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,7 +46,11 @@ const Page = () => {
       }
     }
     fetchData()
-  }, [taskid,router])
+  }, [taskid, router])
+
+  const isReviewer = task?.reviewer === session?.user?.id
+  const isAnnotator = task?.annotator === session?.user?.id
+  const isProjectManager = session?.user?.role === 'project manager'
 
   if (loading) {
     return <Loader />
@@ -57,6 +62,9 @@ const Page = () => {
     return null
   }
 
+  const showDock = isProjectManager || isReviewer
+  const showTimer = isAnnotator && !task.submitted && task.status !== 'accepted'
+
   return (
     <EditorProvider
       subaccountId={task.project}
@@ -64,11 +72,10 @@ const Page = () => {
       pageDetails={task}
     >
       <Editor pageId={taskid} liveMode={true} />
-      {session?.user?.role === 'project manager' && <Dock id={taskid} status={task.status} />}
-      {session?.user?.role === 'annotator'&& !task.submitted &&  ( task.status !=='accepted') && <Timer />}
+      {showDock && <Dock id={taskid} status={task.status} />}
+      {showTimer && <Timer />}
     </EditorProvider>
   )
 }
 
 export default Page
-
