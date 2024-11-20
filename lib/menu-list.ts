@@ -8,6 +8,7 @@ import {
   MessageCircle,
   SquarePen,
   User,
+  BarChart2,
 } from "lucide-react";
 
 type Submenu = {
@@ -87,6 +88,12 @@ export function getMenuList(pathname: string): Group[] {
               label: "Tasks",
               active: false,
               icon: ClipboardList,
+            },
+            {
+              href: `/projects/analytics/view/${projectId}`,
+              label: "Analytics",
+              active: false,
+              icon: BarChart2,
             },
           ],
         },
@@ -271,7 +278,8 @@ export function getMenuList(pathname: string): Group[] {
           active:
             pathname.includes("/projects") &&
             !pathname.includes("/task") &&
-            !pathname.includes("/ai-config"),
+            !pathname.includes("/ai-config") &&
+            !pathname.includes("/analytics/view"),
           icon: SquarePen,
         },
         {
@@ -279,6 +287,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "Tasks",
           active: pathname.includes("/task"),
           icon: ClipboardList,
+        },
+        {
+          href: `/projects/analytics/view/${projectId}`,
+          label: "Analytics",
+          active: pathname.includes("/analytics/view"),
+          icon: BarChart2,
         },
       ],
     },
