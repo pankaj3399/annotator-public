@@ -71,8 +71,8 @@ export default function ProjectDashboard() {
     )
   }
 
-  const handleProjectClick = (project_id: string) => {
-    router.push(`/projects/${project_id}`);
+  const handleProjectClick = (projectId: string) => {
+    router.push(`/projects/${projectId}`);
   };
 
   const handleCreateProject = (e: React.FormEvent) => {

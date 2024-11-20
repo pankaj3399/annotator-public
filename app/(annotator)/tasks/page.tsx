@@ -50,8 +50,8 @@ export default function ProjectDashboard() {
     return <Loader />;
   }
 
-  const handleProjectClick = (project_id: string) => {
-    router.push(`/tasks/${project_id}`);
+  const handleProjectClick = (projectId: string) => {
+    router.push(`/tasks/${projectId}`);
   };
 
   return (

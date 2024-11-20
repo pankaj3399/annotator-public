@@ -37,17 +37,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const { name } = await req.json();
   try {
     await connectToDatabase();
+    const { name, earnings_per_task = 0 } = await req.json();
+    
+    // Validate earnings_per_task
+    const parsedEarnings = parseFloat(earnings_per_task);
+    if (isNaN(parsedEarnings) || parsedEarnings < 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Earnings per task must be a positive number' 
+      }, { status: 400 });
+    }
+
+    // Create new project with earnings_per_task
     const newProject = await Project.create({
       name,
       project_Manager: session.user.id,
+      earnings_per_task: parsedEarnings
     });
 
     return NextResponse.json({ success: true, project: newProject }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to create project' }, { status: 400 });
+    console.error('Project creation error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Failed to create project' 
+    }, { status: 400 });
   }
 }
 

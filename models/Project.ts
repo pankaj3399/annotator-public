@@ -1,4 +1,4 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models, CallbackError } from 'mongoose';
 import Task from './Task';
 import { Template } from './Template';
 
@@ -8,7 +8,19 @@ const projectSchema = new Schema({
   // status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   created_at: { type: Date, default: Date.now },
   // updated_at: { type: Date, default: Date.now },
-  templates: [{ type: Schema.Types.ObjectId, ref: 'Template', }],
+  templates: [{ type: Schema.Types.ObjectId, ref: 'Template' }],
+  earnings_per_task: { 
+    type: Number, 
+    default: 0,
+    min: 0,
+    validate: {
+      validator: function(value: number) {
+        // Ensures value is not negative and has at most 2 decimal places
+        return value >= 0 && /^\d+(\.\d{1,2})?$/.test(value.toString());
+      },
+      message: 'Earnings per task must be a positive number with at most 2 decimal places'
+    }
+  }
 });
 
 projectSchema.pre('findOneAndDelete', async function (next) {
@@ -27,9 +39,8 @@ projectSchema.pre('findOneAndDelete', async function (next) {
     next();
   } catch (error) {
     console.error('Error deleting project:', error);
-    next(error); // Pass the error to the next middleware
+    next(error as CallbackError); // Pass the error to the next middleware
   }
-
 });
 
 export const Project = models?.Project || model('Project', projectSchema);

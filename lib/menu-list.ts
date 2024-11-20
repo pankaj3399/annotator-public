@@ -9,6 +9,7 @@ import {
   SquarePen,
   User,
   BarChart2,
+  Settings,
 } from "lucide-react";
 
 type Submenu = {
@@ -103,7 +104,7 @@ export function getMenuList(pathname: string): Group[] {
             {
               href: `/projects/ai-config/${projectId}`,
               label: "AI Expert",
-              active: false,
+              active: pathname.includes("/ai-config"),
               icon: Bot,
             },
           ],
@@ -304,6 +305,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "AI Expert",
           active: pathname.includes("/ai-config"),
           icon: Bot,
+        },
+        {
+          href: `/projects/settings/${projectId}`,
+          label: "Settings",
+          active: pathname.includes("/settings"),
+          icon: Settings, // Import Settings from lucide-react
         },
       ],
     },
