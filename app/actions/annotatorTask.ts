@@ -211,3 +211,81 @@ export async function updateAnnotatorTask(taskId: string, content: string, time:
     return { error: 'Error occurred while updating task' };
   }
 }
+
+export async function getAnnotatorEarnings() {
+  try {
+    await connectToDatabase();
+    const session = await getServerSession(authOptions);
+    const annotatorId = session?.user?.id;
+
+    if (!annotatorId) {
+      return { error: 'User is not authenticated' };
+    }
+
+    // Aggregate pipeline to:
+    // 1. Match tasks for this annotator that are accepted
+    // 2. Lookup project details to get earnings_per_task
+    // 3. Calculate total earnings
+    const earnings = await Task.aggregate([
+      {
+        $match: {
+          annotator: new mongoose.Types.ObjectId(annotatorId),
+          status: 'accepted',
+          submitted: true
+        }
+      },
+      {
+        $lookup: {
+          from: 'projects',
+          localField: 'project',
+          foreignField: '_id',
+          as: 'projectDetails'
+        }
+      },
+      {
+        $unwind: '$projectDetails'
+      },
+      {
+        $group: {
+          _id: null,
+          totalEarnings: {
+            $sum: { $ifNull: ['$projectDetails.earnings_per_task', 0] }
+          },
+          totalTasks: { $sum: 1 },
+          tasksByProject: {
+            $push: {
+              projectId: '$projectDetails._id',
+              projectName: '$projectDetails.name',
+              earnings_per_task: { $ifNull: ['$projectDetails.earnings_per_task', 0] }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalEarnings: { $round: ['$totalEarnings', 2] },
+          totalTasks: 1,
+          tasksByProject: 1
+        }
+      }
+    ]);
+
+    // If no earnings found, return default values
+    if (earnings.length === 0) {
+      return {
+        data: JSON.stringify({
+          totalEarnings: 0,
+          totalTasks: 0,
+          tasksByProject: []
+        })
+      };
+    }
+
+    return { data: JSON.stringify(earnings[0]) };
+  } catch (error) {
+    console.error('Error in getAnnotatorEarnings:', error);
+    return { error: 'Error occurred while calculating earnings' };
+  }
+}
+
