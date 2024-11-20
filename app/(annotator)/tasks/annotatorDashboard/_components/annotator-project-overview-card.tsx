@@ -22,10 +22,13 @@ interface AnnotatorOverviewCardProps {
   totalTasks: number;
   pendingTasks: number;
   accuracyRate: number;
-  // weeklyProgress: number;
-  // monthlyProgress: number;
   earnings: number;
   ratings: number;
+  tasksByProject: Array<{
+    projectId: string;
+    projectName: string;
+    earnings_per_task: number;
+  }>;
 }
 
 export default function AnnotatorProjectOverviewCard({
@@ -34,15 +37,14 @@ export default function AnnotatorProjectOverviewCard({
   accuracyRate,
   earnings,
   ratings,
-  // weeklyProgress,
-  // monthlyProgress
+  tasksByProject
 }: AnnotatorOverviewCardProps) {
   const stats = [
     {
       title: "Total Tasks",
       value: totalTasks,
       icon: ListTodo,
-      description: "Total tasks assigned in this project"
+      description: "Total tasks assigned"
     },
     {
       title: "Pending Tasks",
@@ -57,29 +59,17 @@ export default function AnnotatorProjectOverviewCard({
       description: "Task accuracy rate"
     },
     {
-      title: "Earnings",
+      title: "Total Earnings",
       value: `$${earnings.toFixed(2)}`,
       icon: DollarSign,
-      description: "Total earnings from this project"
+      description: "Total earnings from all completed tasks"
     },
     {
       title: "Rating",
       value: ratings.toFixed(1),
       icon: Star,
-      description: "Your rating for this project"
+      description: "Your overall rating"
     }
-    // {
-    //   title: "Weekly Progress",
-    //   value: `${weeklyProgress.toFixed(1)}%`,
-    //   icon: CheckSquare,
-    //   description: "Tasks completed this week"
-    // },
-    // {
-    //   title: "Monthly Progress",
-    //   value: `${monthlyProgress.toFixed(1)}%`,
-    //   icon: Calendar,
-    //   description: "Tasks completed this month"
-    // }
   ];
 
   return (
@@ -124,17 +114,23 @@ export default function AnnotatorProjectOverviewCard({
               • Your accuracy rate is {accuracyRate.toFixed(1)}% - {accuracyRate >= 90 ? "Excellent!" : accuracyRate >= 75 ? "Good work!" : "Keep improving!"}
             </li>
             <li className="text-sm text-gray-600">
-              • Your earnings are $0
+              • Your total earnings are ${earnings.toFixed(2)}
             </li>
+            {tasksByProject.length > 0 && (
+              <li className="text-sm text-gray-600">
+                • Earnings breakdown by project:
+                <ul className="ml-4 mt-1">
+                  {tasksByProject.map((project, index) => (
+                    <li key={project.projectId} className="text-sm text-gray-600">
+                      {project.projectName}: ${project.earnings_per_task.toFixed(2)} per task
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            )}
             <li className="text-sm text-gray-600">
-              • Your rating is 0
+              • Your overall rating is {ratings.toFixed(1)}
             </li>
-            {/* <li className="text-sm text-gray-600">
-              • Weekly progress: {weeklyProgress.toFixed(1)}% tasks completed this week
-            </li>
-            <li className="text-sm text-gray-600">
-              • Monthly progress: {monthlyProgress.toFixed(1)}% tasks completed this month
-            </li> */}
           </ul>
         </div>
       </CardContent>

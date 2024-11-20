@@ -8,6 +8,8 @@ import {
   MessageCircle,
   SquarePen,
   User,
+  BarChart2,
+  Settings,
 } from "lucide-react";
 
 type Submenu = {
@@ -88,6 +90,12 @@ export function getMenuList(pathname: string): Group[] {
               active: false,
               icon: ClipboardList,
             },
+            {
+              href: `/projects/analytics/view/${projectId}`,
+              label: "Analytics",
+              active: false,
+              icon: BarChart2,
+            },
           ],
         },
         {
@@ -96,7 +104,7 @@ export function getMenuList(pathname: string): Group[] {
             {
               href: `/projects/ai-config/${projectId}`,
               label: "AI Expert",
-              active: false,
+              active: pathname.includes("/ai-config"),
               icon: Bot,
             },
           ],
@@ -271,7 +279,8 @@ export function getMenuList(pathname: string): Group[] {
           active:
             pathname.includes("/projects") &&
             !pathname.includes("/task") &&
-            !pathname.includes("/ai-config"),
+            !pathname.includes("/ai-config") &&
+            !pathname.includes("/analytics/view"),
           icon: SquarePen,
         },
         {
@@ -279,6 +288,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "Tasks",
           active: pathname.includes("/task"),
           icon: ClipboardList,
+        },
+        {
+          href: `/projects/analytics/view/${projectId}`,
+          label: "Analytics",
+          active: pathname.includes("/analytics/view"),
+          icon: BarChart2,
         },
       ],
     },
@@ -290,6 +305,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "AI Expert",
           active: pathname.includes("/ai-config"),
           icon: Bot,
+        },
+        {
+          href: `/projects/settings/${projectId}`,
+          label: "Settings",
+          active: pathname.includes("/settings"),
+          icon: Settings, // Import Settings from lucide-react
         },
       ],
     },

@@ -6,6 +6,7 @@ import {
   getAnnotatorPerformanceTrends,
 } from "@/app/actions/annonatorDashboard";
 import { getAnnotatorTasks } from "@/app/actions/annotatorTask";
+import { getAnnotatorEarnings } from "@/app/actions/annotatorTask"; 
 import Loader from "@/components/ui/Loader/Loader";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -26,6 +27,16 @@ interface TaskData {
   submitted: boolean;
   status: string;
   updatedAt: string;
+}
+
+interface EarningsData {
+  totalEarnings: number;
+  totalTasks: number;
+  tasksByProject: Array<{
+    projectId: string;
+    projectName: string;
+    earnings_per_task: number;
+  }>;
 }
 
 interface TaskStats {
@@ -107,6 +118,11 @@ export default function AnnotatorDashboardPage() {
     taskCount: 0,
   });
   const [performanceTrends, setPerformanceTrends] = useState<PerformanceTrend[]>([]);
+  const [earnings, setEarnings] = useState<EarningsData>({
+    totalEarnings: 0,
+    totalTasks: 0,
+    tasksByProject: []
+  });
   const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
@@ -126,14 +142,14 @@ export default function AnnotatorDashboardPage() {
     try {
       console.log("Initializing dashboard...");
       
-      // Get all necessary data
-      const [tasksRes, dashboardRes, taskStatsRes, timeStatsRes, trendsRes] =
+      const [tasksRes, dashboardRes, taskStatsRes, timeStatsRes, trendsRes, earningsRes] =
         await Promise.all([
           getAnnotatorTasks(),
           getAnnotatorDashboard(),
           getAnnotatorTaskStats(),
           getAnnotatorTimeStats(),
           getAnnotatorPerformanceTrends(),
+          getAnnotatorEarnings(),
         ]);
 
       console.log("Raw responses:", {
@@ -142,6 +158,7 @@ export default function AnnotatorDashboardPage() {
         taskStatsRes,
         timeStatsRes,
         trendsRes,
+        earningsRes,
       });
 
       // Process dashboard data
@@ -154,16 +171,23 @@ export default function AnnotatorDashboardPage() {
           console.error("Error parsing dashboard data:", error);
           setError("Failed to parse dashboard data");
         }
-      } else if (dashboardRes && 'error' in dashboardRes) {
-        console.error("Dashboard error:", dashboardRes.error);
-        setError(dashboardRes.error ?? "Unknown error");
+      }
+
+      // Process earnings data
+      if (earningsRes && 'data' in earningsRes && earningsRes.data) {
+        try {
+          const parsedEarnings: EarningsData = JSON.parse(earningsRes.data);
+          console.log("Parsed earnings data:", parsedEarnings);
+          setEarnings(parsedEarnings);
+        } catch (error) {
+          console.error("Error parsing earnings data:", error);
+        }
       }
 
       // Process task statistics
       if (taskStatsRes && "data" in taskStatsRes && taskStatsRes.data) {
         try {
           const parsedTaskStats: TaskStats[] = JSON.parse(taskStatsRes.data);
-          console.log("Parsed task stats:", parsedTaskStats);
           setTaskStats(parsedTaskStats);
         } catch (error) {
           console.error("Error parsing task stats:", error);
@@ -174,7 +198,6 @@ export default function AnnotatorDashboardPage() {
       if (timeStatsRes && "data" in timeStatsRes && timeStatsRes.data) {
         try {
           const parsedTimeStats: TimeStats = JSON.parse(timeStatsRes.data);
-          console.log("Parsed time stats:", parsedTimeStats);
           setTimeStats(parsedTimeStats);
         } catch (error) {
           console.error("Error parsing time stats:", error);
@@ -185,7 +208,6 @@ export default function AnnotatorDashboardPage() {
       if (trendsRes && "data" in trendsRes && trendsRes.data) {
         try {
           const parsedTrends: PerformanceTrend[] = JSON.parse(trendsRes.data);
-          console.log("Parsed performance trends:", parsedTrends);
           setPerformanceTrends(parsedTrends);
         } catch (error) {
           console.error("Error parsing performance trends:", error);
@@ -238,24 +260,24 @@ export default function AnnotatorDashboardPage() {
               submittedTasks={dashboardData.tasksData.submittedTasks}
             />
           </div>
-            <AnnotatorOverviewCardComponent
+          <AnnotatorOverviewCardComponent
             totalTasks={dashboardData.tasksData.totalAssignedTasks}
             pendingTasks={dashboardData.tasksData.pendingTasks}
             accuracyRate={dashboardData.personalStats.accuracyRate}
             ratings={0}
-            earnings={0}
-            // weeklyProgress={dashboardData.personalStats.weeklyProgress}
-            // monthlyProgress={dashboardData.personalStats.monthlyProgress}
-            />
+            earnings={earnings.totalEarnings}
+            tasksByProject={earnings.tasksByProject}
+          />
             
-            {/* Debug component - remove in production
+          {process.env.NODE_ENV === 'development' && (
             <DashboardDebug
-            dashboardData={dashboardData}
-            taskStats={taskStats}
-            timeStats={timeStats}
-            performanceTrends={performanceTrends}
-            /> */}
-          </main>
+              dashboardData={dashboardData}
+              taskStats={taskStats}
+              timeStats={timeStats}
+              performanceTrends={performanceTrends}
+            />
+          )}
+        </main>
       </div>
     );
 
