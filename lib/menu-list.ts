@@ -10,6 +10,7 @@ import {
   User,
   BarChart2,
   Settings,
+
 } from "lucide-react";
 
 type Submenu = {
@@ -162,6 +163,12 @@ export function getMenuList(pathname: string): Group[] {
             label: "All Tasks",
             active: pathname == "/tasks/all",
             icon: ClipboardList,
+          },
+          {
+            href: `/tasks/review`,
+            label: "Review Tasks",
+            active: pathname.includes("/tasks/review"),
+            icon: SquarePen, // Using SquarePen icon for review tasks
           },
         ],
       },
