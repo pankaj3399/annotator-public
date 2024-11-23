@@ -72,13 +72,13 @@ export function getMenuList(pathname: string): Group[] {
             icon: Folder,
           },
           {
-            href: `/tasks/all`,
+            href: "/tasks/all",
             label: "All Tasks",
             active: pathname === "/tasks/all",
             icon: ClipboardList,
           },
           {
-            href: `/tasks/review`,
+            href: "/tasks/review",
             label: "Review Tasks",
             active: pathname.includes("/tasks/review"),
             icon: SquarePen,
@@ -185,7 +185,7 @@ export function getMenuList(pathname: string): Group[] {
   }
 
   // Default menu structure for project context
-  return [
+  const menu = [
     {
       groupLabel: "",
       menus: [
@@ -238,9 +238,20 @@ export function getMenuList(pathname: string): Group[] {
           active: pathname.includes("/task"),
           icon: ClipboardList,
         },
+        // {
+        //   href: `/projects/analytics/view/${projectId}`,
+        //   label: "Analytics",
+        //   active: pathname.includes("/analytics/view"),
+        //   icon: BarChart2,
+        // },
+      ],
+    },
+    {
+      groupLabel: "Analytics",
+      menus: [
         {
           href: `/projects/analytics/view/${projectId}`,
-          label: "Analytics",
+          label: "Overview",
           active: pathname.includes("/analytics/view"),
           icon: BarChart2,
         },
@@ -275,4 +286,21 @@ export function getMenuList(pathname: string): Group[] {
       ],
     },
   ];
+
+  // Add Analytics group for annotator's analytics page
+  if (pathname.includes("/tasks/annotator") && pathname.includes("/analytics")) {
+    menu.push({
+      groupLabel: "Analytics",
+      menus: [
+        {
+          href: "/tasks/annotatorDashboard",
+          label: "Overview",
+          active: false, // This will not be active since it redirects
+          icon: BarChart2,
+        },
+      ],
+    });
+  }
+
+  return menu;
 }
