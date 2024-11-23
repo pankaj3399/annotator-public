@@ -30,9 +30,22 @@ export async function upsertTemplate(projectid: string, template: template, _id:
 
 export async function updateTimer(_id: string, timer: number) {
     await connectToDatabase();
-    await Template.findOneAndUpdate({ _id }, {
-        timer
-    });
+    try {
+        const updatedTemplate = await Template.findOneAndUpdate(
+            { _id },
+            { $set: { timer: timer } },
+            { new: true }  // This ensures we get the updated document back
+        );
+        
+        if (!updatedTemplate) {
+            throw new Error('Template not found');
+        }
+        
+        return JSON.stringify(updatedTemplate);
+    } catch (error) {
+        console.error('Error updating timer:', error);
+        throw error;
+    }
 }
 
 export async function getTemplate(pageId: string) {
