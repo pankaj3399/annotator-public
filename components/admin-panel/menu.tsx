@@ -23,6 +23,7 @@ interface MenuProps {
 export function Menu({ isOpen }: MenuProps) {
   const pathname = usePathname();
   const menuList = getMenuList(pathname);
+  console.log(menuList);
 
   return (
       <nav className="mt-8 h-full w-full">

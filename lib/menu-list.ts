@@ -32,10 +32,8 @@ type Group = {
 };
 
 export function getMenuList(pathname: string): Group[] {
-  const cleanPathname = pathname.replace(/\/profile$/, '');
-  const pathParts = pathname.split("/");
-  const fpath = pathParts[1];
-  const isProfilePage = pathname.includes("/profile");
+  const projectId = pathname.split("/")[pathname.split("/").length - 1]
+  const fpath= pathname.split("/")[1]
 
   // For tasks path
   if (fpath === "tasks") {
@@ -91,7 +89,7 @@ export function getMenuList(pathname: string): Group[] {
           {
             href: "/tasks/profile",
             label: "Profile",
-            active: pathname.includes("/profile"),
+            active: false,
             icon: User,
           },
         ],
@@ -99,39 +97,8 @@ export function getMenuList(pathname: string): Group[] {
     ];
   }
 
-  // Extract projectId from URL
-  let projectId = "";
-  
-  // First try to get projectId from settings, ai-config, or task paths
-  const settingsMatch = pathname.match(/\/projects\/settings\/([^\/]+)/);
-  const aiConfigMatch = pathname.match(/\/projects\/ai-config\/([^\/]+)/);
-  const taskMatch = pathname.match(/\/projects\/task\/([^\/]+)/);
-  const analyticsMatch = pathname.match(/\/projects\/analytics\/view\/([^\/]+)/);
-  const projectsMatch = pathname.match(/\/projects\/([^\/]+)$/);
-  const dashboardMatch = pathname.match(/\/dashboard\/([^\/]+)/);
 
-  if (settingsMatch) {
-    projectId = settingsMatch[1];
-  } else if (aiConfigMatch) {
-    projectId = aiConfigMatch[1];
-  } else if (taskMatch) {
-    projectId = taskMatch[1];
-  } else if (analyticsMatch) {
-    projectId = analyticsMatch[1];
-  } else if (projectsMatch) {
-    projectId = projectsMatch[1];
-  } else if (dashboardMatch) {
-    projectId = dashboardMatch[1];
-  }
-
-  // For root, dashboard, annotator, or chat paths without project context
-  if (
-    (!projectId && !isProfilePage) &&
-    (pathname === "/" ||
-      pathname === "/dashboard" ||
-      pathname === "/annotator" ||
-      pathname === "/chat")
-  ) {
+  if(projectId == "" || projectId == 'dashboard' || projectId == 'annotator' || projectId == 'chat' || projectId == 'profile') {
     return [
       {
         groupLabel: "",
@@ -174,9 +141,9 @@ export function getMenuList(pathname: string): Group[] {
         groupLabel: "User",
         menus: [
           {
-            href: "/profile",
+            href: "/projects/profile",
             label: "Profile",
-            active: pathname.includes("/profile"),
+            active: false,
             icon: User,
           },
         ],
@@ -238,12 +205,6 @@ export function getMenuList(pathname: string): Group[] {
           active: pathname.includes("/task"),
           icon: ClipboardList,
         },
-        // {
-        //   href: `/projects/analytics/view/${projectId}`,
-        //   label: "Analytics",
-        //   active: pathname.includes("/analytics/view"),
-        //   icon: BarChart2,
-        // },
       ],
     },
     {
@@ -278,16 +239,15 @@ export function getMenuList(pathname: string): Group[] {
       groupLabel: "User",
       menus: [
         {
-          href: "/profile",
+          href: "/projects/profile",
           label: "Profile",
-          active: pathname.includes("/profile"),
+          active: false,
           icon: User,
         },
       ],
     },
   ];
 
-  // Add Analytics group for annotator's analytics page
   if (pathname.includes("/tasks/annotator") && pathname.includes("/analytics")) {
     menu.push({
       groupLabel: "Analytics",

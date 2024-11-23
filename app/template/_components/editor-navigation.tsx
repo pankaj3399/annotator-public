@@ -89,26 +89,29 @@ const EditorNavigation = ({
   }
 
   const handleOnSave = async () => {
-    const content = JSON.stringify(state.editor.elements)
+    const content = JSON.stringify(state.editor.elements);
     try {
-      await upsertTemplate(
-        projectId,
-        {
-          ...pageDetails,
-          content,
-        },
-        pageId
-      )
+        // Don't pass the timer value during save to avoid overriding it
+        await upsertTemplate(
+            projectId,
+            {
+                ...pageDetails,
+                content,
+                // Remove the timer property to preserve the value set by TimeSetterComponent
+                timer: undefined // This will ensure we don't override the timer value
+            },
+            pageId
+        );
 
-      toast('Success', {
-        description: 'Saved Editor',
-      })
+        toast('Success', {
+            description: 'Saved Editor',
+        });
     } catch (error) {
-      toast('Oppse!', {
-        description: 'Could not save editor',
-      })
+        toast('Oops!', {
+            description: 'Could not save editor',
+        });
     }
-  }
+};
 
   return (
     <TooltipProvider>

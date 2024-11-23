@@ -66,7 +66,8 @@ const Page = () => {
     const defaultTemplate = {
       name: template.name,
       project: template.project,
-      content: template.content
+      content: template.content,
+      timer: template.timer,
     }
     const Template: template = JSON.parse(await upsertTemplate(projectId as string, defaultTemplate as template, undefined, true))
     router.push(`/template?Id=${Template._id}`)
