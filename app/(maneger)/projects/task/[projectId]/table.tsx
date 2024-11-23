@@ -1,17 +1,17 @@
-import { addJob, deleteJobByTaskid } from "@/app/actions/aiModel"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useEffect, useState } from 'react'
+import { usePathname } from "next/navigation"
+import { format, parseISO } from "date-fns"
+import { CalendarIcon, NotebookPen, Trash2Icon } from "lucide-react"
+import { toast } from "sonner"
 import useJobList from "@/hooks/use-jobList"
 import { getStatusBadgeVariant } from "@/lib/constants"
 import { formatTime } from "@/lib/utils"
-import { format, parseISO } from "date-fns"
-import { CalendarIcon, NotebookPen, Trash2Icon } from "lucide-react"
-import { usePathname } from "next/navigation"
-import { useEffect, useState } from 'react'
-import { toast } from "sonner"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { addJob, deleteJobByTaskid } from "@/app/actions/aiModel"
 import { Judge } from "../../ai-config/[projectId]/page"
 import { Annotator, Task } from "./page"
 
@@ -28,6 +28,7 @@ interface TaskTableProps {
         user?: {
             id: string;
             role?: string;
+            name?: string;
         };
     }
 }
@@ -48,6 +49,12 @@ export function TaskTable({
     const { setJob, getJobs, removeJobByTaskid } = useJobList()
     const pathName = usePathname();
     const projectId = pathName.split("/")[3];
+
+    // Filter reviewers to only show those with "canReview" permission
+    const filteredReviewers = reviewers.filter(reviewer => 
+        (reviewer.permission && reviewer.permission.includes('canReview')) || 
+        (session?.user && reviewer._id === session.user.id) // Always include project manager
+    );
 
     const handleClick = (e: React.MouseEvent, feedback: string) => {
         e.stopPropagation()
@@ -118,12 +125,6 @@ export function TaskTable({
         try {
             const actualValue = value === "unassigned" ? "" : value;
 
-            // If unassigning reviewer, default to project manager
-            if (!actualValue && session?.user?.id) {
-                handleAssignUser(session.user.id, task._id, false, true);
-                return;
-            }
-
             // Check if reviewer would be same as annotator
             if (actualValue === task.annotator) {
                 toast.error("Reviewer cannot be the same as annotator");
@@ -154,8 +155,14 @@ export function TaskTable({
                 <TableBody>
                     {tasks.map((task: Task) => {
                         const assignedAnnotator = annotators.find(a => a._id === task.annotator);
-                        const assignedReviewer = reviewers.find(r => r._id === task.reviewer) || 
-                            (session?.user && task.reviewer === session.user.id ? { _id: session.user.id, name: "Project Manager" } as Annotator : null);
+                        const assignedReviewer = filteredReviewers.find(r => r._id === task.reviewer) || 
+                            (session?.user && task.reviewer === session.user.id ? { 
+                                _id: session.user.id, 
+                                name: session.user.name || "Project Manager",
+                                email: "",
+                                lastLogin: "",
+                                permission: ["canReview"]
+                            } as Annotator : null);
                         const assignedJudge = judges.find(j => j._id === task.ai);
 
                         return (
@@ -206,7 +213,7 @@ export function TaskTable({
                                 </TableCell>
                                 <TableCell>
                                     <Select
-                                        value={task.reviewer || "unassigned"}
+                                        value={task.reviewer || session?.user?.id || ""}
                                         onValueChange={(value) => handleReviewerChange(value, task)}
                                     >
                                         <SelectTrigger className="w-[180px]">
@@ -215,8 +222,7 @@ export function TaskTable({
                                             </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="unassigned">Project Manager</SelectItem>
-                                            {reviewers
+                                            {filteredReviewers
                                                 .sort((a, b) => {
                                                     if (a._id === session?.user?.id) return -1;
                                                     if (b._id === session?.user?.id) return 1;

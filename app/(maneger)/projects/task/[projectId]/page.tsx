@@ -36,10 +36,11 @@ export interface Task {
 }
 
 export interface Annotator {
-  _id: string
-  name: string
-  email: string
-  lastLogin: string
+  _id: string;
+  name: string;
+  email: string;
+  lastLogin: string;
+  permission?: string[]; 
 }
 
 export default function Component() {

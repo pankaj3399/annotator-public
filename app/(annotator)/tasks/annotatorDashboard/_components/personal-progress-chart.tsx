@@ -33,7 +33,7 @@ export default function PersonalProgressChartComponent({
   }));
 
   return (
-    <Card className="w-1/3">
+    <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="text-xl font-bold">Personal Progress</CardTitle>
       </CardHeader>
@@ -46,35 +46,35 @@ export default function PersonalProgressChartComponent({
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                outerRadius={80}
+                outerRadius="80%"
                 fill="#8884d8"
                 dataKey="value"
-                label={({
-                  cx,
-                  cy,
-                  midAngle,
-                  innerRadius,
-                  outerRadius,
-                  value,
-                  index
-                }) => {
-                  const RADIAN = Math.PI / 180;
-                  const radius = 25 + innerRadius + (outerRadius - innerRadius);
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                // label={({
+                //   cx,
+                //   cy,
+                //   midAngle,
+                //   innerRadius,
+                //   outerRadius,
+                //   value,
+                //   index
+                // }) => {
+                //   const RADIAN = Math.PI / 180;
+                //   const radius = 25 + innerRadius + (outerRadius - innerRadius);
+                //   const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                //   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-                  return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill="#666"
-                      textAnchor={x > cx ? 'start' : 'end'}
-                      dominantBaseline="central"
-                    >
-                      {`${data[index].name} (${value})`}
-                    </text>
-                  );
-                }}
+                //   return (
+                //     <text
+                //       x={x}
+                //       y={y}
+                //       fill="#666"
+                //       textAnchor={x > cx ? 'start' : 'end'}
+                //       dominantBaseline="central"
+                //     >
+                //       {`${data[index].name} (${value})`}
+                //     </text>
+                //   );
+                // }}
               >
                 {data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

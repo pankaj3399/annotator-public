@@ -10,7 +10,6 @@ import {
   User,
   BarChart2,
   Settings,
-
 } from "lucide-react";
 
 type Submenu = {
@@ -33,99 +32,13 @@ type Group = {
 };
 
 export function getMenuList(pathname: string): Group[] {
+  const cleanPathname = pathname.replace(/\/profile$/, '');
   const pathParts = pathname.split("/");
-  const projectId = pathParts[pathParts.length - 1];
   const fpath = pathParts[1];
   const isProfilePage = pathname.includes("/profile");
 
-  // If we're on the profile page, check if we came from a project context
-  if (isProfilePage && pathParts.length > 3) {
-    const previousPath = pathParts.slice(0, -2).join("/");
-    if (previousPath.includes("/projects/")) {
-      // Return project context menu with profile active
-      return [
-        {
-          groupLabel: "",
-          menus: [
-            {
-              href: `/dashboard/${projectId}`,
-              label: "Dashboard",
-              active: false,
-              icon: LayoutGrid,
-              submenus: [],
-            },
-            {
-              href: "/annotator",
-              label: "Annotator",
-              active: false,
-              icon: BookUser,
-              submenus: [],
-            },
-            {
-              href: "/chat",
-              label: "Chat",
-              active: false,
-              icon: MessageCircle,
-              submenus: [],
-            },
-          ],
-        },
-        {
-          groupLabel: "Contents",
-          menus: [
-            {
-              href: "/",
-              label: "Projects",
-              active: false,
-              icon: Folder,
-            },
-            {
-              href: `/projects/${projectId}`,
-              label: "Templates",
-              active: false,
-              icon: SquarePen,
-            },
-            {
-              href: `/projects/task/${projectId}`,
-              label: "Tasks",
-              active: false,
-              icon: ClipboardList,
-            },
-            {
-              href: `/projects/analytics/view/${projectId}`,
-              label: "Analytics",
-              active: false,
-              icon: BarChart2,
-            },
-          ],
-        },
-        {
-          groupLabel: "Project settings",
-          menus: [
-            {
-              href: `/projects/ai-config/${projectId}`,
-              label: "AI Expert",
-              active: pathname.includes("/ai-config"),
-              icon: Bot,
-            },
-          ],
-        },
-        {
-          groupLabel: "User",
-          menus: [
-            {
-              href: "/tasks/profile",
-              label: "Profile",
-              active: true,
-              icon: User,
-            },
-          ],
-        },
-      ];
-    }
-  }
-
-  if (fpath == "tasks") {
+  // For tasks path
+  if (fpath === "tasks") {
     return [
       {
         groupLabel: "",
@@ -159,16 +72,16 @@ export function getMenuList(pathname: string): Group[] {
             icon: Folder,
           },
           {
-            href: `/tasks/all`,
+            href: "/tasks/all",
             label: "All Tasks",
-            active: pathname == "/tasks/all",
+            active: pathname === "/tasks/all",
             icon: ClipboardList,
           },
           {
-            href: `/tasks/review`,
+            href: "/tasks/review",
             label: "Review Tasks",
             active: pathname.includes("/tasks/review"),
-            icon: SquarePen, // Using SquarePen icon for review tasks
+            icon: SquarePen,
           },
         ],
       },
@@ -186,11 +99,38 @@ export function getMenuList(pathname: string): Group[] {
     ];
   }
 
+  // Extract projectId from URL
+  let projectId = "";
+  
+  // First try to get projectId from settings, ai-config, or task paths
+  const settingsMatch = pathname.match(/\/projects\/settings\/([^\/]+)/);
+  const aiConfigMatch = pathname.match(/\/projects\/ai-config\/([^\/]+)/);
+  const taskMatch = pathname.match(/\/projects\/task\/([^\/]+)/);
+  const analyticsMatch = pathname.match(/\/projects\/analytics\/view\/([^\/]+)/);
+  const projectsMatch = pathname.match(/\/projects\/([^\/]+)$/);
+  const dashboardMatch = pathname.match(/\/dashboard\/([^\/]+)/);
+
+  if (settingsMatch) {
+    projectId = settingsMatch[1];
+  } else if (aiConfigMatch) {
+    projectId = aiConfigMatch[1];
+  } else if (taskMatch) {
+    projectId = taskMatch[1];
+  } else if (analyticsMatch) {
+    projectId = analyticsMatch[1];
+  } else if (projectsMatch) {
+    projectId = projectsMatch[1];
+  } else if (dashboardMatch) {
+    projectId = dashboardMatch[1];
+  }
+
+  // For root, dashboard, annotator, or chat paths without project context
   if (
-    projectId == "" ||
-    projectId == "dashboard" ||
-    projectId == "annotator" ||
-    projectId == "chat"
+    (!projectId && !isProfilePage) &&
+    (pathname === "/" ||
+      pathname === "/dashboard" ||
+      pathname === "/annotator" ||
+      pathname === "/chat")
   ) {
     return [
       {
@@ -225,8 +165,8 @@ export function getMenuList(pathname: string): Group[] {
           {
             href: "/",
             label: "Projects",
-            active: pathname == "/",
-            icon: SquarePen,
+            active: pathname === "/",
+            icon: Folder,
           },
         ],
       },
@@ -234,7 +174,7 @@ export function getMenuList(pathname: string): Group[] {
         groupLabel: "User",
         menus: [
           {
-            href: "/tasks/profile",
+            href: "/profile",
             label: "Profile",
             active: pathname.includes("/profile"),
             icon: User,
@@ -244,7 +184,8 @@ export function getMenuList(pathname: string): Group[] {
     ];
   }
 
-  return [
+  // Default menu structure for project context
+  const menu = [
     {
       groupLabel: "",
       menus: [
@@ -277,17 +218,18 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/",
           label: "Projects",
-          active: pathname == "/",
+          active: pathname === "/",
           icon: Folder,
         },
         {
           href: `/projects/${projectId}`,
           label: "Templates",
           active:
-            pathname.includes("/projects") &&
+            pathname.includes("/projects/") &&
             !pathname.includes("/task") &&
             !pathname.includes("/ai-config") &&
-            !pathname.includes("/analytics/view"),
+            !pathname.includes("/analytics/view") &&
+            !pathname.includes("/settings"),
           icon: SquarePen,
         },
         {
@@ -296,9 +238,20 @@ export function getMenuList(pathname: string): Group[] {
           active: pathname.includes("/task"),
           icon: ClipboardList,
         },
+        // {
+        //   href: `/projects/analytics/view/${projectId}`,
+        //   label: "Analytics",
+        //   active: pathname.includes("/analytics/view"),
+        //   icon: BarChart2,
+        // },
+      ],
+    },
+    {
+      groupLabel: "Analytics",
+      menus: [
         {
           href: `/projects/analytics/view/${projectId}`,
-          label: "Analytics",
+          label: "Overview",
           active: pathname.includes("/analytics/view"),
           icon: BarChart2,
         },
@@ -317,7 +270,7 @@ export function getMenuList(pathname: string): Group[] {
           href: `/projects/settings/${projectId}`,
           label: "Settings",
           active: pathname.includes("/settings"),
-          icon: Settings, // Import Settings from lucide-react
+          icon: Settings,
         },
       ],
     },
@@ -325,7 +278,7 @@ export function getMenuList(pathname: string): Group[] {
       groupLabel: "User",
       menus: [
         {
-          href: "/tasks/profile",
+          href: "/profile",
           label: "Profile",
           active: pathname.includes("/profile"),
           icon: User,
@@ -333,4 +286,21 @@ export function getMenuList(pathname: string): Group[] {
       ],
     },
   ];
+
+  // Add Analytics group for annotator's analytics page
+  if (pathname.includes("/tasks/annotator") && pathname.includes("/analytics")) {
+    menu.push({
+      groupLabel: "Analytics",
+      menus: [
+        {
+          href: "/tasks/annotatorDashboard",
+          label: "Overview",
+          active: false, // This will not be active since it redirects
+          icon: BarChart2,
+        },
+      ],
+    });
+  }
+
+  return menu;
 }

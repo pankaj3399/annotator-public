@@ -16,27 +16,30 @@ export function sortUserGroupsByLastMessage(userGroups: UserGroups[]): UserGroup
   return userGroups.sort((a, b) => {
     const lastMessageA = a.group.lastMessage ? new Date(a.group.lastMessage.sent_at).getTime() : 0;
     const lastMessageB = b.group.lastMessage ? new Date(b.group.lastMessage.sent_at).getTime() : 0;
-
-    // Sort in descending order (latest messages first)
     return lastMessageB - lastMessageA;
   });
 }
+
+// These are the actual values used in the database
 const validPermissions = ['noPermission', 'canReview'];
-const permissionsMap: { [key: string]: string } = {
-  "No Permission": "noPermission",
-  "Can Review": "canReview",
-};
 
 export const checkPermissions = (permissions: string[]): string[] | false => {
-  const mappedPermissions = permissions.map((perm) => permissionsMap[perm]);
+  // If permissions array is empty or null
+  if (!permissions || permissions.length === 0) {
+    return ['noPermission'];
+  }
 
-  if (mappedPermissions.includes('noPermission') && mappedPermissions.length > 1) {
+  // Check if all permissions are valid backend values
+  const areAllPermissionsValid = permissions.every(perm => validPermissions.includes(perm));
+
+  if (!areAllPermissionsValid) {
     return false;
   }
 
-  const areAllPermissionsValid = mappedPermissions.every((perm) => validPermissions.includes(perm));
+  // Check for invalid combinations (noPermission should be alone)
+  if (permissions.includes('noPermission') && permissions.length > 1) {
+    return false;
+  }
 
-  if (!areAllPermissionsValid) return false;
-
-  return mappedPermissions;
+  return permissions;
 };
