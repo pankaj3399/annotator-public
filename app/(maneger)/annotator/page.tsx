@@ -22,11 +22,20 @@ interface Option {
   label: string;
 }
 
+// Permission mapping between frontend display and backend values
+const permissionMapping: { [key: string]: string } = {
+  canReview: "Can Review",
+  noPermission: "No Permission",
+  "Can Review": "canReview",
+  "No Permission": "noPermission"
+};
+
 const permissions = ['No Permission', 'Can Review'];
 const permissionOptions: Option[] = permissions.map((permission) => ({
   value: permission,
   label: permission,
 }));
+;
 
 export default function AnnotatorsPage() {
   const [annotators, setAnnotators] = useState<User[]>([])
@@ -35,35 +44,47 @@ export default function AnnotatorsPage() {
   const [reviewPermissionsState, setReviewPermissionsState] = useState<{ [key: string]: string[] }>({});
   const { toast } = useToast()
 
-  const permissionMapping = {
-    noPermission: "No Permission",
-    canReview: 'Can Review',
-  };
-
   useEffect(() => {
     const fetchAnnotators = async () => {
-      const data = JSON.parse(await getAllAnnotators())
-      const transformedData = data.map((data: { permission: string[] | null | undefined }) => ({
-        ...data,
-        permission: (data.permission || []).map(permission =>
-          permissionMapping[permission as keyof typeof permissionMapping] || permission
-        ),
-      }));
+      try {
+        const data = JSON.parse(await getAllAnnotators())
+        const transformedData = data.map((annotator: User) => {
+          // Handle the case where permission is empty or contains backend values
+          const currentPermissions = annotator.permission || ['noPermission'];
+          
+          // Transform permissions to frontend format
+          const transformedPermissions = currentPermissions.map(perm => 
+            permissionMapping[perm] || 'No Permission'
+          );
 
-      setAnnotators(transformedData)
-      setFilteredAnnotators(data)
+          return {
+            ...annotator,
+            permission: transformedPermissions
+          };
+        });
 
-      // Initialize the reviewPermissionsState with data from the database
-      const initialPermissionsState = transformedData.reduce((acc: { [key: string]: string[] }, user: User) => {
-        acc[user._id] = user.permission || ['No Permission'];
-        return acc;
-      }, {});
+        setAnnotators(transformedData)
+        setFilteredAnnotators(transformedData)
 
-      setReviewPermissionsState(initialPermissionsState);
+        // Initialize the reviewPermissionsState
+        const initialPermissionsState = transformedData.reduce((acc: { [key: string]: string[] }, user: User) => {
+          acc[user._id] = user.permission;
+          return acc;
+        }, {});
+
+        setReviewPermissionsState(initialPermissionsState);
+      } catch (error) {
+        console.error('Error fetching annotators:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch annotators",
+        });
+      }
     }
 
     fetchAnnotators()
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     const filtered = annotators.filter(user =>
@@ -73,41 +94,56 @@ export default function AnnotatorsPage() {
     setFilteredAnnotators(filtered)
   }, [searchTerm, annotators])
 
-  const savePermissions = (userId: string) => {
+  const savePermissions = async (userId: string) => {
+    // Get the current permissions for this user
+    const currentPermissions = reviewPermissionsState[userId] || ['No Permission'];
+    
+    // Transform the permissions back to backend format
+    const backendPermissions = currentPermissions.map(permission => 
+      permissionMapping[permission] || permission
+    );
 
-    fetch(`/api/annotator`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ user_id: userId, permission: reviewPermissionsState[userId] }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const error = await res.json();
-          toast({
-            variant: "destructive",
-            title: "Uh oh! Something went wrong.",
-            description: error.message,
-          });
-        } else {
-          const data = await res.json();
-          toast({
-            variant: "default",
-            title: "Success!",
-            description: data.message,
-          });
-        }
-      })
-      .catch((error) =>
-        toast({
-          variant: "destructive",
-          title: "Uh oh! Something went wrong.",
-          description: error.message || "An unexpected error occurred.",
-        })
+    try {
+      const response = await fetch(`/api/annotator`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          user_id: userId, 
+          permission: backendPermissions
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update permissions');
+      }
+
+      const data = await response.json();
+      toast({
+        variant: "default",
+        title: "Success!",
+        description: data.message || "Permissions updated successfully",
+      });
+
+      // Update local state with the frontend display values
+      setAnnotators(prevAnnotators => 
+        prevAnnotators.map(annotator => 
+          annotator._id === userId 
+            ? { ...annotator, permission: reviewPermissionsState[userId] }
+            : annotator
+        )
       );
-  }
 
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Uh oh! Something went wrong.",
+        description: error.message || "An unexpected error occurred.",
+      });
+    }
+  }
   return (
     <div className="min-h-screen">
       <header className="bg-white">
@@ -148,7 +184,7 @@ export default function AnnotatorsPage() {
               </TableHeader>
               <TableBody>
                 {filteredAnnotators.map((user) => {
-                  const localReviewPermission = reviewPermissionsState[user._id] || ['Not Allowed'];
+                  const localReviewPermission = reviewPermissionsState[user._id] || ['No Permission'];
 
                   return (
                     <TableRow key={user._id} className="cursor-pointer hover:bg-gray-50">
