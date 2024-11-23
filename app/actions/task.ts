@@ -1,42 +1,52 @@
-'use server'
-import mongoose from 'mongoose'
+"use server";
+import mongoose from "mongoose";
 import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
 import { template } from "../template/page";
-import Rework from '@/models/Rework';
-import { AIJob } from '@/models/aiModel';
+import Rework from "@/models/Rework";
+import { AIJob } from "@/models/aiModel";
 
-export async function updateTask(template: template, _id: string, projectid: string,time:number) {
+export async function updateTask(
+  template: template,
+  _id: string,
+  projectid: string,
+  time: number
+) {
   await connectToDatabase();
 
-  const res = await Task.findOneAndUpdate({ _id }, {
-    ...template,
-    content: template.content,
-    submitted: true,
-    project: projectid,
-    timeTaken:time
-  });
+  const res = await Task.findOneAndUpdate(
+    { _id },
+    {
+      ...template,
+      content: template.content,
+      submitted: true,
+      project: projectid,
+      timeTaken: time,
+    }
+  );
 
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
-export async function createTasks(tasks: {
-  project: string;
-  name: string;
-  content: string;
-  timer: number;
-  reviewer: string; 
-}[]) {
+export async function createTasks(
+  tasks: {
+    project: string;
+    name: string;
+    content: string;
+    timer: number;
+    reviewer: string;
+  }[]
+) {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
-  
+
   if (!session || !session.user) {
     throw new Error("Unauthorized");
   }
 
-  const taskData = tasks.map(task => ({
+  const taskData = tasks.map((task) => ({
     ...task,
     project_Manager: session.user.id,
     reviewer: task.reviewer || null,
@@ -45,47 +55,51 @@ export async function createTasks(tasks: {
   await Task.insertMany(taskData);
 }
 
-
 export async function getAllTasks(projectid: string) {
   await connectToDatabase();
   const res = await Task.find({ project: projectid });
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
 export async function getATask(projectid: string) {
   await connectToDatabase();
   const res = await Task.findOne({ project: projectid });
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
 export async function getAllAcceptedTasks(projectid: string) {
   await connectToDatabase();
-  const res = await Task.find({ project: projectid, status: 'accepted' });
-  return JSON.stringify(res)
+  const res = await Task.find({ project: projectid, status: "accepted" });
+  return JSON.stringify(res);
 }
 
 export async function deleteTask(_id: string) {
   await connectToDatabase();
   await AIJob.deleteMany({ taskid: _id });
   const res = await Task.deleteOne({ _id });
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
-export async function changeAnnotator(_id: string, annotator: string, ai: boolean = false, isReviewer: boolean = false) {
+export async function changeAnnotator(
+  _id: string,
+  annotator: string,
+  ai: boolean = false,
+  isReviewer: boolean = false
+) {
   await connectToDatabase();
-  
+
   // If AI is being assigned
   if (ai) {
     const res = await Task.findOneAndUpdate(
-      { _id }, 
+      { _id },
       {
         annotator: null,
         ai: annotator,
         // Don't modify reviewer when assigning AI
-        $setOnInsert: { reviewer: undefined }
+        $setOnInsert: { reviewer: undefined },
       },
       {
-        new: true
+        new: true,
       }
     );
     return JSON.stringify(res);
@@ -98,10 +112,10 @@ export async function changeAnnotator(_id: string, annotator: string, ai: boolea
       {
         reviewer: annotator,
         // Don't modify existing annotator or AI status
-        $setOnInsert: { ai: null }
+        $setOnInsert: { ai: null },
       },
       {
-        new: true
+        new: true,
       }
     );
     return JSON.stringify(res);
@@ -114,10 +128,10 @@ export async function changeAnnotator(_id: string, annotator: string, ai: boolea
       annotator,
       ai: null,
       // Don't modify existing reviewer
-      $setOnInsert: { reviewer: undefined }
+      $setOnInsert: { reviewer: undefined },
     },
     {
-      new: true
+      new: true,
     }
   );
   return JSON.stringify(res);
@@ -129,7 +143,7 @@ export async function getTasksByProject(id: string) {
   const annotatorId = session?.user.id;
 
   const res = await Task.find({ annotator: annotatorId, project: id });
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
 export async function getTasksOfAnnotator() {
@@ -138,16 +152,21 @@ export async function getTasksOfAnnotator() {
   const annotatorId = session?.user.id;
 
   const res = await Task.find({ annotator: annotatorId });
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
 export async function getTask(_id: string) {
   await connectToDatabase();
   const res = await Task.findById(_id);
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
 
-export async function setTaskStatus(_id: string, status: string, feedback?: string, annotator?: string) {
+export async function setTaskStatus(
+  _id: string,
+  status: string,
+  feedback?: string,
+  annotator?: string
+) {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const userId = session?.user.id;
@@ -156,26 +175,32 @@ export async function setTaskStatus(_id: string, status: string, feedback?: stri
     throw new Error("Unauthorized");
   }
 
-  if (status == 'reassigned') {
-    const res = await Task.findOneAndUpdate({ _id }, {
-      submitted: false,
-      status,
-      timeTaken: 0,
-      feedback: '',
-      annotator,
-      ai: false
-    })
-    return res.status
+  if (status == "reassigned") {
+    const res = await Task.findOneAndUpdate(
+      { _id },
+      {
+        submitted: false,
+        status,
+        timeTaken: 0,
+        feedback: "",
+        annotator,
+        ai: null, // Set to null instead of false
+      }
+    );
+    return res.status;
   }
 
-  if (status == 'rejected') {
-    const res = await Task.findOneAndUpdate({ _id }, {
-      submitted: false,
-      status,
-      timeTaken: 0,
-      feedback,
-      ai: false
-    })
+  if (status == "rejected") {
+    const res = await Task.findOneAndUpdate(
+      { _id },
+      {
+        submitted: false,
+        status,
+        timeTaken: 0,
+        feedback,
+        ai: null, // Set to null instead of false
+      }
+    );
 
     // Create rework record with reviewer information
     await Rework.create({
@@ -186,17 +211,37 @@ export async function setTaskStatus(_id: string, status: string, feedback?: stri
       annotator: res.annotator,
       reviewer: userId, // Add reviewer information
       task: res._id,
-      feedback: res.feedback
-    })
+      feedback: res.feedback,
+    });
 
-    return res.status
+    return res.status;
   }
 
-  const res = await Task.findOneAndUpdate({ _id }, {
-    status,
-    feedback: '',
-  });
-  return res.status
+  const sanitizedAI = typeof annotator === "string" ? annotator : null;
+
+  if (status == "reassigned") {
+    const res = await Task.findOneAndUpdate(
+      { _id },
+      {
+        submitted: false,
+        status,
+        timeTaken: 0,
+        feedback: "",
+        annotator,
+        ai: sanitizedAI, // Use sanitized value
+      }
+    );
+    return res.status;
+  }
+
+  const res = await Task.findOneAndUpdate(
+    { _id },
+    {
+      status,
+      feedback: "",
+    }
+  );
+  return res.status;
 }
 export async function getDistinctProjectsByAnnotator() {
   await connectToDatabase();
@@ -204,18 +249,25 @@ export async function getDistinctProjectsByAnnotator() {
   const annotatorId = session?.user.id;
 
   try {
-      const uniqueProjects = await Task.aggregate([
-        { $match: { annotator: new mongoose.Types.ObjectId(annotatorId) } },
-        { $group: { _id: "$project" } },
-        { $lookup: { from: 'projects', localField: '_id', foreignField: '_id', as: 'projectDetails' } },
-        { $unwind: "$projectDetails" },
-        { $project: { _id: 0, project: "$projectDetails" } }
-      ]);
-      const pro= uniqueProjects.map(project => project.project)
+    const uniqueProjects = await Task.aggregate([
+      { $match: { annotator: new mongoose.Types.ObjectId(annotatorId) } },
+      { $group: { _id: "$project" } },
+      {
+        $lookup: {
+          from: "projects",
+          localField: "_id",
+          foreignField: "_id",
+          as: "projectDetails",
+        },
+      },
+      { $unwind: "$projectDetails" },
+      { $project: { _id: 0, project: "$projectDetails" } },
+    ]);
+    const pro = uniqueProjects.map((project) => project.project);
 
-      return JSON.stringify(pro)
+    return JSON.stringify(pro);
   } catch (error) {
-    console.error('Error fetching distinct projects by annotator:', error);
+    console.error("Error fetching distinct projects by annotator:", error);
     throw error;
   }
 }
@@ -229,18 +281,17 @@ export async function getTasksToReview() {
     throw new Error("Unauthorized");
   }
 
-  const res = await Task.find({ 
+  const res = await Task.find({
     reviewer: reviewerId,
     submitted: true,
-    status: 'pending'
+    status: "pending",
   }).populate([
-    { path: 'project', select: 'name' },
-    { path: 'annotator', select: 'name email' }
+    { path: "project", select: "name" },
+    { path: "annotator", select: "name email" },
   ]);
 
-  return JSON.stringify(res)
+  return JSON.stringify(res);
 }
-
 
 export async function getDistinctProjectsByReviewer() {
   await connectToDatabase();
@@ -251,14 +302,21 @@ export async function getDistinctProjectsByReviewer() {
     const uniqueProjects = await Task.aggregate([
       { $match: { reviewer: new mongoose.Types.ObjectId(reviewerId) } },
       { $group: { _id: "$project" } },
-      { $lookup: { from: 'projects', localField: '_id', foreignField: '_id', as: 'projectDetails' } },
+      {
+        $lookup: {
+          from: "projects",
+          localField: "_id",
+          foreignField: "_id",
+          as: "projectDetails",
+        },
+      },
       { $unwind: "$projectDetails" },
-      { $project: { _id: 0, project: "$projectDetails" } }
+      { $project: { _id: 0, project: "$projectDetails" } },
     ]);
-    
-    return JSON.stringify(uniqueProjects.map(project => project.project))
+
+    return JSON.stringify(uniqueProjects.map((project) => project.project));
   } catch (error) {
-    console.error('Error fetching distinct projects by reviewer:', error);
+    console.error("Error fetching distinct projects by reviewer:", error);
     throw error;
   }
 }
@@ -274,21 +332,21 @@ export async function assignReviewer(_id: string, reviewerId: string | null) {
 
   // Find the task to ensure it belongs to the user's project
   const existingTask = await Task.findById(_id);
-  
+
   if (!existingTask) {
     throw new Error("Task not found");
   }
 
   // Perform the update
   const res = await Task.findOneAndUpdate(
-    { _id }, 
-    { 
+    { _id },
+    {
       reviewer: reviewerId,
       // Ensure AI is set to null when assigning a reviewer
-      ai: null 
+      ai: null,
     },
-    { 
-      new: true 
+    {
+      new: true,
     }
   );
 
