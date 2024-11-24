@@ -212,10 +212,10 @@ export default function AuthPageComponent() {
       <div className="h-screen flex justify-center items-center">
         <div>
           <h1 className="text-4xl font-bold text-left mb-8">
-            Choose your role
+            What's Your Mission?
           </h1>
           <p className="text-left mb-8 text-muted-foreground">
-            You can&apos;t switch roles with the same account
+            Choose the role that aligns with your goals.
           </p>
           <div className="grid md:grid-cols-2 gap-6">
             <Card
@@ -225,23 +225,23 @@ export default function AuthPageComponent() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Pencil className="mr-2 h-6 w-6" />
-                  Annotator
+                  Domain Expert
                 </CardTitle>
-                <CardDescription>I&apos;m ready to earn money</CardDescription>
+                <CardDescription>Sign up and earn on your terms.</CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="mt-4 space-y-2">
                   <li className="flex items-center">
                     <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-                    Complete simple tasks and get paid
+                    Complete meaningful tasks and get paid fast.
                   </li>
                   <li className="flex items-center">
                     <DollarSign className="mr-2 h-4 w-4 text-green-500" />
-                    Earn money whenever you want
+                    Work whenever, wherever - total flexibility.
                   </li>
                   <li className="flex items-center">
                     <Clock className="mr-2 h-4 w-4 text-green-500" />
-                    Work on your own schedule
+                    Your skills, your schedule, your rewards.
                   </li>
                 </ul>
               </CardContent>
