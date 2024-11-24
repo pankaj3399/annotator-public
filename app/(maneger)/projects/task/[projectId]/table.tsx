@@ -53,7 +53,7 @@ export function TaskTable({
     // Filter reviewers to only show those with "canReview" permission
     const filteredReviewers = reviewers.filter(reviewer => 
         (reviewer.permission && reviewer.permission.includes('canReview')) || 
-        (session?.user && reviewer._id === session.user.id) // Always include project manager
+        (session?.user && reviewer._id === session.user.id) 
     );
 
     const handleClick = (e: React.MouseEvent, feedback: string) => {
@@ -124,6 +124,7 @@ export function TaskTable({
     const handleReviewerChange = async (value: string, task: Task) => {
         try {
             const actualValue = value === "unassigned" ? "" : value;
+            console.log("value:", actualValue);
 
             // Check if reviewer would be same as annotator
             if (actualValue === task.annotator) {

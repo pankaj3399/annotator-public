@@ -79,7 +79,6 @@ export async function deleteTask(_id: string) {
   const res = await Task.deleteOne({ _id });
   return JSON.stringify(res);
 }
-
 export async function changeAnnotator(
   _id: string,
   annotator: string,
@@ -93,10 +92,10 @@ export async function changeAnnotator(
     const res = await Task.findOneAndUpdate(
       { _id },
       {
-        annotator: null,
-        ai: annotator,
-        // Don't modify reviewer when assigning AI
-        $setOnInsert: { reviewer: undefined },
+        $set: {
+          annotator: null,
+          ai: annotator
+        }
       },
       {
         new: true,
@@ -107,12 +106,30 @@ export async function changeAnnotator(
 
   // If assigning a reviewer
   if (isReviewer) {
+    // If annotator is being unassigned (empty string)
+    if (!annotator) {
+      const res = await Task.findOneAndUpdate(
+        { _id },
+        {
+          $set: { reviewer: null }
+        },
+        {
+          new: true,
+        }
+      );
+      return JSON.stringify(res);
+    }
+
+    // Check if the reviewer is not the same as the current annotator
+    const task = await Task.findById(_id);
+    if (task && task.annotator === annotator) {
+      throw new Error("Reviewer cannot be the same as annotator");
+    }
+
     const res = await Task.findOneAndUpdate(
       { _id },
       {
-        reviewer: annotator,
-        // Don't modify existing annotator or AI status
-        $setOnInsert: { ai: null },
+        $set: { reviewer: annotator }
       },
       {
         new: true,
@@ -122,13 +139,36 @@ export async function changeAnnotator(
   }
 
   // If assigning an annotator (default case)
+  // First check if the annotator is not the same as current reviewer
+  const existingTask = await Task.findById(_id);
+  if (existingTask && existingTask.reviewer === annotator) {
+    throw new Error("Annotator cannot be the same as reviewer");
+  }
+
+  // If annotator is being unassigned (empty string)
+  if (!annotator) {
+    const res = await Task.findOneAndUpdate(
+      { _id },
+      {
+        $set: {
+          annotator: null,
+          ai: null
+        }
+      },
+      {
+        new: true,
+      }
+    );
+    return JSON.stringify(res);
+  }
+
   const res = await Task.findOneAndUpdate(
     { _id },
     {
-      annotator,
-      ai: null,
-      // Don't modify existing reviewer
-      $setOnInsert: { reviewer: undefined },
+      $set: {
+        annotator,
+        ai: null
+      }
     },
     {
       new: true,
@@ -281,16 +321,45 @@ export async function getTasksToReview() {
     throw new Error("Unauthorized");
   }
 
-  const res = await Task.find({
-    reviewer: reviewerId,
-    submitted: true,
-    status: "pending",
-  }).populate([
-    { path: "project", select: "name" },
-    { path: "annotator", select: "name email" },
-  ]);
+  try {
+    // Find tasks where:
+    // 1. The user is assigned as reviewer
+    // 2. Task status is any valid review status
+    // 3. Include both submitted and unsubmitted tasks for better visibility
+    const res = await Task.find({
+      reviewer: reviewerId,
+      // Include tasks that need review or are in review process
+      status: { 
+        $in: ["pending", "accepted", "rejected", "reassigned"] 
+      }
+    })
+    .populate([
+      { 
+        path: "project", 
+        select: "name" 
+      },
+      { 
+        path: "annotator", 
+        select: "name email" 
+      }
+    ])
+    .sort({ 
+      // Sort by submission status first (submitted tasks first)
+      submitted: -1,
+      // Then by status (pending first)
+      status: 1,
+      // Then by creation date (newest first)
+      created_at: -1 
+    });
 
-  return JSON.stringify(res);
+    // Log for debugging
+    console.log(`Found ${res.length} tasks for reviewer ${reviewerId}`);
+    
+    return JSON.stringify(res);
+  } catch (error) {
+    console.error("Error in getTasksToReview:", error);
+    throw new Error("Failed to fetch review tasks");
+  }
 }
 
 export async function getDistinctProjectsByReviewer() {
