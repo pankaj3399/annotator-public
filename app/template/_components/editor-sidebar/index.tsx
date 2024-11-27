@@ -1,8 +1,11 @@
-'use client'
 import { useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
 import ComponentsTab from './tabs/components-tab'
 import SettingsTab from './tabs/settings-tab'
+import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 
 type Props = {
   projectId: string
@@ -10,6 +13,7 @@ type Props = {
 
 const EditorSidebar = ({ projectId }: Props) => {
   const { state } = useEditor()
+  const hasSelectedElement = state.editor.selectedElement.id !== ''
 
   return (
     <>
@@ -54,9 +58,29 @@ const EditorSidebar = ({ projectId }: Props) => {
                 Show your creativity! You can customize every component as you like.
               </p>
             </div>
-            <div>
-              <SettingsTab />
-            </div>
+            
+            {hasSelectedElement ? (
+              <div className="space-y-6">
+                {/* Properties Section */}
+                <PropertyPanel />
+                
+                <Separator className="my-4" />
+                
+                {/* Styles Section */}
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="styles">
+                    <AccordionTrigger>Styles</AccordionTrigger>
+                    <AccordionContent>
+                      <SettingsTab />
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
+                Select an element to view its properties
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -1,13 +1,9 @@
 'use client'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { EditorBtns } from '@/lib/constants'
-import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
-import clsx from 'clsx'
-import { Trash } from 'lucide-react'
 
+import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
+import { Textarea } from '@/components/ui/textarea'
+import { Trash } from 'lucide-react'
+import clsx from 'clsx'
 import React from 'react'
 
 type Props = {
@@ -15,22 +11,27 @@ type Props = {
 }
 
 const InputText = (props: Props) => {
-  const { dispatch, state, subaccountId, funnelId, pageDetails } = useEditor()
-  const [name, setName] = React.useState(props.element.name)
-  const [charLimit, setCharLimit] = React.useState(props.element.content?.limit || 10000)
-  const [wordLimit, setWordLimit] = React.useState(props.element.content?.wordLimit || 1000)
-  const initialText = React.useMemo(() => {
-    if (Array.isArray(props.element.content)) {
-      return ''
-    }
-    return props.element.content?.innerText || ''
-  }, [props.element.content])
+  const { dispatch, state, pageDetails } = useEditor()
 
-  const [text, setText] = React.useState(initialText)
+  const [elementContent, setElementContent] = React.useState({
+    innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
+    charLimit: !Array.isArray(props.element.content) ? props.element.content?.limit || 10000 : 10000,
+    wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000
+  })
 
-  const handleDragStart = (e: React.DragEvent, type: EditorBtns) => {
-    if (type === null) return
-    e.dataTransfer.setData('componentType', type)
+  React.useEffect(() => {
+    setElementContent({
+      innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
+      charLimit: !Array.isArray(props.element.content) ? props.element.content?.limit || 10000 : 10000,
+      wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000
+    })
+  }, [props.element])
+
+  const handleDeleteElement = () => {
+    dispatch({
+      type: 'DELETE_ELEMENT',
+      payload: { elementDetails: props.element },
+    })
   }
 
   const handleOnClickBody = (e: React.MouseEvent) => {
@@ -43,119 +44,69 @@ const InputText = (props: Props) => {
     })
   }
 
-  const styles = props.element.styles
+  const countWords = (text: string) => text.trim().split(/\s+/).length
 
-  const handleDeleteElement = () => {
-    dispatch({
-      type: 'DELETE_ELEMENT',
-      payload: { elementDetails: props.element },
-    })
+  const handleContentChange = (value: string) => {
+    const wordCount = countWords(value)
+    
+    // Only update if within limits
+    if (value.length <= elementContent.charLimit && wordCount <= elementContent.wordLimit) {
+      setElementContent(prev => ({ ...prev, innerText: value }))
+      
+      dispatch({
+        type: 'UPDATE_ELEMENT',
+        payload: {
+          elementDetails: {
+            ...props.element,
+            content: {
+              ...((!Array.isArray(props.element.content) && props.element.content) || {}),
+              innerText: value,
+            },
+          },
+        },
+      })
+    }
   }
 
-  const countWords = (text: string) => text.trim().split(/\s+/).length;
+  const isSelected = state.editor.selectedElement.id === props.element.id
+  const isLiveMode = state.editor.liveMode
 
   return (
     <div
-      style={styles}
-      draggable
-      onDragStart={(e) => handleDragStart(e, 'inputText')}
-      onClick={handleOnClickBody}
+      style={props.element.styles}
       className={clsx(
         'p-[2px] w-full m-[5px] relative text-[16px] transition-all flex items-center justify-center',
         {
-          '!border-blue-500':
-            state.editor.selectedElement.id === props.element.id,
-          '!border-solid': state.editor.selectedElement.id === props.element.id,
-          'border-dashed border-[1px] border-slate-300': !state.editor.liveMode,
+          '!border-blue-500': isSelected,
+          '!border-solid': isSelected,
+          'border-dashed border-[1px] border-slate-300': !isLiveMode,
         }
       )}
+      onClick={handleOnClickBody}
     >
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <div className="absolute -top-[23px] -left-[1px] flex">
-            <Input className="w-full h-6 bg-black text-white font-semibold text-xs rounded-none rounded-t-lg" placeholder='title' value={name} onChange={(e) => setName(e.target.value)}
-              onBlur={(e) => dispatch({
-                type: 'UPDATE_ELEMENT',
-                payload: {
-                  elementDetails: { ...props.element, name: e.target.value},
-                },
-              })} />
-            <span className="flex">
-              <Label htmlFor="char" className='w-full px-1 h-6 text-nowrap inline-flex items-center justify-center bg-black text-white font-semibold text-xs rounded-none rounded-tl-lg'>Char limit:</Label>
-              <Input className="w-full h-6 bg-black text-white font-semibold text-xs rounded-none rounded-tr-lg" placeholder='Char limit' type="number" value={charLimit} onChange={(e) => setCharLimit(parseInt(e.target.value))}
-                onBlur={(e) => dispatch({
-                  type: 'UPDATE_ELEMENT',
-                  payload: {
-                    elementDetails: {
-                      ...props.element,
-                      content: {
-                        ...props.element.content,
-                        limit: charLimit,
-                      },
-                    },
-                  },
-                })} />
-              <Label htmlFor="word" className='w-full inline-flex items-center justify-center px-1 h-6 text-nowrap bg-black text-white font-semibold text-xs rounded-none rounded-tl-lg'>Word limit:</Label>
-              <Input className="w-full h-6 bg-black text-white font-semibold text-xs rounded-none rounded-tr-lg" placeholder='Word limit' type="number" value={wordLimit} onChange={(e) => setWordLimit(parseInt(e.target.value))}
-                onBlur={(e) => dispatch({
-                  type: 'UPDATE_ELEMENT',
-                  payload: {
-                    elementDetails: {
-                      ...props.element,
-                      content: {
-                        ...props.element.content,
-                        wordLimit: wordLimit,
-                      },
-                    },
-                  },
-                })} />
-            </span>
-          </div>
-        )}
-
-      <form className="flex w-full items-center space-x-2" >
-        <Textarea placeholder="write here" required value={text} maxLength={charLimit} disabled={pageDetails.submitted}
-          onChange={(e) => {
-            const inputValue = e.target.value;
-            const wordCount = countWords(inputValue);
-
-            // Update text if within character and word limits
-            if (inputValue.length <= charLimit && wordCount <= wordLimit) {
-              setText(inputValue);
-            }
-          }}
-          onBlur={(e) => {
-            const inputValue = e.target.value;
-            dispatch({
-              type: 'UPDATE_ELEMENT',
-              payload: {
-                elementDetails: {
-                  ...props.element,
-                  content: {
-                    ...props.element.content,
-                    innerText: inputValue,
-                  },
-                },
-              },
-            })
-          }}
-        />
-        {/* <div className="flex flex-col items-start mt-2 text-xs">
-          <div>Characters: {text.length}/{charLimit}</div>
-          <div>Words: {countWords(text)}/{wordLimit}</div>
-        </div> */}
-      </form>
-
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <div className="absolute bg-primary px-2.5 py-1 text-xs font-bold -top-[25px] -right-[1px] rounded-none rounded-t-lg !text-white">
+      {isSelected && !isLiveMode && (
+        <div className="absolute -top-[25px] right-[0px]">
+          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
             <Trash
               className="cursor-pointer"
               size={16}
               onClick={handleDeleteElement}
             />
           </div>
-        )}
+        </div>
+      )}
+
+      <form className="flex w-full items-center space-x-2">
+        <Textarea 
+          placeholder="write here" 
+          required 
+          value={elementContent.innerText}
+          maxLength={elementContent.charLimit}
+          disabled={pageDetails.submitted}
+          onChange={(e) => handleContentChange(e.target.value)}
+          className="w-full"
+        />
+      </form>
     </div>
   )
 }

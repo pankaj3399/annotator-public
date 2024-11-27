@@ -1,331 +1,169 @@
 'use client'
-import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
-import React from 'react'
-import RecursiveElement from './recursive'
 
-import { v4 } from 'uuid'
-import clsx from 'clsx'
 import { Badge } from '@/components/ui/badge'
 import { EditorBtns, defaultStyles } from '@/lib/constants'
+import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
+import clsx from 'clsx'
+import React from 'react'
+import { v4 } from 'uuid'
+import RecursiveElement from './recursive'
 
 type Props = {
   element: EditorElement
 }
 
-const TwoColumns = (props: Props) => {
-  const { id, content, type } = props.element
+type ElementConfigType = {
+  [K in Exclude<EditorBtns, null>]: {
+    content: any
+    name: string
+    styles: Record<string, any>
+  }
+}
+
+// Map of element configurations for cleaner element creation
+const ELEMENT_CONFIGS: ElementConfigType = {
+  text: {
+    content: { innerText: 'Text Component' },
+    name: 'Text',
+    styles: { color: 'black', ...defaultStyles },
+  },
+  container: {
+    content: [],
+    name: 'Container',
+    styles: { ...defaultStyles },
+  },
+  '2Col': {
+    content: [],
+    name: 'Two Columns',
+    styles: { ...defaultStyles },
+  },
+  '3Col': {
+    content: [],
+    name: 'Three Columns',
+    styles: { ...defaultStyles },
+  },
+  section: {
+    content: [],
+    name: 'Section',
+    styles: { ...defaultStyles },
+  },
+  dynamicText: {
+    content: { innerText: "{{text}}" },
+    name: 'Dynamic Text',
+    styles: { color: 'black', ...defaultStyles },
+  },
+  link: {
+    content: { innerText: 'Link Element', href: '#' },
+    name: 'Link',
+    styles: { color: 'black', ...defaultStyles },
+  },
+  video: {
+    content: { src: '' },
+    name: 'Video',
+    styles: {},
+  },
+  dynamicVideo: {
+    content: { src: '{{video}}' },
+    name: 'Dynamic Video',
+    styles: {},
+  },
+  dynamicImage: {
+    content: { src: '{{img}}' },
+    name: 'Dynamic Image',
+    styles: {},
+  },
+  image: {
+    content: { href: '{{img}}' },
+    name: 'Image',
+    styles: {},
+  },
+  audio: {
+    content: { src: '' },
+    name: 'Audio',
+    styles: {},
+  },
+  dynamicAudio: {
+    content: { src: '{{audio}}' },
+    name: 'Dynamic Audio',
+    styles: {},
+  },
+  checkbox: {
+    content: { selectedCheckbox: [] },
+    name: 'Checkbox',
+    styles: {},
+  },
+  dynamicCheckbox: {
+    content: { checkboxes: ["{{checkbox}}"] },
+    name: 'Dynamic Checkbox',
+    styles: {},
+  },
+  recordAudio: {
+    content: {},
+    name: 'Record Audio',
+    styles: {},
+  },
+  recordVideo: {
+    content: {},
+    name: 'Record Video',
+    styles: {},
+  },
+  inputRecordVideo: {
+    content: { src: '' },
+    name: 'Input Record Video',
+    styles: {},
+  },
+  inputRecordAudio: {
+    content: { src: '' },
+    name: 'Input Record Audio',
+    styles: {},
+  },
+  inputText: {
+    content: { innerText: '', limit: 10000 },
+    name: 'Input Text',
+    styles: { ...defaultStyles, width: '100%' },
+  },
+  '__body': {
+    content: [],
+    name: 'Body',
+    styles: {},
+  },
+}
+
+const TwoColumns = ({ element }: Props) => {
+  const { id, content, type } = element
   const { dispatch, state } = useEditor()
 
-  const handleOnDrop = (e: React.DragEvent, type: string) => {
+  const handleAddElement = (componentType: Exclude<EditorBtns, null>) => {
+    const config = ELEMENT_CONFIGS[componentType]
+    if (!config) return
+
+    dispatch({
+      type: 'ADD_ELEMENT',
+      payload: {
+        containerId: id,
+        elementDetails: {
+          content: config.content,
+          id: v4(),
+          name: config.name,
+          styles: config.styles,
+          type: componentType,
+        },
+      },
+    })
+  }
+
+  const handleOnDrop = (e: React.DragEvent) => {
     e.stopPropagation()
-    const componentType = e.dataTransfer.getData('componentType') as EditorBtns
-    switch (componentType) {
-      case 'text':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: { innerText: 'Text Component' },
-              id: v4(),
-              name: 'Text',
-              styles: {
-                color: 'black',
-                ...defaultStyles,
-              },
-              type: 'text',
-            },
-          },
-        })
-        break
-      case 'container':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: [],
-              id: v4(),
-              name: 'Container',
-              styles: { ...defaultStyles },
-              type: 'container',
-            },
-          },
-        })
-        break
-      case '2Col':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: [],
-              id: v4(),
-              name: 'Two Columns',
-              styles: { ...defaultStyles },
-              type: '2Col',
-            },
-          },
-        })
-        break
-      case 'dynamicText':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                innerText: "{{text}}",
-              },
-              id: v4(),
-              name: 'dynamicText',
-              styles: {
-                color: 'black',
-                ...defaultStyles,
-              },
-              type: 'dynamicText',
-            },
-          },
-        })
-        break
-      case 'link':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                innerText: 'Link Element',
-                href: '#',
-              },
-              id: v4(),
-              name: 'Link',
-              styles: {
-                color: 'black',
-                ...defaultStyles,
-              },
-              type: 'link',
-            },
-          },
-        })
-        break
-      case 'video':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                src: '',
-              },
-              id: v4(),
-              name: 'Video',
-              styles: {},
-              type: 'video',
-            },
-          },
-        })
-        break
-      case 'dynamicVideo':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                src: '{{video}}',
-              },
-              id: v4(),
-              name: 'Dynamic Video',
-              styles: {},
-              type: 'dynamicVideo',
-            },
-          },
-        })
-        break
-      case 'dynamicImage':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                src: '{{img}}',
-              },
-              id: v4(),
-              name: 'Dynamic image',
-              styles: {},
-              type: 'dynamicImage',
-            },
-          },
-        })
-        break
-      case 'image':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                href: '{{img}}',
-              },
-              id: v4(),
-              name: 'Image',
-              styles: {},
-              type: 'image',
-            },
-          },
-        })
-        break
-      case 'audio':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                src: '',
-              },
-              id: v4(),
-              name: 'audio',
-              styles: {},
-              type: 'audio',
-            },
-          },
-        })
-        break
-      case 'dynamicAudio':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                src: '{{audio}}',
-              },
-              id: v4(),
-              name: 'audio',
-              styles: {},
-              type: 'dynamicAudio',
-            },
-          },
-        })
-        break
-      case 'checkbox':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                selectedCheckbox: [],
-              },
-              id: v4(),
-              name: 'checkbox',
-              styles: {},
-              type: 'checkbox',
-            },
-          },
-        })
-        break
-      case 'dynamicCheckbox':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {
-                checkboxes: ["{{checkbox}}"],
-              },
-              id: v4(),
-              name: 'dynamicCheckbox',
-              styles: {},
-              type: 'dynamicCheckbox',
-            },
-          },
-        })
-        break
-      case 'recordAudio':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {},
-              id: v4(),
-              name: 'recordAudio',
-              styles: {},
-              type: 'recordAudio',
-            },
-          },
-        })
-        break
-      case 'recordVideo':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: {},
-              id: v4(),
-              name: 'recordVideo',
-              styles: {},
-              type: 'recordVideo',
-            },
-          },
-        })
-        break
-      case 'inputRecordVideo':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: { src: '' },
-              id: v4(),
-              name: 'inputRecordVideo',
-              styles: {},
-              type: 'inputRecordVideo',
-            },
-          },
-        })
-        break
-      case 'inputRecordAudio':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: { src: '' },
-              id: v4(),
-              name: 'inputRecordAudio',
-              styles: {},
-              type: 'inputRecordAudio',
-            },
-          },
-        })
-        break
-      case 'inputText':
-        dispatch({
-          type: 'ADD_ELEMENT',
-          payload: {
-            containerId: id,
-            elementDetails: {
-              content: { innerText: '', limit: 10000 },
-              id: v4(),
-              name: 'input Text',
-              styles: { ...defaultStyles, width: '100%' },
-              type: 'inputText',
-            },
-          },
-        })
-        break
+    const componentType = e.dataTransfer.getData('componentType') as Exclude<EditorBtns, null>
+    if (componentType) {
+      handleAddElement(componentType)
     }
   }
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
   }
+
   const handleDragStart = (e: React.DragEvent, type: string) => {
     if (type === '__body') return
     e.dataTransfer.setData('componentType', type)
@@ -336,46 +174,45 @@ const TwoColumns = (props: Props) => {
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
       payload: {
-        elementDetails: props.element,
+        elementDetails: element,
       },
     })
   }
 
+  const isSelected = state.editor.selectedElement.id === element.id
+  const isLiveMode = state.editor.liveMode
+  const isBodyType = type === '__body'
+
   return (
     <div
-      style={props.element.styles}
+      style={element.styles}
       className={clsx('relative p-4 transition-all', {
         'h-fit': type === 'container',
-        'h-full': type === '__body',
+        'h-full': isBodyType,
         'm-4': type === 'container',
-        '!border-blue-500':
-          state.editor.selectedElement.id === props.element.id &&
-          !state.editor.liveMode,
-        '!border-solid':
-          state.editor.selectedElement.id === props.element.id &&
-          !state.editor.liveMode,
-        'border-dashed border-[1px] border-slate-300': !state.editor.liveMode,
+        '!border-blue-500': isSelected && !isLiveMode,
+        '!border-solid': isSelected && !isLiveMode,
+        'border-dashed border-[1px] border-slate-300': !isLiveMode,
       })}
       id="innerContainer"
-      onDrop={(e) => handleOnDrop(e, id)}
+      onDrop={handleOnDrop}
       onDragOver={handleDragOver}
-      draggable={type !== '__body'}
+      draggable={!isBodyType}
       onClick={handleOnClickBody}
       onDragStart={(e) => handleDragStart(e, 'container')}
     >
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <Badge className="absolute -top-[23px] -left-[1px] rounded-none rounded-t-lg ">
-            {state.editor.selectedElement.name}
-          </Badge>
-        )}
-      {Array.isArray(content) &&
-        content.map((childElement) => (
-          <RecursiveElement
-            key={childElement.id}
-            element={childElement}
-          />
-        ))}
+      {isSelected && !isLiveMode && (
+        <Badge className="absolute -top-[23px] -left-[1px] rounded-none rounded-t-lg">
+          {state.editor.selectedElement.name}
+        </Badge>
+      )}
+      
+      {Array.isArray(content) && content.map((childElement) => (
+        <RecursiveElement
+          key={childElement.id}
+          element={childElement}
+        />
+      ))}
     </div>
   )
 }

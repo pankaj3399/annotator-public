@@ -1,14 +1,11 @@
 'use client'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { EditorBtns } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
 import { Trash } from 'lucide-react'
 import React from 'react'
-import AudioPlayer from 'react-h5-audio-player';
-import 'react-h5-audio-player/lib/styles.css';
+import AudioPlayer from 'react-h5-audio-player'
+import 'react-h5-audio-player/lib/styles.css'
 
 type Props = {
   element: EditorElement
@@ -16,25 +13,25 @@ type Props = {
 
 const AudioComponent = (props: Props) => {
   const { dispatch, state } = useEditor()
-  const [name, setName] = React.useState(props.element.name)
 
-  const styles = props.element.styles
+  const [elementContent, setElementContent] = React.useState({
+    src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
+  })
 
-  const initialSrc = React.useMemo(() => {
-    if (Array.isArray(props.element.content)) {
-      return ''
-    }
-    return props.element.content?.src || ''
-  }, [props.element.content])
+  React.useEffect(() => {
+    setElementContent({
+      src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
+    })
+  }, [props.element])
 
-  const [src, setSrc] = React.useState(initialSrc)
-
-  const handleDragStart = (e: React.DragEvent, type: EditorBtns) => {
-    if (type === null) return
-    e.dataTransfer.setData('componentType', type)
+  const handleDeleteElement = () => {
+    dispatch({
+      type: 'DELETE_ELEMENT',
+      payload: { elementDetails: props.element },
+    })
   }
 
-  const handleOnClick = (e: React.MouseEvent) => {
+  const handleOnClickBody = (e: React.MouseEvent) => {
     e.stopPropagation()
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
@@ -44,93 +41,41 @@ const AudioComponent = (props: Props) => {
     })
   }
 
-  const handleDeleteElement = () => {
-    dispatch({
-      type: 'DELETE_ELEMENT',
-      payload: { elementDetails: props.element },
-    })
-  }
-
-  const handleSrcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSrc = e.target.value
-    setSrc(newSrc)
-    if (!Array.isArray(props.element.content)) {
-      dispatch({
-        type: 'UPDATE_ELEMENT',
-        payload: {
-          elementDetails: {
-            ...props.element,
-            content: {
-              ...props.element.content,
-              src: newSrc,
-            },
-          },
-        },
-      })
-    }
-  }
-
+  const isSelected = state.editor.selectedElement.id === props.element.id
+  const isLiveMode = state.editor.liveMode
 
   return (
     <div
-      style={styles}
-      draggable
-      onDragStart={(e) => handleDragStart(e, 'audio')}
-      onClick={handleOnClick}
+      style={props.element.styles}
       className={clsx(
         'p-[2px] w-full m-[5px] relative text-[16px] transition-all flex items-center justify-center',
         {
-          '!border-blue-500':
-            state.editor.selectedElement.id === props.element.id,
-          '!border-solid': state.editor.selectedElement.id === props.element.id,
-          'border-dashed border-[1px] border-slate-300': !state.editor.liveMode,
+          '!border-blue-500': isSelected,
+          '!border-solid': isSelected,
+          'border-dashed border-[1px] border-slate-300': !isLiveMode,
         }
       )}
+      onClick={handleOnClickBody}
     >
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-           <div className="absolute -top-[23px] -left-[1px]  flex ">
-            {/* <Badge className=" rounded-none rounded-t-lg">
-              {state.editor.selectedElement.name}
-            </Badge> */}
-            <Input className="w-full h-6 bg-black text-white font-semibold text-xs rounded-none rounded-t-lg" placeholder='title' value={name} onChange={(e) => setName(e.target.value)}
-              onBlur={(e) => dispatch({
-                type: 'UPDATE_ELEMENT',
-                payload: {
-                  elementDetails: { ...props.element, name: e.target.value},
-                },
-              })} />
-          </div>
-        )}
-
-      {!Array.isArray(props.element.content) && (
-        <div className="w-full">
-          {!state.editor.liveMode && (
-            <Input
-              type="text"
-              placeholder="link"
-              value={src}
-              onChange={handleSrcChange}
-              className="mb-2"
-            />
-          )}
-          <AudioPlayer
-            autoPlay
-            src={src}
-          />
-        </div>
-      )}
-
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <div className="absolute bg-primary px-2.5 py-1 text-xs font-bold  -top-[25px] -right-[1px] rounded-none rounded-t-lg !text-white">
+      {isSelected && !isLiveMode && (
+        <div className="absolute -top-[25px] right-[0px]">
+          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
             <Trash
               className="cursor-pointer"
               size={16}
               onClick={handleDeleteElement}
             />
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="w-full">
+        <AudioPlayer
+          autoPlay={false}
+          src={elementContent.src}
+          className="w-full"
+        />
+      </div>
     </div>
   )
 }

@@ -1,13 +1,9 @@
 'use client'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { EditorBtns } from '@/lib/constants'
 
+import { EditorBtns } from '@/lib/constants'
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
 import { Trash } from 'lucide-react'
-import Link from 'next/link'
-
 import React from 'react'
 
 type Props = {
@@ -16,7 +12,17 @@ type Props = {
 
 const LinkComponent = (props: Props) => {
   const { dispatch, state } = useEditor()
-  const [name, setName] = React.useState(props.element.name)
+  const [elementContent, setElementContent] = React.useState({
+    innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
+    href: !Array.isArray(props.element.content) ? props.element.content?.href || '' : ''
+  })
+
+  React.useEffect(() => {
+    setElementContent({
+      innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
+      href: !Array.isArray(props.element.content) ? props.element.content?.href || '' : ''
+    })
+  }, [props.element])
 
   const handleDragStart = (e: React.DragEvent, type: EditorBtns) => {
     if (type === null) return
@@ -33,8 +39,6 @@ const LinkComponent = (props: Props) => {
     })
   }
 
-  const styles = props.element.styles
-
   const handleDeleteElement = () => {
     dispatch({
       type: 'DELETE_ELEMENT',
@@ -42,77 +46,74 @@ const LinkComponent = (props: Props) => {
     })
   }
 
+  const handleContentChange = (value: string) => {
+    setElementContent(prev => ({ ...prev, innerText: value, href: value }))
+    
+    if (!Array.isArray(props.element.content)) {
+      dispatch({
+        type: 'UPDATE_ELEMENT',
+        payload: {
+          elementDetails: {
+            ...props.element,
+            content: {
+              ...((!Array.isArray(props.element.content) && props.element.content) || {}),
+              innerText: value,
+              href: value,
+            },
+          },
+        },
+      })
+    }
+  }
+
+  const isSelected = state.editor.selectedElement.id === props.element.id
+  const isLiveMode = state.editor.liveMode
+  const isPreviewMode = state.editor.previewMode
+
   return (
     <div
-      style={styles}
+      style={props.element.styles}
       draggable
       onDragStart={(e) => handleDragStart(e, 'text')}
       onClick={handleOnClickBody}
       className={clsx(
         'p-[2px] w-full m-[5px] relative text-[16px] transition-all',
         {
-          '!border-blue-500':
-            state.editor.selectedElement.id === props.element.id,
-
-          '!border-solid': state.editor.selectedElement.id === props.element.id,
-          'border-dashed border-[1px] border-slate-300': !state.editor.liveMode,
+          '!border-blue-500': isSelected,
+          '!border-solid': isSelected,
+          'border-dashed border-[1px] border-slate-300': !isLiveMode,
         }
       )}
     >
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <Badge className="absolute -top-[23px] -left-[1px] rounded-none rounded-t-lg ">
-            {state.editor.selectedElement.name}
-          </Badge>
-        )}
-      {!Array.isArray(props.element.content) &&
-        (state.editor.previewMode || state.editor.liveMode) && (
-          <div className="absolute -top-[23px] -left-[1px]  flex ">
-          {/* <Badge className=" rounded-none rounded-t-lg">
-            {state.editor.selectedElement.name}
-          </Badge> */}
-          <Input className="w-full h-6 bg-black text-white font-semibold text-xs rounded-none rounded-t-lg" placeholder='title' value={name} onChange={(e) => setName(e.target.value)}
-            onBlur={(e) => dispatch({
-              type: 'UPDATE_ELEMENT',
-              payload: {
-                elementDetails: { ...props.element, name: e.target.value},
-              },
-            })} />
-        </div>
-        )}
-      {!state.editor.previewMode && !state.editor.liveMode && (
-        <span
-          contentEditable={!state.editor.liveMode}
-          onBlur={(e) => {
-            const spanElement = e.target as HTMLSpanElement
-            dispatch({
-              type: 'UPDATE_ELEMENT',
-              payload: {
-                elementDetails: {
-                  ...props.element,
-                  content: {
-                    innerText: spanElement.innerText,
-                    href: spanElement.innerText
-                  },
-                },
-              },
-            })
-          }}
-        >
-          {!Array.isArray(props.element.content) &&
-            props.element.content.innerText}
-        </span>
-      )}
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <div className="absolute bg-primary px-2.5 py-1 text-xs font-bold  -top-[25px] -right-[1px] rounded-none rounded-t-lg !text-white">
+      {isSelected && !isLiveMode && (
+        <div className="absolute -top-[25px] right-[0px]">
+          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
             <Trash
               className="cursor-pointer"
               size={16}
               onClick={handleDeleteElement}
             />
           </div>
-        )}
+        </div>
+      )}
+
+      {!isPreviewMode && !isLiveMode ? (
+        <div
+          contentEditable={!isLiveMode}
+          onBlur={(e) => {
+            const target = e.target as HTMLDivElement
+            handleContentChange(target.innerText)
+          }}
+          className="outline-none w-full"
+          suppressContentEditableWarning={true}
+        >
+          {elementContent.innerText}
+        </div>
+      ) : (
+        <a href={elementContent.href} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
+          {elementContent.innerText}
+        </a>
+      )}
     </div>
   )
 }
