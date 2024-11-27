@@ -16,6 +16,8 @@ import { CalendarIcon, ChevronDown, Copy, Edit2Icon, Eye, EyeOff, PlusCircle, Tr
 import { useSession } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { getAllAnnotators } from "@/app/actions/annotator"
+import { changeAnnotator } from "@/app/actions/task"
 
 export default function ProjectDashboard() {
   const [templates, setTemplates] = useState<template[]>([])
@@ -26,9 +28,45 @@ export default function ProjectDashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDialogOpen2, setIsDialogOpen2] = useState(false)
   const [template, setTemplate] = useState<template>()
+  const [annotators, setAnnotators] = useState<any[]>([])  
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast()
+
+
+  useEffect(() => {
+    if (session) {
+      const fetchAnnotators = async () => {
+        try {
+          const annotatorsData = JSON.parse(await getAllAnnotators());
+          setAnnotators(annotatorsData);
+        } catch (error: any) {
+          toast({
+            variant: "destructive",
+            title: "Failed to fetch annotators",
+            description: error.message,
+          });
+        }
+      };
+      fetchAnnotators();
+    }
+  }, [session]);
+
+
+  async function handleAssignUser(annotatorId: string, taskId: string, ai: boolean, isReviewer: boolean = false) {
+    try {
+      const res = JSON.parse(await changeAnnotator(taskId, annotatorId, ai, isReviewer));
+      // Note: We don't need to update tasks state here since this is in the template context
+      return res;
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Failed to assign user",
+        description: error.message,
+      });
+      throw error;
+    }
+  }
 
   useEffect(() => {
     if (session) {
@@ -207,7 +245,13 @@ export default function ProjectDashboard() {
             </Table>
           </div>
         )}
-        {project && template && <TaskDialog template={template} setIsDialogOpen={setIsDialogOpen} isDialogOpen={isDialogOpen} project={project} />}
+        {project && template &&   <TaskDialog 
+    template={template} 
+    setIsDialogOpen={setIsDialogOpen} 
+    isDialogOpen={isDialogOpen} 
+    project={project} 
+    handleAssignUser={handleAssignUser}
+  />}
         {project && template && <TemplateCopier template={template} setIsDialogOpen={setIsDialogOpen2} isDialogOpen={isDialogOpen2} />}
       </main>
     </div>

@@ -4,6 +4,7 @@ import { createTasks } from "@/app/actions/task";
 import { Project } from "@/app/(maneger)/page";
 import { template } from "@/app/template/page";
 import { Button } from "@/components/ui/button";
+import { getAllAnnotators } from "@/app/actions/annotator";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Minus, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -28,21 +30,89 @@ interface Placeholder {
   name: string;
 }
 
+interface FilledTask {
+  project: string;
+  name: string;
+  content: string;
+  timer: number;
+  annotator?: string;
+  reviewer: string; // Add this required field
+}
+
+export interface Annotator {
+  _id: string;
+  name: string;
+  email: string;
+  lastLogin: string;
+  permission?: string[];
+}
+
+interface CreateTasksResponse {
+  success: boolean;
+  tasks: {
+    _id: string;
+    annotator?: string;
+    [key: string]: any;
+  }[];
+}
+
 export function TaskDialog({
   template,
   isDialogOpen,
   setIsDialogOpen,
   project,
+  handleAssignUser,
 }: {
   template: template;
   isDialogOpen: boolean;
   setIsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   project: Project;
+  handleAssignUser: (
+    annotatorId: string,
+    taskId: string,
+    ai: boolean
+  ) => Promise<any>;
 }) {
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
+  const [assignToAllAnnotators, setAssignToAllAnnotators] = useState(false);
+  const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isDialogOpen) {
+      fetchAnnotators();
+    }
+  }, [isDialogOpen]);
+
+  const fetchAnnotators = async () => {
+    try {
+      const annotatorsData = JSON.parse(
+        await getAllAnnotators()
+      ) as Annotator[];
+      setAnnotators(annotatorsData);
+      if (assignToAllAnnotators) {
+        setGlobalRepeat(annotatorsData.length);
+      }
+    } catch (error) {
+      console.error("Error fetching annotators:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch annotators",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAnnotatorAssignmentToggle = (checked: boolean) => {
+    setAssignToAllAnnotators(checked);
+    if (checked && annotators.length > 0) {
+      setGlobalRepeat(annotators.length);
+    } else {
+      setGlobalRepeat(1);
+    }
+  };
 
   useEffect(() => {
     try {
@@ -117,7 +187,9 @@ export function TaskDialog({
   };
 
   const handleGlobalRepeatChange = (value: number) => {
-    setGlobalRepeat(Math.max(1, value));
+    if (!assignToAllAnnotators) {
+      setGlobalRepeat(Math.max(1, value));
+    }
   };
 
   const renderFilledTemplate = (values: { [key: string]: string }) => {
@@ -211,37 +283,69 @@ export function TaskDialog({
   };
 
   const generateFilledTemplates = async () => {
-    const filledTasks: {
-      project: string;
-      name: string;
-      content: string;
-      timer: number;
-    }[] = [];
-
-    // For each task
-    tasks.forEach((task, taskIndex) => {
-      const filled = renderFilledTemplate(task.values);
-      // Create globalRepeat number of copies
-      for (let i = 0; i < globalRepeat; i++) {
-        filledTasks.push({
-          project: project._id,
-          name: `${project.name} - ${template.name} - ${taskIndex + 1}.${
-            i + 1
-          }`,
-          content: filled,
-          timer: template.timer,
-        });
-      }
-    });
-
     try {
-      await createTasks(filledTasks);
+      const filledTasks: FilledTask[] = [];
+
+      // For each task
+      tasks.forEach((task) => {
+        const filled = renderFilledTemplate(task.values);
+
+        // If assigning to all annotators
+        if (assignToAllAnnotators) {
+          annotators.forEach((annotator, index) => {
+            filledTasks.push({
+              project: project._id,
+              name: `${project.name} - ${template.name} - Task${task.id} - ${annotator.name}`,
+              content: filled,
+              timer: template.timer,
+              annotator: annotator._id,
+              reviewer: "", // Add empty string as default reviewer
+            });
+          });
+        } else {
+          // Create globalRepeat number of copies without specific assignment
+          for (let i = 0; i < globalRepeat; i++) {
+            filledTasks.push({
+              project: project._id,
+              name: `${project.name} - ${template.name} - Task${task.id}.${
+                i + 1
+              }`,
+              content: filled,
+              timer: template.timer,
+              reviewer: "", // Add empty string as default reviewer
+            });
+          }
+        }
+      });
+
+      const response = (await createTasks(
+        filledTasks
+      )) as unknown as CreateTasksResponse;
+
+      // If tasks were created successfully and we're using annotator assignment
+      if (assignToAllAnnotators && response?.success) {
+        const assignments = response.tasks
+          .filter((task) => task.annotator)
+          .map((task) =>
+            handleAssignUser(
+              task.annotator!,
+              task._id,
+              false // not AI
+            )
+          );
+
+        // Wait for all assignments to complete
+        await Promise.all(assignments);
+      }
+
       toast({
         title: "Tasks created successfully",
         description: `Created ${filledTasks.length} tasks successfully`,
       });
+
       setTasks([{ id: 1, values: {} }]);
       setGlobalRepeat(1);
+      setAssignToAllAnnotators(false);
       setIsDialogOpen(false);
     } catch (error: any) {
       toast({
@@ -251,31 +355,40 @@ export function TaskDialog({
       });
     }
   };
-
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[425px] md:max-w-fit">
-        <DialogHeader className="flex flex-row items-center justify-between pr-8">
-          {" "}
-          {/* Added pr-8 for close button space */}
-          <DialogTitle className="flex-1">Ingest Data</DialogTitle>
-          <div className="flex items-center gap-2 ml-4">
-            <label
-              htmlFor="global-repeat"
-              className="text-sm font-medium text-gray-700"
-            >
-              Repeat Each Task:
-            </label>
-            <Input
-              id="global-repeat"
-              type="number"
-              min="1"
-              value={globalRepeat}
-              onChange={(e) =>
-                handleGlobalRepeatChange(parseInt(e.target.value, 10))
-              }
-              className="w-20"
+        <DialogHeader className="flex flex-col gap-4">
+          <div className="flex flex-row items-center justify-between pr-8">
+            <DialogTitle className="flex-1">Ingest Data</DialogTitle>
+            <div className="flex items-center gap-2 ml-4">
+              <label
+                htmlFor="global-repeat"
+                className="text-sm font-medium text-gray-700"
+              >
+                Repeat Each Task:
+              </label>
+              <Input
+                id="global-repeat"
+                type="number"
+                min="1"
+                value={globalRepeat}
+                onChange={(e) =>
+                  handleGlobalRepeatChange(parseInt(e.target.value, 10))
+                }
+                className="w-20"
+                disabled={assignToAllAnnotators}
+              />
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              checked={assignToAllAnnotators}
+              onCheckedChange={handleAnnotatorAssignmentToggle}
             />
+            <label className="text-sm font-medium text-gray-700">
+              Assign to all annotators ({annotators.length} annotators)
+            </label>
           </div>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto">
