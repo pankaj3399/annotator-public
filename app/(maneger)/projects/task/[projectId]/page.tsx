@@ -118,6 +118,7 @@ export default function Component() {
     }))
   }
 
+
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault()
     const defaultTemplate = {
