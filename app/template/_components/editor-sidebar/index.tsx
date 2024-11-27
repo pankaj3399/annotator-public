@@ -1,15 +1,6 @@
 'use client'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle
-} from '@/components/ui/sheet'
-import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
-import TabList from './tabs'
 import ComponentsTab from './tabs/components-tab'
 import SettingsTab from './tabs/settings-tab'
 
@@ -18,60 +9,58 @@ type Props = {
 }
 
 const EditorSidebar = ({ projectId }: Props) => {
-  const { state, dispatch } = useEditor()
+  const { state } = useEditor()
 
   return (
-    <Sheet
-      open={true}
-      modal={false}
-    >
-      <Tabs
-        className="w-full "
-        defaultValue="Settings"
+    <>
+      {/* Left Components Panel */}
+      <div
+        className={clsx(
+          'fixed left-0 top-16 bottom-0 w-[280px] bg-background border-r z-40 transition-all duration-300 transform',
+          {
+            'translate-x-[-100%]': state.editor.previewMode,
+            'translate-x-0': !state.editor.previewMode,
+          }
+        )}
       >
-        <SheetContent
-          side="right"
-          className={clsx(
-            'mt-[97px] w-16 z-[80] shadow-none  p-0 focus:border-none transition-all overflow-hidden',
-            { hidden: state.editor.previewMode }
-          )}
-        >
-          <TabList />
-        </SheetContent>
-        <SheetContent
-          side="right"
-          className={clsx(
-            'mt-[97px] w-80 z-[40] shadow-none p-0 mr-16 bg-background h-full transition-all overflow-hidden ',
-            { hidden: state.editor.previewMode }
-          )}
-        >
-          <div className="grid gap-4 h-full pb-36 overflow-scroll">
-            <TabsContent value="Settings">
-              <SheetHeader className="text-left p-6">
-                <SheetTitle>Styles</SheetTitle>
-                <SheetDescription>
-                  Show your creativity! You can customize every component as you
-                  like.
-                </SheetDescription>
-              </SheetHeader>
-              <SettingsTab />
-            </TabsContent>
-            <TabsContent value="Media">
-              {/* <MediaBucketTab subaccountId={subaccountId} /> */}
-            </TabsContent>
-            <TabsContent value="Components">
-              <SheetHeader className="text-left p-6 ">
-                <SheetTitle>Components</SheetTitle>
-                <SheetDescription>
-                  You can drag and drop components on the canvas
-                </SheetDescription>
-              </SheetHeader>
-              <ComponentsTab />
-            </TabsContent>
+        <div className="h-full overflow-y-auto">
+          <div className="py-6">
+            <div className="text-left px-6 mb-6">
+              <h2 className="text-lg font-semibold">Components</h2>
+              <p className="text-sm text-muted-foreground">
+                You can drag and drop components on the canvas
+              </p>
+            </div>
+            <ComponentsTab />
           </div>
-        </SheetContent>
-      </Tabs>
-    </Sheet>
+        </div>
+      </div>
+
+      {/* Right Properties Panel */}
+      <div
+        className={clsx(
+          'fixed right-0 top-16 bottom-0 w-[320px] bg-background border-l z-40 transition-all duration-300 transform',
+          {
+            'translate-x-[100%]': state.editor.previewMode,
+            'translate-x-0': !state.editor.previewMode,
+          }
+        )}
+      >
+        <div className="h-full overflow-y-auto">
+          <div className="p-6">
+            <div className="text-left mb-6">
+              <h2 className="text-lg font-semibold">Properties</h2>
+              <p className="text-sm text-muted-foreground">
+                Show your creativity! You can customize every component as you like.
+              </p>
+            </div>
+            <div>
+              <SettingsTab />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
 
