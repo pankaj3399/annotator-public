@@ -8,25 +8,56 @@ import { Template } from "@/models/Template";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 
+
+
+
+export async function updateTestTemplate(_id: string, value: boolean) {
+    await connectToDatabase();
+    try {
+        const updatedTemplate = await Template.findOneAndUpdate(
+            { _id },
+            { $set: { testTemplate: value } },
+            { new: true }
+        );
+        
+        if (!updatedTemplate) {
+            throw new Error('Template not found');
+        }
+        
+        return JSON.stringify(updatedTemplate);
+    } catch (error) {
+        console.error('Error updating testTemplate:', error);
+        throw error;
+    }
+}
+
+
+
 export async function upsertTemplate(projectid: string, template: template, _id: string | undefined, add = false) {
     await connectToDatabase();
-
-    const res = await Template.findOneAndUpdate({ _id: _id == undefined ? new mongoose.Types.ObjectId() : _id }, {
+  
+    const res = await Template.findOneAndUpdate(
+      { _id: _id == undefined ? new mongoose.Types.ObjectId() : _id },
+      {
         ...template,
         content: template.content ? template.content : defaultContent,
-        project: projectid
-    }, {
+        project: projectid,
+        testTemplate: template.testTemplate || false 
+      },
+      {
         upsert: true,
         new: true
-    });
-
+      }
+    );
+  
     if (add) {
-        await Project.findByIdAndUpdate(projectid, {
-            $push: { templates: res._id }
-        })
+      await Project.findByIdAndUpdate(projectid, {
+        $push: { templates: res._id }
+      });
     }
-    return JSON.stringify(res)
-}
+    return JSON.stringify(res);
+  }
+  
 
 export async function updateTimer(_id: string, timer: number) {
     await connectToDatabase();

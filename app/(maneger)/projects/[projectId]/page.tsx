@@ -101,15 +101,19 @@ export default function ProjectDashboard() {
     setIsDialogOpen(true)
   };
 
-  const handleCreateTemplate = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const defaultTemplate = {
-      name: newTemplateName.trim(),
-      project: projectId
-    }
-    const template: template = JSON.parse(await upsertTemplate(projectId as string, defaultTemplate as template, undefined, true))
-    router.push(`/template?Id=${template._id}`)
-  }
+ const handleCreateTemplate = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  const defaultTemplate = {
+    name: newTemplateName.trim(),
+    project: projectId,
+    testTemplate: false // or false, depending on your use case
+  };
+
+  const template: template = JSON.parse(await upsertTemplate(projectId as string, defaultTemplate as template, undefined, true));
+  router.push(`/template?Id=${template._id}`);
+};
+
 
   const handleEditTemplate = (e: React.MouseEvent, _id: string) => {
     e.stopPropagation()

@@ -4,9 +4,82 @@ import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
+import { Template } from "@/models/Template"; 
 import { template } from "../template/page";
 import Rework from "@/models/Rework";
 import { AIJob } from "@/models/aiModel";
+
+export async function getTestTemplateTasks() {
+  await connectToDatabase();
+  try {
+    // Find the single test template
+    const testTemplate = await Template.findOne({ testTemplate: true });
+
+    if (!testTemplate) {
+      return JSON.stringify({
+        success: false,
+        message: 'No test template found'
+      });
+    }
+
+    // Get unique tasks based on content
+    const uniqueTasks = await Task.aggregate([
+      {
+        $match: {
+          project: testTemplate.project
+        }
+      },
+      {
+        // Group by content to get unique tasks
+        $group: {
+          _id: "$content",
+          // Keep the first occurrence of each unique task
+          task: { $first: "$$ROOT" }
+        }
+      },
+      {
+        // Reshape the output to maintain the original document structure
+        $replaceRoot: { newRoot: "$task" }
+      },
+      {
+        // Sort by creation date, newest first
+        $sort: { created_at: -1 }
+      }
+    ]);
+
+    if (!uniqueTasks.length) {
+      return JSON.stringify({
+        success: false,
+        message: 'No tasks found for test template'
+      });
+    }
+
+    // Populate the required fields
+    const populatedTasks = await Task.populate(uniqueTasks, [
+      { path: 'project', select: 'name' },
+      { path: 'annotator', select: 'name email' },
+      { path: 'reviewer', select: 'name email' }
+    ]);
+
+    return JSON.stringify({
+      success: true,
+      tasks: populatedTasks,
+      count: populatedTasks.length,
+      template: {
+        id: testTemplate._id,
+        name: testTemplate.name
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching test template tasks:', error);
+    return JSON.stringify({
+      success: false,
+      error: 'Failed to fetch test template tasks',
+      details: (error as Error).message
+    });
+  }
+}
 
 export async function updateTask(
   template: template,

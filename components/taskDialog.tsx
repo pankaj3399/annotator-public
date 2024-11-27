@@ -4,6 +4,7 @@ import { createTasks } from "@/app/actions/task";
 import { Project } from "@/app/(maneger)/page";
 import { template } from "@/app/template/page";
 import { Button } from "@/components/ui/button";
+import { getTemplate } from "@/app/actions/template";
 import { getAllAnnotators } from "@/app/actions/annotator";
 import {
   Dialog,
@@ -17,6 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { Minus, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
 
 interface Task {
@@ -63,7 +65,7 @@ export function TaskDialog({
   project,
   handleAssignUser,
 }: {
-  template: template;
+  template: template & { _id: string; testTemplate?: boolean };
   isDialogOpen: boolean;
   setIsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
   project: Project;
@@ -76,12 +78,13 @@ export function TaskDialog({
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
-  const [assignToAllAnnotators, setAssignToAllAnnotators] = useState(false);
+  const [assignToAllAnnotators, setAssignToAllAnnotators] = useState(template.testTemplate || false);
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isDialogOpen) {
+      fetchCurrentTemplateState();
       fetchAnnotators();
     }
   }, [isDialogOpen]);
@@ -105,12 +108,47 @@ export function TaskDialog({
     }
   };
 
-  const handleAnnotatorAssignmentToggle = (checked: boolean) => {
-    setAssignToAllAnnotators(checked);
-    if (checked && annotators.length > 0) {
-      setGlobalRepeat(annotators.length);
-    } else {
-      setGlobalRepeat(1);
+  const fetchCurrentTemplateState = async () => {
+    try {
+      const templateData = await getTemplate(template._id);
+      const currentTemplate = JSON.parse(templateData);
+      setAssignToAllAnnotators(currentTemplate.testTemplate || false);
+      
+      if (currentTemplate.testTemplate && annotators.length > 0) {
+        setGlobalRepeat(annotators.length);
+      } else {
+        setGlobalRepeat(1);
+      }
+    } catch (error) {
+      console.error("Error fetching template state:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch template settings",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAnnotatorAssignmentToggle = async (checked: boolean) => {
+    try {
+      const result = await updateTestTemplate(template._id, checked);
+      const updatedTemplate = JSON.parse(result);
+      
+      setAssignToAllAnnotators(updatedTemplate.testTemplate);
+      
+      if (updatedTemplate.testTemplate && annotators.length > 0) {
+        setGlobalRepeat(annotators.length);
+      } else {
+        setGlobalRepeat(1);
+      }
+    } catch (error) {
+      console.error("Error updating template:", error);
+      setAssignToAllAnnotators(!checked);
+      toast({
+        title: "Error",
+        description: "Failed to update template settings",
+        variant: "destructive",
+      });
     }
   };
 
