@@ -6,7 +6,8 @@ const templateSchema = new Schema({
     content: { type: String, required: true },
     project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
     timer: { type: Number, default: 0 },
-    private:{ type: Boolean, default: false }
-  });
-  
-  export const Template = models?.Template || model('Template', templateSchema);
+    private: { type: Boolean, default: false },
+    testTemplate: { type: Boolean, default: false }  // Add this line for testTemplate
+});
+
+export const Template = models?.Template || model('Template', templateSchema);

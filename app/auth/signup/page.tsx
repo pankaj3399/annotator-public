@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import MultiCombobox from "@/components/ui/multi-combobox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getTestTemplateTasks, createTestTasks } from "@/app/actions/task";
 
 interface Option {
   value: string;
@@ -89,6 +90,76 @@ export default function AuthPageComponent() {
     setFormData({ ...formData, role: selectedRole });
     setStep(selectedRole === "project manager" ? "invitation" : "details");
   };
+
+  async function assignTestTasksToAnnotator(annotatorId: string) {
+    console.log("Assigning test tasks to annotator:", annotatorId);
+    try {
+      const testTasksResponse = await getTestTemplateTasks();
+      const testTasksData = JSON.parse(testTasksResponse);
+      console.log("Task data:", JSON.stringify(testTasksData, null, 2));
+
+      if (!testTasksData.success || !testTasksData.tasks.length) {
+        console.log("No test tasks available for assignment");
+        return;
+      }
+
+      console.log("New Annotator ID:", annotatorId);
+
+      // Prepare tasks for the new annotator
+      const tasksToCreate = testTasksData.tasks.map((testTask: any) => {
+        // Use mongoose.Types.ObjectId to ensure proper ID formatting
+        const task = {
+          project: testTask.project._id,
+          name: testTask.name.replace("undefined", ""),
+          content: testTask.content,
+          timer: testTask.timer || 0,
+          annotator: annotatorId, // Ensure this is a valid MongoDB ObjectId
+          reviewer: null,
+          project_Manager: testTask.project_Manager,
+          submitted: false,
+          status: "pending",
+          timeTaken: 0,
+          feedback: "",
+          ai: null, // Add this field as it's in your schema
+        };
+
+        // Log each task creation
+        console.log("Created task object:", JSON.stringify(task, null, 2));
+        return task;
+      });
+
+      // Log the final array of tasks to create
+      console.log(
+        "Final tasks to create:",
+        JSON.stringify(tasksToCreate, null, 2)
+      );
+
+      // Create the tasks and await the result
+      const result = await createTestTasks(tasksToCreate);
+
+      // Log the result from task creation
+      console.log("Task creation result:", result);
+
+      // Parse and return the result
+      const parsedResult = JSON.parse(result);
+
+      // Verify the created tasks have annotator field
+      if (parsedResult.success) {
+        console.log(
+          "Created tasks with annotators:",
+          parsedResult.tasks.map((task: any) => ({
+            id: task._id,
+            annotator: task.annotator,
+          }))
+        );
+      }
+
+      return parsedResult;
+    } catch (error) {
+      console.error("Error assigning test tasks:", error);
+      throw new Error(`Failed to assign test tasks: ${(error as any).message}`);
+    }
+  }
 
   const handleInvitationRequest = async () => {
     try {
@@ -171,38 +242,70 @@ export default function AuthPageComponent() {
       }
     }
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body:
-        formData.role === "annotator"
-          ? JSON.stringify(formData)
-          : JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-              role: formData.role,
-              name: formData.name,
-              invitationCode: formData.invitationCode,
-              linkedin: "",
-              resume: "",
-              nda: "",
-            }),
-    });
-
-    if (res.ok) {
-      toast({
-        title: "Account created.",
-        description: "You can now log in with your new account.",
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body:
+          formData.role === "annotator"
+            ? JSON.stringify(formData)
+            : JSON.stringify({
+                email: formData.email,
+                password: formData.password,
+                role: formData.role,
+                name: formData.name,
+                invitationCode: formData.invitationCode,
+                linkedin: "",
+                resume: "",
+                nda: "",
+              }),
       });
-      router.push("/auth/login");
-    } else {
-      const data = await res.json();
+
+      if (res.status === 201) {
+        const userData = await res.json();
+
+        if (userData) {
+          console.log("User ID is undefined:", userData);
+        }
+      
+        if (formData.role === "annotator") {
+          try {
+            await assignTestTasksToAnnotator(userData.userId);
+            toast({
+              title: "Account created with test tasks.",
+              description: "You can now log in and start with your test tasks.",
+            });
+          } catch (error) {
+            console.error("Error assigning test tasks:", error);
+            toast({
+              title: "Account created.",
+              description:
+                "Account created but there was an issue assigning test tasks. Please contact support.",
+            });
+          }
+        } else {
+          toast({
+            title: "Account created.",
+            description: "You can now log in with your new account.",
+          });
+        }
+
+        router.push("/auth/login");
+      } else {
+        const data = await res.json();
+        toast({
+          variant: "destructive",
+          title: "Uh oh! Something went wrong.",
+          description: data.error,
+        });
+      }
+    } catch (error) {
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
-        description: data.error,
+        description: "An unexpected error occurred.",
       });
     }
   };
@@ -227,7 +330,9 @@ export default function AuthPageComponent() {
                   <Pencil className="mr-2 h-6 w-6" />
                   Domain Expert
                 </CardTitle>
-                <CardDescription>Sign up and earn on your terms.</CardDescription>
+                <CardDescription>
+                  Sign up and earn on your terms.
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ul className="mt-4 space-y-2">

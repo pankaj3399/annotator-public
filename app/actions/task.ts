@@ -4,9 +4,103 @@ import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
+import { Template } from "@/models/Template"; 
 import { template } from "../template/page";
 import Rework from "@/models/Rework";
 import { AIJob } from "@/models/aiModel";
+
+export async function getTestTemplateTasks() {
+  await connectToDatabase();
+  try {
+    // Find the single test template
+    const testTemplate = await Template.findOne({ testTemplate: true });
+    console.log("Found test template:", testTemplate);
+
+    if (!testTemplate) {
+      return JSON.stringify({
+        success: false,
+        message: 'No test template found'
+      });
+    }
+
+    // Get unique tasks based on content
+    const uniqueTasks = await Task.aggregate([
+      {
+        $match: {
+          project: testTemplate.project
+        }
+      },
+      {
+        // Group by content to get unique tasks
+        $group: {
+          _id: "$content",
+          // Keep the first occurrence of each unique task with all fields
+          task: { 
+            $first: {
+              _id: "$_id",
+              name: "$name",
+              content: "$content",
+              project: "$project",
+              project_Manager: "$project_Manager",
+              annotator: "$annotator",
+              reviewer: "$reviewer",
+              ai: "$ai",
+              status: "$status",
+              submitted: "$submitted",
+              timeTaken: "$timeTaken",
+              feedback: "$feedback",
+              timer: "$timer",
+              created_at: "$created_at"
+            }
+          }
+        }
+      },
+      {
+        $replaceRoot: { newRoot: "$task" }
+      },
+      {
+        $sort: { created_at: -1 }
+      }
+    ]);
+
+    console.log("Unique tasks before population:", uniqueTasks);
+
+    if (!uniqueTasks.length) {
+      return JSON.stringify({
+        success: false,
+        message: 'No tasks found for test template'
+      });
+    }
+
+    // Populate the required fields with explicit _id inclusion
+    const populatedTasks = await Task.populate(uniqueTasks, [
+      { path: 'project', select: 'name _id' },
+      { path: 'annotator', select: 'name email _id' },
+      { path: 'reviewer', select: 'name email _id' }
+    ]);
+
+    console.log("Populated tasks:", populatedTasks);
+
+    return JSON.stringify({
+      success: true,
+      tasks: populatedTasks,
+      count: populatedTasks.length,
+      template: {
+        id: testTemplate._id,
+        name: testTemplate.name
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching test template tasks:', error);
+    return JSON.stringify({
+      success: false,
+      error: 'Failed to fetch test template tasks',
+      details: (error as Error).message
+    });
+  }
+}
+
 
 export async function updateTask(
   template: template,
@@ -28,6 +122,43 @@ export async function updateTask(
   );
 
   return JSON.stringify(res);
+}
+
+export async function createTestTasks(tasks: {
+  project: string;
+  name: string;
+  content: string;
+  timer: number;
+  annotator: string;
+  reviewer: null;
+  project_Manager: string;
+  submitted: boolean;
+  status: string;
+  timeTaken: number;
+  feedback: string;
+  ai?: null;  // Make ai optional but include it
+}[]) {
+  await connectToDatabase();
+  
+  try {
+      // Ensure all required fields are present before insertion
+      const tasksToCreate = tasks.map(task => ({
+        ...task,
+        annotator: task.annotator,  
+      }));
+
+      console.log("Tasks being inserted:", tasksToCreate);
+      const createdTasks = await Task.insertMany(tasksToCreate);
+      console.log("Created tasks:", createdTasks);
+
+      return JSON.stringify({
+          success: true,
+          tasks: createdTasks
+      });
+  } catch (error) {
+      console.error('Error creating test tasks:', error);
+      throw error;
+  }
 }
 
 export async function createTasks(
