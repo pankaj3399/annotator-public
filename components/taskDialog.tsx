@@ -78,7 +78,9 @@ export function TaskDialog({
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
-  const [assignToAllAnnotators, setAssignToAllAnnotators] = useState(template.testTemplate || false);
+  const [assignToAllAnnotators, setAssignToAllAnnotators] = useState(
+    template.testTemplate || false
+  );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -113,7 +115,7 @@ export function TaskDialog({
       const templateData = await getTemplate(template._id);
       const currentTemplate = JSON.parse(templateData);
       setAssignToAllAnnotators(currentTemplate.testTemplate || false);
-      
+
       if (currentTemplate.testTemplate && annotators.length > 0) {
         setGlobalRepeat(annotators.length);
       } else {
@@ -133,9 +135,9 @@ export function TaskDialog({
     try {
       const result = await updateTestTemplate(template._id, checked);
       const updatedTemplate = JSON.parse(result);
-      
+
       setAssignToAllAnnotators(updatedTemplate.testTemplate);
-      
+
       if (updatedTemplate.testTemplate && annotators.length > 0) {
         setGlobalRepeat(annotators.length);
       } else {
@@ -333,7 +335,7 @@ export function TaskDialog({
           annotators.forEach((annotator, index) => {
             filledTasks.push({
               project: project._id,
-              name: `${project.name} - ${template.name} - Task${task.id} - ${annotator.name}`,
+              name: `${project.name} - ${template.name} - Task${task.id}`,
               content: filled,
               timer: template.timer,
               annotator: annotator._id,

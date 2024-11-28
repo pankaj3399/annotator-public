@@ -4,7 +4,7 @@ import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
-import { Template } from "@/models/Template"; 
+import { Template } from "@/models/Template";
 import { template } from "../template/page";
 import Rework from "@/models/Rework";
 import { AIJob } from "@/models/aiModel";
@@ -14,12 +14,11 @@ export async function getTestTemplateTasks() {
   try {
     // Find the single test template
     const testTemplate = await Template.findOne({ testTemplate: true });
-    console.log("Found test template:", testTemplate);
 
     if (!testTemplate) {
       return JSON.stringify({
         success: false,
-        message: 'No test template found'
+        message: "No test template found",
       });
     }
 
@@ -27,15 +26,15 @@ export async function getTestTemplateTasks() {
     const uniqueTasks = await Task.aggregate([
       {
         $match: {
-          project: testTemplate.project
-        }
+          project: testTemplate.project,
+        },
       },
       {
         // Group by content to get unique tasks
         $group: {
           _id: "$content",
           // Keep the first occurrence of each unique task with all fields
-          task: { 
+          task: {
             $first: {
               _id: "$_id",
               name: "$name",
@@ -50,36 +49,32 @@ export async function getTestTemplateTasks() {
               timeTaken: "$timeTaken",
               feedback: "$feedback",
               timer: "$timer",
-              created_at: "$created_at"
-            }
-          }
-        }
+              created_at: "$created_at",
+            },
+          },
+        },
       },
       {
-        $replaceRoot: { newRoot: "$task" }
+        $replaceRoot: { newRoot: "$task" },
       },
       {
-        $sort: { created_at: -1 }
-      }
+        $sort: { created_at: -1 },
+      },
     ]);
-
-    console.log("Unique tasks before population:", uniqueTasks);
 
     if (!uniqueTasks.length) {
       return JSON.stringify({
         success: false,
-        message: 'No tasks found for test template'
+        message: "No tasks found for test template",
       });
     }
 
     // Populate the required fields with explicit _id inclusion
     const populatedTasks = await Task.populate(uniqueTasks, [
-      { path: 'project', select: 'name _id' },
-      { path: 'annotator', select: 'name email _id' },
-      { path: 'reviewer', select: 'name email _id' }
+      { path: "project", select: "name _id" },
+      { path: "annotator", select: "name email _id" },
+      { path: "reviewer", select: "name email _id" },
     ]);
-
-    console.log("Populated tasks:", populatedTasks);
 
     return JSON.stringify({
       success: true,
@@ -87,20 +82,18 @@ export async function getTestTemplateTasks() {
       count: populatedTasks.length,
       template: {
         id: testTemplate._id,
-        name: testTemplate.name
-      }
+        name: testTemplate.name,
+      },
     });
-
   } catch (error) {
-    console.error('Error fetching test template tasks:', error);
+    console.error("Error fetching test template tasks:", error);
     return JSON.stringify({
       success: false,
-      error: 'Failed to fetch test template tasks',
-      details: (error as Error).message
+      error: "Failed to fetch test template tasks",
+      details: (error as Error).message,
     });
   }
 }
-
 
 export async function updateTask(
   template: template,
@@ -124,40 +117,40 @@ export async function updateTask(
   return JSON.stringify(res);
 }
 
-export async function createTestTasks(tasks: {
-  project: string;
-  name: string;
-  content: string;
-  timer: number;
-  annotator: string;
-  reviewer: null;
-  project_Manager: string;
-  submitted: boolean;
-  status: string;
-  timeTaken: number;
-  feedback: string;
-  ai?: null;  // Make ai optional but include it
-}[]) {
+export async function createTestTasks(
+  tasks: {
+    project: string;
+    name: string;
+    content: string;
+    timer: number;
+    annotator: string;
+    reviewer: null;
+    project_Manager: string;
+    submitted: boolean;
+    status: string;
+    timeTaken: number;
+    feedback: string;
+    ai?: null; // Make ai optional but include it
+  }[]
+) {
   await connectToDatabase();
-  
+
   try {
-      // Ensure all required fields are present before insertion
-      const tasksToCreate = tasks.map(task => ({
-        ...task,
-        annotator: task.annotator,  
-      }));
+    // Ensure all required fields are present before insertion
+    const tasksToCreate = tasks.map((task) => ({
+      ...task,
+      annotator: task.annotator,
+    }));
 
-      console.log("Tasks being inserted:", tasksToCreate);
-      const createdTasks = await Task.insertMany(tasksToCreate);
-      console.log("Created tasks:", createdTasks);
+    const createdTasks = await Task.insertMany(tasksToCreate);
 
-      return JSON.stringify({
-          success: true,
-          tasks: createdTasks
-      });
+    return JSON.stringify({
+      success: true,
+      tasks: createdTasks,
+    });
   } catch (error) {
-      console.error('Error creating test tasks:', error);
-      throw error;
+    console.error("Error creating test tasks:", error);
+    throw error;
   }
 }
 
@@ -225,8 +218,8 @@ export async function changeAnnotator(
       {
         $set: {
           annotator: null,
-          ai: annotator
-        }
+          ai: annotator,
+        },
       },
       {
         new: true,
@@ -242,7 +235,7 @@ export async function changeAnnotator(
       const res = await Task.findOneAndUpdate(
         { _id },
         {
-          $set: { reviewer: null }
+          $set: { reviewer: null },
         },
         {
           new: true,
@@ -260,7 +253,7 @@ export async function changeAnnotator(
     const res = await Task.findOneAndUpdate(
       { _id },
       {
-        $set: { reviewer: annotator }
+        $set: { reviewer: annotator },
       },
       {
         new: true,
@@ -283,8 +276,8 @@ export async function changeAnnotator(
       {
         $set: {
           annotator: null,
-          ai: null
-        }
+          ai: null,
+        },
       },
       {
         new: true,
@@ -298,8 +291,8 @@ export async function changeAnnotator(
     {
       $set: {
         annotator,
-        ai: null
-      }
+        ai: null,
+      },
     },
     {
       new: true,
@@ -460,32 +453,29 @@ export async function getTasksToReview() {
     const res = await Task.find({
       reviewer: reviewerId,
       // Include tasks that need review or are in review process
-      status: { 
-        $in: ["pending", "accepted", "rejected", "reassigned"] 
-      }
-    })
-    .populate([
-      { 
-        path: "project", 
-        select: "name" 
+      status: {
+        $in: ["pending", "accepted", "rejected", "reassigned"],
       },
-      { 
-        path: "annotator", 
-        select: "name email" 
-      }
-    ])
-    .sort({ 
-      // Sort by submission status first (submitted tasks first)
-      submitted: -1,
-      // Then by status (pending first)
-      status: 1,
-      // Then by creation date (newest first)
-      created_at: -1 
-    });
+    })
+      .populate([
+        {
+          path: "project",
+          select: "name",
+        },
+        {
+          path: "annotator",
+          select: "name email",
+        },
+      ])
+      .sort({
+        // Sort by submission status first (submitted tasks first)
+        submitted: -1,
+        // Then by status (pending first)
+        status: 1,
+        // Then by creation date (newest first)
+        created_at: -1,
+      });
 
-    // Log for debugging
-    console.log(`Found ${res.length} tasks for reviewer ${reviewerId}`);
-    
     return JSON.stringify(res);
   } catch (error) {
     console.error("Error in getTasksToReview:", error);

@@ -92,18 +92,13 @@ export default function AuthPageComponent() {
   };
 
   async function assignTestTasksToAnnotator(annotatorId: string) {
-    console.log("Assigning test tasks to annotator:", annotatorId);
     try {
       const testTasksResponse = await getTestTemplateTasks();
       const testTasksData = JSON.parse(testTasksResponse);
-      console.log("Task data:", JSON.stringify(testTasksData, null, 2));
 
       if (!testTasksData.success || !testTasksData.tasks.length) {
-        console.log("No test tasks available for assignment");
         return;
       }
-
-      console.log("New Annotator ID:", annotatorId);
 
       // Prepare tasks for the new annotator
       const tasksToCreate = testTasksData.tasks.map((testTask: any) => {
@@ -124,39 +119,17 @@ export default function AuthPageComponent() {
         };
 
         // Log each task creation
-        console.log("Created task object:", JSON.stringify(task, null, 2));
+
         return task;
       });
 
-      // Log the final array of tasks to create
-      console.log(
-        "Final tasks to create:",
-        JSON.stringify(tasksToCreate, null, 2)
-      );
-
-      // Create the tasks and await the result
       const result = await createTestTasks(tasksToCreate);
-
-      // Log the result from task creation
-      console.log("Task creation result:", result);
 
       // Parse and return the result
       const parsedResult = JSON.parse(result);
 
-      // Verify the created tasks have annotator field
-      if (parsedResult.success) {
-        console.log(
-          "Created tasks with annotators:",
-          parsedResult.tasks.map((task: any) => ({
-            id: task._id,
-            annotator: task.annotator,
-          }))
-        );
-      }
-
       return parsedResult;
     } catch (error) {
-      console.error("Error assigning test tasks:", error);
       throw new Error(`Failed to assign test tasks: ${(error as any).message}`);
     }
   }
@@ -266,10 +239,6 @@ export default function AuthPageComponent() {
       if (res.status === 201) {
         const userData = await res.json();
 
-        if (userData) {
-          console.log("User ID is undefined:", userData);
-        }
-      
         if (formData.role === "annotator") {
           try {
             await assignTestTasksToAnnotator(userData.userId);
