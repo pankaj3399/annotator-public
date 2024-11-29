@@ -1,4 +1,3 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger, } from '@/components/ui/accordion'
 import { EditorBtns } from '@/lib/constants'
 import React from 'react'
 import AudioPlaceholder from './audio-placeholder'
@@ -18,6 +17,7 @@ import RecordVideoPlaceholder from './record-video-placeholder'
 import TextPlaceholder from './text-placeholder'
 import TwoColumnsPlaceholder from './two-columns-placeholder'
 import VideoPlaceholder from './video-placeholder'
+import { GripVertical } from 'lucide-react';
 
 
 const ComponentsTab = () => {
@@ -137,90 +137,50 @@ const ComponentsTab = () => {
     },
   ]
 
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, elementId: EditorBtns) => {
+    e.dataTransfer.setData('componentType', elementId as string);
+  };
+  const allElements = elements;
+
   return (
-    <Accordion
-      type="multiple"
-      className="w-full"
-      defaultValue={['Layout', 'Elements','Dynamic Elements','Inputs']}
-    >
-      <AccordionItem
-        value="Layout"
-        className="px-6 py-0 border-y-[1px]"
-      >
-        <AccordionTrigger className="!no-underline">Layout</AccordionTrigger>
-        <AccordionContent className="flex flex-wrap gap-2 ">
-          {elements
-            .filter((element) => element.group === 'layout')
-            .map((element) => (
-              <div
-                key={element.id}
-                className="flex-col items-center justify-center flex"
-              >
-                {element.Component}
-                <span className="text-muted-foreground">{element.label}</span>
+    <div className="w-full h-full bg-background">
+      <div className="p-4">
+        <h2 className="text-xl font-semibold mb-4">Components</h2>
+        <div className="space-y-3">
+          {allElements.map((element) => (
+            <div
+              key={element.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, element.id)}
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted cursor-grab active:cursor-grabbing border-2"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 flex items-center justify-center">
+                  {React.cloneElement(element.Component as React.ReactElement, {
+                    className: 'w-5 h-5 text-muted-foreground',
+                  })}
+                </div>
+                <span className="text-sm">
+                  {element.label}
+                  {element.group === 'Dynamic Elements' && (
+                  <span className="ml-2 text-xs text-muted-foreground">(Dynamic)</span>
+                  )}
+                  {element.group === 'Inputs' && (
+                  <span className="ml-2 text-xs text-muted-foreground">(Input)</span>
+                  )}
+                </span>
               </div>
-            ))}
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem
-        value="Elements"
-        className="px-6 py-0 "
-      >
-        <AccordionTrigger className="!no-underline">Elements</AccordionTrigger>
-        <AccordionContent className="flex flex-wrap gap-2 ">
-          {elements
-            .filter((element) => element.group === 'elements')
-            .map((element) => (
-              <div
-                key={element.id}
-                className="flex-col items-center justify-center flex"
-              >
-                {element.Component}
-                <span className="text-muted-foreground text-center max-w-10">{element.label}</span>
+              <div className="flex items-center gap-2">
+                <GripVertical className="w-4 h-4 text-muted-foreground" />
+              
               </div>
-            ))}
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem
-        value="Dynamic Elements"
-        className="px-6 py-0 "
-      >
-        <AccordionTrigger className="!no-underline">Dynamic Elements</AccordionTrigger>
-        <AccordionContent className="flex flex-wrap gap-2 ">
-          {elements
-            .filter((element) => element.group === 'Dynamic Elements')
-            .map((element) => (
-              <div
-                key={element.id}
-                className="flex-col items-center justify-center flex"
-              >
-                {element.Component}
-                <span className="text-muted-foreground">{element.label}</span>
-              </div>
-            ))}
-        </AccordionContent>
-      </AccordionItem>
-      <AccordionItem
-        value="Inputs"
-        className="px-6 py-0 "
-      >
-        <AccordionTrigger className="!no-underline">Inputs</AccordionTrigger>
-        <AccordionContent className="flex flex-wrap gap-2 ">
-          {elements
-            .filter((element) => element.group === 'Inputs')
-            .map((element) => (
-              <div
-                key={element.id}
-                className="flex-col items-center justify-center flex"
-              >
-                {element.Component}
-                <span className="text-muted-foreground">{element.label}</span>
-              </div>
-            ))}
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
-  )
-}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 export default ComponentsTab

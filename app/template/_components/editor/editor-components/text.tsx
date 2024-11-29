@@ -1,6 +1,5 @@
 'use client'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
+
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
 import { Trash } from 'lucide-react'
@@ -12,7 +11,15 @@ type Props = {
 
 const TextComponent = (props: Props) => {
   const { dispatch, state } = useEditor()
-  const [name, setName] = React.useState(props.element.name)
+  const [elementContent, setElementContent] = React.useState({
+    innerText: !Array.isArray(props.element.content) ? props.element.content.innerText || '' : ''
+  })
+
+  React.useEffect(() => {
+    setElementContent({
+      innerText: !Array.isArray(props.element.content) ? props.element.content.innerText || '' : ''
+    })
+  }, [props.element])
 
   const handleDeleteElement = () => {
     dispatch({
@@ -20,7 +27,6 @@ const TextComponent = (props: Props) => {
       payload: { elementDetails: props.element },
     })
   }
-  const styles = props.element.styles
 
   const handleOnClickBody = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -32,67 +38,61 @@ const TextComponent = (props: Props) => {
     })
   }
 
-  //WE ARE NOT ADDING DRAG DROP
+  const handleContentChange = (value: string) => {
+    setElementContent(prev => ({ ...prev, innerText: value }))
+    dispatch({
+      type: 'UPDATE_ELEMENT',
+      payload: {
+        elementDetails: {
+          ...props.element,
+          content: {
+            ...((!Array.isArray(props.element.content) && props.element.content) || {}),
+            innerText: value,
+          },
+        },
+      },
+    })
+  }
+
+  const isSelected = state.editor.selectedElement.id === props.element.id
+  const isLiveMode = state.editor.liveMode
+
   return (
     <div
-      style={styles}
+      style={props.element.styles}
       className={clsx(
         'p-[2px] w-full m-[5px] relative text-[16px] transition-all',
         {
-          '!border-blue-500':
-            state.editor.selectedElement.id === props.element.id,
-
-          '!border-solid': state.editor.selectedElement.id === props.element.id,
-          'border-dashed border-[1px] border-slate-300': !state.editor.liveMode,
+          '!border-blue-500': isSelected,
+          '!border-solid': isSelected,
+          'border-dashed border-[1px] border-slate-300': !isLiveMode,
         }
       )}
       onClick={handleOnClickBody}
     >
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <div className="absolute -top-[23px] -left-[1px]  flex ">
-          {/* <Badge className=" rounded-none rounded-t-lg">
-            {state.editor.selectedElement.name}
-          </Badge> */}
-          <Input className="w-full h-6 bg-black text-white font-semibold text-xs rounded-none rounded-t-lg" placeholder='title' value={name} onChange={(e) => setName(e.target.value)}
-            onBlur={(e) => dispatch({
-              type: 'UPDATE_ELEMENT',
-              payload: {
-                elementDetails: { ...props.element, name: e.target.value},
-              },
-            })} />
-        </div>
-        )}
-      <span
-        contentEditable={!state.editor.liveMode}
-        onBlur={(e) => {
-          const spanElement = e.target as HTMLSpanElement
-          dispatch({
-            type: 'UPDATE_ELEMENT',
-            payload: {
-              elementDetails: {
-                ...props.element,
-                content: {
-                  innerText: spanElement.innerText,
-                },
-              },
-            },
-          })
-        }}
-      >
-        {!Array.isArray(props.element.content) &&
-          props.element.content.innerText}
-      </span>
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
-          <div className="absolute bg-primary px-2.5 py-1 text-xs font-bold -top-[25px] -right-[1px] rounded-none rounded-t-lg !text-white">
+      {isSelected && !isLiveMode && (
+        <div className="absolute -top-[25px] right-[0px]">
+          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
             <Trash
               className="cursor-pointer"
               size={16}
               onClick={handleDeleteElement}
             />
           </div>
-        )}
+        </div>
+      )}
+
+      <div
+        contentEditable={!isLiveMode}
+        onBlur={(e) => {
+          const target = e.target as HTMLDivElement
+          handleContentChange(target.innerText)
+        }}
+        className="outline-none w-full"
+        suppressContentEditableWarning={true}
+      >
+        {elementContent.innerText}
+      </div>
     </div>
   )
 }

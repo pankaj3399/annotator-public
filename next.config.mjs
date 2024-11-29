@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true
+    ignoreDuringBuilds: true,
   },
   typescript: {
     ignoreBuildErrors: true,
@@ -11,6 +11,9 @@ const nextConfig = {
       fullUrl: true,
       hmrRefreshes: true,
     },
+  },
+  images: {
+    domains: ['via.placeholder.com'], // Add the placeholder domain here
   },
 };
 

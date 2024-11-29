@@ -1,69 +1,71 @@
+'use client'
+
 import { EditorElement } from '@/providers/editor/editor-provider'
-import AudioComponent from './audio'
-import Checkbox from './checkbox'
+import { lazy } from 'react'
+
+// Static imports for frequently used components
 import Container from './container'
-import DynamicAudioComponent from './dynamic-audio'
-import DynamicCheckbox from './dynamic-checkbox'
-import DynamicImageComponent from './dynamic-image'
-import DynamicTextComponent from './dynamic-text'
-import DynamicVideoComponent from './dynamic-video'
-import ImageComponent from './image'
-import InputRecordAudioComponent from './input-recordAudio'
-import InputRecordVideoComponent from './input-recordVideo'
-import InputText from './InputText'
-import LinkComponent from './link-component'
-import RecordAudioComponent from './recordAudio'
-import RecordVideoComponent from './recordVideo'
 import TextComponent from './text'
 import VideoComponent from './video'
+
+// Lazy imports for other components to improve initial load time
+const AudioComponent = lazy(() => import('./audio'))
+const Checkbox = lazy(() => import('./checkbox'))
+const DynamicAudioComponent = lazy(() => import('./dynamic-audio'))
+const DynamicCheckbox = lazy(() => import('./dynamic-checkbox'))
+const DynamicImageComponent = lazy(() => import('./dynamic-image'))
+const DynamicTextComponent = lazy(() => import('./dynamic-text'))
+const DynamicVideoComponent = lazy(() => import('./dynamic-video'))
+const ImageComponent = lazy(() => import('./image'))
+const InputRecordAudioComponent = lazy(() => import('./input-recordAudio'))
+const InputRecordVideoComponent = lazy(() => import('./input-recordVideo'))
+const InputText = lazy(() => import('./InputText'))
+const LinkComponent = lazy(() => import('./link-component'))
+const RecordAudioComponent = lazy(() => import('./recordAudio'))
+const RecordVideoComponent = lazy(() => import('./recordVideo'))
 
 type Props = {
   element: EditorElement
 }
 
+// Component map for cleaner switch statement
+const COMPONENT_MAP = {
+  text: TextComponent,
+  container: Container,
+  video: VideoComponent,
+  '2Col': Container,
+  '__body': Container,
+  dynamicText: DynamicTextComponent,
+  dynamicVideo: DynamicVideoComponent,
+  dynamicImage: DynamicImageComponent,
+  image: ImageComponent,
+  dynamicAudio: DynamicAudioComponent,
+  audio: AudioComponent,
+  inputText: InputText,
+  link: LinkComponent,
+  checkbox: Checkbox,
+  dynamicCheckbox: DynamicCheckbox,
+  recordAudio: RecordAudioComponent,
+  recordVideo: RecordVideoComponent,
+  inputRecordAudio: InputRecordAudioComponent,
+  inputRecordVideo: InputRecordVideoComponent,
+} as const
+
 const Recursive = ({ element }: Props) => {
-  switch (element.type) {
-    case 'text':
-      return <TextComponent element={element} />
-    case 'container':
-      return <Container element={element} />
-    case 'video':
-      return <VideoComponent element={element} />
-    case '2Col':
-      return <Container element={element} />
-    case '__body':
-      return <Container element={element} />
-    case 'dynamicText':
-      return <DynamicTextComponent element={element} />
-    case 'dynamicVideo':
-      return <DynamicVideoComponent element={element} />
-    case 'dynamicImage':
-      return <DynamicImageComponent element={element} />
-    case 'image':
-      return <ImageComponent element={element} />
-    case 'dynamicAudio':
-      return <DynamicAudioComponent element={element} />
-    case 'audio':
-      return <AudioComponent element={element} />
-    case 'inputText':
-      return <InputText element={element} />
-    case 'link':
-      return <LinkComponent element={element} />
-    case 'checkbox':
-      return <Checkbox element={element} />
-    case 'dynamicCheckbox':
-      return <DynamicCheckbox element={element} />
-    case 'recordAudio':
-      return <RecordAudioComponent element={element} />
-    case 'recordVideo':
-      return <RecordVideoComponent element={element} />
-    case 'inputRecordAudio':
-      return <InputRecordAudioComponent element={element} />
-    case 'inputRecordVideo':
-      return <InputRecordVideoComponent element={element} />
-    default:
-      return null
+  const Component = COMPONENT_MAP[element.type as keyof typeof COMPONENT_MAP]
+  
+  if (!Component) {
+    return null
   }
+
+  return <Component element={element} />
 }
+
+// Type check for the component map
+type ComponentMapCheck = {
+  [K in keyof typeof COMPONENT_MAP]: React.ComponentType<Props>
+}
+type Check = typeof COMPONENT_MAP extends ComponentMapCheck ? true : false
+const typeCheck: Check = true
 
 export default Recursive
