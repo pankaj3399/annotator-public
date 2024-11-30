@@ -1,0 +1,24 @@
+import { Schema, model, models } from "mongoose";
+
+const taskRepeatSchema = new Schema({
+  name: { type: String, required: true },
+  created_at: { type: Date, default: Date.now },
+  content: { type: String, required: true },
+  project: { type: Schema.Types.ObjectId, ref: "Project", required: true },
+  project_Manager: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  annotator: { type: Schema.Types.ObjectId, ref: "User", required: false },
+  reviewer: { type: Schema.Types.ObjectId, ref: "User", required: false },
+  ai: { type: Schema.Types.ObjectId, ref: "AImodel", required: false },
+  status: {
+    type: String,
+    enum: ["pending", "accepted", "rejected", "reassigned"],
+    default: "pending",
+  },
+  submitted: { type: Boolean, default: false },
+  timeTaken: { type: Number, default: 0 },
+  feedback: { type: String, default: "" },
+  timer: { type: Number, default: 0 },
+});
+
+export const taskRepeat =
+  models?.Template || model("TaskRepeat", taskRepeatSchema);

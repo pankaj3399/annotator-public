@@ -6,7 +6,7 @@ const Footer = () => {
       <footer className="py-12">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between px-4 md:px-6">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">
-            <img src="/image.png" alt="Logo" className="h-8" />
+            <img src="/static/image.png" alt="Logo" className="h-8" />
             {/* <span className="text-2xl font-bold text-gray-800 dark:text-gray-50"></span> */}
             </div>
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4 w-full md:w-auto">
