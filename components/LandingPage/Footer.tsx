@@ -8,7 +8,7 @@ const Footer = () => {
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between px-4 md:px-6">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">
             <Image 
-              src="/static/image.png" 
+              src={"/static/image.png"} 
               alt="Logo" 
               width={64} 
               height={32} 

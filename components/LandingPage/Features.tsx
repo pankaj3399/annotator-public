@@ -23,7 +23,7 @@ const Features = () => {
               <CardHeader>
                 <CardDescription>
                   <img
-                    src="/static/analytics.png"
+                    src={"/static/analytics.png"}
                     alt="feature"
                     className="w-20 h-20 rounded-full inline-block"
                   />
@@ -44,7 +44,7 @@ const Features = () => {
               <CardHeader>
                 <CardDescription>
                   <img
-                    src="/static/token.png"
+                    src={"/static/token.png"}
                     alt="feature"
                     className="w-20 h-20 rounded-full inline-block"
                   />
@@ -64,7 +64,7 @@ const Features = () => {
               <CardHeader>
                 <CardDescription>
                   <img
-                    src="/static/codecollab.png"
+                    src={"/static/codecollab.png"}
                     alt="feature"
                     className="w-20 h-20 rounded-full inline-block"
                   />
@@ -77,7 +77,7 @@ const Features = () => {
                   easier for experts and PMs to collaborate, clarify, and refine
                   during predictions.
                 </p>
-                <img src="/static/hero.png" alt="" className="w-full max-w-[400px]" />
+                <img src={"/static/hero.png"} alt="" className="w-full max-w-[400px]" />
               </CardContent>
             </Card>
           </div>
