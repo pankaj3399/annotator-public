@@ -1,6 +1,7 @@
 import { Schema, model, models, CallbackError } from 'mongoose';
 import Task from './Task';
 import { Template } from './Template';
+import { TaskRepeat } from './TaskRepeat';
 
 const projectSchema = new Schema({
   name: { type: String, required: true },
@@ -35,6 +36,9 @@ projectSchema.pre('findOneAndDelete', async function (next) {
     
     // Optionally delete associated tasks if you have a Task model
     await Task.deleteMany({ project: projectId });
+
+
+     await TaskRepeat.deleteMany({ project: projectId });
     
     next();
   } catch (error) {
