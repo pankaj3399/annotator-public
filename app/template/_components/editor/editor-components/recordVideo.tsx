@@ -166,7 +166,7 @@ const RecordVideoComponent = (props: Props) => {
                     disabled={loading}
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {loading ? 'Submitting...' : 'Submit'}
+                    {loading ? 'Submitting...' : 'Save'}
                   </Button>
                 )}
               </div>

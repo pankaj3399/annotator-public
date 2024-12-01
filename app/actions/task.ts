@@ -13,73 +13,31 @@ import { AIJob } from "@/models/aiModel";
 export async function getTestTemplateTasks() {
   await connectToDatabase();
   try {
-    // Find the single test template
-    const testTemplate = await Template.findOne({ testTemplate: true });
-    if (!testTemplate) {
-      return JSON.stringify({ 
-        success: false, 
-        message: "No test template found" 
+    const repeatTasks = await TaskRepeat.find({});
+
+    console.log("repeat tasks from TaskRepeat", repeatTasks);
+
+    if (!repeatTasks.length) {
+      return JSON.stringify({
+        success: false,
+        message: "No tasks found for test template in TaskRepeat",
       });
     }
 
-    // Query TaskRepeat table for unique tasks with the same project
-    const uniqueTasks = await TaskRepeat.aggregate([
-      { $match: { project: testTemplate.project } }, // Match tasks with the same project
-      { $group: {
-          _id: "$_id", // Use the unique `_id` to ensure all tasks are included
-          task: { $first: {
-            _id: "$_id",
-            name: "$name",
-            content: "$content",
-            project: "$project",
-            project_Manager: "$project_Manager",
-            annotator: "$annotator",
-            reviewer: "$reviewer",
-            ai: "$ai",
-            status: "$status",
-            submitted: "$submitted",
-            timeTaken: "$timeTaken",
-            feedback: "$feedback",
-            timer: "$timer",
-            created_at: "$created_at"
-          }}
-        }
-      },
-      { $replaceRoot: { newRoot: "$task" } }, // Replace the root with the grouped task object
-      { $sort: { created_at: -1 } } // Sort by created_at field in descending order
-    ]);
-    
-    console.log("unique tasks from TaskRepeat", uniqueTasks);
-
-    if (!uniqueTasks.length) {
-      return JSON.stringify({ 
-        success: false, 
-        message: "No tasks found for test template in TaskRepeat" 
-      });
-    }
-
-    // Populate the required fields with explicit _id inclusion
-    const populatedTasks = await TaskRepeat.populate(uniqueTasks, [
+    const populatedTasks = await TaskRepeat.populate(repeatTasks, [
       { path: "project", select: "name _id" },
-      { path: "annotator", select: "name email _id" },
-      { path: "reviewer", select: "name email _id" }
     ]);
 
     return JSON.stringify({
       success: true,
       tasks: populatedTasks,
       count: populatedTasks.length,
-      template: {
-        id: testTemplate._id,
-        name: testTemplate.name
-      }
     });
-
   } catch (error) {
     console.error("Error fetching test template tasks:", error);
-    return JSON.stringify({ 
-      success: false, 
-      error: "Failed to fetch test template tasks", 
+    return JSON.stringify({
+      success: false,
+      error: "Failed to fetch test template tasks",
       details: (error as Error).message,
     });
   }
