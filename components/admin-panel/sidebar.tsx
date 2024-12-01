@@ -8,6 +8,7 @@ import { Menu } from "@/components/admin-panel/menu";
 import { useSidebarToggle } from "@/hooks/use-sidebar-toggle";
 import { SidebarToggle } from "./sidebar-toggle";
 import Image from "next/image";
+import image from "@/public/static/image.png";
 
 export function Sidebar() {
   const sidebar = useStore(useSidebarToggle, (state) => state);
@@ -31,7 +32,7 @@ export function Sidebar() {
           variant="link"
           asChild
         >
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {/* <PanelsTopLeft className="w-6 h-6 mr-1" />
             <h1
               className={cn(
@@ -45,7 +46,7 @@ export function Sidebar() {
             </h1> */}
             <div className="w-[170px] h-[100px] overflow-hidden">
               <Image
-                src={"/static/image.png"}
+                src={image}
                 alt="Logo"
                 width={700}
                 height={700}
@@ -53,7 +54,7 @@ export function Sidebar() {
               />
             </div>
             {/* <Image src={"/image.png"} alt="logo" width={120} height={120} /> */}
-          </Link>
+          </div>
         </Button>
         <Menu isOpen={sidebar?.isOpen} />
       </div>

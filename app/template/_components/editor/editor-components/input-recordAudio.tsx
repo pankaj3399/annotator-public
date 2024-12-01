@@ -209,7 +209,7 @@ const InputRecordAudioComponent = (props: Props) => {
                     <RotateCcw className="mr-2 h-4 w-4" /> Re-record
                   </Button>
                   <Button onClick={submitRecording} disabled={loading}>
-                    <Send className="mr-2 h-4 w-4" /> {loading ? 'Submitting...' : 'Submit'}
+                    <Send className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save'}
                   </Button>
                   <AudioPlayer autoPlay src={mediaBlobUrl} />
                 </>
