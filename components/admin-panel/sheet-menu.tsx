@@ -30,7 +30,7 @@ export function SheetMenu() {
             <Link href="/dashboard" className="flex items-center gap-2">
             <div className="w-[170px] h-[100px] overflow-hidden">
               <Image
-                src={"/image.png"}
+                src={"/static/image.png"}
                 alt="Logo"
                 width={700}
                 height={700}

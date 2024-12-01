@@ -38,14 +38,14 @@ const defaultPlans = {
     {
         title: "Basic",
         description: "Ideal for small teams or individual users with limited annotation needs",
-        price: "$100",
+        price: "$540",
         features: ["Core annotation tools ", "10,000 annotations", "Basic features"],
         highlighted: false,
       },
       {
         title: "Professional",
         description: "Perfect for growing teams requiring advanced features and higher annotation volumes",
-        price: "$500",
+        price: "$5400",
         features: ["Enhanced collaboration tools", "Quality assurance features", "Priority support", "100,000 annotations", "Advanced features"],
         highlighted: true,
       },
@@ -72,12 +72,12 @@ const Pricing = () => {
         Flexible Pricing Plans to Suit Your Needs
       </p>
 
-    <h4 className="text-2xl text-center mt-5">
+    {/* <h4 className="text-2xl text-center mt-5">
         Select from our affordable plans
-    </h4>
-    <p className="text-center mt-2 mb-10 text-lg font-normal">
+    </h4> */}
+    {/* <p className="text-center mt-2 mb-10 text-lg font-normal">
         Whether you're a small team or a large enterprise, we have a plan tailored for you.
-    </p>
+    </p> */}
       <Tabs
         className="w-full max-w-4xl mx-auto my-10 mb-16 px-5"
         defaultValue="monthly"

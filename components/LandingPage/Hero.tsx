@@ -64,7 +64,7 @@ const Hero = () => {
             <CarouselItem className="p-0 flex justify-center">
               <Image
                 className="rounded-md w-full max-w-[1074px]"
-                src="/assets/1.png"
+                src="/static/1.png"
                 alt="Carousel Image 1"
                 width={1074}
                 height={608}
@@ -74,7 +74,7 @@ const Hero = () => {
             <CarouselItem className="p-0 flex justify-center">
               <Image
                 className="rounded-md w-full max-w-[1074px]"
-                src="/assets/2.png"
+                src="/static/2.png"
                 alt="Carousel Image 2"
                 width={1074}
                 height={608}
@@ -83,7 +83,7 @@ const Hero = () => {
             <CarouselItem className="p-0 flex justify-center">
               <Image
                 className="rounded-md w-full max-w-[1074px]"
-                src="/assets/3.png"
+                src="/static/3.png"
                 alt="Carousel Image 3"
                 width={1074}
                 height={608}

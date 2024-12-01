@@ -112,7 +112,7 @@ export function getMenuList(pathname: string): Group[] {
           },
           {
             href: "/annotator",
-            label: "Annotator",
+            label: "Expert",
             active: pathname.includes("/annotator"),
             icon: BookUser,
             submenus: [],
@@ -165,7 +165,7 @@ export function getMenuList(pathname: string): Group[] {
         },
         {
           href: "/annotator",
-          label: "Annotator",
+          label: "Expert",
           active: pathname.includes("/annotator"),
           icon: BookUser,
           submenus: [],

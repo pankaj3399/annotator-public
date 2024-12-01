@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
 import { Template } from "@/models/Template";
+import { TaskRepeat } from "@/models/TaskRepeat";
 import { template } from "../template/page";
 import Rework from "@/models/Rework";
 import { AIJob } from "@/models/aiModel";
@@ -14,66 +15,54 @@ export async function getTestTemplateTasks() {
   try {
     // Find the single test template
     const testTemplate = await Template.findOne({ testTemplate: true });
-
     if (!testTemplate) {
-      return JSON.stringify({
-        success: false,
-        message: "No test template found",
+      return JSON.stringify({ 
+        success: false, 
+        message: "No test template found" 
       });
     }
 
-    // Get unique tasks based on content
-    const uniqueTasks = await Task.aggregate([
-      {
-        $match: {
-          project: testTemplate.project,
-        },
+    // Query TaskRepeat table for unique tasks with the same project
+    const uniqueTasks = await TaskRepeat.aggregate([
+      { $match: { project: testTemplate.project } }, // Match tasks with the same project
+      { $group: {
+          _id: "$_id", // Use the unique `_id` to ensure all tasks are included
+          task: { $first: {
+            _id: "$_id",
+            name: "$name",
+            content: "$content",
+            project: "$project",
+            project_Manager: "$project_Manager",
+            annotator: "$annotator",
+            reviewer: "$reviewer",
+            ai: "$ai",
+            status: "$status",
+            submitted: "$submitted",
+            timeTaken: "$timeTaken",
+            feedback: "$feedback",
+            timer: "$timer",
+            created_at: "$created_at"
+          }}
+        }
       },
-      {
-        // Group by content to get unique tasks
-        $group: {
-          _id: "$content",
-          // Keep the first occurrence of each unique task with all fields
-          task: {
-            $first: {
-              _id: "$_id",
-              name: "$name",
-              content: "$content",
-              project: "$project",
-              project_Manager: "$project_Manager",
-              annotator: "$annotator",
-              reviewer: "$reviewer",
-              ai: "$ai",
-              status: "$status",
-              submitted: "$submitted",
-              timeTaken: "$timeTaken",
-              feedback: "$feedback",
-              timer: "$timer",
-              created_at: "$created_at",
-            },
-          },
-        },
-      },
-      {
-        $replaceRoot: { newRoot: "$task" },
-      },
-      {
-        $sort: { created_at: -1 },
-      },
+      { $replaceRoot: { newRoot: "$task" } }, // Replace the root with the grouped task object
+      { $sort: { created_at: -1 } } // Sort by created_at field in descending order
     ]);
+    
+    console.log("unique tasks from TaskRepeat", uniqueTasks);
 
     if (!uniqueTasks.length) {
-      return JSON.stringify({
-        success: false,
-        message: "No tasks found for test template",
+      return JSON.stringify({ 
+        success: false, 
+        message: "No tasks found for test template in TaskRepeat" 
       });
     }
 
     // Populate the required fields with explicit _id inclusion
-    const populatedTasks = await Task.populate(uniqueTasks, [
+    const populatedTasks = await TaskRepeat.populate(uniqueTasks, [
       { path: "project", select: "name _id" },
       { path: "annotator", select: "name email _id" },
-      { path: "reviewer", select: "name email _id" },
+      { path: "reviewer", select: "name email _id" }
     ]);
 
     return JSON.stringify({
@@ -82,14 +71,15 @@ export async function getTestTemplateTasks() {
       count: populatedTasks.length,
       template: {
         id: testTemplate._id,
-        name: testTemplate.name,
-      },
+        name: testTemplate.name
+      }
     });
+
   } catch (error) {
     console.error("Error fetching test template tasks:", error);
-    return JSON.stringify({
-      success: false,
-      error: "Failed to fetch test template tasks",
+    return JSON.stringify({ 
+      success: false, 
+      error: "Failed to fetch test template tasks", 
       details: (error as Error).message,
     });
   }
@@ -177,6 +167,61 @@ export async function createTasks(
   }));
 
   await Task.insertMany(taskData);
+}
+
+export async function saveRepeatTasks(
+  repeatTasks: {
+    project: string;
+    name: string;
+    content: string;
+    timer: number;
+    reviewer: string;
+  }[]
+) {
+  const documents = await TaskRepeat.find({});
+  console.log("Documents in collection:", documents);
+
+  try {
+    console.log("Connecting to database...");
+    await connectToDatabase();
+    console.log("Successfully connected to the database.");
+
+    console.log("Fetching session...");
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      console.error("Unauthorized: No valid session found.");
+      throw new Error("Unauthorized");
+    }
+    console.log("Session fetched successfully:", session.user);
+
+    console.log("Processing repeat task data...");
+    const repeatTaskData = repeatTasks.map((repeatTask, index) => ({
+      ...repeatTask,
+      project_Manager: session.user.id,
+      reviewer: repeatTask.reviewer || null,
+    }));
+    console.log(
+      `Processed ${repeatTaskData.length} repeat tasks:`,
+      repeatTaskData
+    );
+
+    console.log("Inserting repeat tasks into the database...");
+    await TaskRepeat.insertMany(repeatTaskData).catch((error) => {
+      console.error("Validation or insertion error:", error);
+      throw error;
+    });
+
+    console.log("Repeat tasks inserted successfully.");
+
+    return { success: true, message: "Repeat tasks saved successfully" };
+  } catch (error) {
+    console.error("Error in saveRepeatTasks function:", error);
+    throw new Error(
+      (error as Error)?.message ||
+        "An unknown error occurred while saving repeat tasks."
+    );
+  }
 }
 
 export async function getAllTasks(projectid: string) {
