@@ -1,6 +1,6 @@
 "use client";
 
-import { createTasks } from "@/app/actions/task";
+import { createTasks, saveRepeatTasks } from "@/app/actions/task";
 import { Project } from "@/app/(maneger)/page";
 import { template } from "@/app/template/page";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { Minus, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
+import { Repeat } from "framer-motion";
 
 interface Task {
   id: number;
@@ -41,6 +42,15 @@ interface FilledTask {
   reviewer: string; // Add this required field
 }
 
+interface RepeatTask {
+  project: string;
+  name: string;
+  content: string;
+  timer: number;
+  annotator?: string | null;
+  reviewer: string; // Add this required field
+}
+
 export interface Annotator {
   _id: string;
   name: string;
@@ -50,6 +60,15 @@ export interface Annotator {
 }
 
 interface CreateTasksResponse {
+  success: boolean;
+  tasks: {
+    _id: string;
+    annotator?: string;
+    [key: string]: any;
+  }[];
+}
+
+interface SaveTasksResponse {
   success: boolean;
   tasks: {
     _id: string;
@@ -325,25 +344,33 @@ export function TaskDialog({
   const generateFilledTemplates = async () => {
     try {
       const filledTasks: FilledTask[] = [];
+      const repeatTasks: RepeatTask[] = [];
 
-      // For each task
       tasks.forEach((task) => {
         const filled = renderFilledTemplate(task.values);
 
-        // If assigning to all annotators
         if (assignToAllAnnotators) {
-          annotators.forEach((annotator, index) => {
-            filledTasks.push({
+          annotators.forEach((annotator) => {
+            const newTask = {
               project: project._id,
               name: `${project.name} - ${template.name} - Task${task.id}`,
               content: filled,
               timer: template.timer,
               annotator: annotator._id,
-              reviewer: "", // Add empty string as default reviewer
-            });
+              reviewer: "",
+            };
+            filledTasks.push(newTask);
+          });
+
+          repeatTasks.push({
+            project: project._id,
+            name: `${project.name} - ${template.name} - Task${task.id}`,
+            content: filled,
+            timer: template.timer,
+            annotator: null,
+            reviewer: "",
           });
         } else {
-          // Create globalRepeat number of copies without specific assignment
           for (let i = 0; i < globalRepeat; i++) {
             filledTasks.push({
               project: project._id,
@@ -352,7 +379,7 @@ export function TaskDialog({
               }`,
               content: filled,
               timer: template.timer,
-              reviewer: "", // Add empty string as default reviewer
+              reviewer: "",
             });
           }
         }
@@ -362,25 +389,43 @@ export function TaskDialog({
         filledTasks
       )) as unknown as CreateTasksResponse;
 
-      // If tasks were created successfully and we're using annotator assignment
-      if (assignToAllAnnotators && response?.success) {
+      let repeatresponse: SaveTasksResponse | undefined;
+      if (assignToAllAnnotators) {
+        try {
+          repeatresponse = (await saveRepeatTasks(
+            repeatTasks
+          )) as unknown as SaveTasksResponse;
+          if (!repeatresponse?.success) {
+            throw new Error("Failed to save repeat tasks");
+          }
+        } catch (error) {
+          console.log(error);
+          toast({
+            variant: "destructive",
+            title: "Failed to save repeat tasks",
+            description:
+              (error as any).message ||
+              "An unknown error occurred while saving repeat tasks.",
+          });
+          return;
+        }
+      }
+
+      if (
+        assignToAllAnnotators &&
+        response?.success &&
+        repeatresponse?.success
+      ) {
         const assignments = response.tasks
           .filter((task) => task.annotator)
-          .map((task) =>
-            handleAssignUser(
-              task.annotator!,
-              task._id,
-              false // not AI
-            )
-          );
+          .map((task) => handleAssignUser(task.annotator!, task._id, false));
 
-        // Wait for all assignments to complete
         await Promise.all(assignments);
       }
 
       toast({
         title: "Tasks created successfully",
-        description: `Created ${filledTasks.length} tasks successfully`,
+        description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
       });
 
       setTasks([{ id: 1, values: {} }]);
@@ -395,6 +440,7 @@ export function TaskDialog({
       });
     }
   };
+
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[425px] md:max-w-fit">

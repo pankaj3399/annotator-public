@@ -20,5 +20,5 @@ const taskRepeatSchema = new Schema({
   timer: { type: Number, default: 0 },
 });
 
-export const taskRepeat =
-  models?.Template || model("TaskRepeat", taskRepeatSchema);
+export const TaskRepeat =
+  models?.TaskRepeat || model("TaskRepeat", taskRepeatSchema);
