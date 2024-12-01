@@ -10,6 +10,10 @@ import {
 } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
 
+import png1 from "@/public/static/1.png";
+import png2 from "@/public/static/2.png";
+import png3 from "@/public/static/3.png";
+
 const Hero = () => {
   return (
     <div className="pt-32 container px-5 md:px-7" id="home">
@@ -64,7 +68,7 @@ const Hero = () => {
             <CarouselItem className="p-0 flex justify-center">
               <Image
                 className="rounded-md w-full max-w-[1074px]"
-                src={"/static/1.png"}
+                src={png1}
                 alt="Carousel Image 1"
                 width={1074}
                 height={608}
@@ -74,7 +78,7 @@ const Hero = () => {
             <CarouselItem className="p-0 flex justify-center">
               <Image
                 className="rounded-md w-full max-w-[1074px]"
-                src={"/static/2.png"}
+                src={png2}
                 alt="Carousel Image 2"
                 width={1074}
                 height={608}
@@ -83,7 +87,7 @@ const Hero = () => {
             <CarouselItem className="p-0 flex justify-center">
               <Image
                 className="rounded-md w-full max-w-[1074px]"
-                src={"/static/3.png"}
+                src={png3}
                 alt="Carousel Image 3"
                 width={1074}
                 height={608}
