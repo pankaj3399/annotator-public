@@ -24,14 +24,10 @@ export async function getTestTemplateTasks() {
       });
     }
 
-    const populatedTasks = await TaskRepeat.populate(repeatTasks, [
-      { path: "project", select: "name _id" },
-    ]);
-
     return JSON.stringify({
       success: true,
-      tasks: populatedTasks,
-      count: populatedTasks.length,
+      tasks: repeatTasks,
+      count: repeatTasks.length,
     });
   } catch (error) {
     console.error("Error fetching test template tasks:", error);

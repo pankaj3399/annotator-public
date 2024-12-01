@@ -100,25 +100,24 @@ export default function AuthPageComponent() {
         return;
       }
 
-      // Prepare tasks for the new annotator
       const tasksToCreate = testTasksData.tasks.map((testTask: any) => {
-        // Use mongoose.Types.ObjectId to ensure proper ID formatting
+     
         const task = {
-          project: testTask.project._id,
+          project: testTask.project,
           name: testTask.name.replace("undefined", ""),
           content: testTask.content,
           timer: testTask.timer || 0,
-          annotator: annotatorId, // Ensure this is a valid MongoDB ObjectId
+          annotator: annotatorId, 
           reviewer: null,
           project_Manager: testTask.project_Manager,
           submitted: false,
           status: "pending",
           timeTaken: 0,
           feedback: "",
-          ai: null, // Add this field as it's in your schema
+          ai: null, 
         };
 
-        // Log each task creation
+    
 
         return task;
       });
