@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/sheet";
 import { ModeToggle } from "./ThemeToggle";
 
+import image from "@/public/static/image.png";
+
 const Header = () => {
   const [isDesktop, setIsDesktop] = useState(false);
   const pathname = usePathname();
@@ -77,7 +79,7 @@ const Header = () => {
       <div className="w-full h-16 bg-white/20 dark:bg-header/20 backdrop-blur-lg top-0 fixed border-b-[1px] border-[#e5e7eb] dark:border-gray-700 z-[999]">
         <div className="container mx-auto flex justify-between items-center h-full">
           <Image
-            src={"/static/image.png"} 
+            src={image}
             alt="Logo"
             width={64}
             height={32}
@@ -103,7 +105,7 @@ const Header = () => {
     <Sheet>
       <div className="flex container py-3 gap-x-3 justify-between items-center fixed top-0 bg-transparent backdrop-blur-lg z-[998]">
         <Image
-          src={"/static/image.png"} // Updated path to static directory
+          src={image} // Updated path to static directory
           alt="Logo"
           width={64}
           height={32}
@@ -134,15 +136,13 @@ const Header = () => {
         className="dark:bg-header bg-white rounded-t-lg border-t-0 p-4 z-[998]"
       >
         <SheetHeader className="flex justify-between items-center">
-          <Link href="/" className="dark:text-white text-2xl font-bold">
-            <Image
-              src={"/static/image.png"} // Updated path to static directory
-              alt="Logo"
-              width={64}
-              height={32}
-              className="h-8"
-            />
-          </Link>
+          <Image
+            src={image} // Updated path to static directory
+            alt="Logo"
+            width={64}
+            height={32}
+            className="h-8"
+          />
         </SheetHeader>
         <SheetDescription className="flex flex-col justify-center items-center mt-4 space-y-4">
           {renderLinks()}
