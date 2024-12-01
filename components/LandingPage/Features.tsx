@@ -6,6 +6,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import Image from "next/image";
+
+import analytics from "@/public/static/analytics.png";
+import token from "@/public/static/token.png";
+import codecollab from "@/public/static/codecollab.png";
+import hero from "@/public/static/hero.png";
+
 const Features = () => {
   return (
     <>
@@ -22,8 +29,8 @@ const Features = () => {
             <Card className="text-start">
               <CardHeader>
                 <CardDescription>
-                  <img
-                    src="/static/analytics.png"
+                  <Image
+                    src={analytics}
                     alt="feature"
                     className="w-20 h-20 rounded-full inline-block"
                   />
@@ -43,8 +50,8 @@ const Features = () => {
             <Card className="text-start">
               <CardHeader>
                 <CardDescription>
-                  <img
-                    src="/static/token.png"
+                  <Image
+                    src={token}
                     alt="feature"
                     className="w-20 h-20 rounded-full inline-block"
                   />
@@ -63,8 +70,8 @@ const Features = () => {
             <Card className="text-start">
               <CardHeader>
                 <CardDescription>
-                  <img
-                    src="/static/codecollab.png"
+                  <Image
+                    src={codecollab}
                     alt="feature"
                     className="w-20 h-20 rounded-full inline-block"
                   />
@@ -77,7 +84,7 @@ const Features = () => {
                   easier for experts and PMs to collaborate, clarify, and refine
                   during predictions.
                 </p>
-                <img src="/static/hero.png" alt="" className="w-full max-w-[400px]" />
+                <Image src={hero} alt="" className="w-full max-w-[400px]" />
               </CardContent>
             </Card>
           </div>

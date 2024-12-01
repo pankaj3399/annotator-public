@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { MountainIcon } from "lucide-react";
+import image from "@/public/static/image.png";
 
 const Footer = () => {
   return (
@@ -8,7 +9,7 @@ const Footer = () => {
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between px-4 md:px-6">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">
             <Image 
-              src="/static/image.png" 
+              src={image} 
               alt="Logo" 
               width={64} 
               height={32} 
