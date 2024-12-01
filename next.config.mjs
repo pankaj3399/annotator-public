@@ -13,7 +13,18 @@ const nextConfig = {
     },
   },
   images: {
-    domains: ['via.placeholder.com'], // Add the placeholder domain here
+    unoptimized: true, // Add this to help with static image loading
+    domains: ['via.placeholder.com', 'localhost'], // Keep existing domain and add localhost
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: '**',
+      },
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
   },
 };
 
