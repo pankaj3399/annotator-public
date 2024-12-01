@@ -78,7 +78,7 @@ const Header = () => {
         <div className="container mx-auto flex justify-between items-center h-full">
           <Link href="/" className="dark:text-white text-2xl font-bold">
             <Image 
-              src="/static/image.png"  // Updated path to static directory
+              src="/image.png"  // Updated path to static directory
               alt="Logo" 
               width={64} 
               height={32} 
@@ -105,7 +105,7 @@ const Header = () => {
       <div className="flex container py-3 gap-x-3 justify-between items-center fixed top-0 bg-transparent backdrop-blur-lg z-[998]">
         <Link href="/" className="dark:text-white text-2xl font-bold">
           <Image 
-            src="/static/image.png"  // Updated path to static directory
+            src="/image.png"  // Updated path to static directory
             alt="Logo" 
             width={64} 
             height={32} 
@@ -138,7 +138,7 @@ const Header = () => {
         <SheetHeader className="flex justify-between items-center">
           <Link href="/" className="dark:text-white text-2xl font-bold">
             <Image 
-              src="/static/image.png"  // Updated path to static directory
+              src="/image.png"  // Updated path to static directory
               alt="Logo" 
               width={64} 
               height={32} 
