@@ -206,24 +206,29 @@ export default function NotificationTemplatePage() {
     }
   };
 
-  const handleUpdateTemplate = (id: string, field: string, value: string) => {
-    const existingSelection = templates.find(
-      (template) => template[field as keyof NotificationTemplate] === value
-    );
-
-    if (existingSelection) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "This trigger type is already used.",
-      });
-      return;
+  const handleUpdateTemplate = (id: string, field: string, value: string | boolean) => {
+    if (field === "triggerName") {
+      // Check if another template already has the same triggerName
+      const existingSelection = templates.find(
+        (template) => template.triggerName === value && template._id !== id
+      );
+  
+      if (existingSelection) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "This trigger type is already used.",
+        });
+        return;
+      }
     }
-
+  
+    // Update the template
     setTemplates((prev) =>
       prev.map((t) => (t._id === id ? { ...t, [field]: value } : t))
     );
   };
+  
 
   if (loading || !projectId || status === "loading") {
     return <Loader />;
