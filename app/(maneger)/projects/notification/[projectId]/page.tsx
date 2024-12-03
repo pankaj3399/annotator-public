@@ -179,6 +179,8 @@ export default function NotificationTemplatePage() {
         `/api/projects/${projectId}/notifications/${id}`,
         {
           method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ _id: id }),
         }
       );
 
