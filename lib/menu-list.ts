@@ -10,6 +10,7 @@ import {
   User,
   BarChart2,
   Settings,
+  Bell,
 } from "lucide-react";
 
 type Submenu = {
@@ -32,8 +33,8 @@ type Group = {
 };
 
 export function getMenuList(pathname: string): Group[] {
-  const projectId = pathname.split("/")[pathname.split("/").length - 1]
-  const fpath= pathname.split("/")[1]
+  const projectId = pathname.split("/")[pathname.split("/").length - 1];
+  const fpath = pathname.split("/")[1];
 
   // For tasks path
   if (fpath === "tasks") {
@@ -97,8 +98,13 @@ export function getMenuList(pathname: string): Group[] {
     ];
   }
 
-
-  if(projectId == "" || projectId == 'dashboard' || projectId == 'annotator' || projectId == 'chat' || projectId == 'profile') {
+  if (
+    projectId == "" ||
+    projectId == "dashboard" ||
+    projectId == "annotator" ||
+    projectId == "chat" ||
+    projectId == "profile"
+  ) {
     return [
       {
         groupLabel: "",
@@ -196,7 +202,8 @@ export function getMenuList(pathname: string): Group[] {
             !pathname.includes("/task") &&
             !pathname.includes("/ai-config") &&
             !pathname.includes("/analytics/view") &&
-            !pathname.includes("/settings"),
+            !pathname.includes("/settings") &&
+            !pathname.includes("/notification"),
           icon: SquarePen,
         },
         {
@@ -233,6 +240,13 @@ export function getMenuList(pathname: string): Group[] {
           active: pathname.includes("/settings"),
           icon: Settings,
         },
+
+        {
+          href: `/projects/notification/${projectId}`,
+          label: "Notification",
+          active: pathname.includes("/notification"),
+          icon: Bell,
+        },
       ],
     },
     {
@@ -248,7 +262,10 @@ export function getMenuList(pathname: string): Group[] {
     },
   ];
 
-  if (pathname.includes("/tasks/annotator") && pathname.includes("/analytics")) {
+  if (
+    pathname.includes("/tasks/annotator") &&
+    pathname.includes("/analytics")
+  ) {
     menu.push({
       groupLabel: "Analytics",
       menus: [
