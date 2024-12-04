@@ -5,10 +5,15 @@ import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
 import { Template } from "@/models/Template";
+import {User} from "@/models/User";
 import { TaskRepeat } from "@/models/TaskRepeat";
 import { template } from "../template/page";
+import NotificationTemplate from "@/models/NotificationTemplate";
 import Rework from "@/models/Rework";
+import nodemailer from 'nodemailer';
 import { AIJob } from "@/models/aiModel";
+
+
 
 export async function getTestTemplateTasks() {
   await connectToDatabase();
@@ -406,6 +411,105 @@ export async function setTaskStatus(
   );
   return res.status;
 }
+
+export async function sendNotificationEmail(taskId: string, action: string) {
+  try {
+
+    const task = await Task.findById(taskId).populate("project annotator").exec();
+
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    const projectId = task.project._id;
+    const annotator = await User.findById(task.annotator).exec();
+
+    if (!annotator || !annotator.email) {
+      throw new Error("Annotator email not found");
+    }
+
+    // Fetch notification templates for the project
+
+
+    const response = await getNotificationTemplatesByProject(projectId);
+    const { templates } = response;
+
+    if (!response.success || !templates) {
+      throw new Error("Failed to fetch notification templates.");
+    }
+
+    const triggerTemplate = templates.find(
+      (template: any) =>
+        template.triggerName === action && template.active
+    );
+
+    if (triggerTemplate) {
+      // Send an email using Nodemailer
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASSWORD,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: annotator.email,
+        subject: `Task ${action} Notification`,
+        html: triggerTemplate.triggerBody, // Use the trigger body as the email content
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      console.log(`Notification email sent to ${annotator.email} for task ${action}`);
+    } else {
+      console.warn(`No active template found for the ${action} trigger.`);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Error in sending notification email: ${error.message}`);
+    } else {
+      console.error("Error in sending notification email:", error);
+    }
+    throw error;
+  }
+}
+
+
+export async function getNotificationTemplatesByProject(projectId: string) {
+  await connectToDatabase();
+  const session = await getServerSession(authOptions);
+  const userId = session?.user.id;
+
+  if (!userId || !session) {
+    throw new Error("Unauthorized");
+  }
+  try {
+
+    if (!projectId) {
+      throw new Error('Project ID is required');
+    }
+
+    const templates = await NotificationTemplate.find({ project: projectId });
+
+    return {
+      success: true,
+      templates,
+    };
+  } catch (error) {
+    console.error('Error fetching notification templates:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch templates',
+    };
+  }
+}
+
+
+
 export async function getDistinctProjectsByAnnotator() {
   await connectToDatabase();
   const session = await getServerSession(authOptions);

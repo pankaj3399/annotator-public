@@ -2,7 +2,7 @@
 
 import { Annotator } from "@/app/(maneger)/projects/task/[projectId]/page"
 import { getAllAnnotators } from "@/app/actions/annotator"
-import { setTaskStatus } from "@/app/actions/task"
+import { setTaskStatus, sendNotificationEmail } from "@/app/actions/task"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -44,15 +44,28 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
 
   const updateStatus = async (action: StatusType, additionalData?: any) => {
     try {
-      const newStatus = await setTaskStatus(id, action, additionalData?.feedback, additionalData?.reassignTo)
-      setCurrentStatus(newStatus)
-      toast.success(`The task has been ${action}`)
-      router.back()
+      // Update the task's status in your database
+      const newStatus = await setTaskStatus(
+        id,
+        action,
+        additionalData?.feedback,
+        additionalData?.reassignTo
+      );
+      setCurrentStatus(newStatus);
+      toast.success(`The task has been ${action}`);
+  
+      // Send notification email
+      if (["accepted", "rejected"].includes(action)) {
+        await sendNotificationEmail(id, action); // Use task ID directly
+      }
+  
+      router.back();
     } catch (error) {
-      toast.error(`Failed to ${action} the task`)
+      console.error(error);
+      toast.error(`Failed to ${action} the task`);
     }
-  }
-
+  };
+  
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault()
     await updateStatus('rejected', { feedback })
