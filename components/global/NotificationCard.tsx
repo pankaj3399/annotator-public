@@ -92,7 +92,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
             </SelectContent>
           </Select>
         </div>
-        <div>
+        <div className="relative h-auto max-h-[400px] overflow-y-auto">
           <label className="block text-sm font-medium mb-1">Trigger Body</label>
           <ReactQuill
             theme="snow"
@@ -102,10 +102,10 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
             }
             modules={modules}
             formats={formats}
-            className="h-64"
+            className="h-full"
           />
         </div>
-        <div className="flex items-center justify-between pt-12">
+        <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
           <div className="flex items-center space-x-3">
             <Switch
               checked={template.active}
@@ -120,8 +120,7 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
               Save Changes
             </Button>
             <Button
-              variant="outline"
-              color="red"
+              variant="destructive"
               onClick={() => onDelete(template._id)}
             >
               Delete
