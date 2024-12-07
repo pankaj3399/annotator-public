@@ -16,6 +16,7 @@ const DynamicCheckbox = lazy(() => import('./dynamic-checkbox'))
 const DynamicImageComponent = lazy(() => import('./dynamic-image'))
 const DynamicTextComponent = lazy(() => import('./dynamic-text'))
 const DynamicVideoComponent = lazy(() => import('./dynamic-video'))
+const DynamicUploadComponent = lazy(() => import('./dynamic-upload')) // Add this line
 const ImageComponent = lazy(() => import('./image'))
 const InputRecordAudioComponent = lazy(() => import('./input-recordAudio'))
 const InputRecordVideoComponent = lazy(() => import('./input-recordVideo'))
@@ -49,6 +50,7 @@ const COMPONENT_MAP = {
   recordVideo: RecordVideoComponent,
   inputRecordAudio: InputRecordAudioComponent,
   inputRecordVideo: InputRecordVideoComponent,
+  dynamicUpload: DynamicUploadComponent, 
 } as const
 
 const Recursive = ({ element }: Props) => {

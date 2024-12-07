@@ -18,6 +18,7 @@ import TextPlaceholder from './text-placeholder'
 import TwoColumnsPlaceholder from './two-columns-placeholder'
 import VideoPlaceholder from './video-placeholder'
 import { GripVertical } from 'lucide-react';
+import DynamicUploadPlaceholder from './DynamicUploadPlaceholder';
 
 
 const ComponentsTab = () => {
@@ -135,6 +136,14 @@ const ComponentsTab = () => {
       id: 'link',
       group: 'elements',
     },
+
+    {
+      Component: <DynamicUploadPlaceholder />,
+      label: 'Upload File',
+      id: 'dynamicUpload',
+      group: 'Dynamic Elements',
+    },
+
   ]
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, elementId: EditorBtns) => {
