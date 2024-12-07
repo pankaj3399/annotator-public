@@ -15,20 +15,31 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Minus, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
-import { Repeat } from "framer-motion";
+
+interface TaskValue {
+  content: string;
+  fileType?: "image" | "video" | "document" | "audio";
+}
 
 interface Task {
   id: number;
-  values: { [key: string]: string };
+  values: { [key: string]: TaskValue };
 }
 
 interface Placeholder {
-  type: "text" | "video" | "img" | "audio";
+  type: "text" | "video" | "img" | "audio" | "upload";
   index: number;
   name: string;
 }
@@ -39,7 +50,7 @@ interface FilledTask {
   content: string;
   timer: number;
   annotator?: string;
-  reviewer: string; // Add this required field
+  reviewer: string;
 }
 
 interface RepeatTask {
@@ -48,7 +59,7 @@ interface RepeatTask {
   content: string;
   timer: number;
   annotator?: string | null;
-  reviewer: string; // Add this required field
+  reviewer: string;
 }
 
 export interface Annotator {
@@ -182,7 +193,7 @@ export function TaskDialog({
         if (Array.isArray(item.content)) {
           item.content.forEach(extractPlaceholders);
         } else if (item.type && item.type.startsWith("dynamic")) {
-          let type: "text" | "video" | "img" | "audio";
+          let type: "text" | "video" | "img" | "audio" | "upload";
           switch (item.type) {
             case "dynamicText":
               type = "text";
@@ -195,6 +206,9 @@ export function TaskDialog({
               break;
             case "dynamicAudio":
               type = "audio";
+              break;
+            case "dynamicUpload":
+              type = "upload";
               break;
             default:
               return;
@@ -239,7 +253,39 @@ export function TaskDialog({
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task.id === taskId
-          ? { ...task, values: { ...task.values, [placeholder.index]: value } }
+          ? {
+              ...task,
+              values: {
+                ...task.values,
+                [placeholder.index]: {
+                  content: value,
+                  fileType: task.values[placeholder.index]?.fileType || "document"
+                }
+              }
+            }
+          : task
+      )
+    );
+  };
+
+  const handleFileTypeChange = (
+    taskId: number,
+    placeholder: Placeholder,
+    fileType: "image" | "video" | "document" | "audio"
+  ) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              values: {
+                ...task.values,
+                [placeholder.index]: {
+                  content: task.values[placeholder.index]?.content || "",
+                  fileType
+                }
+              }
+            }
           : task
       )
     );
@@ -251,10 +297,57 @@ export function TaskDialog({
     }
   };
 
-  const renderFilledTemplate = (values: { [key: string]: string }) => {
+  const renderPlaceholderInput = (task: Task, placeholder: Placeholder) => {
+    if (placeholder.type === "upload") {
+      return (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              id={`${task.id}-${placeholder.index}`}
+              value={task.values[placeholder.index]?.content || ""}
+              onChange={(e) =>
+                handleInputChange(task.id, placeholder, e.target.value)
+              }
+              placeholder={`Enter file URL for ${placeholder.name}`}
+              className="flex-1"
+            />
+            <Select
+              value={task.values[placeholder.index]?.fileType || "document"}
+              onValueChange={(value: "image" | "video" | "document" | "audio") =>
+                handleFileTypeChange(task.id, placeholder, value)
+              }
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="File Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="image">Image</SelectItem>
+                <SelectItem value="video">Video</SelectItem>
+                <SelectItem value="document">Document</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <Input
+        id={`${task.id}-${placeholder.index}`}
+        value={task.values[placeholder.index]?.content || ""}
+        onChange={(e) =>
+          handleInputChange(task.id, placeholder, e.target.value)
+        }
+        placeholder={`Enter ${placeholder.type} content for ${placeholder.name}`}
+      />
+    );
+  };
+
+  const renderFilledTemplate = (values: { [key: string]: TaskValue }) => {
     try {
       let content = JSON.parse(template.content);
-
+  
       const fillContent = (item: any): any => {
         if (Array.isArray(item.content)) {
           return { ...item, content: item.content.map(fillContent) };
@@ -262,12 +355,37 @@ export function TaskDialog({
           const placeholder = placeholders.find((p) => p.name === item.name);
           if (placeholder) {
             if (item.type === "dynamicText") {
+              const textContent = values[placeholder.index]?.content || `{{${placeholder.type}}}`;
               return {
                 ...item,
                 content: {
                   ...item.content,
-                  innerText:
-                    values[placeholder.index] || `{{${placeholder.type}}}`,
+                  src: textContent,
+                  innerText: textContent, // Include both src and innerText
+                },
+              };
+            } else if (item.type === "dynamicUpload") {
+              const fileType = values[placeholder.index]?.fileType || "document";
+              if (fileType === "document") {
+                const textContent = values[placeholder.index]?.content || `{{${placeholder.type}}}`;
+                return {
+                  ...item,
+                  type: "dynamicText",
+                  content: {
+                    type: "any",
+                    limit: 1,
+                    src: textContent,
+                    innerText: textContent, // Include innerText for converted text
+                  },
+                };
+              }
+              const dynamicType = `dynamic${fileType.charAt(0).toUpperCase()}${fileType.slice(1)}`;
+              return {
+                ...item,
+                type: dynamicType,
+                content: {
+                  ...item.content,
+                  src: values[placeholder.index]?.content || `{{${placeholder.type}}}`,
                 },
               };
             } else {
@@ -275,7 +393,7 @@ export function TaskDialog({
                 ...item,
                 content: {
                   ...item.content,
-                  src: values[placeholder.index] || `{{${placeholder.type}}}`,
+                  src: values[placeholder.index]?.content || `{{${placeholder.type}}}`,
                 },
               };
             }
@@ -283,7 +401,7 @@ export function TaskDialog({
         }
         return item;
       };
-
+  
       content = content.map(fillContent);
       return JSON.stringify(content);
     } catch (error) {
@@ -323,7 +441,10 @@ export function TaskDialog({
                 values: Object.fromEntries(
                   placeholders.map((placeholder, i) => [
                     placeholder.index,
-                    row[i] || "",
+                    {
+                      content: row[i] || "",
+                      fileType: "document" as "image" | "video" | "document" | "audio" // Default file type for uploads
+                    }
                   ])
                 ),
               };
@@ -498,14 +619,7 @@ export function TaskDialog({
                   >
                     {placeholder.name} ({placeholder.type})
                   </label>
-                  <Input
-                    id={`${task.id}-${placeholder.index}`}
-                    value={task.values[placeholder.index] || ""}
-                    onChange={(e) =>
-                      handleInputChange(task.id, placeholder, e.target.value)
-                    }
-                    placeholder={`Enter ${placeholder.type} content for ${placeholder.name}`}
-                  />
+                  {renderPlaceholderInput(task, placeholder)}
                 </div>
               ))}
             </div>
