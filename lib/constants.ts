@@ -22,6 +22,7 @@ export type EditorBtns =
   | 'recordVideo'
   | 'inputRecordAudio'
   | 'inputRecordVideo'
+  | 'dynamicUpload'
 
 export const defaultStyles: React.CSSProperties = {
   backgroundPosition: 'center',

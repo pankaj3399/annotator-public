@@ -52,6 +52,19 @@ const Container = ({ element }: Props) => {
           generateElementDetails('container', [], { width: '100%' }),
         ], { display: 'flex' }),
       }),
+      dynamicUpload: () => generateElementDetails('dynamicUpload', 
+        { 
+          type: 'any',  // default file type
+          limit: 1      // default file limit
+        }, 
+        { 
+          width: '100%',
+          padding: '10px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }
+      ),
     }
 
     if (componentType in elementMap) {
