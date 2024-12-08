@@ -1,9 +1,9 @@
-// app/api/users/profile/[id]/route.ts
 import { User } from '@/models/User';
 import { connectToDatabase } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
+import { CustomField } from '@/models/CustomField';
 
 export async function GET(
   request: NextRequest,
@@ -19,7 +19,8 @@ export async function GET(
       );
     }
 
-    if (session.user.id !== params.id) {
+    // Allow system admins to view any profile
+    if (session.user.id !== params.id && session.user.role !== 'system admin') {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -61,7 +62,7 @@ export async function PUT(
       );
     }
 
-    if (session.user.id !== params.id) {
+    if (session.user.id !== params.id && session.user.role !== 'system admin') {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }
@@ -69,77 +70,88 @@ export async function PUT(
     }
 
     await connectToDatabase();
-
     const updateData = await request.json();
-
-    // Extended allowed fields to include resume and nda
-    const allowedFields = [
-      'name',
-      'phone',
-      'location',
-      'linkedin',
-      'domain',
-      'lang',
-      'role',
-      'permission',
-      'resume',
-      'nda'
-    ];
-
-    // Create sanitized data object
-    const sanitizedData = Object.keys(updateData).reduce((acc, key) => {
-      if (allowedFields.includes(key)) {
-        // Handle arrays
-        if (['domain', 'lang', 'permission'].includes(key)) {
-          acc[key] = Array.isArray(updateData[key]) 
-            ? updateData[key] 
-            : updateData[key]?.split(',').map((item: string) => item.trim()) || [];
-        } 
-        // Handle URLs for resume and nda
-        else if (['resume', 'nda'].includes(key)) {
-          acc[key] = updateData[key] || null;
-        }
-        // Handle other fields
-        else {
-          acc[key] = updateData[key];
-        }
-      }
-      return acc;
-    }, {} as Record<string, any>);
-
-    // Validate array fields
-    const arrayFields = ['domain', 'lang', 'permission'];
-    for (const field of arrayFields) {
-      if (sanitizedData[field] && !Array.isArray(sanitizedData[field])) {
-        return NextResponse.json(
-          { error: `${field} must be an array` },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Add timestamp
-    sanitizedData.updated_at = new Date();
-
-    // Update the user
-    const updatedUser = await User.findByIdAndUpdate(
-      params.id,
-      { $set: sanitizedData },
-      { 
-        new: true,
-        runValidators: true,
-        select: '-password'
-      }
-    );
-
-    if (!updatedUser) {
+    
+    // First, get the existing user data
+    const existingUser = await User.findById(params.id);
+    if (!existingUser) {
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
       );
     }
 
-    // Return structured response
+    // Handle standard fields
+    const updateOperation: any = {
+      $set: {
+        updated_at: new Date()
+      }
+    };
+
+    const standardFields = [
+      'name',
+      'phone',
+      'location',
+      'linkedin',
+      'domain',
+      'lang',
+      'resume',
+      'nda'
+    ];
+
+    standardFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        if (['domain', 'lang'].includes(field)) {
+          updateOperation.$set[field] = Array.isArray(updateData[field])
+            ? updateData[field]
+            : updateData[field]?.split(',').map((item: string) => item.trim()) || [];
+        } else {
+          updateOperation.$set[field] = updateData[field];
+        }
+      }
+    });
+
+    // Handle customFields separately
+    if (updateData.customFields) {
+      // Convert the existing customFields to a plain JavaScript object
+      const existingCustomFields = existingUser.customFields 
+        ? JSON.parse(JSON.stringify(existingUser.customFields))
+        : {};
+
+      // Create a clean object with only the new custom field values
+      const newCustomFields = Object.entries(updateData.customFields)
+        .reduce((acc: Record<string, any>, [key, value]) => {
+          if (!key.startsWith('$') && !key.startsWith('_')) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {});
+
+      // Merge existing and new custom fields
+      updateOperation.$set.customFields = {
+        ...existingCustomFields,
+        ...newCustomFields
+      };
+    }
+
+    // Update the user with the new operation
+    const updatedUser = await User.findByIdAndUpdate(
+      params.id,
+      updateOperation,
+      { 
+        new: true,
+        runValidators: true,
+        select: '-password'
+      }
+    ).lean(); // Use lean() to get a plain JavaScript object
+
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: 'Failed to update user' },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       message: 'Profile updated successfully',
       user: updatedUser
@@ -148,7 +160,6 @@ export async function PUT(
   } catch (error: any) {
     console.error('Error updating user:', error);
     
-    // Handle validation errors
     if (error.name === 'ValidationError') {
       return NextResponse.json(
         { 
@@ -160,7 +171,6 @@ export async function PUT(
       );
     }
 
-    // Handle unique constraint violations
     if (error.code === 11000) {
       return NextResponse.json(
         { 

@@ -5,9 +5,18 @@ import { SheetMenu } from "@/components/admin-panel/sheet-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { format, parseISO } from "date-fns"
-import { CalendarIcon, Save, Search } from "lucide-react"
+import { CalendarIcon, Save, Search, FileDown } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import MultiCombobox from "@/components/ui/multi-combobox"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 interface User {
   _id: string;
@@ -35,13 +44,13 @@ const permissionOptions: Option[] = permissions.map((permission) => ({
   value: permission,
   label: permission,
 }));
-;
 
 export default function AnnotatorsPage() {
   const [annotators, setAnnotators] = useState<User[]>([])
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [reviewPermissionsState, setReviewPermissionsState] = useState<{ [key: string]: string[] }>({});
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -49,10 +58,7 @@ export default function AnnotatorsPage() {
       try {
         const data = JSON.parse(await getAllAnnotators())
         const transformedData = data.map((annotator: User) => {
-          // Handle the case where permission is empty or contains backend values
           const currentPermissions = annotator.permission || ['noPermission'];
-          
-          // Transform permissions to frontend format
           const transformedPermissions = currentPermissions.map(perm => 
             permissionMapping[perm] || 'No Permission'
           );
@@ -66,7 +72,6 @@ export default function AnnotatorsPage() {
         setAnnotators(transformedData)
         setFilteredAnnotators(transformedData)
 
-        // Initialize the reviewPermissionsState
         const initialPermissionsState = transformedData.reduce((acc: { [key: string]: string[] }, user: User) => {
           acc[user._id] = user.permission;
           return acc;
@@ -95,10 +100,7 @@ export default function AnnotatorsPage() {
   }, [searchTerm, annotators])
 
   const savePermissions = async (userId: string) => {
-    // Get the current permissions for this user
     const currentPermissions = reviewPermissionsState[userId] || ['No Permission'];
-    
-    // Transform the permissions back to backend format
     const backendPermissions = currentPermissions.map(permission => 
       permissionMapping[permission] || permission
     );
@@ -127,7 +129,6 @@ export default function AnnotatorsPage() {
         description: data.message || "Permissions updated successfully",
       });
 
-      // Update local state with the frontend display values
       setAnnotators(prevAnnotators => 
         prevAnnotators.map(annotator => 
           annotator._id === userId 
@@ -144,12 +145,58 @@ export default function AnnotatorsPage() {
       });
     }
   }
+
+  const handleExport = (exportFormat: string) => {
+    const dataToExport = filteredAnnotators.map(user => ({
+      name: user.name,
+      email: user.email,
+      permissions: user.permission.join(', '),
+      lastLogin: format(parseISO(user.lastLogin.toString()), 'PPPpp')
+    }));
+
+    if (exportFormat === 'json') {
+      const dataStr = JSON.stringify(dataToExport, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      const exportFileDefaultName = 'annotators.json';
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    } else {
+      const headers = ['name', 'email', 'permissions', 'lastLogin'];
+      const csvContent = [
+        headers.join(','),
+        ...dataToExport.map(row => 
+          headers.map(header => `"${row[header as keyof typeof row]}"`).join(',')
+        )
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', 'annotators.csv');
+      link.click();
+    }
+
+    setIsExportDialogOpen(false);
+  }
+
   return (
     <div className="min-h-screen">
       <header className="bg-white">
         <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Experts</h1>
-          <SheetMenu />
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsExportDialogOpen(true)}
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+            <SheetMenu />
+          </div>
         </div>
       </header>
       <main className="max-w-7xl mx-auto sm:px-6 lg:px-8">
@@ -227,6 +274,25 @@ export default function AnnotatorsPage() {
           </div>
         )}
       </main>
+
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Annotators</DialogTitle>
+            <DialogDescription>
+              Choose your preferred export format
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleExport('csv')}>
+              Export as CSV
+            </Button>
+            <Button onClick={() => handleExport('json')}>
+              Export as JSON
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
