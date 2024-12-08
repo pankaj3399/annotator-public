@@ -43,6 +43,7 @@ export default function ProjectDashboard() {
   useEffect(() => {
     if (session) {
       if (session?.user?.role === 'annotator') router.push('/tasks');
+      if (session?.user?.role === 'system admin') router.push('/admin/');
       fetch('/api/projects')
         .then((res) => res.json())
         .then((data) => {
