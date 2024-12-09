@@ -65,6 +65,25 @@ const Container = ({ element }: Props) => {
           alignItems: 'center'
         }
       ),
+      dynamicCarousel: () => generateElementDetails('dynamicCarousel', 
+        { 
+          slides: [{
+            type: 'text',
+            innerText: '{{text}}'
+          }],
+          currentSlideIndex: 0,
+          keyboardNav: true,
+          autoSlide: false,
+          slideInterval: 5
+        }, 
+        {
+          width: '100%',
+          padding: '10px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }
+      ),
     }
 
     if (componentType in elementMap) {

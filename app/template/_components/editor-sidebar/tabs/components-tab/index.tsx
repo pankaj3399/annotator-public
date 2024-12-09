@@ -19,6 +19,7 @@ import TwoColumnsPlaceholder from './two-columns-placeholder'
 import VideoPlaceholder from './video-placeholder'
 import { GripVertical } from 'lucide-react';
 import DynamicUploadPlaceholder from './DynamicUploadPlaceholder';
+import DynamicCarousel from './carousal-placeholder'
 
 
 const ComponentsTab = () => {
@@ -144,6 +145,12 @@ const ComponentsTab = () => {
       group: 'Dynamic Elements',
     },
 
+    {
+      Component: <DynamicCarousel />,
+      label: 'Carousal',
+      id: 'dynamicCarousel',
+      group: 'Dynamic Elements',
+    },
   ]
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, elementId: EditorBtns) => {

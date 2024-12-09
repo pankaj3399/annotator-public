@@ -23,6 +23,7 @@ export type EditorBtns =
   | 'inputRecordAudio'
   | 'inputRecordVideo'
   | 'dynamicUpload'
+  | 'dynamicCarousel'
 
 export const defaultStyles: React.CSSProperties = {
   backgroundPosition: 'center',

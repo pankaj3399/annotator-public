@@ -1,4 +1,3 @@
-// models/User.ts
 import mongoose, { Schema, model, models } from "mongoose";
 
 const userSchema = new Schema(
@@ -38,7 +37,7 @@ const userSchema = new Schema(
     ],
     role: {
       type: String,
-      enum: ["project manager", "annotator"],
+      enum: ["project manager", "annotator", "system admin"],
       required: true,
     },
     invitation: {
@@ -67,6 +66,11 @@ const userSchema = new Schema(
       type: Date,
       default: Date.now,
     },
+    customFields: {
+      type: Map,
+      of: Schema.Types.Mixed,
+      default: {},
+    },
     created_at: {
       type: Date,
       default: Date.now,
@@ -77,16 +81,14 @@ const userSchema = new Schema(
     },
   },
   {
-    // Add timestamps for created_at and updated_at fields
     timestamps: {
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
-    minimize: false,
+    minimize: false, // This ensures empty objects are stored
   }
 );
 
-// Add pre-save middleware to update the updated_at field
 userSchema.pre("save", function (next) {
   this.updated_at = new Date();
   next();

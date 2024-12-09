@@ -11,9 +11,9 @@ const Footer = () => {
             <Image 
               src={image} 
               alt="Logo" 
-              width={84} 
-              height={70} 
-              className="h-8" 
+              width={112}
+              height={28}
+              className="h-14 w-auto object-contain"
             />
           </div>
           <div className="grid grid-cols-2 gap-8 md:grid-cols-4 w-full md:w-auto">
