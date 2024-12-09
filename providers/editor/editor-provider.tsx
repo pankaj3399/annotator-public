@@ -5,14 +5,35 @@ import { EditorBtns } from '@/lib/constants'
 
 export type DeviceTypes = 'Desktop' | 'Mobile' | 'Tablet'
 
+type CarouselSlide = {
+  type: string
+  src?: string
+  innerText?: string
+}
+
 export type EditorElement = {
   id: string
   styles: React.CSSProperties
   name: string
   type: EditorBtns
-  content: EditorElement[] | { href?: string; innerText?: string; src?: string, selectedCheckbox?: string[],title?:string,checkboxes?:string[], type?:string, limit?:number,wordLimit?:number  }
+  content: EditorElement[] | {
+    href?: string
+    innerText?: string
+    src?: string
+    selectedCheckbox?: string[]
+    title?: string
+    checkboxes?: string[]
+    type?: string
+    limit?: number
+    wordLimit?: number
+    // Add carousel specific properties
+    keyboardNav?: boolean
+    autoSlide?: boolean
+    slideInterval?: number
+    slides?: CarouselSlide[]
+    currentSlideIndex?: number
+  }
 }
-
 export type Editor = {
   liveMode: boolean
   elements: EditorElement[]

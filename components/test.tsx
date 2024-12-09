@@ -27,7 +27,6 @@ import { Minus, Plus, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
-import { CarouselContent } from "./ui/carousel";
 
 interface TaskValue {
   content: string;
@@ -48,7 +47,7 @@ interface CarouselContent {
 
 interface Task {
   id: number;
-  values: {
+  values: { 
     [key: string]: TaskValue | CarouselContent;
   };
 }
@@ -198,6 +197,7 @@ export function TaskDialog({
       });
     }
   };
+
   useEffect(() => {
     try {
       const content = JSON.parse(template.content);
@@ -276,247 +276,16 @@ export function TaskDialog({
                 ...task.values,
                 [placeholder.index]: {
                   content: value,
-                  fileType:
-                    (task.values[placeholder.index] as TaskValue)?.fileType ||
-                    "document",
-                },
-              },
+                  fileType: (task.values[placeholder.index] as TaskValue)?.fileType || "document"
+                }
+              }
             }
           : task
       )
     );
   };
 
-  const handleFileTypeChange = (
-    taskId: number,
-    placeholder: Placeholder,
-    fileType: "image" | "video" | "document" | "audio"
-  ) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) =>
-        task.id === taskId
-          ? {
-              ...task,
-              values: {
-                ...task.values,
-                [placeholder.index]: {
-                  content:
-                    (task.values[placeholder.index] as TaskValue)?.content ||
-                    "",
-                  fileType,
-                },
-              },
-            }
-          : task
-      )
-    );
-  };
-
-  const handleGlobalRepeatChange = (value: number) => {
-    if (!assignToAllAnnotators) {
-      setGlobalRepeat(Math.max(1, value));
-    }
-  };
-
-  const renderPlaceholderInput = (task: Task, placeholder: Placeholder) => {
-    if (placeholder.type === "carousel") {
-      const templateContent = JSON.parse(template.content);
-      console.log("template content", templateContent);
-      const carouselElement = templateContent?.[0]?.content?.find(
-        (item: any) =>
-          item.name === placeholder.name && item.type === "dynamicCarousel"
-      );  
-  
-      if (!carouselElement) {
-        console.error("Carousel element not found for placeholder:", placeholder.name);
-        return; 
-      }
-      const carouselProperties: CarouselContent = carouselElement?.content || {
-        slides: [{ type: "text", innerText: "" }],
-        keyboardNav: true,
-        autoSlide: false,
-        slideInterval: 5000,
-      };
-
-      console.log("courseElement:", carouselElement);
-
-    const currentSlides =
-    (task.values[placeholder.index] as CarouselContent)?.slides ||
-    carouselProperties.slides.map(
-      (slide: { type: string; src?: string; innerText?: string }) => ({
-        ...slide,
-        innerText: slide.innerText || "",
-        src: slide.src || "",
-      })
-    );
-
-    console.log("currentSlides:", currentSlides);
-
-
-    return (
-      <div className="border rounded p-4 space-y-4">
-        <h4 className="text-lg font-semibold">
-          Carousel Content for {placeholder.name}
-        </h4>
-    
-        {currentSlides.map((slide, index) => (
-          <div key={index} className="mb-4 p-2 border rounded">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Slide {index + 1} ({slide.type})
-              </label>
-            </div>
-    
-            {slide.type === "text" && (
-              <Input
-                value={slide.innerText || ""}
-                onChange={(e) => {
-                  setTasks((prevTasks) =>
-                    prevTasks.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            values: {
-                              ...t.values,
-                              [placeholder.index]: {
-                                ...carouselProperties,
-                                slides: currentSlides.map((s, i) =>
-                                  i === index
-                                    ? { ...s, innerText: e.target.value }
-                                    : s
-                                ),
-                              },
-                            },
-                          }
-                        : t
-                    )
-                  );
-                }}
-                placeholder={`Enter text for Slide ${index + 1}`}
-                className="w-full"
-              />
-            )}
-    
-            {slide.type === "image" && (
-              <Input
-                value={slide.src || ""}
-                onChange={(e) => {
-                  setTasks((prevTasks) =>
-                    prevTasks.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            values: {
-                              ...t.values,
-                              [placeholder.index]: {
-                                ...carouselProperties,
-                                slides: currentSlides.map((s, i) =>
-                                  i === index
-                                    ? { ...s, src: e.target.value }
-                                    : s
-                                ),
-                              },
-                            },
-                          }
-                        : t
-                    )
-                  );
-                }}
-                placeholder={`Enter image URL for Slide ${index + 1}`}
-                className="w-full"
-              />
-            )}
-    
-            {slide.type === "video" && (
-              <Input
-                value={slide.src || ""}
-                onChange={(e) => {
-                  setTasks((prevTasks) =>
-                    prevTasks.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            values: {
-                              ...t.values,
-                              [placeholder.index]: {
-                                ...carouselProperties,
-                                slides: currentSlides.map((s, i) =>
-                                  i === index
-                                    ? { ...s, src: e.target.value }
-                                    : s
-                                ),
-                              },
-                            },
-                          }
-                        : t
-                    )
-                  );
-                }}
-                placeholder={`Enter video URL for Slide ${index + 1}`}
-                className="w-full"
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
-    // Existing input rendering logic for other placeholders
-    if (placeholder.type === "upload") {
-      return (
-        <div className="space-y-2">
-          <div className="flex gap-2">
-            <Input
-              id={`${task.id}-${placeholder.index}`}
-              value={
-                (task.values[placeholder.index] as TaskValue)?.content || ""
-              }
-              onChange={(e) =>
-                handleInputChange(task.id, placeholder, e.target.value)
-              }
-              placeholder={`Enter file URL for ${placeholder.name}`}
-              className="flex-1"
-            />
-            <Select
-              value={
-                (task.values[placeholder.index] as TaskValue)?.fileType ||
-                "document"
-              }
-              onValueChange={(
-                value: "image" | "video" | "document" | "audio"
-              ) => handleFileTypeChange(task.id, placeholder, value)}
-            >
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="File Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="image">Image</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="document">Document</SelectItem>
-                <SelectItem value="audio">Audio</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      );
-    }
-
-    // Default input rendering for other types
-    return (
-      <Input
-        id={`${task.id}-${placeholder.index}`}
-        value={(task.values[placeholder.index] as TaskValue)?.content || ""}
-        onChange={(e) =>
-          handleInputChange(task.id, placeholder, e.target.value)
-        }
-        placeholder={`Enter ${placeholder.type} content for ${placeholder.name}`}
-      />
-    );
-  };
-
-  const renderFilledTemplate = (values: {
-    [key: string]: TaskValue | CarouselContent;
-  }) => {
+  const renderFilledTemplate = (values: { [key: string]: TaskValue | CarouselContent }) => {
     try {
       let content = JSON.parse(template.content);
 
@@ -526,80 +295,33 @@ export function TaskDialog({
         } else if (item.type && item.type.startsWith("dynamic")) {
           const placeholder = placeholders.find((p) => p.name === item.name);
           if (placeholder) {
-            // Handle carousel specifically
+            // Handle carousel content
             if (item.type === "dynamicCarousel") {
-              const carouselValue = values[
-                placeholder.index
-              ] as CarouselContent;
+              const carouselValue = values[placeholder.index] as CarouselContent;
               return {
                 ...item,
                 content: {
                   ...item.content,
                   ...carouselValue,
-                },
+                }
               };
             }
 
-            // Existing logic for other dynamic types remains the same
-            if (item.type === "dynamicCarousel") {
-              const placeholder = placeholders.find(
-                (p) => p.name === item.name
-              );
-              if (placeholder) {
-                const carouselValue = values[
-                  placeholder.index
-                ] as CarouselContent;
-
-                // Create slides with proper type mapping
-                const mappedSlides = carouselValue.slides.map((slide) => {
-                  // If no type is specified, default to text
-                  const slideType = slide.type || "text";
-
-                  // Map slides based on their type
-                  switch (slideType) {
-                    case "image":
-                      return {
-                        type: "image",
-                        src: slide.src || `{{${placeholder.type}_image}}`,
-                        innerText: slide.innerText || "",
-                      };
-                    case "video":
-                      return {
-                        type: "video",
-                        src: slide.src || `{{${placeholder.type}_video}}`,
-                        innerText: slide.innerText || "",
-                      };
-                    case "text":
-                    default:
-                      return {
-                        type: "text",
-                        innerText:
-                          slide.innerText || `{{${placeholder.type}_text}}`,
-                        src: slide.src || "",
-                      };
-                  }
-                });
-
-                return {
-                  ...item,
-                  content: {
-                    ...item.content,
-                    slides: mappedSlides,
-                    keyboardNav: carouselValue.keyboardNav ?? true,
-                    autoSlide: carouselValue.autoSlide ?? false,
-                    slideInterval: carouselValue.slideInterval ?? 5000,
-                    currentSlideIndex: carouselValue.currentSlideIndex ?? 0,
-                  },
-                };
-              }
+            // Handle other dynamic types
+            if (item.type === "dynamicText") {
+              const textContent = (values[placeholder.index] as TaskValue)?.content || {{${placeholder.type}}};
+              return {
+                ...item,
+                content: {
+                  ...item.content,
+                  src: textContent,
+                  innerText: textContent,
+                },
+              };
             } else if (item.type === "dynamicUpload") {
-              const fileType =
-                (values[placeholder.index] as TaskValue)?.fileType ||
-                "document";
+              const fileType = (values[placeholder.index] as TaskValue)?.fileType || "document";
               if (fileType === "document") {
-                const textContent =
-                  (values[placeholder.index] as TaskValue)?.content ||
-                  `{{${placeholder.type}}}`;
+                const textContent = (values[placeholder.index] as TaskValue)?.content || {{${placeholder.type}}};
                 return {
                   ...item,
                   type: "dynamicText",
@@ -611,17 +333,13 @@ export function TaskDialog({
                   },
                 };
               }
-              const dynamicType = `dynamic${fileType
-                .charAt(0)
-                .toUpperCase()}${fileType.slice(1)}`;
+              const dynamicType = dynamic${fileType.charAt(0).toUpperCase()}${fileType.slice(1)};
               return {
                 ...item,
                 type: dynamicType,
                 content: {
                   ...item.content,
-                  src:
-                    (values[placeholder.index] as TaskValue)?.content ||
-                    `{{${placeholder.type}}}`,
+                  src: (values[placeholder.index] as TaskValue)?.content || {{${placeholder.type}}},
                 },
               };
             } else {
@@ -629,9 +347,7 @@ export function TaskDialog({
                 ...item,
                 content: {
                   ...item.content,
-                  src:
-                    (values[placeholder.index] as TaskValue)?.content ||
-                    `{{${placeholder.type}}}`,
+                  src: (values[placeholder.index] as TaskValue)?.content || {{${placeholder.type}}},
                 },
               };
             }
@@ -646,8 +362,7 @@ export function TaskDialog({
       console.error("Error rendering filled template:", error);
       toast({
         title: "Render Error",
-        description:
-          "Failed to render filled template. Please check the input values.",
+        description: "Failed to render filled template. Please check the input values.",
         variant: "destructive",
       });
       return "";
@@ -660,12 +375,11 @@ export function TaskDialog({
       Papa.parse(file, {
         complete: (results) => {
           const headers = results.data[0] as string[];
-
+          
           if (headers.length !== placeholders.length) {
             toast({
               title: "CSV Error",
-              description:
-                "The number of columns in the CSV does not match the number of placeholders in the template.",
+              description: "The number of columns in the CSV does not match the number of placeholders in the template.",
               variant: "destructive",
             });
             return;
@@ -673,24 +387,52 @@ export function TaskDialog({
 
           const newTasks = (results.data as string[][])
             .slice(1)
+            .filter(row => row.some(cell => cell.trim())) // Skip empty rows
             .map((row, index) => {
+              const values: { [key: string]: TaskValue | CarouselContent } = {};
+              
+              placeholders.forEach((placeholder, i) => {
+                if (placeholder.type === "carousel") {
+                  // Parse carousel data from CSV
+                  try {
+                    const carouselData = JSON.parse(row[i]);
+                    values[placeholder.index] = {
+                      ...carouselData,
+                      slides: carouselData.slides.map((slide: any) => ({
+                        type: slide.type || "text",
+                        innerText: slide.innerText || "",
+                        src: slide.src || ""
+                      }))
+                    };
+                  } catch {
+                    // If parsing fails, maintain template structure with empty content
+                    const templateContent = JSON.parse(template.content);
+                    const carouselElement = templateContent.find(
+                      (item: any) => item.name === placeholder.name && item.type === "dynamicCarousel"
+                    );
+                    values[placeholder.index] = {
+                      ...carouselElement?.content,
+                      slides: carouselElement?.content?.slides.map((slide: any) => ({
+                        ...slide,
+                        innerText: "",
+                        src: ""
+                      }))
+                    };
+                  }
+                } else {
+                  values[placeholder.index] = {
+                    content: row[i] || "",
+                    fileType: "document"
+                  };
+                }
+              });
+
               return {
                 id: index + 1,
-                values: Object.fromEntries(
-                  placeholders.map((placeholder, i) => [
-                    placeholder.index,
-                    {
-                      content: row[i] || "",
-                      fileType: "document" as
-                        | "image"
-                        | "video"
-                        | "document"
-                        | "audio", // Default file type for uploads
-                    },
-                  ])
-                ),
+                values
               };
             });
+
           setTasks(newTasks);
         },
         error: (error) => {
@@ -716,7 +458,7 @@ export function TaskDialog({
           annotators.forEach((annotator) => {
             const newTask = {
               project: project._id,
-              name: `${project.name} - ${template.name} - Task${task.id}`,
+              name: ${project.name} - ${template.name} - Task${task.id},
               content: filled,
               timer: template.timer,
               annotator: annotator._id,
@@ -727,7 +469,7 @@ export function TaskDialog({
 
           repeatTasks.push({
             project: project._id,
-            name: `${project.name} - ${template.name} - Task${task.id}`,
+            name: ${project.name} - ${template.name} - Task${task.id},
             content: filled,
             timer: template.timer,
             annotator: null,
@@ -737,9 +479,7 @@ export function TaskDialog({
           for (let i = 0; i < globalRepeat; i++) {
             filledTasks.push({
               project: project._id,
-              name: `${project.name} - ${template.name} - Task${task.id}.${
-                i + 1
-              }`,
+              name: ${project.name} - ${template.name} - Task${task.id}.${i + 1},
               content: filled,
               timer: template.timer,
               reviewer: "",
@@ -748,37 +488,17 @@ export function TaskDialog({
         }
       });
 
-      const response = (await createTasks(
-        filledTasks
-      )) as unknown as CreateTasksResponse;
+      const response = (await createTasks(filledTasks)) as unknown as CreateTasksResponse;
 
       let repeatresponse: SaveTasksResponse | undefined;
       if (assignToAllAnnotators) {
-        try {
-          repeatresponse = (await saveRepeatTasks(
-            repeatTasks
-          )) as unknown as SaveTasksResponse;
-          if (!repeatresponse?.success) {
-            throw new Error("Failed to save repeat tasks");
-          }
-        } catch (error) {
-          console.log(error);
-          toast({
-            variant: "destructive",
-            title: "Failed to save repeat tasks",
-            description:
-              (error as any).message ||
-              "An unknown error occurred while saving repeat tasks.",
-          });
-          return;
+        repeatresponse = (await saveRepeatTasks(repeatTasks)) as unknown as SaveTasksResponse;
+        if (!repeatresponse?.success) {
+          throw new Error("Failed to save repeat tasks");
         }
       }
 
-      if (
-        assignToAllAnnotators &&
-        response?.success &&
-        repeatresponse?.success
-      ) {
+      if (assignToAllAnnotators && response?.success && repeatresponse?.success) {
         const assignments = response.tasks
           .filter((task) => task.annotator)
           .map((task) => handleAssignUser(task.annotator!, task._id, false));
@@ -788,12 +508,11 @@ export function TaskDialog({
 
       toast({
         title: "Tasks created successfully",
-        description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
+        description: Created ${filledTasks.length} tasks${repeatTasks.length ? ` and ${repeatTasks.length} repeat tasks : ''} successfully`,
       });
 
       setTasks([{ id: 1, values: {} }]);
       setGlobalRepeat(1);
-      setAssignToAllAnnotators(false);
       setIsDialogOpen(false);
     } catch (error: any) {
       toast({
@@ -811,10 +530,7 @@ export function TaskDialog({
           <div className="flex flex-row items-center justify-between pr-8">
             <DialogTitle className="flex-1">Ingest Data</DialogTitle>
             <div className="flex items-center gap-2 ml-4">
-              <label
-                htmlFor="global-repeat"
-                className="text-sm font-medium text-gray-700"
-              >
+              <label htmlFor="global-repeat" className="text-sm font-medium text-gray-700">
                 Repeat Each Task:
               </label>
               <Input
@@ -822,9 +538,7 @@ export function TaskDialog({
                 type="number"
                 min="1"
                 value={globalRepeat}
-                onChange={(e) =>
-                  handleGlobalRepeatChange(parseInt(e.target.value, 10))
-                }
+                onChange={(e) => handleGlobalRepeatChange(parseInt(e.target.value, 10))}
                 className="w-20"
                 disabled={assignToAllAnnotators}
               />
@@ -845,18 +559,20 @@ export function TaskDialog({
             <div key={task.id} className="mb-4 p-2 border rounded">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-semibold">Task {task.id}</h3>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveTask(task.id)}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
+                {tasks.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveTask(task.id)}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
               {placeholders.map((placeholder) => (
                 <div key={placeholder.index} className="mb-2">
                   <label
-                    htmlFor={`${task.id}-${placeholder.index}`}
+                    htmlFor={${task.id}-${placeholder.index}}
                     className="block text-sm font-medium text-gray-700"
                   >
                     {placeholder.name} ({placeholder.type})
@@ -890,4 +606,171 @@ export function TaskDialog({
       </DialogContent>
     </Dialog>
   );
-}
+
+  const handleFileTypeChange = (
+    taskId: number,
+    placeholder: Placeholder,
+    fileType: "image" | "video" | "document" | "audio"
+  ) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId
+          ? {
+              ...task,
+              values: {
+                ...task.values,
+                [placeholder.index]: {
+                  content: (task.values[placeholder.index] as TaskValue)?.content || "",
+                  fileType
+                }
+              }
+            }
+          : task
+      )
+    );
+  };
+
+  const renderPlaceholderInput = (task: Task, placeholder: Placeholder) => {
+    // Handle carousel placeholder
+    if (placeholder.type === "carousel") {
+      // Extract carousel properties from template
+      const templateContent = JSON.parse(template.content);
+      const carouselElement = templateContent.find(
+        (item: any) => item.name === placeholder.name && item.type === "dynamicCarousel"
+      );
+      
+      const carouselProperties = carouselElement?.content || {
+        slides: [{ type: "text", innerText: "" }],
+        keyboardNav: true,
+        autoSlide: false,
+        slideInterval: 5000
+      };
+
+      // Use the existing slides structure from the template
+      const currentSlides = (task.values[placeholder.index] as CarouselContent)?.slides || 
+        carouselProperties.slides.map(slide => ({
+          ...slide,
+          innerText: "",
+          src: ""
+        }));
+
+      return (
+        <div className="border rounded p-4 space-y-4">
+          <h4 className="text-lg font-semibold">Carousel Content for {placeholder.name}</h4>
+          
+          {currentSlides.map((slide, index) => (
+            <div key={index} className="mb-4 p-2 border rounded">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Slide {index + 1} ({slide.type})
+                </label>
+              </div>
+
+              {slide.type === "text" && (
+                <Input
+                  value={slide.innerText || ''}
+                  onChange={(e) => {
+                    setTasks(prevTasks => 
+                      prevTasks.map(t => 
+                        t.id === task.id 
+                          ? {
+                              ...t,
+                              values: {
+                                ...t.values,
+                                [placeholder.index]: {
+                                  ...carouselProperties,
+                                  slides: currentSlides.map((s, i) => 
+                                    i === index 
+                                      ? { ...s, innerText: e.target.value }
+                                      : s
+                                  )
+                                }
+                              }
+                            }
+                          : t
+                      )
+                    );
+                  }}
+                  placeholder={Enter text for Slide ${index + 1}}
+                  className="w-full"
+                />
+              )}
+
+              {(slide.type === "image" || slide.type === "video") && (
+                <Input
+                  value={slide.src || ''}
+                  onChange={(e) => {
+                    setTasks(prevTasks => 
+                      prevTasks.map(t => 
+                        t.id === task.id 
+                          ? {
+                              ...t,
+                              values: {
+                                ...t.values,
+                                [placeholder.index]: {
+                                  ...carouselProperties,
+                                  slides: currentSlides.map((s, i) => 
+                                    i === index 
+                                      ? { ...s, src: e.target.value }
+                                      : s
+                                  )
+                                }
+                              }
+                            }
+                          : t
+                      )
+                    );
+                  }}
+                  placeholder={Enter ${slide.type} URL for Slide ${index + 1}}
+                  className="w-full"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Handle other placeholder types
+    if (placeholder.type === "upload") {
+      return (
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <Input
+              id={${task.id}-${placeholder.index}}
+              value={(task.values[placeholder.index] as TaskValue)?.content || ""}
+              onChange={(e) => handleInputChange(task.id, placeholder, e.target.value)}
+              placeholder={Enter file URL for ${placeholder.name}}
+              className="flex-1"
+            />
+            <Select
+              value={(task.values[placeholder.index] as TaskValue)?.fileType || "document"}
+              onValueChange={(value: "image" | "video" | "document" | "audio") =>
+                handleFileTypeChange(task.id, placeholder, value)
+              }
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="File Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="image">Image</SelectItem>
+                <SelectItem value="video">Video</SelectItem>
+                <SelectItem value="document">Document</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      );
+    }
+
+    // Default input for other types
+    return (
+      <Input
+        id={${task.id}-${placeholder.index}}
+        value={(task.values[placeholder.index] as TaskValue)?.content || ""}
+        onChange={(e) => handleInputChange(task.id, placeholder, e.target.value)}
+        placeholder={Enter ${placeholder.type} content for ${placeholder.name}}
+      />
+    );
+  };

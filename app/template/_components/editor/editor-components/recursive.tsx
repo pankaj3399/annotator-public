@@ -16,7 +16,8 @@ const DynamicCheckbox = lazy(() => import('./dynamic-checkbox'))
 const DynamicImageComponent = lazy(() => import('./dynamic-image'))
 const DynamicTextComponent = lazy(() => import('./dynamic-text'))
 const DynamicVideoComponent = lazy(() => import('./dynamic-video'))
-const DynamicUploadComponent = lazy(() => import('./dynamic-upload')) // Add this line
+const DynamicUploadComponent = lazy(() => import('./dynamic-upload'))
+const DynamicCarouselComponent = lazy(() => import('./dynamic-carousal'))
 const ImageComponent = lazy(() => import('./image'))
 const InputRecordAudioComponent = lazy(() => import('./input-recordAudio'))
 const InputRecordVideoComponent = lazy(() => import('./input-recordVideo'))
@@ -39,6 +40,7 @@ const COMPONENT_MAP = {
   dynamicText: DynamicTextComponent,
   dynamicVideo: DynamicVideoComponent,
   dynamicImage: DynamicImageComponent,
+  dynamicCarousel: DynamicCarouselComponent,
   image: ImageComponent,
   dynamicAudio: DynamicAudioComponent,
   audio: AudioComponent,
