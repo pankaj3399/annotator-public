@@ -399,7 +399,7 @@ export default function AuthPageComponent() {
         <h2 className="text-4xl font-bold text-center mb-6">Sign Up</h2>
 
         {/* Google Sign In Button - Only show for annotators */}
-        {formData.role === "annotator" && (
+        {formData.role === "annotator" && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET &&(
           <>
             <Button
               type="button"

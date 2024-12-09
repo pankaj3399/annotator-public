@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { config } from "dotenv";
+import saltAndHashPassword from "../utils/password";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,6 +18,7 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+//Used the same schema as the User model in the models folder
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -109,11 +111,13 @@ async function seed() {
     });
     console.log("Connected to MongoDB");
 
+    const password = saltAndHashPassword(process.env.ADMIN_PASSWORD);
+
     const users = [
       {
         name: "System Admin",
-        email: "admin@example.com",
-        password: "fb000b287751e8ddfc9c8a43d57cafd0c742fec8d0945ffca088bde484a58d7a7b7111f8fab6dc20e6e175766889fd9ac0e10ffca6932411e5b6f028f758d663",
+        email: process.env.ADMIN_EMAIL,
+        password: password,
         domain: ["management", "development"],
         location: "New York, USA",
         phone: "+1-234-567-8900",
@@ -123,7 +127,7 @@ async function seed() {
         resume: "",
         nda: "",
         permission: [],
-        customFields: new Map(),
+        customFields: new Map(),    
         lastLogin: new Date(),
         created_at: new Date(),
         updated_at: new Date(),
