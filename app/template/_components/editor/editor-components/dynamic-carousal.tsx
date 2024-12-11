@@ -33,7 +33,7 @@ const SlideContent = ({
   content: SlideContentType;
   isLiveMode: boolean;
 }) => {
-  const defaultWidth = "560px";
+  const defaultWidth = "180px";
   const defaultHeight = "315px";
 
   switch (content.type) {
@@ -43,7 +43,7 @@ const SlideContent = ({
           <img
             src={content.src}
             alt="Carousel image"
-            className="max-w-full max-h-full object-contain"
+            style={{ width: defaultWidth, height: defaultHeight }}
           />
         </div>
       ) : (
@@ -55,7 +55,7 @@ const SlideContent = ({
             <img
               src={content.src}
               alt="Preview"
-              className="max-w-full max-h-full object-contain"
+              style={{ width: defaultWidth, height: defaultHeight }}
             />
           </div>
         </div>
@@ -65,9 +65,10 @@ const SlideContent = ({
         <div className="w-full h-full flex items-center justify-center">
           <ReactPlayer
             url={content.src}
-            width="100%"
-            height="100%"
+            width={defaultWidth}
+            height={defaultHeight}
             className="max-w-full max-h-full"
+
           />
         </div>
       ) : (
@@ -78,8 +79,8 @@ const SlideContent = ({
             </div>
             <ReactPlayer
               url={content.src}
-              width="100%"
-              height="100%"
+              width={defaultWidth}
+              height={defaultHeight}
               className="max-w-full max-h-full"
             />
           </div>
