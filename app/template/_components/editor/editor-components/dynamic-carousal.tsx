@@ -33,52 +33,59 @@ const SlideContent = ({
   content: SlideContentType;
   isLiveMode: boolean;
 }) => {
-  const defaultWidth = "560px";
+  const defaultWidth = "180px";
   const defaultHeight = "315px";
 
   switch (content.type) {
     case "image":
       return isLiveMode ? (
-        <img
-          src={content.src}
-          alt="Carousel image"
-          className="w-full h-full object-contain"
-          style={{ width: defaultWidth, height: defaultHeight }}
-        />
-      ) : (
-        <div className="bg-muted rounded-lg p-2">
-          <div className="mb-2 text-sm text-muted-foreground">
-            Image will be here
-          </div>
-            <img
-            src={content.src || "/api/placeholder/400/320"}
-            alt="Preview"
-            className="w-full h-full object-contain"
+        <div className="w-full h-full flex items-center justify-center">
+          <img
+            src={content.src}
+            alt="Carousel image"
             style={{ width: defaultWidth, height: defaultHeight }}
+          />
+        </div>
+      ) : (
+        <div className="bg-muted rounded-lg p-2 w-full h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="mb-2 text-sm text-muted-foreground">
+              Image will be here
+            </div>
+            <img
+              src={content.src}
+              alt="Preview"
+              style={{ width: defaultWidth, height: defaultHeight }}
             />
           </div>
-          );
-        case "video":
-          return isLiveMode ? (
+        </div>
+      );
+    case "video":
+      return isLiveMode ? (
+        <div className="w-full h-full flex items-center justify-center">
           <ReactPlayer
             url={content.src}
             width={defaultWidth}
             height={defaultHeight}
-            className="w-full h-full object-contain"
+            className="max-w-full max-h-full"
+
           />
-          ) : (
-          <div className="bg-muted rounded-lg p-2">
+        </div>
+      ) : (
+        <div className="bg-muted rounded-lg p-2 w-full h-full flex items-center justify-center">
+          <div className="text-center">
             <div className="mb-2 text-sm text-muted-foreground">
-            Video will be here
+              Video will be here
             </div>
             <ReactPlayer
-            url={content.src}
-            width={defaultWidth}
-            height={defaultHeight}
-            className="w-full h-full object-contain"
+              url={content.src}
+              width={defaultWidth}
+              height={defaultHeight}
+              className="max-w-full max-h-full"
             />
           </div>
-          );
+        </div>
+      );
     default:
       return (
         <div className="w-full h-full flex items-center justify-center p-4 bg-muted rounded-lg">
@@ -171,7 +178,6 @@ const DynamicCarouselComponent = (props: Props) => {
     <div
       style={{
         ...props.element.styles,
-        padding: "80px",
       }}
       draggable
       onDragStart={(e) => handleDragStart(e, "dynamicCarousel")}
@@ -209,19 +215,22 @@ const DynamicCarouselComponent = (props: Props) => {
           }
         }}
       >
-        <CarouselContent>
+        <CarouselContent className="h-full">
           {slides.map((slide, index) => (
             <CarouselItem
               key={index}
-              className={`basis-full ${index === currentIndex ? "active" : ""}`}
+              className={`basis-full h-full ${
+                index === currentIndex ? "active" : ""
+              }`}
             >
-              <div className="p-1">
+              <div className="p-1 h-full">
                 <SlideContent content={slide} isLiveMode={isLiveMode} />
               </div>
             </CarouselItem>
           ))}
         </CarouselContent>
         <CarouselPrevious
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer"
           onClick={() => {
             const newIndex = (currentIndex - 1 + slides.length) % slides.length;
             setCurrentIndex(newIndex);
@@ -229,6 +238,7 @@ const DynamicCarouselComponent = (props: Props) => {
           }}
         />
         <CarouselNext
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 cursor-pointer"
           onClick={() => {
             const newIndex = (currentIndex + 1) % slides.length;
             setCurrentIndex(newIndex);

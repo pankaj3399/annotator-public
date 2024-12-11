@@ -66,7 +66,7 @@ const Page = () => {
           pageDetails={template}
           projectId={template.project}
         />
-        <main className="h-[calc(100vh-64px)] mt-16 relative">
+        <main className="h-[calc(100vh-64px)] mt-24 relative">
           {/* Editor area */}
           <div className="absolute inset-0 flex justify-center">
             <div className={clsx(
