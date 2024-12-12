@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { config } from "dotenv";
-import saltAndHashPassword from "../utils/password";
+import saltAndHashPassword from "../utils/password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
