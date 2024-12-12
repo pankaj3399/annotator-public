@@ -10,7 +10,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [starColor, setStarColor] = useState<string>("#348AC7"); 
 
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="app-ui-theme">
+    <ThemeProvider defaultTheme="light" storageKey="app-ui-theme">
       <ThemedLayout starColor={starColor} setStarColor={setStarColor}>
         {children}
       </ThemedLayout>
