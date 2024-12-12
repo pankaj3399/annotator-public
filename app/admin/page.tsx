@@ -5,6 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
+import { twMerge } from "tailwind-merge";
+import { cn } from "@/lib/utils";
+
 import {
   Select,
   SelectContent,
@@ -100,7 +105,9 @@ const CustomFieldsPage = () => {
         return false;
       }
       // Ensure field names are unique
-      const nameCount = customFields.filter((f) => f.name === field.name).length;
+      const nameCount = customFields.filter(
+        (f) => f.name === field.name
+      ).length;
       if (nameCount > 1) {
         toast.error(`Duplicate field name found: ${field.name}`);
         return false;
@@ -136,7 +143,19 @@ const CustomFieldsPage = () => {
   if (loading) return <Loader />;
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
+    <div className="min-h-screen p-6 bg-gray-50 relative">
+      {/* Logout button positioned at the top-right */}
+      <div className="absolute top-6 right-6">
+        <Button
+          onClick={() => signOut()}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <LogOut size={18} />
+          <span className={cn("whitespace-nowrap")}>Logout</span>
+        </Button>
+      </div>
+
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Custom Fields</h1>
@@ -212,7 +231,9 @@ const CustomFieldsPage = () => {
                         <SelectItem value="text">Text</SelectItem>
                         <SelectItem value="link">Link</SelectItem>
                         <SelectItem value="file">File Upload</SelectItem>
-                        <SelectItem value="array">Array (comma-separated)</SelectItem>
+                        <SelectItem value="array">
+                          Array (comma-separated)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -234,16 +255,6 @@ const CustomFieldsPage = () => {
                       />
                     </div>
                   )}
-
-                  {/* <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={field.isRequired}
-                      onCheckedChange={(checked) =>
-                        handleFieldChange(index, "isRequired", checked)
-                      }
-                    />
-                    <Label>Required Field</Label>
-                  </div> */}
 
                   <div className="flex items-center space-x-2">
                     <Switch
