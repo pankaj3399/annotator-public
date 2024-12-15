@@ -2,7 +2,7 @@
 
 import { addJob } from "@/app/actions/aiModel";
 import { getAllAnnotators } from "@/app/actions/annotator";
-import { changeAnnotator, deleteTask, getAllTasks } from "@/app/actions/task";
+import { changeAnnotator, deleteTask, getAllTasks, getPaginatedTasks } from "@/app/actions/task";
 import { upsertTemplate } from "@/app/actions/template";
 import { template } from "@/app/template/page";
 import { SheetMenu } from "@/components/admin-panel/sheet-menu";
@@ -54,6 +54,12 @@ export interface Annotator {
 
 export default function Component() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [currentPage,setCurrentPage]=useState(1);
+  const [totalPages,setTotalPages]=useState({
+    all:1,
+    submitted:1,
+    unassigned:1
+  });
   const [newTemplateName, setNewTemplateName] = useState("");
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
@@ -69,7 +75,7 @@ export default function Component() {
 
   const fetchJudges = async () => {
     const res = await fetch(`/api/aiModel?projectId=${projectId}`);
-    const judges = await res.json();
+    const judges = await res.json(); 
     if (judges.error) {
       toast({
         variant: "destructive",
@@ -83,32 +89,7 @@ export default function Component() {
 
   useEffect(() => {
     async function init() {
-      if (!session?.user) return;
-
-      const tasksData = JSON.parse(await getAllTasks(projectId)) as Task[];
-      const annotatorsData = JSON.parse(
-        await getAllAnnotators()
-      ) as Annotator[];
-
-      // Add project manager to reviewers list
-      const projectManager: Annotator = {
-        _id: session.user.id,
-        name: session.user.name || "Project Manager",
-        email: session.user.email || "",
-        lastLogin: new Date().toISOString(),
-      };
-
-      // Add project manager to both annotators and reviewers lists
-      setAnnotators([projectManager, ...annotatorsData]);
-      setAllReviewers([projectManager, ...annotatorsData]);
-
-      setTasks(
-        tasksData.map((task: Task) => ({
-          ...task,
-          reviewer: task.reviewer || projectManager._id, // Set project manager as default reviewer
-        }))
-      );
-
+      fetchTask(projectId,currentPage)
       fetchJudges();
     }
     if (session) {
@@ -120,6 +101,47 @@ export default function Component() {
   }
 
   if (session?.user?.role === "annotator") router.push("/tasks");
+
+  async function fetchTask(projectId:string,page:number){
+    if (!session?.user) return;
+    
+    const paginatedResponse = JSON.parse(await 
+      getPaginatedTasks(projectId,page));
+      const projectManager: Annotator = {
+        _id: session.user.id,
+        name: session.user.name || "Project Manager",
+        email: session.user.email || "",
+        lastLogin: new Date().toISOString(),
+      };
+    const annotatorsData = JSON.parse(
+      await getAllAnnotators()
+    ) as Annotator[];
+    const tasks = paginatedResponse.tasks as Task[]
+    setCurrentPage(paginatedResponse.page)
+    setTotalPages({
+      all:paginatedResponse.pages,
+      submitted:paginatedResponse.submittedTotal,
+      unassigned:paginatedResponse.unassignedTotal
+    })
+    setTasks(
+
+      tasks.map((task: Task) => ({
+        ...task,
+        reviewer: task.reviewer || projectManager._id, // Set project manager as default reviewer
+      }))
+    );
+    
+
+    setAnnotators([projectManager, ...annotatorsData]);
+    setAllReviewers([projectManager, ...annotatorsData]);
+
+
+  }
+  async function handlePageChange(newPage:number){
+    fetchTask(projectId,newPage);
+    setCurrentPage(newPage)
+
+  }
 
   async function handleAssignUser(
     annotatorId: string,
@@ -469,6 +491,9 @@ export default function Component() {
 
               <TabsContent value="all">
                 <TaskTable
+                  onPageChange={handlePageChange}
+                  currentPage={currentPage}
+                  totalPages={totalPages.all}
                   setTasks={setTasks}
                   tasks={filteredTasks.all}
                   annotators={annotators}
@@ -482,6 +507,9 @@ export default function Component() {
               </TabsContent>
               <TabsContent value="submitted">
                 <TaskTable
+                  currentPage={currentPage}
+                  onPageChange={handlePageChange}
+                  totalPages={totalPages.submitted}
                   setTasks={setTasks}
                   tasks={filteredTasks.submitted}
                   annotators={annotators}
@@ -494,7 +522,10 @@ export default function Component() {
                 />
               </TabsContent>
               <TabsContent value="unassigned">
-                <TaskTable
+                <TaskTable 
+                  onPageChange={handlePageChange}
+                  currentPage={currentPage}
+                  totalPages={totalPages.unassigned}
                   setTasks={setTasks}
                   tasks={filteredTasks.unassigned}
                   annotators={annotators}
