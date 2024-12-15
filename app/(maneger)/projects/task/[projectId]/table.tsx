@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { addJob, deleteJobByTaskid } from "@/app/actions/aiModel"
 import { Judge } from "../../ai-config/[projectId]/page"
 import { Annotator, Task } from "./page"
+import { Pagination,PaginationContent,PaginationEllipsis,PaginationItem,PaginationLink,PaginationNext,PaginationPrevious } from '@/components/ui/pagination'
 
 interface TaskTableProps {
     tasks: Task[]
@@ -31,6 +32,9 @@ interface TaskTableProps {
             name?: string;
         };
     }
+    currentPage:number,
+    onPageChange:(page:number)=>void,
+    totalPages:number
 }
 
 export function TaskTable({
@@ -42,7 +46,10 @@ export function TaskTable({
     handleAssignUser,
     handleDeleteTemplate,
     router,
-    session
+    session,
+    currentPage,
+    onPageChange,
+    totalPages,
 }: TaskTableProps) {
     const [dialog, setDialog] = useState(false)
     const [feedback, setFeedback] = useState('')
@@ -280,6 +287,48 @@ export function TaskTable({
                     })}
                 </TableBody>
             </Table>
+            <Pagination className=' mt-6 mb-4'>
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious href={`?page=${currentPage-1}`} onClick={()=>onPageChange(currentPage-1)}                                                       className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}/>
+
+                    </PaginationItem>
+                    {[...Array(totalPages)].map((_, index) => {
+                            const pageNumber = index + 1;
+                            if (
+                                pageNumber === 1 ||
+                                pageNumber === totalPages ||
+                                (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                            ) {
+                                return (
+                                    <PaginationItem key={pageNumber}>
+                                        <PaginationLink href={`?page=${currentPage}`}
+                                            onClick={() => onPageChange(pageNumber)}
+                                            isActive={pageNumber === currentPage}
+                                        >
+                                            {pageNumber}
+                                        </PaginationLink>
+                                    </PaginationItem>
+                                );
+                            } else if (
+                                pageNumber === currentPage - 2 ||
+                                pageNumber === currentPage + 2
+                            ) {
+                                return <PaginationEllipsis key={pageNumber} />;
+                            }
+                            return null;
+                        })}
+                        <PaginationItem>
+                            <PaginationNext
+                                href={`?page=${currentPage+1}`} 
+                                onClick={() => onPageChange(currentPage + 1)}
+                                className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                            />
+                        </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+
+            
             
             <Dialog open={dialog} onOpenChange={setDialog}>
                 <DialogContent className="sm:max-w-md">

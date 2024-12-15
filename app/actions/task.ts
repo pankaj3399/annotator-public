@@ -189,6 +189,27 @@ export async function getAllTasks(projectid: string) {
   return JSON.stringify(res);
 }
 
+export async function getPaginatedTasks(projectid:string,page:number){
+  await connectToDatabase();
+  const limit = parseInt( process.env.NEXT_PUBLIC_PAGE_LIMIT!)
+  const skip = (page-1)*limit;
+  const total = await Task.countDocuments({project:projectid})
+  const submittedTotal = await Task.countDocuments({project:projectid,submitted:true})
+  const unassignedTotal = total - submittedTotal 
+  const tasks = await Task.find({project:projectid}).skip(skip).limit(limit)
+  return JSON.stringify(
+    {
+      tasks:tasks || [],
+      total,
+      submittedTotal:Math.ceil(submittedTotal/limit),
+      unassignedTotal:Math.ceil(unassignedTotal/limit),
+      page,
+      pages:Math.ceil(total/limit)
+    }
+  ) 
+}
+
+
 export async function getATask(projectid: string) {
   await connectToDatabase();
   const res = await Task.findOne({ project: projectid });

@@ -74,24 +74,7 @@ interface AnnotatorDashboardData {
   };
 }
 
-// Debug component to help visualize data
-const DashboardDebug: React.FC<{
-  dashboardData: AnnotatorDashboardData;
-  taskStats: TaskStats[];
-  timeStats: TimeStats;
-  performanceTrends: PerformanceTrend[];
-}> = ({ dashboardData, taskStats, timeStats, performanceTrends }) => (
-  <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-    <h2 className="text-lg font-semibold mb-4">Debug Information</h2>
-    <pre className="text-xs overflow-auto">
-      {JSON.stringify(
-        { dashboardData, taskStats, timeStats, performanceTrends },
-        null,
-        2
-      )}
-    </pre>
-  </div>
-);
+
 
 export default function AnnotatorDashboardPage() {
   const [dashboardData, setDashboardData] = useState<AnnotatorDashboardData>({
@@ -269,14 +252,6 @@ export default function AnnotatorDashboardPage() {
             tasksByProject={earnings.tasksByProject}
           />
             
-          {process.env.NODE_ENV === 'development' && (
-            <DashboardDebug
-              dashboardData={dashboardData}
-              taskStats={taskStats}
-              timeStats={timeStats}
-              performanceTrends={performanceTrends}
-            />
-          )}
         </main>
       </div>
     );
