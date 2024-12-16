@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/tooltip'
 import { DeviceTypes, useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
+import { Check, Pencil } from 'lucide-react'
 import {
   ArrowLeftCircle,
   EyeIcon,
@@ -23,7 +24,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { FocusEventHandler, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { template } from '../page'
 import { TimeSetterComponent } from '@/components/time-setter'
@@ -38,6 +39,12 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
   const router = useRouter()
   const { state, dispatch } = useEditor()
   const [isMobileView, setIsMobileView] = useState(false)
+  const [title,setTitle]=useState(pageDetails.name)
+  const [isEditing,setIsEditing]=useState(false)
+
+  const handlePencilClick = ()=>{
+    setIsEditing((prev)=>!prev);
+  }
 
   useEffect(() => {
     const handleResize = () => {
@@ -55,25 +62,35 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
     })
   }, [pageDetails, dispatch])
 
-  const handleOnBlurTitleChange: FocusEventHandler<HTMLInputElement> = async (event) => {
-    if (event.target.value === pageDetails.name) return
-    if (event.target.value) {
-      await upsertTemplate(
-        projectId,
-        {
-          ...pageDetails,
-          _id: pageDetails._id,
-          name: event.target.value,
-        } as template,
-        pageId
-      )
-      toast('Success', { description: 'Saved Page title' })
-      router.refresh()
-    } else {
-      toast('Oops!', { description: 'You need to have a title!' })
-      event.target.value = pageDetails.name
+  const handleOnBlur = async () => {
+    if (title.trim() === pageDetails.name) {
+      setIsEditing(false); // Exit editing mode if title is unchanged
+      return;
     }
-  }
+
+    if (title.trim()) {
+      try {
+        await upsertTemplate(
+          projectId,
+          {
+            ...pageDetails,
+            _id: pageDetails._id,
+            name: title.trim(),
+          } as template,
+          pageId
+        );
+        toast('Success', { description: 'Saved Page title' });
+        router.refresh();
+      } catch (error) {
+        console.error("Error saving title:", error);
+        toast('Error', { description: 'Failed to save the title. Please try again.' });
+      }
+    } else {
+      toast('Oops!', { description: 'You need to have a title!' });
+      setTitle(pageDetails.name);
+    }
+    setIsEditing(false); 
+  };
 
   const handlePreviewClick = () => {
     dispatch({ type: 'TOGGLE_PREVIEW_MODE' })
@@ -90,6 +107,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
         projectId,
         {
           ...pageDetails,
+          name:title,
           content,
           timer: undefined
         },
@@ -115,13 +133,40 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           <Link href={`/projects/${projectId}`}>
             <ArrowLeftCircle className="h-5 w-5" />
           </Link>
-          <div className="flex flex-col w-full max-w-[200px] md:max-w-[260px]">
-            <Input
-              defaultValue={pageDetails.name}
-              className="border-none h-5 m-0 p-0 text-base md:text-lg truncate"
-              onBlur={handleOnBlurTitleChange}
-            />
-          </div>
+          <div className="flex items-center w-full max-w-xs md:max-w-sm space-x-4">
+      {isEditing ? (
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={handleOnBlur}
+          className="w-full h-8 border-none p-0 text-base md:text-lg truncate focus:outline-none focus:ring focus:ring-blue-500"
+          placeholder="Enter page title"
+          aria-label="Page Title"
+        />
+      ) : (
+        <span
+          className="truncate text-base md:text-lg w-full cursor-pointer"
+          title={title} 
+          onClick={handlePencilClick}  
+        >
+          {title || "Untitled Page"}
+        </span>
+      )}
+
+      <Button
+        className="p-2 h-8 w-8 flex items-center justify-center rounded-md"
+        variant="outline"
+        aria-label={isEditing ? "Save Title" : "Edit Title"}
+        onClick={handlePencilClick}
+      >
+        {isEditing ? (
+        <Check size={20} />
+        ):(
+          <Pencil size={20}/>
+        )}
+
+      </Button>
+    </div>
         </aside>
 
         <aside className="hidden md:block flex-shrink-0">

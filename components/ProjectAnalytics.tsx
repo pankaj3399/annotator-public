@@ -245,19 +245,15 @@ export default function ProjectAnalytics({
   const avgTimePerTask =
     totalTasks > 0
       ? (
-          analyticsData.reduce((acc, curr) => acc + curr.timeTaken, 0) /
+          analyticsData.reduce((acc, curr) => acc + curr.timeTaken*60, 10) /
           totalTasks
-        ).toFixed(2)
+        ).toFixed(3)
       : 0;
 
       return (
         <div className="min-h-screen">
           <header className="bg-white">
             <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Project Analytics</h1>
-                <p className="mt-1 text-sm text-gray-500">{projectName}</p>
-              </div>
               <SheetMenu />
             </div>
           </header>
@@ -272,7 +268,7 @@ export default function ProjectAnalytics({
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <div className="text-2xl font-bold">{avgTimePerTask} minutes</div>
+                  <div className="text-2xl font-bold">{avgTimePerTask} seconds</div>
                   <p className="text-sm text-gray-500">Average Time per Task</p>
                 </CardContent>
               </Card>
@@ -300,7 +296,7 @@ export default function ProjectAnalytics({
                           <TableRow>
                             <TableHead className="p-4 bg-white sticky top-0" style={{ width: "200px" }}>Task Name</TableHead>
                             <TableHead className="p-4 bg-white sticky top-0" style={{ width: "200px" }}>Static Text</TableHead>
-                            <TableHead className="p-4 whitespace-nowrap bg-white sticky top-0">Time Taken (mins)</TableHead>
+                            <TableHead className="p-4 whitespace-nowrap bg-white sticky top-0">Time Taken (seconds)</TableHead>
                             <TableHead className="p-4 whitespace-nowrap bg-white sticky top-0">Submitted Date</TableHead>
                             <TableHead className="p-4 whitespace-nowrap bg-white sticky top-0">Status</TableHead>
                             {analyticsData[0].dynamicFields.map((field, index) => (

@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import './index.css';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const [starColor, setStarColor] = useState<string>("#348AC7"); 
+  const [starColor, setStarColor] = useState<string>("#ffffff"); 
 
   return (
     <ThemeProvider defaultTheme="light" storageKey="app-ui-theme">
@@ -29,9 +29,11 @@ function ThemedLayout({
 }) {
   const theme = useTheme();
 
-  useEffect(() => {
-    setStarColor(theme.theme === "dark" ? "#fff" : "#348AC7");
-  }, [theme.theme, setStarColor]);
+  //Commented out to make the stars disapper in the light mode as the stars color will always be white irrespective of the theme
+
+  // useEffect(() => {
+  //   setStarColor(theme.theme === "dark" ? "#fff" : "#ffffff");
+  // }, [theme.theme, setStarColor]);
 
   return (
     <div className="min-h-screen flex flex-col">
