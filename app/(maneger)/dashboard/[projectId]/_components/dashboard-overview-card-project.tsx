@@ -18,7 +18,7 @@ export default function ProjectDashboardCard({ rework,annotator,totalTasks }: { 
     // { label: 'Templates', value: templates, icon: FileText },
     { label: 'Reworks', value: rework, icon: Layers },
     { label: 'Tasks', value: totalTasks? totalTasks : 0, icon: CheckSquare },
-    { label: 'Annotators', value: annotator, icon: Users },
+    { label: 'Experts', value: annotator, icon: Users },
   ]
 
   return (
