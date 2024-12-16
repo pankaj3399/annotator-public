@@ -344,8 +344,10 @@ export default function Component() {
       submitted: task.submitted ? "Yes" : "No",
       annotator:
         annotators.find((a) => a._id === task.annotator)?.name || "Unassigned",
+      annotatorEmailAddress:annotators.find((a) => a._id === task.annotator)?.email || "Unassigned",
       reviewer:
         annotators.find((a) => a._id === task.reviewer)?.name || "Unassigned",
+      reviewerEmailAddress:annotators.find((a) => a._id === task.reviewer)?.email || "Unassigned",
       ai: task.ai
         ? judges.find((j) => j._id === task.ai)?.name
         : "Not Assigned",
@@ -370,7 +372,9 @@ export default function Component() {
         "status",
         "submitted",
         "annotator",
+        "annotatorEmailAddress",
         "reviewer",
+        "reviewerEmailAddress" ,
         "ai",
         "created_at",
         "timeTaken",

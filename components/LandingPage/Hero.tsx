@@ -22,7 +22,7 @@ const Hero = () => {
           Trusted by top domain experts and AI pioneers worldwide.
         </div>
 
-        <h1 className="sm:text-5xl md:text-5xl lg:text-6xl text-4xl text-center font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#7474BF] to-[#348AC7] pb-6 w-full leading-tight">
+        <h1 className="sm:text-5xl md:text-5xl lg:text-6xl text-4xl text-center font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#178EE8] to-[#348AC7] pb-6 w-full leading-tight">
         Bridging Domain Experts and AI Innovators
         </h1>
         <p className="text-base text-center md:text-lg lg:text-xl xl:text-2xl text-gray-700 dark:text-gray-300 max-w-3xl">
