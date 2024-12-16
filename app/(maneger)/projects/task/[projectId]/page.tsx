@@ -55,11 +55,7 @@ export interface Annotator {
 export default function Component() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentPage,setCurrentPage]=useState(1);
-  const [totalPages,setTotalPages]=useState({
-    all:1,
-    submitted:1,
-    unassigned:1
-  });
+  const [totalPages,setTotalPages]=useState(0);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
@@ -89,13 +85,13 @@ export default function Component() {
 
   useEffect(() => {
     async function init() {
-      fetchTask(projectId,currentPage)
+      fetchTask(projectId,1)
       fetchJudges();
     }
     if (session) {
       init();
     }
-  }, [projectId, session]);
+  }, [projectId, session,activeTab]);
   if (!session) {
     return <Loader />;
   }
@@ -106,7 +102,8 @@ export default function Component() {
     if (!session?.user) return;
     
     const paginatedResponse = JSON.parse(await 
-      getPaginatedTasks(projectId,page));
+      getPaginatedTasks(projectId,page,activeTab));
+      console.log(paginatedResponse.tasks)
       const projectManager: Annotator = {
         _id: session.user.id,
         name: session.user.name || "Project Manager",
@@ -118,11 +115,7 @@ export default function Component() {
     ) as Annotator[];
     const tasks = paginatedResponse.tasks as Task[]
     setCurrentPage(paginatedResponse.page)
-    setTotalPages({
-      all:paginatedResponse.pages,
-      submitted:paginatedResponse.submittedTotal,
-      unassigned:paginatedResponse.unassignedTotal
-    })
+    setTotalPages(paginatedResponse.pages)
     setTasks(
 
       tasks.map((task: Task) => ({
@@ -497,9 +490,9 @@ export default function Component() {
                 <TaskTable
                   onPageChange={handlePageChange}
                   currentPage={currentPage}
-                  totalPages={totalPages.all}
+                  totalPages={totalPages}
                   setTasks={setTasks}
-                  tasks={filteredTasks.all}
+                  tasks={tasks}
                   annotators={annotators}
                   reviewers={allReviewers}
                   judges={judges}
@@ -513,9 +506,9 @@ export default function Component() {
                 <TaskTable
                   currentPage={currentPage}
                   onPageChange={handlePageChange}
-                  totalPages={totalPages.submitted}
+                  totalPages={totalPages}
                   setTasks={setTasks}
-                  tasks={filteredTasks.submitted}
+                  tasks={tasks}
                   annotators={annotators}
                   reviewers={allReviewers}
                   judges={judges}
@@ -529,9 +522,9 @@ export default function Component() {
                 <TaskTable 
                   onPageChange={handlePageChange}
                   currentPage={currentPage}
-                  totalPages={totalPages.unassigned}
+                  totalPages={totalPages}
                   setTasks={setTasks}
-                  tasks={filteredTasks.unassigned}
+                  tasks={tasks}
                   annotators={annotators}
                   reviewers={allReviewers}
                   judges={judges}
