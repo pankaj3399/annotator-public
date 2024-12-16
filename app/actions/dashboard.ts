@@ -36,16 +36,19 @@ export async function getGlobalDashboard() {
 
     // Aggregating project, task, and other related data
     const result = await Task.aggregate([
-      { $match: { project_Manager: new mongoose.Types.ObjectId(managerId) } }, // Match tasks by manager
-      
-      // Group to count tasks, calculate average time, and statuses/submissions
+      { 
+        $match: { 
+          project_Manager: new mongoose.Types.ObjectId(managerId),
+          timeTaken: { $gt: 0 } // Only include tasks with time > 0
+        } 
+      },
       {
         $group: {
           _id: "$project_Manager",
           totalTasks: { $sum: 1 },
           averageTime: { $avg: "$timeTaken" },
-          submittedTasks: { $sum: { $cond: [{ $eq: ["$submitted", true] }, 1, 0] } }, // Count submitted tasks
-          statuses: { $push: "$status" } // Collect all statuses
+          submittedTasks: { $sum: { $cond: [{ $eq: ["$submitted", true] }, 1, 0] } },
+          statuses: { $push: "$status" }
         }
       }
     ]);
@@ -53,7 +56,7 @@ export async function getGlobalDashboard() {
     // Count projects and templates using Project and Template collections
     const projects = await Project.countDocuments({ project_Manager: managerId });
     const templates = await Template.countDocuments({
-      project: { $in: await Project.find({ project_Manager: managerId }) }
+      project: { $in: await Project.find({ project_Manager: managerId },) }
     });
 
     // Count annotators
@@ -73,7 +76,7 @@ export async function getGlobalDashboard() {
 }
 
 
-export async function getProjectDashboard(id:string) {
+export async function getProjectDashboard(id: string) {
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
@@ -85,7 +88,13 @@ export async function getProjectDashboard(id:string) {
 
     // Aggregating project, task, and other related data
     const result = await Task.aggregate([
-      { $match: { project_Manager: new mongoose.Types.ObjectId(managerId), project: new mongoose.Types.ObjectId(id) } }, // Match tasks by manager
+      { 
+        $match: { 
+          project_Manager: new mongoose.Types.ObjectId(managerId), 
+          project: new mongoose.Types.ObjectId(id),
+          timeTaken: { $gt: 0 } // Only include tasks with time > 0
+        }
+      },
       
       // Group to count tasks, calculate average time, and statuses/submissions
       {
@@ -93,8 +102,26 @@ export async function getProjectDashboard(id:string) {
           _id: "$project_Manager",
           totalTasks: { $sum: 1 },
           averageTime: { $avg: "$timeTaken" },
-          submittedTasks: { $sum: { $cond: [{ $eq: ["$submitted", true] }, 1, 0] } }, // Count submitted tasks
-          statuses: { $push: "$status" } // Collect all statuses
+          submittedTasks: { $sum: { $cond: [{ $eq: ["$submitted", true] }, 1, 0] } },
+          statuses: { $push: "$status" }
+        }
+      }
+    ]);
+
+    // To get the total number of tasks (including those with zero time)
+    const totalTasksResult = await Task.aggregate([
+      { 
+        $match: { 
+          project_Manager: new mongoose.Types.ObjectId(managerId), 
+          project: new mongoose.Types.ObjectId(id)
+        }
+      },
+      {
+        $group: {
+          _id: "$project_Manager",
+          totalTasks: { $sum: 1 },
+          submittedTasks: { $sum: { $cond: [{ $eq: ["$submitted", true] }, 1, 0] } },
+          statuses: { $push: "$status" }
         }
       }
     ]);
@@ -105,8 +132,16 @@ export async function getProjectDashboard(id:string) {
     // Count annotators
     const annotators = await User.countDocuments({ role: 'annotator' });
 
+    // Combine the results
+    const tasksData = result.length ? {
+      ...result[0],
+      totalTasks: totalTasksResult.length ? totalTasksResult[0].totalTasks : 0,
+      submittedTasks: totalTasksResult.length ? totalTasksResult[0].submittedTasks : 0,
+      statuses: totalTasksResult.length ? totalTasksResult[0].statuses : []
+    } : {};
+
     return JSON.stringify({
-      tasksData: result.length ? result[0] : {},
+      tasksData,
       rework,
       annotators
     });
