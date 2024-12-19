@@ -4,7 +4,7 @@
 		"name": "API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
 		"_exporter_id": "34579024",
-		"_collection_link": "https://annotator-4761.postman.co/workspace/Annotator-Workspace~b5f6ef33-72e0-4363-a8b4-fb68175e2000/collection/34579024-e8674fef-e6dc-4685-9384-e68c0ec2e979?action=share&source=collection_link&creator=34579024"
+		"_collection_link": "https://annotator-4761.postman.co/workspace/b5f6ef33-72e0-4363-a8b4-fb68175e2000/collection/34579024-e8674fef-e6dc-4685-9384-e68c0ec2e979?action=share&source=collection_link&creator=34579024"
 	},
 	"item": [
 		{
@@ -181,7 +181,8 @@
 					"name": "getAnnotatorTasks",
 					"request": {
 						"method": "GET",
-						"header": []
+						"header": [],
+						"url": "{{baseurl}}/api/getAnnotatorTasks"
 					},
 					"response": []
 				},
@@ -189,7 +190,8 @@
 					"name": "getAnnotatorReviewTask",
 					"request": {
 						"method": "GET",
-						"header": []
+						"header": [],
+						"url": "{{baseurl}}/api/getAnnotatorReviewTask"
 					},
 					"response": []
 				}
