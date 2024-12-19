@@ -32,8 +32,8 @@ export default function ProjectDashboard() {
   const filteredTasks = {
     all: tasks,
     submitted: tasks.filter(task => task.submitted),
-    'rejected': tasks.filter(task => task.status === 'rejected'),
-    "newTask": tasks.filter(task => !task.submitted)
+    rejected: tasks.filter(task => task.status === 'rejected'),
+    newTask: tasks.filter(task => !task.submitted)
   }
 
   return (
