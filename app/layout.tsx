@@ -19,6 +19,9 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "Blolabel",
   description: "Blolabel",
+  verification: {
+    google: "Oy8yPFUgqiBhfF7funZ8-ALHXLgN23L3CwIe5vfWzAE",
+  },
 };
 
 export default function RootLayout({
@@ -31,9 +34,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
         <Sooner />
         <Toaster />
       </body>
