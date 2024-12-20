@@ -80,6 +80,31 @@
 						"url": "{{baseurl}}/api/auth/callback/credentials"
 					},
 					"response": []
+				},
+				{
+					"name": "Signup User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"name\":\"testing\",\n    \"email\":\"testing@gmail.com\",\n    \"password\":\"123456\",\n    \"role\":\"annotator\",\n    \"phone\":\"\",\n    \"domain\":[\"\"],\n    \"lang\":[\"\"],\n    \"location\":\"\",\n    \"linkedIn\":\"\",  //Optional\n    \"resume\":\"\",     //Optional\n    \"nda\":\"\"        //Optional\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseurl}}/api/auth/signup"
+					},
+					"response": []
 				}
 			]
 		},
@@ -175,7 +200,7 @@
 						"header": [
 							{
 								"key": "Cookie",
-								"value": "next-auth.session-token=",
+								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
 								"type": "text"
 							}
 						],
@@ -208,7 +233,7 @@
 						"header": [
 							{
 								"key": "Cookie",
-								"value": "next-auth.session-token=",
+								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
 								"type": "text"
 							}
 						],
@@ -223,12 +248,12 @@
 						"header": [
 							{
 								"key": "Cookie",
-								"value": "next-auth.session-token=",
+								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
 								"type": "text"
 							}
 						],
 						"url": {
-							"raw": "{{baseurl}}/api/getTasksByProject/{{projectId}}?filter=",
+							"raw": "{{baseurl}}/api/getTasksByProject/{{projectId}}?filter=newTask",
 							"host": [
 								"{{baseurl}}"
 							],
@@ -240,7 +265,7 @@
 							"query": [
 								{
 									"key": "filter",
-									"value": "",
+									"value": "newTask",
 									"description": "Can be either submitted,rejected,newTask(Leave blank for all the tasks)"
 								}
 							]
@@ -585,6 +610,35 @@
 								"method": "GET",
 								"header": [],
 								"url": "{{baseurl}}/api/chat/userGroups"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "SendMessage",
+					"item": [
+						{
+							"name": "Send the user's messages",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Cookie",
+										"value": "next-auth.session-token=",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"groupId\":\"6764d84e60ff4563f50481b6\",\n    \"message\":\"Hi there\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": "{{baseurl}}/api/chat/sendMessage"
 							},
 							"response": []
 						}
