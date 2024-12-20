@@ -1,0 +1,603 @@
+{
+	"info": {
+		"_postman_id": "e8674fef-e6dc-4685-9384-e68c0ec2e979",
+		"name": "API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "34579024",
+		"_collection_link": "https://annotator-4761.postman.co/workspace/Annotator-Workspace~b5f6ef33-72e0-4363-a8b4-fb68175e2000/collection/34579024-e8674fef-e6dc-4685-9384-e68c0ec2e979?action=share&source=collection_link&creator=34579024"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login User",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const baseurl = pm.environment.get(\"baseurl\");",
+									"console.log(\"url is\", baseurl)",
+									"pm.sendRequest(`${baseurl}/api/auth/csrf`, function (err, response) {",
+									"    var jsonData = response.json();",
+									"    pm.environment.set(\"csrfToken\", jsonData.csrfToken);",
+									"});",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {}
+					},
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "redirect",
+									"value": "false",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "",
+									"type": "text"
+								},
+								{
+									"key": "totpCode",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								},
+								{
+									"key": "callbackUrl",
+									"value": "{{baseurl}}/",
+									"type": "text"
+								},
+								{
+									"key": "csrfToken",
+									"value": "{{csrfToken}}",
+									"type": "text"
+								},
+								{
+									"key": "json",
+									"value": "true",
+									"type": "text"
+								}
+							]
+						},
+						"url": "{{baseurl}}/api/auth/callback/credentials"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Fetch Custom Fields",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseurl}}/api/admin/custom-fields"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "AIModel",
+			"item": [
+				{
+					"name": "Fetch Ai models for a project",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseurl}}/api/aiModel?projectId=<PROJECT_ID>",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								"api",
+								"aiModel"
+							],
+							"query": [
+								{
+									"key": "projectId",
+									"value": "<PROJECT_ID>"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "annotator",
+			"item": [
+				{
+					"name": "Assign Reviewers",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"<USER_ID>\",\n  \"permission\": \"canReview\" // Allowed values: \"noPermission\" or \"canReview\"\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseurl}}/api/annotator"
+					},
+					"response": []
+				},
+				{
+					"name": "getAnnotatorDashboard",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseurl}}/api/getGlobalStats"
+					},
+					"response": []
+				},
+				{
+					"name": "getAnnotatorProjects",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "next-auth.session-token=",
+								"type": "text"
+							}
+						],
+						"url": "{{baseurl}}/api/getProjects"
+					},
+					"response": []
+				},
+				{
+					"name": "getAnnotatorTasks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseurl}}/api/getAnnotatorTasks"
+					},
+					"response": []
+				},
+				{
+					"name": "getAnnotatorReviewTask",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseurl}}/api/getAnnotatorReviewTask"
+					},
+					"response": []
+				},
+				{
+					"name": "getAnnotatorTaskStats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "next-auth.session-token=",
+								"type": "text"
+							}
+						],
+						"url": "{{baseurl}}/api/getAnnotatorTaskStats"
+					},
+					"response": []
+				},
+				{
+					"name": "getTaskByProjects",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "next-auth.session-token=",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseurl}}/api/getTasksByProject/{{projectId}}?filter=",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								"api",
+								"getTasksByProject",
+								"{{projectId}}"
+							],
+							"query": [
+								{
+									"key": "filter",
+									"value": "",
+									"description": "Can be either submitted,rejected,newTask(Leave blank for all the tasks)"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "template",
+			"item": [
+				{
+					"name": "Fetch Recent Templates",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseurl}}/api/template/recent"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "users",
+			"item": [
+				{
+					"name": "Get User Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseurl}}/api/users/profile/id"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "  {\n    \"name\": \"Jane Doe\",\n    \"domain\": \"web development, design\",\n    \"customFields\": {\n      \"portfolio\": \"https://example.com\",\n      \"github\": \"jane-doe\"\n    }\n  }",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseurl}}/api/users/profile/id"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "projects",
+			"item": [
+				{
+					"name": "[projectId]",
+					"item": [
+						{
+							"name": "settings",
+							"item": [
+								{
+									"name": "Get Project Settings",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": "{{baseurl}}/api/projects/[projectId]/settings"
+									},
+									"response": []
+								},
+								{
+									"name": "Update project settings",
+									"request": {
+										"method": "PUT",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"earnings_per_task\": 120\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "{{baseurl}}/api/projects/[projectId]/settings"
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "notifications",
+							"item": [
+								{
+									"name": "[templateId]",
+									"item": [
+										{
+											"name": "Update Notification Template",
+											"request": {
+												"method": "PUT",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"_id\": \"templateId123\",\n  \"triggerName\": \"New Task Assigned - Updated\",\n  \"triggerBody\": \"A new task has been assigned to you. Please check.\",\n  \"active\": false\n}\n",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": "{{baseurl}}/api/projects/[projectId]/notifications/[templateId]"
+											},
+											"response": []
+										},
+										{
+											"name": "Delete notif template",
+											"request": {
+												"method": "DELETE",
+												"header": [],
+												"body": {
+													"mode": "raw",
+													"raw": "{\n  \"_id\": \"templateId123\"\n}",
+													"options": {
+														"raw": {
+															"language": "json"
+														}
+													}
+												},
+												"url": "{{baseurl}}/api/projects/[projectId]/notifications/[templateId]"
+											},
+											"response": []
+										}
+									]
+								},
+								{
+									"name": "Fetch Notif Templates of a project",
+									"request": {
+										"method": "GET",
+										"header": [],
+										"url": "{{baseurl}}/api/projects/[projectId]/notifications"
+									},
+									"response": []
+								},
+								{
+									"name": "Create new notif template",
+									"request": {
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\n  \"triggerName\": \"New Task Assigned\",\n  \"triggerBody\": \"A new task has been assigned to you\",\n  \"project\": \"projectId123\",\n  \"active\": true\n}\n",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": "{{baseurl}}/api/projects/[projectId]/notifications"
+									},
+									"response": []
+								}
+							]
+						}
+					]
+				},
+				{
+					"name": "Fetches User Projects",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseurl}}/api/projects"
+					},
+					"response": []
+				},
+				{
+					"name": "Create a new Project",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Project Name\",\n  \"earnings_per_task\": 100\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseurl}}/api/projects"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete a project",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"_id\": \"PROJECT_ID\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseurl}}/api/projects"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Job",
+			"item": [
+				{
+					"name": "Fetch AI models for projectId",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseurl}}/api/annotator?projectId={projectId}",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								"api",
+								"annotator"
+							],
+							"query": [
+								{
+									"key": "projectId",
+									"value": "{projectId}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Chat",
+			"item": [
+				{
+					"name": "CreateGroup",
+					"item": [
+						{
+							"name": "Create a group",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"groupName\": \"AI Project Group\",\n  \"members\": [\"userId1\", \"userId2\", \"userId3\"]\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": "{{baseurl}}/api/chat/createGroup"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "editGroup",
+					"item": [
+						{
+							"name": "Edit a group",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"groupId\": \"group-id-here\",\n  \"name\": \"Updated Group Name\",\n  \"members\": [\"userId1\", \"userId2\", \"userId3\"]\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": "{{baseurl}}/api/chat/editGroup"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "getMessages",
+					"item": [
+						{
+							"name": "Fetch group messages",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseurl}}/api/chat/getMessages?groupId=group-id-here&limitBefore=10&limitAfter=20&messageId=message-id-here\n",
+									"host": [
+										"{{baseurl}}"
+									],
+									"path": [
+										"api",
+										"chat",
+										"getMessages"
+									],
+									"query": [
+										{
+											"key": "groupId",
+											"value": "group-id-here"
+										},
+										{
+											"key": "limitBefore",
+											"value": "10"
+										},
+										{
+											"key": "limitAfter",
+											"value": "20"
+										},
+										{
+											"key": "messageId",
+											"value": "message-id-here\n"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "userGroups",
+					"item": [
+						{
+							"name": "Fetch groups for a user",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": "{{baseurl}}/api/chat/userGroups"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseurl",
+			"value": "http://localhost:3000",
+			"type": "default"
+		}
+	]
+}
