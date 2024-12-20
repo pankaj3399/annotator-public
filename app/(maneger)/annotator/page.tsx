@@ -5,7 +5,7 @@ import { SheetMenu } from "@/components/admin-panel/sheet-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { format, parseISO } from "date-fns"
-import { CalendarIcon, Save, Search, FileDown } from "lucide-react"
+import { CalendarIcon, Save, Search, FileDown, User } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import MultiCombobox from "@/components/ui/multi-combobox"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useRouter } from 'next/navigation'
 
 interface User {
   _id: string;
@@ -52,6 +53,7 @@ export default function AnnotatorsPage() {
   const [reviewPermissionsState, setReviewPermissionsState] = useState<{ [key: string]: string[] }>({});
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const { toast } = useToast()
+  const router = useRouter();
 
   useEffect(() => {
     const fetchAnnotators = async () => {
@@ -90,6 +92,11 @@ export default function AnnotatorsPage() {
 
     fetchAnnotators()
   }, [toast])
+
+
+  const handleViewDetails = (user:User)=>{
+    router.push(`/annotator/profileView/${user._id}`)
+  }
 
   useEffect(() => {
     const filtered = annotators.filter(user =>
@@ -258,14 +265,23 @@ export default function AnnotatorsPage() {
                           {format(parseISO(user.lastLogin.toString()), 'PPPpp')}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <button
-                          className=""
-                          onClick={() => savePermissions(user._id)}
-                        >
-                          <Save className="h-4 w-4" />
-                        </button>
-                      </TableCell>
+                          <TableCell className="flex items-center space-x-4">
+                      <button
+                        className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600 transition-colors"
+                        onClick={() => savePermissions(user._id)}
+                        aria-label="Save Permissions"
+                      >
+                        <Save className="h-5 w-5" />
+                      </button>
+                      <button onClick={()=> handleViewDetails(user)}
+                        className="flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 rounded-full shadow-md hover:bg-gray-300 transition-colors"
+                        aria-label="View User"
+                      >
+                        <User className="h-5 w-5" />
+                      </button>
+                    </TableCell>
+
+
                     </TableRow>
                   );
                 })}
