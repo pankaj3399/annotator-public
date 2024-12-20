@@ -103,7 +103,6 @@ export default function Component() {
     
     const paginatedResponse = JSON.parse(await 
       getPaginatedTasks(projectId,page,activeTab));
-      console.log(paginatedResponse.tasks)
       const projectManager: Annotator = {
         _id: session.user.id,
         name: session.user.name || "Project Manager",

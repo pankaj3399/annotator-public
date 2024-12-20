@@ -366,6 +366,7 @@ export async function getTask(_id: string) {
   return JSON.stringify(res);
 }
 
+
 export async function setTaskStatus(
   _id: string,
   status: string,
@@ -373,81 +374,90 @@ export async function setTaskStatus(
   annotator?: string
 ) {
   await connectToDatabase();
+
   const session = await getServerSession(authOptions);
-  const userId = session?.user.id;
+  const userId = session?.user?.id;
 
   if (!userId) {
     throw new Error("Unauthorized");
   }
 
-  if (status == "reassigned") {
-    const res = await Task.findOneAndUpdate(
-      { _id },
-      {
-        submitted: false,
-        status,
-        timeTaken: 0,
-        feedback: "",
-        annotator,
-        ai: null, // Set to null instead of false
-      }
-    );
-    return res.status;
+  if (!mongoose.Types.ObjectId.isValid(_id)) {
+    throw new Error("Invalid Task ID format.");
   }
 
-  if (status == "rejected") {
-    const res = await Task.findOneAndUpdate(
-      { _id },
-      {
-        submitted: false,
-        status,
-        timeTaken: 0,
-        feedback,
-        ai: null, // Set to null instead of false
-      }
-    );
-
-    // Create rework record with reviewer information
-    await Rework.create({
-      name: res.name,
-      created_at: res.created_at,
-      project: res.project,
-      project_Manager: res.project_Manager,
-      annotator: res.annotator,
-      reviewer: userId, // Add reviewer information
-      task: res._id,
-      feedback: res.feedback,
-    });
-
-    return res.status;
+  const task = await Task.findById(_id);
+  if (!task) {
+    throw new Error("Task not found.");
   }
 
-  const sanitizedAI = typeof annotator === "string" ? annotator : null;
-
-  if (status == "reassigned") {
-    const res = await Task.findOneAndUpdate(
-      { _id },
-      {
-        submitted: false,
-        status,
-        timeTaken: 0,
-        feedback: "",
-        annotator,
-        ai: sanitizedAI, // Use sanitized value
-      }
-    );
-    return res.status;
-  }
-
-  const res = await Task.findOneAndUpdate(
-    { _id },
-    {
-      status,
-      feedback: "",
+  switch (status) {
+    case "reassigned": {
+      const res = await Task.findOneAndUpdate(
+        { _id },
+        {
+          submitted: false,
+          status,
+          timeTaken: 0,
+          feedback: "",
+          annotator,
+          ai: null,
+        },
+        { new: true }
+      );
+      return res.status;
     }
-  );
-  return res.status;
+
+    case "rejected": {
+      const res = await Task.findOneAndUpdate(
+        { _id },
+        {
+          submitted: false,
+          status,
+          timeTaken: 0,
+          feedback,
+          ai: null,
+        },
+        { new: true }
+      );
+
+      await Rework.create({
+        name: res.name,
+        created_at: res.created_at,
+        project: res.project,
+        project_Manager: res.project_Manager,
+        annotator: res.annotator,
+        reviewer: userId, 
+        task: res._id,
+        feedback: res.feedback,
+      });
+
+      return res.status;
+    }
+
+    default: {
+      const sanitizedAI = typeof annotator === "string" ? annotator : null;
+
+      const res = await Task.findOneAndUpdate(
+        { _id },
+        {
+          status,
+          feedback: "",
+          ...(status === "reassigned" && {
+            submitted: false,
+            timeTaken: 0,
+            annotator,
+            ai: sanitizedAI,
+          }),
+        },
+        { new: true }
+      );
+
+      return res.status;
+    }
+  }
 }
+
 
 export async function sendNotificationEmail(taskId: string, action: string) {
   try {
