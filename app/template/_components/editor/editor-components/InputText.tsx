@@ -16,14 +16,16 @@ const InputText = (props: Props) => {
   const [elementContent, setElementContent] = React.useState({
     innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
     charLimit: !Array.isArray(props.element.content) ? props.element.content?.limit || 10000 : 10000,
-    wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000
+    wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000,
   })
+
+  const [showNotification, setShowNotification] = React.useState(false)
 
   React.useEffect(() => {
     setElementContent({
       innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
       charLimit: !Array.isArray(props.element.content) ? props.element.content?.limit || 10000 : 10000,
-      wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000
+      wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000,
     })
   }, [props.element])
 
@@ -48,11 +50,11 @@ const InputText = (props: Props) => {
 
   const handleContentChange = (value: string) => {
     const wordCount = countWords(value)
-    
+
     // Only update if within limits
     if (value.length <= elementContent.charLimit && wordCount <= elementContent.wordLimit) {
-      setElementContent(prev => ({ ...prev, innerText: value }))
-      
+      setElementContent((prev) => ({ ...prev, innerText: value }))
+
       dispatch({
         type: 'UPDATE_ELEMENT',
         payload: {
@@ -70,6 +72,14 @@ const InputText = (props: Props) => {
 
   const isSelected = state.editor.selectedElement.id === props.element.id
   const isLiveMode = state.editor.liveMode
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    e.preventDefault()
+    setShowNotification(true)
+    setTimeout(() => {
+      setShowNotification(false)
+    }, 2000)
+  }
 
   return (
     <div
@@ -96,16 +106,24 @@ const InputText = (props: Props) => {
         </div>
       )}
 
-      <form className="flex w-full items-center space-x-2">
-        <Textarea 
-          placeholder="write here" 
-          required 
+      <form className="flex w-full items-center space-x-2 relative">
+        <Textarea
+          onPaste={handlePaste}
+          placeholder="Write here"
+          required
           value={elementContent.innerText}
           maxLength={elementContent.charLimit}
           disabled={pageDetails.submitted}
           onChange={(e) => handleContentChange(e.target.value)}
           className="w-full"
         />
+        {showNotification && (
+          <div
+            className="absolute top-[-30px] right-10 bg-red-500 text-white text-xs px-2 py-1 rounded-md shadow-lg animate-fade-in-out"
+          >
+            Pasting is not allowed
+          </div>
+        )}
       </form>
     </div>
   )
