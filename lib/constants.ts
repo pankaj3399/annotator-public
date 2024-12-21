@@ -22,6 +22,7 @@ export type EditorBtns =
   | 'recordVideo'
   | 'inputRecordAudio'
   | 'inputRecordVideo'
+  | 'Upload'
   | 'dynamicUpload'
   | 'dynamicCarousel'
 
