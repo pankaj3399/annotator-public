@@ -20,7 +20,7 @@ import VideoPlaceholder from './video-placeholder'
 import { GripVertical } from 'lucide-react';
 import DynamicUploadPlaceholder from './DynamicUploadPlaceholder';
 import DynamicCarousel from './carousal-placeholder'
-
+import UploadPlaceholder from './upload-placeholder'
 
 const ComponentsTab = () => {
   const elements: {
@@ -58,6 +58,12 @@ const ComponentsTab = () => {
       label: 'Record Video',
       id: 'inputRecordVideo',
       group: 'Inputs',
+    },
+    {
+      Component:<UploadPlaceholder/>,
+      label: 'Upload',
+      id: 'Upload',
+      group: 'elements'
     },
     {
       Component: <CheckboxPlaceholder />,

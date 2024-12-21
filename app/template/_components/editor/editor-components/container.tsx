@@ -33,6 +33,9 @@ const Container = ({ element }: Props) => {
       dynamicText: () => generateElementDetails('dynamicText', { innerText: '{{text}}' }),
       link: () => generateElementDetails('link', { innerText: 'Link Element', href: '#' }),
       video: () => generateElementDetails('video', { src: '' }, {}),
+      Upload:()=> generateElementDetails('Upload',{},{
+        width:'100%'
+      }),
       dynamicVideo: () => generateElementDetails('dynamicVideo', { src: '{{video}}' }, {}),
       dynamicImage: () => generateElementDetails('dynamicImage', { src: '{{img}}' }, {}),
       image: () => generateElementDetails('image', { src: '' }, {}),

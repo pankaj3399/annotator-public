@@ -22,6 +22,7 @@ export type EditorElement = {
     src?: string
     selectedCheckbox?: string[]
     title?: string
+    fileName?:string
     checkboxes?: string[]
     type?: string
     limit?: number
