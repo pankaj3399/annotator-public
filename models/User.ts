@@ -29,6 +29,10 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    isReadyToWork:{
+      type:Boolean,
+      default:false
+    },
     lang: [
       {
         type: String,

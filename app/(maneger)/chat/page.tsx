@@ -13,7 +13,6 @@ import { sortUserGroupsByLastMessage } from "@/lib/utils"
 import { MessageCircle, MoreVertical, Trash2, UserMinus, UserPlus, Users, X } from 'lucide-react'
 import { useSession } from "next-auth/react"
 import { useEffect, useState } from 'react'
-import { Annotator } from "../projects/task/[projectId]/page"
 import { ChatArea } from "./_components/chatArea"
 import { GroupList } from './_components/groupList'
 import MemberCombobox from "./_components/MemberCombobox"
@@ -24,6 +23,15 @@ type Message = {
   content: string
   sent_at: string
 }
+type Annotator = {
+  _id: string;
+  name: string;
+  email: string;
+  isReadyToWork: boolean; 
+  lastLogin: string;
+  permission?: string[];
+}
+
 
 export type Groups = {
   _id: string

@@ -7,7 +7,15 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { getAllAnnotators } from '@/app/actions/annotator'
-import { Annotator } from '../../projects/task/[projectId]/page'
+type Annotator = {
+  _id: string;
+  name: string;
+  email: string;
+  isReadyToWork: boolean; 
+  lastLogin: string;
+  permission?: string[];
+}
+
 
 type MemberComboboxProps = {
   selectedMembers: Annotator[]

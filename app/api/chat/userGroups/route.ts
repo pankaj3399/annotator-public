@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
           {
             path: 'members', // Populate members inside group
             model: User,
-            select: 'name lastLogin' // Populate user info inside group members
+            select: 'name lastLogin isReadyToWork' // Populate user info inside group members
           }
         ]
       })
