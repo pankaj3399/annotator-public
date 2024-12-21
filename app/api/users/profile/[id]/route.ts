@@ -18,9 +18,8 @@ export async function GET(
         { status: 401 }
       );
     }
-
     // Allow system admins to view any profile
-    if (session.user.id !== params.id && session.user.role !== 'system admin') {
+    if (session.user.id !== params.id && session.user.role !== 'project manager') {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

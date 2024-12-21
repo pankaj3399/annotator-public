@@ -1,5 +1,5 @@
 'use client'
-import { getTasksOfAnnotator } from "@/app/actions/task"
+import { getTasksByProject, getTasksOfAnnotator } from "@/app/actions/task"
 import { SheetMenu } from "@/components/admin-panel/sheet-menu"
 import Loader from '@/components/ui/Loader/Loader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
