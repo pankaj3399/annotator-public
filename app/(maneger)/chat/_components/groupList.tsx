@@ -25,6 +25,7 @@ type Annotator = {
   isReadyToWork: boolean; 
   lastLogin: string;
   permission?: string[];
+  role : string | null;
 }
 
 type GroupListProps = {

@@ -339,6 +339,10 @@ export async function changeAnnotator(
       new: true,
     }
   );
+  if(res){
+    sendNotificationEmail(res._id,'assigned')
+    console.log("Email sent")
+  }
   return JSON.stringify(res);
 }
 
@@ -515,6 +519,71 @@ export async function sendNotificationEmail(taskId: string, action: string) {
     } else {
       console.warn(`No active template found for the ${action} trigger.`);
     }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Error in sending notification email: ${error.message}`);
+    } else {
+      console.error("Error in sending notification email:", error);
+    }
+    throw error;
+  }
+}
+
+export async function sendCustomNotificationEmail(userIds: string[], projectId: string) {
+  try {
+    // Fetch notification templates for the project
+    const response = await getNotificationTemplatesByProject(projectId);
+    const { templates } = response;
+
+    if (!response.success || !templates) {
+      throw new Error("Failed to fetch notification templates.");
+    }
+
+    // Find the trigger template based on the custom action (since it's always 'custom' now)
+    const triggerTemplate = templates.find(
+      (template: any) =>
+        template.triggerName === "custom" && template.active
+    );
+
+    if (!triggerTemplate) {
+      throw new Error("No active template found for the 'custom' trigger.");
+    }
+
+    // Fetch the users (annotators) by their IDs
+    const users = await User.find({ '_id': { $in: userIds } }).exec();
+    if (!users || users.length === 0) {
+      throw new Error("No users found with the provided IDs.");
+    }
+
+    // Create a transport using Nodemailer
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587'),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+
+    // Send the email to each user
+    for (const user of users) {
+      if (user.email) {
+        const mailOptions = {
+          from: process.env.EMAIL_USER,
+          to: user.email,
+          subject: `Custom Email`,
+          html: triggerTemplate.triggerBody, // Use the trigger body as the email content
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`Notification email sent to ${user.email}`);
+      } else {
+        console.warn(`No email found for user ${user._id}`);
+      }
+    }
+
+    console.log(`Notification emails sent successfully to all users`);
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error in sending notification email: ${error.message}`);

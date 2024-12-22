@@ -55,7 +55,7 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
       toast.success(`The task has been ${action}`);
   
       // Send notification email
-      if (["accepted", "rejected"].includes(action)) {
+      if (["accepted", "rejected","reassigned"].includes(action)) {
         await sendNotificationEmail(id, action); // Use task ID directly
       }
   

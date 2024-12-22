@@ -8,6 +8,7 @@ import { template } from "@/app/template/page";
 import { SheetMenu } from "@/components/admin-panel/sheet-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Loader2 } from "lucide-react";
 import Loader from "@/components/ui/Loader/Loader";
 import {
   Dialog,
@@ -20,7 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useJobList from "@/hooks/use-jobList";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, FileDown, PlusCircle, Shuffle } from "lucide-react";
+import { Bot, FileDown, Mail, PlusCircle, Shuffle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,6 +29,9 @@ import { Judge } from "../../ai-config/[projectId]/page";
 import { TaskTable } from "./table";
 import TaskProgress from "./TaskProgress";
 import { format, parseISO } from "date-fns";
+import MemberCombobox from "@/app/(maneger)/chat/_components/MemberCombobox";
+
+import { Badge } from "@/components/ui/badge";
 
 export interface Task {
   _id: string;
@@ -48,6 +52,7 @@ export interface Annotator {
   _id: string;
   name: string;
   email: string;
+  role:string | null;
   lastLogin: string;
   permission?: string[];
 }
@@ -57,16 +62,19 @@ export default function Component() {
   const [currentPage,setCurrentPage]=useState(1);
   const [totalPages,setTotalPages]=useState(0);
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [isMailDialogOpen, setIsMailDialogOpen] = useState(false)
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
   const [activeTab, setActiveTab] = useState<keyof typeof filteredTasks>("all");
   const [allReviewers, setAllReviewers] = useState<Annotator[]>([]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<Annotator[]>([])
   const { removeJobByTaskid, setJob } = useJobList();
   const pathName = usePathname();
   const projectId = pathName.split("/")[3];
   const router = useRouter();
   const { data: session } = useSession();
+  const [isLoading,setIsLoading]=useState(false)
   const { toast } = useToast();
 
   const fetchJudges = async () => {
@@ -108,6 +116,7 @@ export default function Component() {
         name: session.user.name || "Project Manager",
         email: session.user.email || "",
         lastLogin: new Date().toISOString(),
+        role:session.user.role || 'Project Manager'
       };
     const annotatorsData = JSON.parse(
       await getAllAnnotators()
@@ -154,6 +163,50 @@ export default function Component() {
       })
     );
   }
+
+
+
+  const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/sendNotificationEmail/custom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          selectedAnnotators: selectedAnnotators.map((annotator) => annotator._id),
+          projectId:projectId
+        }),
+      })
+  
+      // Handling the response
+      if (response.ok) {
+        setIsMailDialogOpen(false)
+        toast({
+          title: 'Email sent successfully',
+          variant: 'default',
+        })
+      } else {
+        // Error from server
+        const errorData = await response.json()
+        toast({
+          title: `Error: ${errorData.message || 'Configure custom template in notifications'}`,
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      // Network or unexpected error
+      toast({
+        title: 'An unexpected error occurred. Please try again later.',
+        variant: 'destructive',
+      })
+    }finally{
+      setIsLoading(false)
+    }
+  }
+  
+  
 
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -400,6 +453,14 @@ export default function Component() {
           </h1>
           <div className="flex gap-4">
             <Button
+              variant={'outline'}
+              size='sm'
+              onClick={()=>{setIsMailDialogOpen(true)}}            
+            >
+              <Mail className="h-4 w-4 mr-2"></Mail>
+              Send Custom Mail
+            </Button>
+            <Button
               variant="outline"
               size="sm"
               onClick={() => setIsExportDialogOpen(true)}
@@ -553,6 +614,73 @@ export default function Component() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isMailDialogOpen} onOpenChange={setIsMailDialogOpen}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold">Select Annotators</DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Choose the annotators you want to send emails to. {<br></br>} (Email will be the same as you configured in custom template)
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4 space-y-4">
+          {/* MultiSelect Component */}
+          <MemberCombobox 
+            selectedMembers={selectedMembers} 
+            setSelectedMembers={setSelectedMembers} 
+          />
+
+          {/* Selected Annotators as Badges */}
+          <div className="flex flex-wrap gap-2">
+            {selectedMembers.map((member) => (
+              <Badge key={member._id} className="bg-blue-500 text-white">
+                {member.name}
+              </Badge>
+            ))}
+            {selectedMembers.length === 0 && <p>No annotators selected.</p>}
+          </div>
+        </div>
+
+        <DialogFooter className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-2">
+          {/* Cancel Button */}
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => {
+              setSelectedMembers([]); // Reset to an empty array
+              setIsMailDialogOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+
+          {/* Send Mail Button */}
+          <Button
+            className="w-full sm:w-auto"
+            onClick={()=>{handleSendEmail(selectedMembers)}}
+            disabled={selectedMembers.length === 0 || isLoading} // Disable when loading or no members selected
+          >
+            {isLoading ? (
+              <span
+              className="mr-2 h-4 w-4"
+              style={{
+                display: 'inline-block',
+                animation: 'spin 1s linear infinite', // Inline spin animation
+              }}
+            >
+              <Loader2 className="h-4 w-4" />
+            </span>
+            ) : (
+              <Mail className="mr-2 h-4 w-4" />
+            )}
+            Send Mail ({selectedMembers.length}) {/* Use length of array */}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+
     </div>
   );
 }

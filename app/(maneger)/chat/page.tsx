@@ -27,9 +27,10 @@ type Annotator = {
   _id: string;
   name: string;
   email: string;
-  isReadyToWork: boolean; 
+  isReadyToWork?: boolean; 
   lastLogin: string;
   permission?: string[];
+  role: string | null
 }
 
 
