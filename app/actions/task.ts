@@ -318,6 +318,7 @@ export async function changeAnnotator(
         $set: {
           annotator: null,
           ai: null,
+          assignedTime:existingTask.created_at
         },
       },
       {
@@ -333,6 +334,7 @@ export async function changeAnnotator(
       $set: {
         annotator,
         ai: null,
+        assignedTime:Date.now()
       },
     },
     {

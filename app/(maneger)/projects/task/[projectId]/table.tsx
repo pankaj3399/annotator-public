@@ -58,17 +58,12 @@ export function TaskTable({
     const [dialog, setDialog] = useState(false)
     const [feedback, setFeedback] = useState('')
     const { setJob, getJobs, removeJobByTaskid } = useJobList()
-    
     const checkboxRef = useRef<HTMLInputElement | null>(null);
     const pathName = usePathname();
 
     const projectId = pathName.split("/")[3];
-
     // Filter reviewers to only show those with "canReview" permission
-    const filteredReviewers = reviewers.filter(reviewer => 
-        (reviewer.permission && reviewer.permission.includes('canReview')) || 
-        (session?.user && reviewer._id === session.user.id) 
-    );
+
 
     const handleClick = (e: React.MouseEvent, feedback: string) => {
         e.stopPropagation()
@@ -145,13 +140,13 @@ const handleSelect = (task: Task) => {
       
 
 const handleSelectAll = () => {
-    if (selectedTask.length === tasks.length) {
-      setSelectedTask([]); // Deselect all tasks if all are selected
-    } else {
-      setSelectedTask(tasks); // Select all tasks (ensure tasks are Task[] type)
-    }
-  };
-  
+  if (selectedTask.length === tasks.length) {
+    setSelectedTask([]); // Deselect all tasks if all are selected
+  } else {
+    setSelectedTask(tasks); // Select all tasks (ensure tasks are Task[] type)
+  }
+};
+
     const handleReviewerChange = async (value: string, task: Task) => {
         try {
             const actualValue = value === "unassigned" ? "" : value;
@@ -199,7 +194,7 @@ const handleSelectAll = () => {
                 <TableBody>
                     {tasks.map((task: Task) => {
                         const assignedAnnotator = annotators.find(a => a._id === task.annotator);
-                        const assignedReviewer = filteredReviewers.find(r => r._id === task.reviewer) || 
+                        const assignedReviewer = reviewers.find(r => r._id === task.reviewer) || 
                             (session?.user && task.reviewer === session.user.id ? { 
                                 _id: session.user.id, 
                                 name: session.user.name || "Project Manager",
@@ -276,7 +271,7 @@ const handleSelectAll = () => {
                                             </SelectValue>
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {filteredReviewers
+                                            {reviewers
                                                 .sort((a, b) => {
                                                     if (a._id === session?.user?.id) return -1;
                                                     if (b._id === session?.user?.id) return 1;
