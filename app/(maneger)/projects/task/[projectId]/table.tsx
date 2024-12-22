@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from "next/navigation"
 import { format, parseISO } from "date-fns"
 import { CalendarIcon, NotebookPen, Trash2Icon } from "lucide-react"
@@ -19,6 +19,8 @@ import { Pagination,PaginationContent,PaginationEllipsis,PaginationItem,Paginati
 interface TaskTableProps {
     tasks: Task[]
     setTasks: React.Dispatch<React.SetStateAction<Task[]>>
+    selectedTask:Task[],
+    setSelectedTask:React.Dispatch<React.SetStateAction<Task[]>>;
     annotators: Annotator[]
     reviewers: Annotator[]
     judges: Judge[]
@@ -40,6 +42,8 @@ interface TaskTableProps {
 export function TaskTable({
     tasks,
     setTasks,
+    selectedTask,
+    setSelectedTask,
     annotators,
     reviewers,
     judges,
@@ -54,7 +58,10 @@ export function TaskTable({
     const [dialog, setDialog] = useState(false)
     const [feedback, setFeedback] = useState('')
     const { setJob, getJobs, removeJobByTaskid } = useJobList()
+    
+    const checkboxRef = useRef<HTMLInputElement | null>(null);
     const pathName = usePathname();
+
     const projectId = pathName.split("/")[3];
 
     // Filter reviewers to only show those with "canReview" permission
@@ -127,7 +134,24 @@ export function TaskTable({
             toast.error("Failed to assign annotator")
         }
     };
+const handleSelect = (task: Task) => {
+  setSelectedTask(prev =>
+    prev.some(selectedTask => selectedTask._id === task._id)
+      ? prev.filter(selectedTask => selectedTask._id !== task._id)
+      : [...prev, task]
+  );
+};
 
+      
+
+const handleSelectAll = () => {
+    if (selectedTask.length === tasks.length) {
+      setSelectedTask([]); // Deselect all tasks if all are selected
+    } else {
+      setSelectedTask(tasks); // Select all tasks (ensure tasks are Task[] type)
+    }
+  };
+  
     const handleReviewerChange = async (value: string, task: Task) => {
         try {
             const actualValue = value === "unassigned" ? "" : value;
@@ -144,13 +168,25 @@ export function TaskTable({
             toast.error("Failed to assign reviewer");
         }
     };
+    const handleRowClick = (e: React.MouseEvent,id:string) => {
+        if (checkboxRef.current && !checkboxRef.current.contains(e.target as Node)) {
+          router.push(`/task/${id}`);
+        }
+      };
 
     return (
         <div className="bg-white shadow-sm rounded-lg overflow-hidden">
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Tasks Name</TableHead>
+                    <TableHead className="w-12">
+            <input
+              type="checkbox"
+              className="rounded border-zinc-300 dark:border-zinc-600"
+              onChange={handleSelectAll}
+              checked={selectedTask.length === tasks.length && selectedTask.length > 0} // Check if all tasks are selected
+            />
+          </TableHead>                       <TableHead>Tasks Name</TableHead>
                         <TableHead>Created Date</TableHead>
                         <TableHead>Assignee</TableHead>
                         <TableHead>Reviewer</TableHead>
@@ -176,9 +212,19 @@ export function TaskTable({
                         return (
                             <TableRow
                                 key={task._id}
-                                onClick={() => router.push(`/task/${task._id}`)}
+                                onClick={(e) =>{handleRowClick(e,task._id)}}
                                 className="cursor-pointer hover:bg-gray-50"
                             >
+                            <TableCell onClick={(e)=>e.stopPropagation()}>
+                                
+                            <input
+  type="checkbox"
+  checked={selectedTask.some(selected => selected._id === task._id)}
+  onChange={() => handleSelect(task)}
+  className="rounded border-zinc-300 dark:border-zinc-600"
+/>
+
+                              </TableCell>
                                 <TableCell className="font-medium">{task.name}</TableCell>
                                 <TableCell>
                                     <div className="flex items-center text-sm text-gray-500">

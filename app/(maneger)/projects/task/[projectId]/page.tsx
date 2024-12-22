@@ -76,7 +76,7 @@ export default function Component() {
   const { data: session } = useSession();
   const [isLoading,setIsLoading]=useState(false)
   const { toast } = useToast();
-
+  const [selectedTask,setSelectedTask]=useState<Task[]>([])
   const fetchJudges = async () => {
     const res = await fetch(`/api/aiModel?projectId=${projectId}`);
     const judges = await res.json(); 
@@ -250,16 +250,19 @@ export default function Component() {
       return;
     }
 
-    const tasksNeedingReviewer = tasks.filter((task) => !task.reviewer);
+    const tasksNeedingReviewer = selectedTask.length === 0
+      ? tasks.filter((task) => !task.reviewer) 
+      : selectedTask.filter((task) => !task.reviewer);
+
     const updatedTasks = [...tasks];
 
     for (let i = 0; i < tasksNeedingReviewer.length; i++) {
       const task = tasksNeedingReviewer[i];
-      const reviewerIndex = (i % (allReviewers.length - 1)) + 1; // Skip project manager in rotation
+      const reviewerIndex = (i % (allReviewers.length - 1)) + 1;
       const reviewerId = allReviewers[reviewerIndex]._id;
 
       if (reviewerId === task.annotator) {
-        // If reviewer would be same as annotator, assign project manager instead
+
         await changeAnnotator(task._id, allReviewers[0]._id, false, true);
         const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
         updatedTasks[taskIndex] = {
@@ -281,7 +284,8 @@ export default function Component() {
       title: "Bulk reviewer assignment completed",
       description: `${tasksNeedingReviewer.length} tasks have been assigned reviewers.`,
     });
-  };
+};
+
 
   const handleAutoAssign = async () => {
     if (annotators.length === 0) {
@@ -292,27 +296,29 @@ export default function Component() {
       });
       return;
     }
-
-    const unassignedTasks = tasks.filter((task) => !task.annotator);
+  
+    const tasksToAssign = selectedTask.length > 0
+      ? selectedTask 
+      : tasks.filter((task) => !task.annotator);
+  
     const updatedTasks = [...tasks];
-
-    for (let i = 0; i < unassignedTasks.length; i++) {
-      const task = unassignedTasks[i];
+  
+    for (let i = 0; i < tasksToAssign.length; i++) {
+      const task = tasksToAssign[i];
       const annotatorIndex = i % annotators.length;
       const annotatorId = annotators[annotatorIndex]._id;
-
-      // Try to assign a different annotator as reviewer, fall back to project manager
+  
       const availableReviewers = allReviewers.filter(
         (r) => r._id !== annotatorId
       );
       const reviewerId =
         availableReviewers.length > 1
-          ? availableReviewers[1]._id // Get first non-project-manager reviewer
-          : allReviewers[0]._id; // Fall back to project manager
-
+          ? availableReviewers[1]._id 
+          : allReviewers[0]._id;
+  
       await changeAnnotator(task._id, annotatorId, false, false);
       await changeAnnotator(task._id, reviewerId, false, true);
-
+  
       const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
       updatedTasks[taskIndex] = {
         ...task,
@@ -320,13 +326,14 @@ export default function Component() {
         reviewer: reviewerId,
       };
     }
-
+  
     setTasks(updatedTasks);
     toast({
       title: "Auto-assign completed",
-      description: `${unassignedTasks.length} tasks have been assigned with annotators and reviewers.`,
+      description: `${tasksToAssign.length} tasks have been assigned with annotators and reviewers.`,
     });
   };
+  
 
   async function handleAssignAI() {
     const unassignedTasks = tasks.filter(
@@ -522,7 +529,7 @@ export default function Component() {
                       size="sm"
                     >
                       <Shuffle className="mr-2 h-4 w-4" /> Auto-assign
-                      Annotators
+                      Annotators({selectedTask.length>0 ? selectedTask.length : 'All'})
                     </Button>
 
                     <Button
@@ -530,7 +537,7 @@ export default function Component() {
                       variant="outline"
                       size="sm"
                     >
-                      <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Reviewers
+                      <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Reviewers({selectedTask.length>0 ? selectedTask.length : 'All'})
                     </Button>
 
                     {judges.length > 0 && (
@@ -548,6 +555,8 @@ export default function Component() {
 
               <TabsContent value="all">
                 <TaskTable
+                  selectedTask={selectedTask}
+                  setSelectedTask={setSelectedTask}
                   onPageChange={handlePageChange}
                   currentPage={currentPage}
                   totalPages={totalPages}
@@ -564,6 +573,8 @@ export default function Component() {
               </TabsContent>
               <TabsContent value="submitted">
                 <TaskTable
+                  selectedTask={selectedTask}
+                  setSelectedTask={setSelectedTask}
                   currentPage={currentPage}
                   onPageChange={handlePageChange}
                   totalPages={totalPages}
@@ -580,6 +591,8 @@ export default function Component() {
               </TabsContent>
               <TabsContent value="unassigned">
                 <TaskTable 
+                selectedTask={selectedTask}
+                setSelectedTask={setSelectedTask}
                   onPageChange={handlePageChange}
                   currentPage={currentPage}
                   totalPages={totalPages}
