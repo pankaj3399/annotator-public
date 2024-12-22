@@ -37,6 +37,7 @@ import Task from "@/models/Task";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { TrainFrontTunnel } from "lucide-react";
 import { Popover,PopoverContent,PopoverTrigger } from "@/components/ui/popover";
+import { MailDialogComponent } from "./mail-dialog";
 export interface Task {
   _id: string;
   name: string;
@@ -761,70 +762,17 @@ const [reviewerFilter, setReviewerFilter] = useState('');
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isMailDialogOpen} onOpenChange={setIsMailDialogOpen}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Select Annotators</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Choose the annotators you want to send emails to. {<br></br>} (Email will be the same as you configured in custom template)
-          </DialogDescription>
-        </DialogHeader>
+      <div>
+      <MailDialogComponent
+        isMailDialogOpen={isMailDialogOpen}
+        setIsMailDialogOpen={setIsMailDialogOpen}
+        selectedMembers={selectedMembers}
+        setSelectedMembers={setSelectedMembers}
+        handleSendEmail={handleSendEmail}
+        isLoading={isLoading}
+      />
+    </div>
 
-        <div className="py-4 space-y-4">
-          {/* MultiSelect Component */}
-          <MemberCombobox 
-            selectedMembers={selectedMembers} 
-            setSelectedMembers={setSelectedMembers} 
-          />
-
-          {/* Selected Annotators as Badges */}
-          <div className="flex flex-wrap gap-2">
-            {selectedMembers.map((member) => (
-              <Badge key={member._id} className="bg-blue-500 text-white">
-                {member.name}
-              </Badge>
-            ))}
-            {selectedMembers.length === 0 && <p>No annotators selected.</p>}
-          </div>
-        </div>
-
-        <DialogFooter className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-2">
-          {/* Cancel Button */}
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => {
-              setSelectedMembers([]); // Reset to an empty array
-              setIsMailDialogOpen(false);
-            }}
-          >
-            Cancel
-          </Button>
-
-          {/* Send Mail Button */}
-          <Button
-            className="w-full sm:w-auto"
-            onClick={()=>{handleSendEmail(selectedMembers)}}
-            disabled={selectedMembers.length === 0 || isLoading} // Disable when loading or no members selected
-          >
-            {isLoading ? (
-              <span
-              className="mr-2 h-4 w-4"
-              style={{
-                display: 'inline-block',
-                animation: 'spin 1s linear infinite', // Inline spin animation
-              }}
-            >
-              <Loader2 className="h-4 w-4" />
-            </span>
-            ) : (
-              <Mail className="mr-2 h-4 w-4" />
-            )}
-            Send Mail ({selectedMembers.length}) {/* Use length of array */}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
 
 
     </div>
