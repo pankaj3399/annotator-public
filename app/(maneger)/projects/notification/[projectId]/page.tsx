@@ -16,7 +16,7 @@ interface NotificationTemplate {
   active: boolean;
 }
 
-const triggerOptions = ["accepted", "rejected"]; // Predefined options
+const triggerOptions = ["accepted", "rejected","assigned","reassigned","custom"]; // Predefined options
 
 export default function NotificationTemplatePage() {
   const router = useRouter();

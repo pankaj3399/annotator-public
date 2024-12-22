@@ -12,6 +12,7 @@ const taskSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'accepted', 'rejected', 'reassigned'], default: 'pending' },
   submitted: { type: Boolean, default: false },
   timeTaken: { type: Number, default: 0 },
+  assignedAt:{type:Date,default:Date.now()},
   feedback: { type: String, default: '' },
   timer: { type: Number, default: 0 },
 });

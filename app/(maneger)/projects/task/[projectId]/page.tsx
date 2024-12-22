@@ -8,6 +8,7 @@ import { template } from "@/app/template/page";
 import { SheetMenu } from "@/components/admin-panel/sheet-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Filter, Loader2 } from "lucide-react";
 import Loader from "@/components/ui/Loader/Loader";
 import {
   Dialog,
@@ -20,7 +21,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import useJobList from "@/hooks/use-jobList";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, FileDown, PlusCircle, Shuffle } from "lucide-react";
+import { Bot, FileDown, Mail, PlusCircle, Shuffle } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -28,7 +29,15 @@ import { Judge } from "../../ai-config/[projectId]/page";
 import { TaskTable } from "./table";
 import TaskProgress from "./TaskProgress";
 import { format, parseISO } from "date-fns";
+import MemberCombobox from "@/app/(maneger)/chat/_components/MemberCombobox";
 
+import { Badge } from "@/components/ui/badge";
+import { connectToDatabase } from "@/lib/db";
+import Task from "@/models/Task";
+import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
+import { TrainFrontTunnel } from "lucide-react";
+import { Popover,PopoverContent,PopoverTrigger } from "@/components/ui/popover";
+import { MailDialogComponent } from "./mail-dialog";
 export interface Task {
   _id: string;
   name: string;
@@ -38,6 +47,7 @@ export interface Task {
   status: string;
   submitted: boolean;
   annotator?: string;
+  assignedAt:string;
   reviewer?: string; // Added reviewer field
   timeTaken: number;
   feedback: string;
@@ -48,6 +58,7 @@ export interface Annotator {
   _id: string;
   name: string;
   email: string;
+  role:string | null;
   lastLogin: string;
   permission?: string[];
 }
@@ -57,18 +68,28 @@ export default function Component() {
   const [currentPage,setCurrentPage]=useState(1);
   const [totalPages,setTotalPages]=useState(0);
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [inactiveTimeSort, setInactiveTimeSort] = useState<'asc' | 'desc' | ''>('');
+  const [isMailDialogOpen, setIsMailDialogOpen] = useState(false)
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
   const [judges, setJudges] = useState<Judge[]>([]);
-  const [activeTab, setActiveTab] = useState<keyof typeof filteredTasks>("all");
+  const [activeTab, setActiveTab] = useState("all");
   const [allReviewers, setAllReviewers] = useState<Annotator[]>([]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<Annotator[]>([])
   const { removeJobByTaskid, setJob } = useJobList();
   const pathName = usePathname();
   const projectId = pathName.split("/")[3];
   const router = useRouter();
   const { data: session } = useSession();
-  const { toast } = useToast();
+  const [isLoading,setIsLoading]=useState(false)
+  const [isFiltersVisible, setIsFiltersVisible] = useState(false);
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
+  const [statusFilter, setStatusFilter] = useState('');
+const [expertFilter, setExpertFilter] = useState('');
+const [reviewerFilter, setReviewerFilter] = useState('');
 
+  const { toast } = useToast();
+  const [selectedTask,setSelectedTask]=useState<Task[]>([])
   const fetchJudges = async () => {
     const res = await fetch(`/api/aiModel?projectId=${projectId}`);
     const judges = await res.json(); 
@@ -82,6 +103,11 @@ export default function Component() {
     }
     setJudges(judges.models.filter((judge: Judge) => judge.enabled == true));
   };
+
+  useEffect(() => {
+    const count = [statusFilter, expertFilter, reviewerFilter, inactiveTimeSort].filter((filter) => filter !== '').length;
+    setActiveFiltersCount(count);
+  }, [statusFilter, expertFilter, reviewerFilter, inactiveTimeSort]);
 
   useEffect(() => {
     async function init() {
@@ -108,6 +134,7 @@ export default function Component() {
         name: session.user.name || "Project Manager",
         email: session.user.email || "",
         lastLogin: new Date().toISOString(),
+        role:session.user.role || 'Project Manager'
       };
     const annotatorsData = JSON.parse(
       await getAllAnnotators()
@@ -155,6 +182,51 @@ export default function Component() {
     );
   }
 
+
+
+
+  const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
+    try {
+      setIsLoading(true)
+      const response = await fetch('/api/sendNotificationEmail/custom', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          selectedAnnotators: selectedAnnotators.map((annotator) => annotator._id),
+          projectId:projectId
+        }),
+      })
+  
+      // Handling the response
+      if (response.ok) {
+        setIsMailDialogOpen(false)
+        toast({
+          title: 'Email sent successfully',
+          variant: 'default',
+        })
+      } else {
+        // Error from server
+        const errorData = await response.json()
+        toast({
+          title: `Error: ${errorData.message || 'Configure custom template in notifications'}`,
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      // Network or unexpected error
+      toast({
+        title: 'An unexpected error occurred. Please try again later.',
+        variant: 'destructive',
+      })
+    }finally{
+      setIsLoading(false)
+    }
+  }
+  
+  
+
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const defaultTemplate = {
@@ -171,6 +243,10 @@ export default function Component() {
     );
     router.push(`/template?Id=${template._id}`);
   };
+  const filteredReviewers = allReviewers.filter(reviewer => 
+    (reviewer.permission && reviewer.permission.includes('canReview')) || 
+    (session?.user && reviewer._id === session.user.id) 
+);
 
   const handleDeleteTemplate = async (e: React.MouseEvent, _id: string) => {
     e.stopPropagation();
@@ -197,16 +273,19 @@ export default function Component() {
       return;
     }
 
-    const tasksNeedingReviewer = tasks.filter((task) => !task.reviewer);
+    const tasksNeedingReviewer = selectedTask.length === 0
+      ? tasks.filter((task) => !task.reviewer) 
+      : selectedTask.filter((task) => !task.reviewer);
+
     const updatedTasks = [...tasks];
 
     for (let i = 0; i < tasksNeedingReviewer.length; i++) {
       const task = tasksNeedingReviewer[i];
-      const reviewerIndex = (i % (allReviewers.length - 1)) + 1; // Skip project manager in rotation
+      const reviewerIndex = (i % (allReviewers.length - 1)) + 1;
       const reviewerId = allReviewers[reviewerIndex]._id;
 
       if (reviewerId === task.annotator) {
-        // If reviewer would be same as annotator, assign project manager instead
+
         await changeAnnotator(task._id, allReviewers[0]._id, false, true);
         const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
         updatedTasks[taskIndex] = {
@@ -228,7 +307,8 @@ export default function Component() {
       title: "Bulk reviewer assignment completed",
       description: `${tasksNeedingReviewer.length} tasks have been assigned reviewers.`,
     });
-  };
+};
+
 
   const handleAutoAssign = async () => {
     if (annotators.length === 0) {
@@ -239,27 +319,29 @@ export default function Component() {
       });
       return;
     }
-
-    const unassignedTasks = tasks.filter((task) => !task.annotator);
+  
+    const tasksToAssign = selectedTask.length > 0
+      ? selectedTask 
+      : tasks.filter((task) => !task.annotator);
+  
     const updatedTasks = [...tasks];
-
-    for (let i = 0; i < unassignedTasks.length; i++) {
-      const task = unassignedTasks[i];
+  
+    for (let i = 0; i < tasksToAssign.length; i++) {
+      const task = tasksToAssign[i];
       const annotatorIndex = i % annotators.length;
       const annotatorId = annotators[annotatorIndex]._id;
-
-      // Try to assign a different annotator as reviewer, fall back to project manager
+  
       const availableReviewers = allReviewers.filter(
         (r) => r._id !== annotatorId
       );
       const reviewerId =
         availableReviewers.length > 1
-          ? availableReviewers[1]._id // Get first non-project-manager reviewer
-          : allReviewers[0]._id; // Fall back to project manager
-
+          ? availableReviewers[1]._id 
+          : allReviewers[0]._id;
+  
       await changeAnnotator(task._id, annotatorId, false, false);
       await changeAnnotator(task._id, reviewerId, false, true);
-
+  
       const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
       updatedTasks[taskIndex] = {
         ...task,
@@ -267,13 +349,14 @@ export default function Component() {
         reviewer: reviewerId,
       };
     }
-
+  
     setTasks(updatedTasks);
     toast({
       title: "Auto-assign completed",
-      description: `${unassignedTasks.length} tasks have been assigned with annotators and reviewers.`,
+      description: `${tasksToAssign.length} tasks have been assigned with annotators and reviewers.`,
     });
   };
+  
 
   async function handleAssignAI() {
     const unassignedTasks = tasks.filter(
@@ -322,14 +405,8 @@ export default function Component() {
     });
   }
 
-  const filteredTasks = {
-    all: tasks,
-    submitted: tasks.filter((task) => task.submitted),
-    unassigned: tasks.filter((task) => !task.annotator || !task.reviewer),
-  };
-
   const handleExport = (exportFormat: string) => {
-    const dataToExport = filteredTasks[activeTab].map((task) => ({
+    const dataToExport = tasks.map((task) => ({
       name: task.name,
       project: task.project,
       status: task.status,
@@ -390,6 +467,41 @@ export default function Component() {
 
     setIsExportDialogOpen(false);
   };
+  const filteredTasks = tasks
+  .sort((a:Task, b:Task) => {
+    // Calculate inactive time for both tasks
+    const inactiveA = Date.now() - new Date(a.assignedAt).getTime();
+    const inactiveB = Date.now() - new Date(b.assignedAt).getTime();
+
+    // Sort by inactive time based on the inactiveTimeSort state
+    if (inactiveTimeSort === 'asc') {
+      return inactiveA - inactiveB; // Ascending
+    } else if (inactiveTimeSort === 'desc') {
+      return inactiveB - inactiveA; // Descending
+    }
+    return 0; // No sorting if no inactive time filter is set
+  })
+  .filter((task) => {
+    // Apply Status Filter (Handle "all" as no filter)
+    const matchesStatus = statusFilter !== 'all'
+      ? (statusFilter ? task.status.toLowerCase() === statusFilter.toLowerCase() : true)
+      : true;
+
+    // Apply Expert Filter (If expertFilter is provided, filter based on annotator)
+    const matchesExpert = expertFilter
+      ? task.annotator === expertFilter
+      : true;
+
+    // Apply Reviewer Filter (Handle empty or "All" reviewer filter gracefully)
+    const matchesReviewer = reviewerFilter && reviewerFilter !== 'all'
+      ? task.reviewer === reviewerFilter
+      : true;
+
+    return matchesStatus && matchesExpert && matchesReviewer;
+  });
+
+
+  
 
   return (
     <div className="min-h-screen">
@@ -399,6 +511,14 @@ export default function Component() {
             Tasks
           </h1>
           <div className="flex gap-4">
+            <Button
+              variant={'outline'}
+              size='sm'
+              onClick={()=>{setIsMailDialogOpen(true)}}            
+            >
+              <Mail className="h-4 w-4 mr-2"></Mail>
+              Send Custom Mail
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -412,6 +532,7 @@ export default function Component() {
         </div>
       </header>
       <main className="max-w-7xl mx-auto sm:px-6 lg:px-8">
+
         <form onSubmit={handleCreateTemplate} className="mb-8">
           <div className="flex gap-4">
             <Input
@@ -427,31 +548,111 @@ export default function Component() {
             </Button>
           </div>
         </form>
-        {tasks.length === 0 ? (
-          <div className="text-center py-10">
-            <h2 className="text-xl font-semibold text-gray-900">
-              No Tasks yet
-            </h2>
-            <p className="mt-2 text-gray-600">
-              Create your first Template to get started!
-            </p>
-          </div>
-        ) : (
-          <>
-            <Tabs
-              value={activeTab}
-              onValueChange={(value: string) =>
-                setActiveTab(value as keyof typeof filteredTasks)
-              }
-            >
-              <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
-                <TabsList>
-                  <TabsTrigger value="all">All Tasks</TabsTrigger>
-                  <TabsTrigger value="submitted">Submitted Tasks</TabsTrigger>
-                  <TabsTrigger value="unassigned">Unassigned Tasks</TabsTrigger>
-                </TabsList>
 
-                <div className="flex flex-wrap gap-2 items-center">
+          <>
+          <Tabs value={activeTab} onValueChange={(value: string) => setActiveTab(value)}>
+            <div className="flex flex-col gap-4 mb-4 md:flex-row md:items-center md:justify-between">
+              <TabsList>
+                <TabsTrigger value="all">All Tasks</TabsTrigger>
+                <TabsTrigger value="submitted">Submitted Tasks</TabsTrigger>
+                <TabsTrigger value="unassigned">Unassigned Tasks</TabsTrigger>
+              </TabsList>
+    
+              {/* Left-aligned Filter Icon with applied filters count */}
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger className="flex items-center justify-center px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200">
+                    <Filter className="h-5 w-5" />
+                    {activeFiltersCount > 0 && (
+                      <span className="ml-1 text-xs text-red-500">{activeFiltersCount}</span>
+                    )}
+                  </PopoverTrigger>
+                  
+                  {/* Popover Content with filter options */}
+                  <PopoverContent className="p-4 bg-white border rounded-md shadow-lg w-[300px]">
+                    <div className="flex flex-col gap-4">
+                      {/* Status Filter */}
+                      <Select
+                        value={statusFilter || 'all'}
+                        onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}
+                        className="w-full"
+                      >
+                        <SelectTrigger>
+                          <SelectValue>{statusFilter === '' ? 'Filter Status' : statusFilter}</SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          <SelectItem value="assigned">Assigned</SelectItem>
+                          <SelectItem value="reassigned">Reassigned</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="rejected">Rejected</SelectItem>
+                        </SelectContent>
+                      </Select>
+    
+                      {/* Expert Filter */}
+                      <Select
+                        value={expertFilter || 'all'}
+                        onValueChange={(value) => setExpertFilter(value === 'all' ? '' : value)}
+                        className="w-full"
+                      >
+                        <SelectTrigger>
+                          <SelectValue>
+                            {expertFilter === ''
+                              ? 'Filter experts'
+                              : annotators.find((a) => a._id === expertFilter)?.name || 'Filter experts'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          {annotators.map((annotator) => (
+                            <SelectItem key={annotator._id} value={annotator._id}>
+                              {annotator.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+    
+                      {/* Reviewer Filter */}
+                      <Select
+                        value={reviewerFilter || 'all'}
+                        onValueChange={(value) => setReviewerFilter(value === 'all' ? '' : value)}
+                        className="w-full"
+                      >
+                        <SelectTrigger>
+                          <SelectValue>
+                            {reviewerFilter === ''
+                              ? 'Filter reviewers'
+                              : filteredReviewers.find((r) => r._id === reviewerFilter)?.name || 'All Reviewers'}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Reviewers</SelectItem>
+                          {filteredReviewers.map((reviewer) => (
+                            <SelectItem key={reviewer._id} value={reviewer._id}>
+                              {reviewer.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                  <Select
+                    value={inactiveTimeSort || 'none'}
+                    onValueChange={(value) => setInactiveTimeSort(value === 'none' ? '' : value)}
+                    className="w-full"
+                  >
+                    <SelectTrigger>
+                      <SelectValue>{inactiveTimeSort === '' ? 'Sort by Inactive Time' : inactiveTimeSort === 'asc' ? 'Inactive Time Asc' : 'Inactive Time Desc'}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="asc">Inactive Time Asc</SelectItem>
+                      <SelectItem value="desc">Inactive Time Desc</SelectItem>
+                    </SelectContent>
+                  </Select>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
                   <TaskProgress setTasks={setTasks} />
 
                   <div className="flex gap-2">
@@ -461,7 +662,7 @@ export default function Component() {
                       size="sm"
                     >
                       <Shuffle className="mr-2 h-4 w-4" /> Auto-assign
-                      Annotators
+                      Annotators({selectedTask.length>0 ? selectedTask.length : 'All'})
                     </Button>
 
                     <Button
@@ -469,7 +670,7 @@ export default function Component() {
                       variant="outline"
                       size="sm"
                     >
-                      <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Reviewers
+                      <Shuffle className="mr-2 h-4 w-4" /> Auto-assign Reviewers({selectedTask.length>0 ? selectedTask.length : 'All'})
                     </Button>
 
                     {judges.length > 0 && (
@@ -483,59 +684,66 @@ export default function Component() {
                     )}
                   </div>
                 </div>
-              </div>
-
-              <TabsContent value="all">
-                <TaskTable
-                  onPageChange={handlePageChange}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  setTasks={setTasks}
-                  tasks={tasks}
-                  annotators={annotators}
-                  reviewers={allReviewers}
-                  judges={judges}
-                  handleAssignUser={handleAssignUser}
-                  handleDeleteTemplate={handleDeleteTemplate}
-                  router={router}
-                  session={session}
-                />
-              </TabsContent>
-              <TabsContent value="submitted">
-                <TaskTable
-                  currentPage={currentPage}
-                  onPageChange={handlePageChange}
-                  totalPages={totalPages}
-                  setTasks={setTasks}
-                  tasks={tasks}
-                  annotators={annotators}
-                  reviewers={allReviewers}
-                  judges={judges}
-                  handleAssignUser={handleAssignUser}
-                  handleDeleteTemplate={handleDeleteTemplate}
-                  router={router}
-                  session={session}
-                />
-              </TabsContent>
-              <TabsContent value="unassigned">
-                <TaskTable 
-                  onPageChange={handlePageChange}
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  setTasks={setTasks}
-                  tasks={tasks}
-                  annotators={annotators}
-                  reviewers={allReviewers}
-                  judges={judges}
-                  handleAssignUser={handleAssignUser}
-                  handleDeleteTemplate={handleDeleteTemplate}
-                  router={router}
-                  session={session}
-                />
-              </TabsContent>
-            </Tabs>
-          </>
-        )}
+            </div>
+    
+            {/* Tabs Content */}
+            <TabsContent value="all">
+              <TaskTable
+                selectedTask={selectedTask}
+                setSelectedTask={setSelectedTask}
+                onPageChange={handlePageChange}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                setTasks={setTasks}
+                tasks={filteredTasks}
+                annotators={annotators}
+                reviewers={filteredReviewers}
+                judges={judges}
+                handleAssignUser={handleAssignUser}
+                handleDeleteTemplate={handleDeleteTemplate}
+                router={router}
+                session={session}
+              />
+            </TabsContent>
+            <TabsContent value="submitted">
+              <TaskTable
+                selectedTask={selectedTask}
+                setSelectedTask={setSelectedTask}
+                currentPage={currentPage}
+                onPageChange={handlePageChange}
+                totalPages={totalPages}
+                setTasks={setTasks}
+                tasks={filteredTasks}
+                annotators={annotators}
+                reviewers={filteredReviewers}
+                judges={judges}
+                handleAssignUser={handleAssignUser}
+                handleDeleteTemplate={handleDeleteTemplate}
+                router={router}
+                session={session}
+              />
+            </TabsContent>
+            <TabsContent value="unassigned">
+              <TaskTable
+                selectedTask={selectedTask}
+                setSelectedTask={setSelectedTask}
+                onPageChange={handlePageChange}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                setTasks={setTasks}
+                tasks={filteredTasks}
+                annotators={annotators}
+                reviewers={filteredReviewers}
+                judges={judges}
+                handleAssignUser={handleAssignUser}
+                handleDeleteTemplate={handleDeleteTemplate}
+                router={router}
+                session={session}
+              />
+            </TabsContent>
+          </Tabs>
+        </>
+        
       </main>
       <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
         <DialogContent>
@@ -553,6 +761,20 @@ export default function Component() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <div>
+      <MailDialogComponent
+        isMailDialogOpen={isMailDialogOpen}
+        setIsMailDialogOpen={setIsMailDialogOpen}
+        selectedMembers={selectedMembers}
+        setSelectedMembers={setSelectedMembers}
+        handleSendEmail={handleSendEmail}
+        isLoading={isLoading}
+      />
+    </div>
+
+
+
     </div>
   );
 }

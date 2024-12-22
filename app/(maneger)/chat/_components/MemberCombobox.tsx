@@ -11,9 +11,10 @@ type Annotator = {
   _id: string;
   name: string;
   email: string;
-  isReadyToWork: boolean; 
   lastLogin: string;
+  isReadyToWork?:boolean
   permission?: string[];
+  role:string | null;
 }
 
 
