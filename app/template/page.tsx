@@ -17,8 +17,8 @@ export type template = {
   content: string
   created_at: string
   timer: number
+  type:string
   private: boolean
-  testTemplate: boolean
 }
 
 const Page = () => {

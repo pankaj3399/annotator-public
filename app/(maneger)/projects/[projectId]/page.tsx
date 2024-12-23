@@ -18,6 +18,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { getAllAnnotators } from "@/app/actions/annotator"
 import { changeAnnotator } from "@/app/actions/task"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ProjectDashboard() {
   const [templates, setTemplates] = useState<template[]>([])
@@ -25,6 +26,7 @@ export default function ProjectDashboard() {
   const pathName = usePathname();
   const projectId = pathName.split("/")[2];
   const [newTemplateName, setNewTemplateName] = useState('')
+  const [newTemplateType,setNewTemplateType]=useState('test')
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDialogOpen2, setIsDialogOpen2] = useState(false)
   const [template, setTemplate] = useState<template>()
@@ -107,7 +109,7 @@ export default function ProjectDashboard() {
   const defaultTemplate = {
     name: newTemplateName.trim(),
     project: projectId,
-    testTemplate: false // or false, depending on your use case
+    type:newTemplateType.trim()
   };
 
   const template: template = JSON.parse(await upsertTemplate(projectId as string, defaultTemplate as template, undefined, true));
@@ -163,21 +165,35 @@ export default function ProjectDashboard() {
         </div>
       </header>
       <main className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-        <form onSubmit={handleCreateTemplate} className="mb-8">
-          <div className="flex gap-4">
-            <Input
-              type="text"
-              required
-              placeholder="New Template name"
-              value={newTemplateName}
-              onChange={(e) => setNewTemplateName(e.target.value)}
-              className="flex-grow"
-            />
-            <Button type="submit" disabled={templates.length > 0}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Create Template
-            </Button>
-          </div>
-        </form>
+      <form onSubmit={handleCreateTemplate} className="flex mb-6 items-center space-x-4">
+  <Input
+    type="text"
+    required
+    placeholder="New Template name"
+    value={newTemplateName}
+    onChange={(e) => setNewTemplateName(e.target.value)}
+    className="flex-grow w-9/12"
+  />
+  <div className="flex flex-col items-center">
+    <Select
+      value={newTemplateType}
+      onValueChange={(value) => setNewTemplateType(value as "test" | "training" | "core")}
+    >
+      <SelectTrigger className="w-24 text-sm"> {/* Reduced width */}
+        <SelectValue>{newTemplateType}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="test">Test</SelectItem>
+        <SelectItem value="training">Training</SelectItem>
+        <SelectItem value="core">Core</SelectItem>
+      </SelectContent>
+    </Select>
+  </div>
+  <Button type="submit">
+    <PlusCircle className="mr-2 h-4 w-4" /> Create Template
+  </Button>
+</form>
+
         {templates.length === 0 ? (
           <div className="text-center py-10">
             <h2 className="text-xl font-semibold text-gray-900">No Template yet</h2>
@@ -191,6 +207,7 @@ export default function ProjectDashboard() {
                 <TableRow>
                   <TableHead>Template Name</TableHead>
                   <TableHead>Created Date</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -209,6 +226,7 @@ export default function ProjectDashboard() {
 
                       </div>
                     </TableCell>
+                    <TableCell className="font-medium">{template.type}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="ghost"
@@ -284,6 +302,7 @@ export function Suggesion() {
     }
     setIsLoading(false)
   }
+
 
   async function ViewMore() {
     setIsLoading(true)

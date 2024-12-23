@@ -29,10 +29,6 @@ import { Judge } from "../../ai-config/[projectId]/page";
 import { TaskTable } from "./table";
 import TaskProgress from "./TaskProgress";
 import { format, parseISO } from "date-fns";
-import MemberCombobox from "@/app/(maneger)/chat/_components/MemberCombobox";
-
-import { Badge } from "@/components/ui/badge";
-import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { Select,SelectContent,SelectItem,SelectTrigger,SelectValue } from "@/components/ui/select";
 import { TrainFrontTunnel } from "lucide-react";
@@ -63,6 +59,8 @@ export interface Annotator {
   permission?: string[];
 }
 
+type taskType  = 'core' | 'training' | 'test'
+
 export default function Component() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentPage,setCurrentPage]=useState(1);
@@ -82,7 +80,7 @@ export default function Component() {
   const router = useRouter();
   const { data: session } = useSession();
   const [isLoading,setIsLoading]=useState(false)
-  const [isFiltersVisible, setIsFiltersVisible] = useState(false);
+  const [taskType,setTaskType]=useState<taskType>('test')
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
 const [expertFilter, setExpertFilter] = useState('');
@@ -117,7 +115,7 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     if (session) {
       init();
     }
-  }, [projectId, session,activeTab]);
+  }, [projectId, session,activeTab,taskType]);
   if (!session) {
     return <Loader />;
   }
@@ -128,7 +126,7 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     if (!session?.user) return;
     
     const paginatedResponse = JSON.parse(await 
-      getPaginatedTasks(projectId,page,activeTab));
+      getPaginatedTasks(projectId,page,activeTab,taskType));
       const projectManager: Annotator = {
         _id: session.user.id,
         name: session.user.name || "Project Manager",
@@ -508,32 +506,45 @@ const [reviewerFilter, setReviewerFilter] = useState('');
 
   return (
     <div className="min-h-screen">
-      <header className="bg-white">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
-            Tasks
-          </h1>
-          <div className="flex gap-4">
-            <Button
-              variant={'outline'}
-              size='sm'
-              onClick={()=>{setIsMailDialogOpen(true)}}            
-            >
-              <Mail className="h-4 w-4 mr-2"></Mail>
-              Send Custom Mail
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsExportDialogOpen(true)}
-            >
-              <FileDown className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <SheetMenu />
-          </div>
+    <header className="bg-white">
+      <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          Tasks
+        </h1>
+        <div className="flex gap-4 items-center">
+          {/* Select Dropdown for Task Type */}
+          <Select onValueChange={(value:taskType) => setTaskType(value)}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Core" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="core">Core</SelectItem>
+              <SelectItem value="training">Training</SelectItem>
+              <SelectItem value="test">Test</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Existing Buttons */}
+          <Button
+            variant={'outline'}
+            size='sm'
+            onClick={() => { setIsMailDialogOpen(true); }}            
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Send Custom Mail
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsExportDialogOpen(true)}
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <SheetMenu />
         </div>
-      </header>
+      </div>
+    </header>
       <main className="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
         <form onSubmit={handleCreateTemplate} className="mb-8">

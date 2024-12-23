@@ -110,6 +110,7 @@ export async function createTasks(
     content: string;
     timer: number;
     reviewer: string;
+    type:string
   }[]
 ) {
   await connectToDatabase();
@@ -121,6 +122,7 @@ export async function createTasks(
 
   const taskData = tasks.map((task) => ({
     ...task,
+    type:task.type,
     project_Manager: session.user.id,
     reviewer: task.reviewer || null,
   }));
@@ -189,7 +191,12 @@ export async function getAllTasks(projectid: string) {
   return JSON.stringify(res);
 }
 
-export async function getPaginatedTasks(projectid: string, page: number, activeTab: string) {
+export async function getPaginatedTasks(
+  projectid: string,
+  page: number,
+  activeTab: string,
+  type: "test" | "training" | "core" | "" = ""
+) {
   await connectToDatabase();
   const limit = parseInt(process.env.NEXT_PUBLIC_PAGE_LIMIT!);
   const skip = (page - 1) * limit;
@@ -197,21 +204,28 @@ export async function getPaginatedTasks(projectid: string, page: number, activeT
   let tasks = [];
   let total = 0;
 
-  if (activeTab === 'all') {
-    tasks = await Task.find({ project: projectid }).skip(skip).limit(limit);
-    total = await Task.countDocuments({ project: projectid });
-  } else if (activeTab === 'submitted') {
-    tasks = await Task.find({ project: projectid, submitted: true }).skip(skip).limit(limit);
-    total = await Task.countDocuments({ project: projectid, submitted: true });
-  } else if (activeTab === 'unassigned') {
+  // Base filter object
+  const baseFilter: any = { project: projectid };
+
+  // Include type filter if provided
+  if (type) {
+    baseFilter.type = type;
+  }
+
+  // Active tab specific filters
+  if (activeTab === "all") {
+    tasks = await Task.find(baseFilter).skip(skip).limit(limit);
+    total = await Task.countDocuments(baseFilter);
+  } else if (activeTab === "submitted") {
+    tasks = await Task.find({ ...baseFilter, submitted: true }).skip(skip).limit(limit);
+    total = await Task.countDocuments({ ...baseFilter, submitted: true });
+  } else if (activeTab === "unassigned") {
     tasks = await Task.find({
-      project: projectid,
+      ...baseFilter,
       $or: [{ annotator: null }],
-    })
-      .skip(skip)
-      .limit(limit);
+    }).skip(skip).limit(limit);
     total = await Task.countDocuments({
-      project: projectid,
+      ...baseFilter,
       $or: [{ annotator: null }],
     });
   }
@@ -223,6 +237,7 @@ export async function getPaginatedTasks(projectid: string, page: number, activeT
     pages: Math.ceil(total / limit),
   });
 }
+
 
 
 
@@ -357,12 +372,12 @@ export async function getTasksByProject(id: string) {
   return JSON.stringify(res);
 }
 
-export async function getTasksOfAnnotator() {
+export async function getTasksOfAnnotator(taskType:'core' | 'training' | 'test') {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const annotatorId = session?.user.id;
 
-  const res = await Task.find({ annotator: annotatorId });
+  const res = await Task.find({ annotator: annotatorId, type:taskType });
   return JSON.stringify(res);
 }
 

@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import TaskTable from "../_components/TaskTable"
+import { Select,SelectTrigger,SelectContent,SelectValue,SelectItem } from "@/components/ui/select"
 
 export interface task {
   _id: string
@@ -18,19 +19,21 @@ export interface task {
   annotator?: string
   feedback: string
 }
+type taskType = 'core' | 'training' | 'test'
 
 export default function ProjectDashboard() {
   const [tasks, setTasks] = useState<task[]>([])
+  const [taskType,setTaskType]=useState<taskType>('core')
   const [activeTab, setActiveTab] = useState("all")
   const { data: session } = useSession();
 
   useEffect(() => {
     if (session?.user.id === undefined) return
     async function init() {
-      setTasks(JSON.parse(await getTasksOfAnnotator()))
+      setTasks(JSON.parse(await getTasksOfAnnotator(taskType)))
     }
     init();
-  }, [session]);
+  }, [session,taskType]);
 
   if (!session) {
     return <Loader />;
@@ -45,12 +48,28 @@ export default function ProjectDashboard() {
 
   return (
     <div className="min-h-screen ">
-      <header className="bg-white ">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
-          <SheetMenu />
-        </div>
-      </header>
+<header className="bg-white ">
+  <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+    <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
+    <div className="flex gap-4 items-center">
+      <Select
+        value={taskType}
+        onValueChange={(value) => setTaskType(value as 'test' | 'training' | 'core')}
+      >
+        <SelectTrigger>
+          <SelectValue>{taskType}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="test">Test</SelectItem>
+          <SelectItem value="training">Training</SelectItem>
+          <SelectItem value="core">Core</SelectItem>
+        </SelectContent>
+      </Select>
+      <SheetMenu />
+    </div>
+  </div>
+</header>
+
       <main className="max-w-7xl mx-auto  sm:px-6 lg:px-8">
 
         {tasks.length === 0 ? (

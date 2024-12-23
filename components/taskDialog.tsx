@@ -66,6 +66,7 @@ interface FilledTask {
   timer: number;
   annotator?: string;
   reviewer: string;
+  type:string
 }
 
 interface RepeatTask {
@@ -721,6 +722,7 @@ export function TaskDialog({
               timer: template.timer,
               annotator: annotator._id,
               reviewer: "",
+              type:template.type
             };
             filledTasks.push(newTask);
           });
@@ -743,6 +745,7 @@ export function TaskDialog({
               content: filled,
               timer: template.timer,
               reviewer: "",
+              type:template.type
             });
           }
         }
