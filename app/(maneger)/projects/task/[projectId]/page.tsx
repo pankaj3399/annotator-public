@@ -468,7 +468,7 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     setIsExportDialogOpen(false);
   };
   const filteredTasks = tasks
-  .sort((a:Task, b:Task) => {
+  .sort((a: Task, b: Task) => {
     // Calculate inactive time for both tasks
     const inactiveA = Date.now() - new Date(a.assignedAt).getTime();
     const inactiveB = Date.now() - new Date(b.assignedAt).getTime();
@@ -482,23 +482,26 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     return 0; // No sorting if no inactive time filter is set
   })
   .filter((task) => {
-    // Apply Status Filter (Handle "all" as no filter)
+    // Apply Status Filter
     const matchesStatus = statusFilter !== 'all'
-      ? (statusFilter ? task.status.toLowerCase() === statusFilter.toLowerCase() : true)
+      ? (statusFilter === 'assigned'
+          ? task.annotator !== null && task.annotator !== undefined && task.annotator !== ''
+          : (statusFilter ? task.status.toLowerCase() === statusFilter.toLowerCase() : true))
       : true;
 
-    // Apply Expert Filter (If expertFilter is provided, filter based on annotator)
+    // Apply Expert Filter
     const matchesExpert = expertFilter
       ? task.annotator === expertFilter
       : true;
 
-    // Apply Reviewer Filter (Handle empty or "All" reviewer filter gracefully)
+    // Apply Reviewer Filter
     const matchesReviewer = reviewerFilter && reviewerFilter !== 'all'
       ? task.reviewer === reviewerFilter
       : true;
 
     return matchesStatus && matchesExpert && matchesReviewer;
   });
+
 
 
   
@@ -575,7 +578,6 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                       <Select
                         value={statusFilter || 'all'}
                         onValueChange={(value) => setStatusFilter(value === 'all' ? '' : value)}
-                        className="w-full"
                       >
                         <SelectTrigger>
                           <SelectValue>{statusFilter === '' ? 'Filter Status' : statusFilter}</SelectValue>
@@ -593,7 +595,6 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                       <Select
                         value={expertFilter || 'all'}
                         onValueChange={(value) => setExpertFilter(value === 'all' ? '' : value)}
-                        className="w-full"
                       >
                         <SelectTrigger>
                           <SelectValue>
@@ -616,7 +617,6 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                       <Select
                         value={reviewerFilter || 'all'}
                         onValueChange={(value) => setReviewerFilter(value === 'all' ? '' : value)}
-                        className="w-full"
                       >
                         <SelectTrigger>
                           <SelectValue>
@@ -636,8 +636,7 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                       </Select>
                   <Select
                     value={inactiveTimeSort || 'none'}
-                    onValueChange={(value) => setInactiveTimeSort(value === 'none' ? '' : value)}
-                    className="w-full"
+                    onValueChange={(value) => setInactiveTimeSort(value === 'none' ? '' : value as '' | 'asc' | 'desc')}
                   >
                     <SelectTrigger>
                       <SelectValue>{inactiveTimeSort === '' ? 'Sort by Inactive Time' : inactiveTimeSort === 'asc' ? 'Inactive Time Asc' : 'Inactive Time Desc'}</SelectValue>
