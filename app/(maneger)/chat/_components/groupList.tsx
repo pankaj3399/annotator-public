@@ -306,11 +306,16 @@ export default function AnnotatorList({ createchat }: { createchat: (user: Annot
 
   useEffect(() => {
     async function init() {
-      setAnnotators(JSON.parse(await getAllAnnotators()))
+      const data = JSON.parse(await getAllAnnotators())
+      // Sort annotators such that `isReadyToWork: true` appear first
+      const sortedAnnotators = data.sort((a: Annotator, b: Annotator) =>
+        Number(b.isReadyToWork) - Number(a.isReadyToWork)
+      )
+      setAnnotators(sortedAnnotators)
       setLoading(false)
     }
-    init();
-  }, []);
+    init()
+  }, [])
 
   return (
     <Command>
@@ -322,8 +327,14 @@ export default function AnnotatorList({ createchat }: { createchat: (user: Annot
             <CommandItem
               key={member._id}
               onSelect={() => createchat(member)}
+              className="flex items-center space-x-2"
             >
-              {member.name}
+              <span
+                className={`w-3 h-3 rounded-full ${
+                  member.isReadyToWork ? 'bg-green-500' : 'bg-gray-400'
+                }`}
+              ></span>
+              <span>{member.name}</span>
             </CommandItem>
           ))}
         </CommandGroup>
@@ -331,4 +342,3 @@ export default function AnnotatorList({ createchat }: { createchat: (user: Annot
     </Command>
   )
 }
-

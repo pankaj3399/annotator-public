@@ -158,7 +158,7 @@ const PropertyPanel = () => {
               />
             </div>
             <div className="space-y-2">
-  <Label>Allow Copy</Label>
+  <Label>Allow Paste</Label>
   <div className="flex items-center space-x-2">
     <input
       type="checkbox"
