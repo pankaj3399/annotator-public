@@ -610,6 +610,38 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
     throw error;
   }
 }
+export async function getCustomNotificationTemplatesByProject(projectId: string) {
+  await connectToDatabase();
+  const session = await getServerSession(authOptions);
+  const userId = session?.user.id;
+
+  if (!userId || !session) {
+    throw new Error("Unauthorized");
+  }
+  try {
+    if (!projectId) {
+      throw new Error('Project ID is required');
+    }
+
+    // Fetching only templates where triggerName is 'custom'
+    const customTemplates = await NotificationTemplate.findOne({
+      project: projectId,
+      triggerName: "custom", // Filtering for custom templates
+    });
+
+    return {
+      success: true,
+      templates: JSON.stringify(customTemplates),
+    };
+  } catch (error) {
+    console.error('Error fetching custom notification templates:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch custom templates',
+    };
+  }
+}
+
 
 
 export async function getNotificationTemplatesByProject(projectId: string) {

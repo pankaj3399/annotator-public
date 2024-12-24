@@ -2,7 +2,7 @@
 
 import { addJob } from "@/app/actions/aiModel";
 import { getAllAnnotators } from "@/app/actions/annotator";
-import { changeAnnotator, deleteTask, getAllTasks, getPaginatedTasks } from "@/app/actions/task";
+import { changeAnnotator, deleteTask, getPaginatedTasks } from "@/app/actions/task";
 import { upsertTemplate } from "@/app/actions/template";
 import { template } from "@/app/template/page";
 import { SheetMenu } from "@/components/admin-panel/sheet-menu";
@@ -524,7 +524,6 @@ const [reviewerFilter, setReviewerFilter] = useState('');
             </SelectContent>
           </Select>
 
-          {/* Existing Buttons */}
           <Button
             variant={'outline'}
             size='sm'
