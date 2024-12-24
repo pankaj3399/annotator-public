@@ -1,22 +1,41 @@
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import MemberCombobox from "@/app/(maneger)/chat/_components/MemberCombobox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Mail } from "lucide-react";
+import { Mail, Loader2 } from "lucide-react";
+import EmailConfirmationDialog from './email';
 
-// TypeScript interface for props
 interface MailDialogComponentProps {
   isMailDialogOpen: boolean;
   setIsMailDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
-  selectedMembers: { _id: string; name: string;email:string;lastLogin:string;  isReadyToWork?:boolean
+  selectedMembers: {
+    _id: string;
+    name: string;
+    email: string;
+    lastLogin: string;
+    isReadyToWork?: boolean;
     permission?: string[];
-    role:string | null;  }[];
-  setSelectedMembers: React.Dispatch<React.SetStateAction<{ _id: string; name: string;email:string;lastLogin:string;  isReadyToWork?:boolean
+    role: string | null;
+  }[];
+  setSelectedMembers: React.Dispatch<React.SetStateAction<{
+    _id: string;
+    name: string;
+    email: string;
+    lastLogin: string;
+    isReadyToWork?: boolean;
     permission?: string[];
-    role:string | null; }[]>>;
-  handleSendEmail: (members: { _id: string; name: string;email:string;lastLogin:string;  isReadyToWork?:boolean
+    role: string | null;
+  }[]>>;
+  handleSendEmail: (members: {
+    _id: string;
+    name: string;
+    email: string;
+    lastLogin: string;
+    isReadyToWork?: boolean;
     permission?: string[];
-    role:string | null; }[]) => void;
+    role: string | null;
+  }[]) => void;
   isLoading: boolean;
 }
 
@@ -28,67 +47,90 @@ export function MailDialogComponent({
   handleSendEmail,
   isLoading
 }: MailDialogComponentProps) {
+  // State for confirmation dialog with rich text editor
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+
+  // Handler for the initial send button
+  const handleInitialSend = () => {
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Handler for confirming email send with email data
+  const handleConfirmSend = () => {
+    handleSendEmail(selectedMembers);
+    setIsConfirmDialogOpen(false);
+    setIsMailDialogOpen(false); // Close the main dialog as well
+  };
+
+  // Handler for closing both dialogs
+  const handleCancel = () => {
+    setSelectedMembers([]);
+    setIsMailDialogOpen(false);
+    setIsConfirmDialogOpen(false);
+  };
+
   return (
-    <Dialog open={isMailDialogOpen} onOpenChange={setIsMailDialogOpen}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold">Select Annotators</DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground">
-            Choose the annotators you want to send emails to. <br /> (Email will be the same as you configured in the custom template)
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {/* Main Selection Dialog */}
+      <Dialog open={isMailDialogOpen} onOpenChange={setIsMailDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Select Annotators</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              Choose the annotators you want to send emails to.
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="py-4 space-y-4">
-          {/* MultiSelect Component */}
-          <MemberCombobox 
-            selectedMembers={selectedMembers} 
-            setSelectedMembers={setSelectedMembers} 
-          />
+          <div className="py-4 space-y-4">
+            <MemberCombobox 
+              selectedMembers={selectedMembers} 
+              setSelectedMembers={setSelectedMembers} 
+            />
 
-          {/* Selected Annotators as Badges */}
-          <div className="flex flex-wrap gap-2">
-            {selectedMembers.length > 0 ? (
-              selectedMembers.map((member) => (
-                <Badge key={member._id} className="bg-blue-500 text-white">
-                  {member.name}
-                </Badge>
-              ))
-            ) : (
-              <p>No annotators selected.</p>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {selectedMembers.length > 0 ? (
+                selectedMembers.map((member) => (
+                  <Badge key={member._id} className="bg-blue-500 text-white">
+                    {member.name}
+                  </Badge>
+                ))
+              ) : (
+                <p>No annotators selected.</p>
+              )}
+            </div>
           </div>
-        </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-2">
-          {/* Cancel Button */}
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => {
-              setSelectedMembers([]); // Reset to an empty array
-              setIsMailDialogOpen(false);
-            }}
-          >
-            Cancel
-          </Button>
+          <DialogFooter className="flex flex-col sm:flex-row justify-between gap-4 sm:gap-2">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
 
-          {/* Send Mail Button */}
-          <Button
-            className="w-full sm:w-auto"
-            onClick={() => handleSendEmail(selectedMembers)}
-            disabled={selectedMembers.length === 0 || isLoading} // Disable when loading or no members selected
-          >
-            {isLoading ? (
-              <span className="mr-2 h-4 w-4" style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>
-                <Loader2 className="h-4 w-4" />
-              </span>
-            ) : (
+            <Button
+              className="w-full sm:w-auto"
+              onClick={handleInitialSend}
+              disabled={selectedMembers.length === 0 || isLoading}
+            >
               <Mail className="mr-2 h-4 w-4" />
-            )}
-            Send Mail ({selectedMembers.length}) {/* Use length of array */}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+              Continue ({selectedMembers.length})
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Email Confirmation Dialog with Rich Text Editor */}
+      <EmailConfirmationDialog
+        isOpen={isConfirmDialogOpen}
+        onClose={() => setIsConfirmDialogOpen(false)}
+        onSend={handleConfirmSend}
+        selectedMemberCount={selectedMembers.length}
+        isLoading={isLoading}
+      />
+    </>
   );
 }
+
+export default MailDialogComponent;

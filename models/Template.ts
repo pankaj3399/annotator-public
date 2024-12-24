@@ -7,7 +7,7 @@ const templateSchema = new Schema({
     project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
     timer: { type: Number, default: 0 },
     private: { type: Boolean, default: false },
-    testTemplate: { type: Boolean, default: false }  // Add this line for testTemplate
+    type:{type:String,enum:['test','training','core'],default:'test'}
 });
 
 export const Template = models?.Template || model('Template', templateSchema);

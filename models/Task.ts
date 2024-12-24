@@ -15,6 +15,7 @@ const taskSchema = new mongoose.Schema({
   assignedAt:{type:Date,default:Date.now()},
   feedback: { type: String, default: '' },
   timer: { type: Number, default: 0 },
+  type:{type:String,enum:['test','training','core'],default:'test'}
 });
 
 const Task = mongoose.models?.Task || mongoose.model('Task', taskSchema);

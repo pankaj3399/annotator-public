@@ -87,6 +87,7 @@ const Container = ({ element }: Props) => {
           alignItems: 'center'
         }
       ),
+      UploadInput:()=>generateElementDetails('UploadInput')
     }
 
     if (componentType in elementMap) {
