@@ -27,6 +27,7 @@ export type EditorElement = {
     type?: string
     limit?: number
     wordLimit?: number
+    copyAllowed?:boolean
     // Add carousel specific properties
     keyboardNav?: boolean
     autoSlide?: boolean

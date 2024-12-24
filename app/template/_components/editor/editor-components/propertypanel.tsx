@@ -157,6 +157,30 @@ const PropertyPanel = () => {
                 placeholder="Enter word limit"
               />
             </div>
+            <div className="space-y-2">
+  <Label>Allow Copy</Label>
+  <div className="flex items-center space-x-2">
+    <input
+      type="checkbox"
+      checked={
+        !Array.isArray(elementProperties.content)
+          ? elementProperties.content.copyAllowed
+          : false
+      }
+      onChange={(e) =>
+        handlePropertyChange("copyAllowed", e.target.checked)
+      }
+      className="toggle-checkbox"
+    />
+    <span>
+      {(!Array.isArray(elementProperties.content) &&
+        elementProperties.content.copyAllowed)
+        ? "Enabled"
+        : "Disabled"}
+    </span>
+  </div>
+</div>
+
           </div>
         );
 
