@@ -21,7 +21,7 @@ import { GripVertical } from 'lucide-react';
 import DynamicUploadPlaceholder from './DynamicUploadPlaceholder';
 import DynamicCarousel from './carousal-placeholder'
 import UploadPlaceholder from './upload-placeholder'
-
+import UploadInputPlaceholder from './upload-input-placeholder'
 const ComponentsTab = () => {
   const elements: {
     Component: React.ReactNode
@@ -64,6 +64,12 @@ const ComponentsTab = () => {
       label: 'Upload',
       id: 'Upload',
       group: 'elements'
+    },
+    {
+      Component:<UploadInputPlaceholder/>,
+      label:'Upload',
+      id:'UploadInput',
+      group:'Inputs'
     },
     {
       Component: <CheckboxPlaceholder />,

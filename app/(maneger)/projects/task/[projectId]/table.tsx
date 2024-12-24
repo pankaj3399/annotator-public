@@ -163,11 +163,6 @@ const handleSelectAll = () => {
             toast.error("Failed to assign reviewer");
         }
     };
-    const handleRowClick = (e: React.MouseEvent,id:string) => {
-        if (checkboxRef.current && !checkboxRef.current.contains(e.target as Node)) {
-          router.push(`/task/${id}`);
-        }
-      };
 
     return (
         <div className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -207,7 +202,10 @@ const handleSelectAll = () => {
                         return (
                             <TableRow
                                 key={task._id}
-                                onClick={(e) =>{handleRowClick(e,task._id)}}
+                                onClick={()=>{
+                                    router.push(`/task/${task._id}`);
+
+                                }}
                                 className="cursor-pointer hover:bg-gray-50"
                             >
                             <TableCell onClick={(e)=>e.stopPropagation()}>
