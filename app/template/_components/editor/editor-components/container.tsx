@@ -48,7 +48,7 @@ const Container = ({ element }: Props) => {
       inputRecordVideo: () => generateElementDetails('inputRecordVideo', { src: '' }, {}),
       inputRecordAudio: () => generateElementDetails('inputRecordAudio', { src: '' }, {}),
       container: () => generateElementDetails('container', [], {}),
-      inputText: () => generateElementDetails('inputText', { innerText: '', limit: 10000, wordLimit: 1000 }, { width: '100%' }),
+      inputText: () => generateElementDetails('inputText', { innerText: '', limit: 10000, wordLimit: 1000,copyAllowed:true }, { width: '100%' }),
       '2Col': () => ({
         ...generateElementDetails('2Col', [
           generateElementDetails('container', [], { width: '100%' }),

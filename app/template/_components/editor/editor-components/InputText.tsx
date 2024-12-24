@@ -17,6 +17,8 @@ const InputText = (props: Props) => {
     innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
     charLimit: !Array.isArray(props.element.content) ? props.element.content?.limit || 10000 : 10000,
     wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000,
+    copyAllowed: !Array.isArray(props.element.content)?
+    props.element.content.copyAllowed || false : false
   })
 
   const [showNotification, setShowNotification] = React.useState(false)
@@ -26,6 +28,8 @@ const InputText = (props: Props) => {
       innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || '' : '',
       charLimit: !Array.isArray(props.element.content) ? props.element.content?.limit || 10000 : 10000,
       wordLimit: !Array.isArray(props.element.content) ? props.element.content?.wordLimit || 1000 : 1000,
+      copyAllowed: !Array.isArray(props.element.content)?
+      props.element.content.copyAllowed || false : false
     })
   }, [props.element])
 
@@ -72,13 +76,18 @@ const InputText = (props: Props) => {
 
   const isSelected = state.editor.selectedElement.id === props.element.id
   const isLiveMode = state.editor.liveMode
-
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    e.preventDefault()
-    setShowNotification(true)
-    setTimeout(() => {
-      setShowNotification(false)
-    }, 2000)
+    if(elementContent.copyAllowed){
+      return
+    }
+    else{
+
+      e.preventDefault()
+      setShowNotification(true)
+      setTimeout(() => {
+        setShowNotification(false)
+      }, 2000)
+    }
   }
 
   return (
