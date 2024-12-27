@@ -19,6 +19,17 @@ import { useEffect, useState } from 'react'
 import { getAllAnnotators } from "@/app/actions/annotator"
 import { changeAnnotator } from "@/app/actions/task"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getAIModels } from "@/app/actions/aiModel"
+
+interface Model {
+  _id:string;
+  user:string;
+  projectid:string;
+  name:string;
+  apiKey:string;
+  provider:string;
+  enabled:boolean
+}
 
 export default function ProjectDashboard() {
   const [templates, setTemplates] = useState<template[]>([])
@@ -31,6 +42,7 @@ export default function ProjectDashboard() {
   const [isDialogOpen2, setIsDialogOpen2] = useState(false)
   const [template, setTemplate] = useState<template>()
   const [annotators, setAnnotators] = useState<any[]>([])  
+  const [models,setModels]=useState<Model[] | undefined>(undefined)
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast()
@@ -51,6 +63,7 @@ export default function ProjectDashboard() {
         }
       };
       fetchAnnotators();
+      fetchAIModels(projectId);
     }
   }, [session]);
 
@@ -91,6 +104,30 @@ export default function ProjectDashboard() {
           }));
     }
   }, [session, projectId, toast]);
+  const fetchAIModels = async (projectid: string) => {
+    if (session) {
+      try {
+        const response = await getAIModels(projectid);
+  
+        if (typeof response === 'string') {
+          const parsedResponse = JSON.parse(response); // Parse the string to an object
+  
+          if (parsedResponse.error) {
+            console.error('Error fetching AI models:', parsedResponse.error);
+            return;
+          }
+  
+          setModels(parsedResponse.models);
+        } else {
+          console.error('Unexpected response format:', response);
+        }
+      } catch (error) {
+        console.error('Error during fetchAIModels:', error);
+      }
+    }
+  };
+  
+  
 
   if (!session) {
     return <Loader />;
@@ -268,6 +305,7 @@ export default function ProjectDashboard() {
           </div>
         )}
         {project && template &&   <TaskDialog 
+        aiModels={models}
     template={template} 
     setIsDialogOpen={setIsDialogOpen} 
     isDialogOpen={isDialogOpen} 
@@ -302,7 +340,6 @@ export function Suggesion() {
     }
     setIsLoading(false)
   }
-
 
   async function ViewMore() {
     setIsLoading(true)

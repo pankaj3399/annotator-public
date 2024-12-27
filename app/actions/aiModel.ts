@@ -4,10 +4,11 @@ import { connectToDatabase } from "@/lib/db";
 import { AIJob, AImodel } from "@/models/aiModel";
 import { model } from "mongoose";
 import { getServerSession } from "next-auth";
+import {GoogleGenerativeAI} from '@google/generative-ai'
 
-export async function addModel(provider: string, projectId: string, model: string, apiKey: string, systemPrompt: string,name:string) {
+export async function addModel(provider: string, projectId: string, model: string, apiKey: string,name:string, systemPrompt?: string) {
   await connectToDatabase();
-  if (!model || !apiKey || !systemPrompt || !provider) {
+  if (!model || !apiKey || !provider) {
     return { error: 'Please fill in all fields' }
   }
   const session = await getServerSession(authOptions)
@@ -87,3 +88,38 @@ export async function deleteJobByTaskid(Taskid: string) {
     return { error: 'An error occurred while deleting the job' };
   }
 }
+
+
+
+
+export async function getAIModels(projectid: string) {
+  await connectToDatabase();
+  try {
+    const models = await AImodel.find({ projectid });
+
+    // Stringify the models and return
+    return JSON.stringify({ models });
+  } catch (error) {
+    console.error('Error fetching AI models:', error);
+    return JSON.stringify({ error: 'An error occurred while fetching the AI models' });
+  }
+}
+
+
+export async function generateGeminiResponse(model:string,prompt:string){
+  if(!process.env.GOOGLE_GEMINI_KEY){
+    return;
+  }
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GEMINI_KEY);
+  const value = genAI.getGenerativeModel({ model });
+
+
+const result = await value.generateContent(prompt);
+console.log(result)
+return result.response.text()
+
+}
+
+
+
+
