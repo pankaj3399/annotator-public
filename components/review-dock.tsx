@@ -2,9 +2,9 @@
 
 import { Annotator } from "@/app/(maneger)/projects/task/[projectId]/page"
 import { getAllAnnotators } from "@/app/actions/annotator"
-import { setTaskStatus, sendNotificationEmail } from "@/app/actions/task"
+import { setTaskStatus, sendNotificationEmail, setGroundTruth } from "@/app/actions/task"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
@@ -19,6 +19,7 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
   const [currentStatus, setCurrentStatus] = useState<StatusType>(status)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [showReassignDialog, setShowReassignDialog] = useState(false)
+  const [showAcceptDialog,setShowAcceptDialog]=useState(false)
   const [feedback, setFeedback] = useState("")
   const [reassignTo, setReassignTo] = useState("")
   const [annotators, setAnnotators] = useState<Annotator[]>([])
@@ -33,12 +34,13 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
   }, []);
 
   const handleClick = async (action: StatusType) => {
+    if(action === 'accepted'){
+      setShowAcceptDialog(true)
+    }
     if (action === 'rejected') {
       setShowRejectDialog(true)
     } else if (action === 'reassigned') {
       setShowReassignDialog(true)
-    } else {
-      await updateStatus(action)
     }
   }
 
@@ -66,6 +68,21 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
     }
   };
   
+const handleGroundTruth = async (choice: boolean) => {
+  await updateStatus('accepted');
+  if (choice) {
+    const response = await setGroundTruth(id);  // Call the server action
+    if (response.message) {
+      toast.success(response.message)
+      setShowAcceptDialog(false);
+    }
+  } else {
+    setShowAcceptDialog(false);
+  }
+};
+
+  
+
   const handleReject = async (e: React.FormEvent) => {
     e.preventDefault()
     await updateStatus('rejected', { feedback })
@@ -110,7 +127,7 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
           <Button
             variant="ghost"
             className={getButtonStyle('accepted')}
-            onClick={() => handleClick('accepted')}
+            onClick={() =>setShowAcceptDialog(true)}
           >
             {getButtonContent('accept', <Check className="h-4 w-4 mr-2" />)}
           </Button>
@@ -159,6 +176,49 @@ export default function Dock({ id, status }: { id: string, status: StatusType })
           </form>
         </DialogContent>
       </Dialog>
+
+
+
+
+
+
+<Dialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
+  <DialogContent className="max-w-md p-6">
+    <DialogHeader>
+      <DialogTitle className="text-lg font-semibold text-gray-800">Set Ground Truth</DialogTitle>
+      <DialogDescription className="text-sm text-gray-600">
+        This action will mark the current task as the ground truth for its template. Other tasks will be evaluated against this task. Are you sure you want to proceed?
+      </DialogDescription>
+    </DialogHeader>
+
+    <DialogFooter className="flex justify-between mt-6">
+      <Button
+        type="button"
+        variant="default"
+        className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md"
+        onClick={async () => {
+          await handleGroundTruth(true); // Mark as ground truth
+          setShowAcceptDialog(false); // Close the dialog
+        }}
+      >
+        Yes, Make Ground Truth
+      </Button>
+      <Button
+        type="button"
+        variant="secondary"
+        className="bg-gray-100 text-gray-600 hover:bg-gray-200 px-4 py-2 rounded-md"
+        onClick={() => {
+          handleGroundTruth(false); // Do not make ground truth
+          setShowAcceptDialog(false); // Close the dialog
+        }}
+      >
+        No, Keep as Regular Task
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+
 
       <Dialog open={showReassignDialog} onOpenChange={setShowReassignDialog}>
         <DialogContent>

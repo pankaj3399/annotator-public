@@ -19,6 +19,7 @@ export type template = {
   timer: number
   type:string
   private: boolean
+  groundTruthTask:string
 }
 
 const Page = () => {

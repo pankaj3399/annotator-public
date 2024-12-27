@@ -1,5 +1,5 @@
 'use client'
-import { getTasksByProject } from "@/app/actions/task"
+import { getAssignedTaskByProject, getTasksByProject } from "@/app/actions/task"
 import { SheetMenu } from "@/components/admin-panel/sheet-menu"
 import Loader from '@/components/ui/Loader/Loader'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -28,6 +28,8 @@ export default function ProjectDashboard() {
   if (!session) {
     return <Loader />;
   }
+
+
 
   const filteredTasks = {
     all: tasks,

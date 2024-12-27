@@ -156,7 +156,8 @@ const reactConfig = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),  ],
 };
 
 // Combine both configurations

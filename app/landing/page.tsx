@@ -7,6 +7,7 @@ import Features from '@/components/LandingPage/Features';
 import Pricing from '@/components/LandingPage/Pricing';
 import Newsletter from '@/components/LandingPage/Newsletter';
 import FAQSection from '@/components/LandingPage/FAQSection';
+import IndexPage from '@/components/LandingPage/Blog';
 import OurTeam from '@/components/LandingPage/OurTeam';
 import "@/styles/landing.css";
 
@@ -20,6 +21,7 @@ const Landingpage = () => {
         <Features />
         <Pricing />
         <Newsletter />
+        <IndexPage />
         <FAQSection />
         {/* <OurTeam /> */}
       </div>
