@@ -7,7 +7,8 @@ const templateSchema = new Schema({
     project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
     timer: { type: Number, default: 0 },
     private: { type: Boolean, default: false },
-    type:{type:String,enum:['test','training','core'],default:'test'}
+    type:{type:String,enum:['test','training','core'],default:'test'},
+    groundTruthTask:{type:Schema.Types.ObjectId,ref:'Task',required:false}
 });
 
 export const Template = models?.Template || model('Template', templateSchema);

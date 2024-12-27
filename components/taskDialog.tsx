@@ -66,7 +66,8 @@ interface FilledTask {
   timer: number;
   annotator?: string;
   reviewer: string;
-  type:string
+  type:string;
+  template:string;
 }
 
 interface RepeatTask {
@@ -76,6 +77,8 @@ interface RepeatTask {
   timer: number;
   annotator?: string | null;
   reviewer: string;
+  template:string;
+
 }
 
 export interface Annotator {
@@ -722,7 +725,8 @@ export function TaskDialog({
               timer: template.timer,
               annotator: annotator._id,
               reviewer: "",
-              type:template.type
+              type:template.type,
+              template:template._id
             };
             filledTasks.push(newTask);
           });
@@ -734,6 +738,7 @@ export function TaskDialog({
             timer: template.timer,
             annotator: null,
             reviewer: "",
+            template:template._id
           });
         } else {
           for (let i = 0; i < globalRepeat; i++) {
@@ -745,7 +750,8 @@ export function TaskDialog({
               content: filled,
               timer: template.timer,
               reviewer: "",
-              type:template.type
+              type:template.type,
+              template:template._id
             });
           }
         }

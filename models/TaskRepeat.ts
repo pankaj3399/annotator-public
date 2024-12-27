@@ -18,7 +18,7 @@ const taskRepeatSchema = new Schema({
   timeTaken: { type: Number, default: 0 },
   feedback: { type: String, default: "" },
   timer: { type: Number, default: 0 },
-});
+  template:{type:Schema.Types.ObjectId,ref:'Template',required:true}});
 
 export const TaskRepeat =
   models?.TaskRepeat || model("TaskRepeat", taskRepeatSchema);

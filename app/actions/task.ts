@@ -12,6 +12,9 @@ import NotificationTemplate from "@/models/NotificationTemplate";
 import Rework from "@/models/Rework";
 import nodemailer from 'nodemailer';
 import { AIJob } from "@/models/aiModel";
+import { NextResponse } from "next/server";
+import AnnotatorPoints from "@/models/points";
+import AnnotatorHistory from "@/models/points";
 
 
 
@@ -62,9 +65,111 @@ export async function updateTask(
       timeTaken: time,
     }
   );
-
+    const response = await compareWithGroundTruth(_id)
+    console.log(response)
   return JSON.stringify(res);
 }
+
+async function compareWithGroundTruth(taskId: string) {
+  try {
+    const task = await Task.findById(taskId);
+    const template = await Template.findById(task.template);
+
+    if (!task || !template) {
+      throw new Error("Task or template not found");
+    }
+
+    if (!template.groundTruthTask) {
+      return;
+    }
+
+    const groundTruthTask = await Task.findById(template.groundTruthTask);
+
+    if (!groundTruthTask) {
+      throw new Error("Ground truth task not found");
+    }
+
+    const projectId = task.project; // Get project ID
+    const annotatorId = task.annotator; // Get annotator ID
+
+    let pointsEarned = 0;
+    let comparisonResult = false;
+
+    const extractInputTextContent = (content: string) => {
+      try {
+        const parsedContent = JSON.parse(content);
+        return parsedContent
+          .flatMap((item: any) => item.content || [])
+          .filter((child: any) => child.type === "inputText")
+          .map((child: any) => child.content?.innerText || "");
+      } catch (error) {
+        console.error("Error parsing content:", error);
+        return [];
+      }
+    };
+
+    const userInputTexts = extractInputTextContent(task.content);
+    const groundTruthTexts = extractInputTextContent(groundTruthTask.content);
+
+    if (userInputTexts.length !== groundTruthTexts.length) {
+      throw new Error("Mismatch in number of inputText fields between task and ground truth");
+    }
+
+    for (let i = 0; i < userInputTexts.length; i++) {
+      // Normalize the strings: trim whitespace and convert to lowercase
+      const userInput = userInputTexts[i].trim().toLowerCase();
+      const groundTruthInput = groundTruthTexts[i].trim().toLowerCase();
+
+      // Compare after trimming and converting to lowercase
+      if (userInput === groundTruthInput) {
+        pointsEarned++;
+        comparisonResult = true;
+      }
+    }
+
+    const annotatorHistory = await AnnotatorHistory.findOne({
+      annotator: annotatorId,
+      project: projectId, // Query by project
+    });
+
+    if (!annotatorHistory) {
+      await AnnotatorHistory.create({
+        annotator: annotatorId,
+        project: projectId, // Add project
+        totalPoints: pointsEarned,
+        history: [
+          {
+            task: taskId,
+            template: template._id,
+            pointsEarned,
+            submittedAnswer: userInputTexts.join(", "),
+            groundTruthAnswer: groundTruthTexts.join(", "),
+            comparisonResult,
+          },
+        ],
+      });
+    } else {
+      annotatorHistory.totalPoints += pointsEarned;
+      annotatorHistory.history.push({
+        task: taskId,
+        template: template._id,
+        pointsEarned,
+        submittedAnswer: userInputTexts.join(", "),
+        groundTruthAnswer: groundTruthTexts.join(", "),
+        comparisonResult,
+      });
+      await annotatorHistory.save();
+    }
+
+    return { pointsEarned, comparisonResult };
+  } catch (error) {
+    console.error(error);
+    throw new Error("Error comparing submission with ground truth: " + error);
+  }
+}
+
+
+
 
 export async function createTestTasks(
   tasks: {
@@ -103,6 +208,61 @@ export async function createTestTasks(
   }
 }
 
+
+export async function setGroundTruth(id: string) {
+  await connectToDatabase();
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    throw new Error("Unauthorized");
+  }
+
+  try {
+    // Fetch the task to be set as ground truth
+    const task = await Task.findOne({ _id: id });
+    if (!task) {
+      throw new Error('Task not found');
+    }
+
+    // Fetch the template associated with the task
+    const template = await Template.findOne({ _id: task.template });
+    if (!template) {
+      throw new Error('Template not found');
+    }
+
+    // Check if a ground truth task already exists for this template
+    if (template.groundTruthTask) {
+      return { message: 'Ground truth task already exists for this template' };
+    }
+
+    // Set this task as the ground truth task
+    template.groundTruthTask = task._id;
+    await template.save();
+
+    // Mark this task as a ground truth task
+    task.isGroundTruth = true;
+    await task.save();
+
+    // Fetch all submitted tasks before the ground truth
+    const submittedTasks = await Task.find({
+      template: task.template,
+      isGroundTruth: false, // Don't include the current ground truth task
+       submitted:true,  // Only include submitted tasks
+    });
+
+    for (const submittedTask of submittedTasks) {
+      await compareWithGroundTruth(submittedTask._id);  // Pass only the taskId
+    }
+
+    return { message: 'Ground truth set and previous tasks compared successfully' };
+
+  } catch (error) {
+    console.error(error);
+    return { message: 'Error updating task: ' + error };
+  }
+}
+
+
+
 export async function createTasks(
   tasks: {
     project: string;
@@ -110,7 +270,8 @@ export async function createTasks(
     content: string;
     timer: number;
     reviewer: string;
-    type:string
+    type:string;
+    template:string
   }[]
 ) {
   await connectToDatabase();
@@ -129,6 +290,10 @@ export async function createTasks(
 
   await Task.insertMany(taskData);
 }
+
+
+
+
 
 export async function saveRepeatTasks(
   repeatTasks: {
@@ -385,6 +550,28 @@ export async function getTask(_id: string) {
   await connectToDatabase();
   const res = await Task.findById(_id);
   return JSON.stringify(res);
+}
+
+
+export async function getAssignedTaskByProject(projectId: string) {
+  await connectToDatabase();
+
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    throw new Error('Unauthorized');
+  }
+
+  try {
+    const tasks = await Task.find({
+      project: projectId,
+      annotator: { $ne: null } // This ensures annotator is not null
+    });
+
+    return tasks; // Return the tasks with assigned annotators
+  } catch (e) {
+    console.error(e);
+    throw new Error('Error fetching tasks: ' + e); // Return a detailed error message
+  }
 }
 
 
@@ -810,3 +997,8 @@ export async function assignReviewer(_id: string, reviewerId: string | null) {
 
   return JSON.stringify(res);
 }
+
+
+
+
+

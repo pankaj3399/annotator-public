@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { boolean } from 'zod';
 
 const taskSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -15,7 +16,9 @@ const taskSchema = new mongoose.Schema({
   assignedAt:{type:Date,default:Date.now()},
   feedback: { type: String, default: '' },
   timer: { type: Number, default: 0 },
-  type:{type:String,enum:['test','training','core'],default:'test'}
+  type:{type:String,enum:['test','training','core'],default:'test'},
+  isGroundTruth:{type:Boolean,default:false},
+  template:{type:mongoose.Schema.Types.ObjectId,ref:'Template',required:true}
 });
 
 const Task = mongoose.models?.Task || mongoose.model('Task', taskSchema);
