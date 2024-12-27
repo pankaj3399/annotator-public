@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import {
@@ -21,6 +21,10 @@ import image from "@/public/static/image.png";
 const Header = () => {
   const [isDesktop, setIsDesktop] = useState(false);
   const pathname = usePathname();
+  const router = useRouter()
+  const handleBlogClick = ()=>{
+    router.push('/blogs');
+  }
 
   useEffect(() => {
     const checkDesktop = () => {
@@ -70,6 +74,13 @@ const Header = () => {
         onClick={() => handleScroll("faq")}
       >
         FAQ
+      </Button>
+      <Button
+        className="text-base dark:text-[#ECECEC] p-0"
+        variant="link"
+        onClick={handleBlogClick}
+      >
+        Blogs
       </Button>
     </>
   );

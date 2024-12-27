@@ -6,7 +6,7 @@ import { client } from "@/sanity/client";
 const POSTS_QUERY = `*[
   _type == "post"
   && defined(slug.current)
-]|order(publishedAt desc)[0...12]{_id, title, slug, image, publishedAt}`;
+]|order(publishedAt desc)[0...4]{_id, title, slug, image, publishedAt}`;
 
 const { projectId, dataset } = client.config();
 const urlFor = (source: any) =>
@@ -30,7 +30,7 @@ export default async function IndexPage() {
 
           return (
             <div key={post._id} className="hover:underline">
-              <Link href={`/${post.slug.current}`}>
+              <Link href={`/blogs/${post.slug.current}`}>
                 <div className="flex flex-col gap-4">
                   {postImageUrl && (
                     <img
