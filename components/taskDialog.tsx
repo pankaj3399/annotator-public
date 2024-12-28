@@ -141,6 +141,7 @@ export function TaskDialog({
     ai: boolean
   ) => Promise<any>;
 }) {
+  const [provider,setProvider]=useState('')
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
@@ -148,7 +149,12 @@ export function TaskDialog({
     template.testTemplate || false
   );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
+  const [systemPrompt,setSystemPrompt]=useState('')
+  const [apiKey,setApiKey]=useState('')
+  const [generateAi,setGenerateAi]=useState(false)
   const [selectedModel, setSelectedModel] = useState("");
+  const [currentTask,setCurrentTask]=useState<Task>()
+  const [currentPlaceholder,setCurrentPlaceholder]=useState<Placeholder>()
   const fileInputRef = useRef<HTMLInputElement>(null); 
   const [isAiModalOpen,setIsAiModalOpen]=useState(false)
   useEffect(() => {
@@ -527,26 +533,7 @@ export function TaskDialog({
     }
 
 
-    const handleGenerateAI = async () => {
-      if(!selectedModel){
-        toast({
-          title:"Please select an model",
-          variant:"destructive"
-        })
-        return
-      }
-      if(!task.values[placeholder.index]){
-        toast({
-          title:"Please enter an prompt",
-          variant:"destructive"
-        })
-        return
-      }
-      const response = await generateAiResponse(selectedModel, task.values[placeholder.index].content,projectId);
-      handleInputChange(task.id,placeholder,response)
-  
-  
-    };
+
 
     // Default input rendering for other types
     return (
@@ -559,26 +546,53 @@ export function TaskDialog({
         }
         placeholder={`Enter ${placeholder.type} or AI prompt`}
       />
-        <Button
-          variant={"outline"}
-          onClick={handleGenerateAI}
-          className="text-xs font-semibold flex items-center gap-2 p-2 rounded-lg border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {/* Show an icon if model exists */}
-
-            <>
-              <span className="text-gray-700">
-                Generate(AI)
-              </span>
-              {/* Optionally, you can add an icon next to the text */}
-              <ArrowRight className="h-4 w-4 text-gray-500" />
-            </>
-          
-        </Button>
+      <Button onClick={()=>{
+                        setCurrentTask(task)
+                        setCurrentPlaceholder(placeholder)
+                        setIsAiModalOpen(true)}
+                      }
+                 variant={'outline'}>
+                  AI
+                </Button>
       </div>
       
     );
   };
+  const handleGenerateAI = async (task:Task,placeholder:Placeholder) => {
+    const response = await generateAiResponse(provider,selectedModel,systemPrompt,projectId,apiKey);
+    handleInputChange(task.id,placeholder,response)
+    console.log(response)
+  };
+
+  useEffect(() => {
+    // Ensure all necessary states and task/placeholder are present
+    if (provider && selectedModel && systemPrompt && apiKey && currentTask && currentPlaceholder) {
+      handleGenerateAI(currentTask, currentPlaceholder);
+    }
+  }, [provider, selectedModel, systemPrompt, apiKey, currentTask, currentPlaceholder]);
+  
+  const handleConfigureAi = async (
+    provider: string,
+    model: string,
+    systemPrompt: string,
+    apiKey: string,
+    task: Task,
+    placeholder: Placeholder
+  ) => {
+  
+    // Update the necessary state variables
+    setProvider(provider);
+    setSelectedModel(model);
+    setSystemPrompt(systemPrompt);
+    setApiKey(apiKey);
+  
+    // Store task and placeholder in state for later use
+    setCurrentTask(task);
+    setCurrentPlaceholder(placeholder);
+  };
+  
+  
+
 
   const renderFilledTemplate = (values: {
     [key: string]: TaskValue | CarouselContent;
@@ -889,10 +903,13 @@ export function TaskDialog({
   return (
     <div>
 <AIConfigModal
-  onConfigure={onConfigure}
+  onConfigure={(provider, model, systemPrompt,apiKey) =>
+    handleConfigureAi(provider, model, systemPrompt,apiKey, currentTask!, currentPlaceholder!)
+  }
   isAIModalOpen={isAiModalOpen}
   setIsAIModalOpen={() => setIsAiModalOpen(false)}
-/>       
+/>
+   
 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[425px] md:max-w-fit">
         <DialogHeader className="flex flex-col gap-4">
@@ -932,25 +949,7 @@ export function TaskDialog({
   </div>
 
   {/* Right section - AI model selector and settings icon */}
-  <div className="flex items-center space-x-4">
-    <Select value={selectedModel} onValueChange={setSelectedModel}>
-      <SelectTrigger className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white hover:bg-gray-100 transition ease-in-out">
-        <SelectValue placeholder="Select AI Model" />
-      </SelectTrigger>
-      <SelectContent>
-        {aiModels?.map((model) => (
-          <SelectItem key={model.model} value={model.model}>
-            {model.name} ({model.model})
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
 
-    <Settings
-      className="h-6 w-6 text-gray-500 cursor-pointer hover:text-gray-700 transition duration-200"
-      onClick={() => setIsAiModalOpen(true)}
-    />
-  </div>
 </div>
 
 
@@ -960,6 +959,8 @@ export function TaskDialog({
             <div key={task.id} className="mb-4 p-2 border rounded">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-semibold">Task {task.id}</h3>
+                <div className="flex items-center space-x-2">
+
                 <Button
                   variant="ghost"
                   size="icon"
@@ -967,6 +968,7 @@ export function TaskDialog({
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
+                </div>
               </div>
               {placeholders.map((placeholder) => (
                 <div key={placeholder.index} className="mb-2">

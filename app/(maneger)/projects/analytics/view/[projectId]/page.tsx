@@ -69,9 +69,6 @@ export default function AnalyticsPage() {
   const [projectName, setProjectName] = useState('');
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const { toast } = useToast();
-  const [isLeaderboardOpen,setIsLeaderboardOpen]=useState(false)
-  const [leaderboard,setLeaderboard]=useState<Leaderboard[]>()
-  const [loadingLeaderboard,setLoadingLeaderboard]=useState(false)
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -117,32 +114,10 @@ export default function AnalyticsPage() {
 
 
     fetchProjectDetails();
-    fetchLeaderboard();
   }, [projectId, toast, session, router]);
 
-  const openLeaderboard = () => {
-    setIsLeaderboardOpen(true);
-    fetchLeaderboard();
-  };
-  const fetchLeaderboard = async () => {
-    try {
-      setLoadingLeaderboard(true);
-      const response = await fetch(`/api/projects/${projectId}/leaderboard`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch leaderboard');
-      }
-      const data = await response.json();
-      setLeaderboard(data.leaderboard);
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error loading leaderboard",
-        description: error instanceof Error ? error.message : 'An unknown error occurred',
-      });
-    } finally {
-      setLoadingLeaderboard(false);
-    }
-  };
+
+
   const handleExport = async (format: string) => {
     try {
       const rawData = JSON.parse(await getAllTasks(projectId));
@@ -245,7 +220,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  console.log(leaderboard)
   if (!session) {
     return <Loader />;
   }
@@ -270,13 +244,6 @@ export default function AnalyticsPage() {
             <p className="mt-1 text-sm text-gray-500">{projectName}</p>
           </div>
           <div className="flex gap-4 items-center">
-            <Button
-            variant='outline'
-            size='sm'
-            onClick={openLeaderboard}
-            >
-              Leaderboard
-            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -313,58 +280,6 @@ export default function AnalyticsPage() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isLeaderboardOpen} onOpenChange={setIsLeaderboardOpen}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle className="text-xl font-semibold text-center">Leaderboard</DialogTitle>
-      <DialogDescription className="text-sm text-gray-500 text-center">
-        Top annotators in this project based on points.
-      </DialogDescription>
-    </DialogHeader>
-
-    {loadingLeaderboard ? (
-      <div className="flex justify-center items-center py-6">
-        <Loader />
-      </div>
-    ) : leaderboard && leaderboard.length > 0 ? (
-      <div className="overflow-x-auto mt-4">
-        <Table className="min-w-full">
-          <TableHeader>
-            <TableRow className="bg-gray-50">
-              <TableHead className="text-sm font-medium text-gray-700 py-3 px-4 text-left">
-                Annotator Name
-              </TableHead>
-              <TableHead className="text-sm font-medium text-gray-700 py-3 px-4 text-left">
-                Total Points
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {leaderboard.map((entry, index) => (
-              <TableRow
-                key={index}
-                className={`${
-                  index % 2 === 0 ? "bg-white" : "bg-gray-50"
-                } hover:bg-gray-100 transition-colors duration-200`}
-              >
-                <TableCell className="py-3 px-4 text-gray-800">
-                  {entry.annotator.name || "Unknown"}
-                </TableCell>
-                <TableCell className="py-3 px-4 text-gray-800">
-                  {entry.totalPoints || 0}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    ) : (
-      <div className="text-center text-sm text-gray-500 py-6">
-        No leaderboard data available.
-      </div>
-    )}
-  </DialogContent>
-</Dialog>
 
 
     </div>

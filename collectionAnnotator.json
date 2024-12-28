@@ -221,7 +221,7 @@
 										}
 									}
 								},
-								"url": "{{baseurl}}/api/Task/updateTaskStatus"
+								"url": "{{baseurl}}/api/Task/setTaskStatus"
 							},
 							"response": []
 						},
@@ -281,7 +281,13 @@
 					"name": "getAnnotatorDashboard",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..MV5tRS9F3r1uwbgo.naBcUnh24HxCFssL1LCL0htSZARNEe787Yrtj6C91sHwKFdIs46tNgcIEb4J6E1_Oa_5i23eQ9YPKYnD0pwz7tc34SyN8mxcJhg2SDotHbumg8QePGZlCxfUTjVPI9H_ft-TKwv6U-ktQVCDWza4ObYmEGs6BHtcipJkU9ZPKgXhXTtQuFiXZeVdbYAcikqrCd6lqVkMv5HsM4N09PRZysCmR_uWQw2G-TeuvNDVw6qDzFkD3QgYhy50oZlbWdtLzmJ8PF7heyWTfzpG6rOm7p0.8FqH7UJ7jjG2lE3-eS63HQ",
+								"type": "text"
+							}
+						],
 						"url": "{{baseurl}}/api/getGlobalStats"
 					},
 					"response": []
@@ -363,6 +369,29 @@
 								}
 							]
 						}
+					},
+					"response": []
+				},
+				{
+					"name": "updateWorkStatus",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				},
+				{
+					"name": "getUserInfo",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Cookie",
+								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..MV5tRS9F3r1uwbgo.naBcUnh24HxCFssL1LCL0htSZARNEe787Yrtj6C91sHwKFdIs46tNgcIEb4J6E1_Oa_5i23eQ9YPKYnD0pwz7tc34SyN8mxcJhg2SDotHbumg8QePGZlCxfUTjVPI9H_ft-TKwv6U-ktQVCDWza4ObYmEGs6BHtcipJkU9ZPKgXhXTtQuFiXZeVdbYAcikqrCd6lqVkMv5HsM4N09PRZysCmR_uWQw2G-TeuvNDVw6qDzFkD3QgYhy50oZlbWdtLzmJ8PF7heyWTfzpG6rOm7p0.8FqH7UJ7jjG2lE3-eS63HQ",
+								"type": "text"
+							}
+						],
+						"url": "{{baseurl}}/api/getUserInfo"
 					},
 					"response": []
 				}

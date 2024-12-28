@@ -1,9 +1,11 @@
 import { authOptions } from "@/auth";
+import { connectToDatabase } from "@/lib/db";
 import AnnotatorHistory from "@/models/points";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request, { params }: { params: { projectId: string } }) {
+  await connectToDatabase();
   const session = await getServerSession(authOptions);
   if (!session || !session.user) {
     return NextResponse.json(

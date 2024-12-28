@@ -89,39 +89,74 @@ async function compareWithGroundTruth(taskId: string) {
       throw new Error("Ground truth task not found");
     }
 
-    const projectId = task.project; // Get project ID
-    const annotatorId = task.annotator; // Get annotator ID
+    const projectId = task.project;
+    const annotatorId = task.annotator;
 
     let pointsEarned = 0;
     let comparisonResult = false;
 
-    const extractInputTextContent = (content: string) => {
+    const extractContent = (content: string) => {
       try {
         const parsedContent = JSON.parse(content);
-        return parsedContent
-          .flatMap((item: any) => item.content || [])
-          .filter((child: any) => child.type === "inputText")
-          .map((child: any) => child.content?.innerText || "");
+        const results = {
+          inputTexts: [] as string[],
+          checkboxes: [] as string[][],
+        };
+
+        const processContent = (items: any[]) => {
+          items.forEach((item: any) => {
+            if (item.content) {
+              if (Array.isArray(item.content)) {
+                processContent(item.content);
+              } else {
+                if (item.type === "inputText") {
+                  results.inputTexts.push(item.content?.innerText || "");
+                } else if (item.type === "checkbox") {
+                  results.checkboxes.push(item.content?.selectedCheckbox || []);
+                }
+              }
+            }
+          });
+        };
+
+        processContent(parsedContent);
+        return results;
       } catch (error) {
         console.error("Error parsing content:", error);
-        return [];
+        return { inputTexts: [], checkboxes: [] };
       }
     };
 
-    const userInputTexts = extractInputTextContent(task.content);
-    const groundTruthTexts = extractInputTextContent(groundTruthTask.content);
+    const userContent = extractContent(task.content);
+    const groundTruthContent = extractContent(groundTruthTask.content);
 
-    if (userInputTexts.length !== groundTruthTexts.length) {
-      throw new Error("Mismatch in number of inputText fields between task and ground truth");
+    // Compare input texts
+    if (userContent.inputTexts.length !== groundTruthContent.inputTexts.length) {
+      throw new Error("Mismatch in number of inputText fields");
     }
 
-    for (let i = 0; i < userInputTexts.length; i++) {
-      // Normalize the strings: trim whitespace and convert to lowercase
-      const userInput = userInputTexts[i].trim().toLowerCase();
-      const groundTruthInput = groundTruthTexts[i].trim().toLowerCase();
+    for (let i = 0; i < userContent.inputTexts.length; i++) {
+      const userInput = userContent.inputTexts[i].trim().toLowerCase();
+      const groundTruthInput = groundTruthContent.inputTexts[i].trim().toLowerCase();
 
-      // Compare after trimming and converting to lowercase
       if (userInput === groundTruthInput) {
+        pointsEarned++;
+        comparisonResult = true;
+      }
+    }
+
+    // Compare checkboxes
+    if (userContent.checkboxes.length !== groundTruthContent.checkboxes.length) {
+      throw new Error("Mismatch in number of checkbox fields");
+    }
+
+    for (let i = 0; i < userContent.checkboxes.length; i++) {
+      const userCheckboxArray = userContent.checkboxes[i].sort();
+      const groundTruthCheckboxArray = groundTruthContent.checkboxes[i].sort();
+
+      // Compare arrays after sorting
+      if (userCheckboxArray.length === groundTruthCheckboxArray.length &&
+          userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
         pointsEarned++;
         comparisonResult = true;
       }
@@ -129,21 +164,32 @@ async function compareWithGroundTruth(taskId: string) {
 
     const annotatorHistory = await AnnotatorHistory.findOne({
       annotator: annotatorId,
-      project: projectId, // Query by project
+      project: projectId,
     });
+
+    // Format answers for history
+    const formatAnswer = (content: { inputTexts: string[], checkboxes: string[][] }) => {
+      return {
+        texts: content.inputTexts.join(", "),
+        checkboxes: content.checkboxes.map(cb => cb.join(", ")).join(" | "),
+      };
+    };
+
+    const userAnswer = formatAnswer(userContent);
+    const groundTruthAnswer = formatAnswer(groundTruthContent);
 
     if (!annotatorHistory) {
       await AnnotatorHistory.create({
         annotator: annotatorId,
-        project: projectId, // Add project
+        project: projectId,
         totalPoints: pointsEarned,
         history: [
           {
             task: taskId,
             template: template._id,
             pointsEarned,
-            submittedAnswer: userInputTexts.join(", "),
-            groundTruthAnswer: groundTruthTexts.join(", "),
+            submittedAnswer: `Texts: ${userAnswer.texts} | Checkboxes: ${userAnswer.checkboxes}`,
+            groundTruthAnswer: `Texts: ${groundTruthAnswer.texts} | Checkboxes: ${groundTruthAnswer.checkboxes}`,
             comparisonResult,
           },
         ],
@@ -154,8 +200,8 @@ async function compareWithGroundTruth(taskId: string) {
         task: taskId,
         template: template._id,
         pointsEarned,
-        submittedAnswer: userInputTexts.join(", "),
-        groundTruthAnswer: groundTruthTexts.join(", "),
+        submittedAnswer: `Texts: ${userAnswer.texts} | Checkboxes: ${userAnswer.checkboxes}`,
+        groundTruthAnswer: `Texts: ${groundTruthAnswer.texts} | Checkboxes: ${groundTruthAnswer.checkboxes}`,
         comparisonResult,
       });
       await annotatorHistory.save();

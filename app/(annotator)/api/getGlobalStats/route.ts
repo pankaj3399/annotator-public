@@ -1,4 +1,5 @@
 import { getAnnotatorDashboard } from "@/app/actions/annonatorDashboard";
+import { getAnnotatorEarnings } from "@/app/actions/annotatorTask";
 import { authOptions } from "@/auth";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -15,6 +16,7 @@ export async function GET() {
         }
 
         const response = await getAnnotatorDashboard();
+        const earnings = await getAnnotatorEarnings();
         if (response.error) {
             return NextResponse.json({
                 error: response.error
@@ -22,10 +24,11 @@ export async function GET() {
                 status: 400
             });
         }
-
         const dashboardData = JSON.parse(response.data!);
+        const earningData = JSON.parse(earnings.data!)
+        const completeData = {...dashboardData,earningData}
         return NextResponse.json({
-            data: dashboardData
+            data: completeData
         }, {
             status: 200
         });
