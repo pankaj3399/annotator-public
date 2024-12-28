@@ -9,7 +9,7 @@ const AImodelSchema = new Schema({
     provider: { type: String, required: true },
     enabled: { type: Boolean, default: true },
     apiKey: { type: String, required: true },
-    systemPrompt: { type: String, required: true },
+    systemPrompt: { type: String, required: false },
     created_at: { type: Date, default: Date.now },
 });
 

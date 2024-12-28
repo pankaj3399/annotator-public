@@ -23,11 +23,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Minus, Plus, Upload } from "lucide-react";
+import { ArrowRight, Minus, Plus, Settings, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
 import { CarouselContent } from "./ui/carousel";
+import AIConfigModal from "./AiModal";
+import { generateAiResponse } from "@/app/actions/aiModel";
+import { usePathname } from "next/navigation";
 
 interface TaskValue {
   content: string;
@@ -106,14 +109,28 @@ interface SaveTasksResponse {
     [key: string]: any;
   }[];
 }
+interface Model {
+  _id:string;
+  user:string;
+  projectid:string;
+  name:string;
+  apiKey:string;
+  provider:string;
+  enabled:boolean;
+  model:string
+}
 
 export function TaskDialog({
+  onConfigure,
+  aiModels,
   template,
   isDialogOpen,
   setIsDialogOpen,
   project,
   handleAssignUser,
 }: {
+  onConfigure:(projectId:string)=>Promise<any>
+  aiModels:Model[] | undefined
   template: template & { _id: string; testTemplate?: boolean };
   isDialogOpen: boolean;
   setIsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -131,8 +148,9 @@ export function TaskDialog({
     template.testTemplate || false
   );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [selectedModel, setSelectedModel] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null); 
+  const [isAiModalOpen,setIsAiModalOpen]=useState(false)
   useEffect(() => {
     if (isDialogOpen) {
       fetchCurrentTemplateState();
@@ -140,6 +158,8 @@ export function TaskDialog({
     }
   }, [isDialogOpen]);
 
+  const pathName = usePathname();
+  const projectId = pathName.split("/")[2];
   const fetchAnnotators = async () => {
     try {
       const annotatorsData = JSON.parse(
@@ -179,6 +199,7 @@ export function TaskDialog({
       });
     }
   };
+
 
   const handleAnnotatorAssignmentToggle = async (checked: boolean) => {
     try {
@@ -505,16 +526,57 @@ export function TaskDialog({
       );
     }
 
+
+    const handleGenerateAI = async () => {
+      if(!selectedModel){
+        toast({
+          title:"Please select an model",
+          variant:"destructive"
+        })
+        return
+      }
+      if(!task.values[placeholder.index]){
+        toast({
+          title:"Please enter an prompt",
+          variant:"destructive"
+        })
+        return
+      }
+      const response = await generateAiResponse(selectedModel, task.values[placeholder.index].content,projectId);
+      handleInputChange(task.id,placeholder,response)
+  
+  
+    };
+
     // Default input rendering for other types
     return (
-      <Input
+      <div className="flex items-center space-x-4">
+              <Input
         id={`${task.id}-${placeholder.index}`}
         value={(task.values[placeholder.index] as TaskValue)?.content || ""}
         onChange={(e) =>
           handleInputChange(task.id, placeholder, e.target.value)
         }
-        placeholder={`Enter ${placeholder.type} content for ${placeholder.name}`}
+        placeholder={`Enter ${placeholder.type} or AI prompt`}
       />
+        <Button
+          variant={"outline"}
+          onClick={handleGenerateAI}
+          className="text-xs font-semibold flex items-center gap-2 p-2 rounded-lg border border-gray-300 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {/* Show an icon if model exists */}
+
+            <>
+              <span className="text-gray-700">
+                Generate(AI)
+              </span>
+              {/* Optionally, you can add an icon next to the text */}
+              <ArrowRight className="h-4 w-4 text-gray-500" />
+            </>
+          
+        </Button>
+      </div>
+      
     );
   };
 
@@ -628,7 +690,19 @@ export function TaskDialog({
                     `{{${placeholder.type}}}`,
                 },
               };
-            } else {
+            }else if(item.type==="dynamicText"){
+              return {
+                ...item,
+                content: {
+                  ...item.content,
+                  innerText:
+                    (values[placeholder.index] as TaskValue)?.content ||
+                    `{{${placeholder.type}}}`,
+                },
+              };
+
+            }
+             else {
               return {
                 ...item,
                 content: {
@@ -712,7 +786,6 @@ export function TaskDialog({
     try {
       const filledTasks: FilledTask[] = [];
       const repeatTasks: RepeatTask[] = [];
-
       tasks.forEach((task) => {
         const filled = renderFilledTemplate(task.values);
 
@@ -814,7 +887,13 @@ export function TaskDialog({
   };
 
   return (
-    <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+    <div>
+<AIConfigModal
+  onConfigure={onConfigure}
+  isAIModalOpen={isAiModalOpen}
+  setIsAIModalOpen={() => setIsAiModalOpen(false)}
+/>       
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
       <DialogContent className="sm:max-w-[425px] md:max-w-fit">
         <DialogHeader className="flex flex-col gap-4">
           <div className="flex flex-row items-center justify-between pr-8">
@@ -839,15 +918,42 @@ export function TaskDialog({
               />
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Switch
-              checked={assignToAllAnnotators}
-              onCheckedChange={handleAnnotatorAssignmentToggle}
-            />
-            <label className="text-sm font-medium text-gray-700">
-              Assign to all annotators ({annotators.length} annotators)
-            </label>
-          </div>
+          <div className="flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm">
+  {/* Left section - Switch for annotator assignment */}
+  <div className="flex items-center space-x-3">
+    <Switch
+      checked={assignToAllAnnotators}
+      onCheckedChange={handleAnnotatorAssignmentToggle}
+      className="transition duration-200 ease-in-out"
+    />
+    <label className="text-sm font-medium text-gray-700">
+      Assign to all annotators ({annotators.length} annotators)
+    </label>
+  </div>
+
+  {/* Right section - AI model selector and settings icon */}
+  <div className="flex items-center space-x-4">
+    <Select value={selectedModel} onValueChange={setSelectedModel}>
+      <SelectTrigger className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white hover:bg-gray-100 transition ease-in-out">
+        <SelectValue placeholder="Select AI Model" />
+      </SelectTrigger>
+      <SelectContent>
+        {aiModels?.map((model) => (
+          <SelectItem key={model.model} value={model.model}>
+            {model.name} ({model.model})
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+    <Settings
+      className="h-6 w-6 text-gray-500 cursor-pointer hover:text-gray-700 transition duration-200"
+      onClick={() => setIsAiModalOpen(true)}
+    />
+  </div>
+</div>
+
+
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto">
           {tasks.map((task) => (
@@ -898,5 +1004,11 @@ export function TaskDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+
+
+    </div>
+
+
   );
 }
