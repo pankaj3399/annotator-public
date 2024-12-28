@@ -11,6 +11,7 @@ import {
   BarChart2,
   Settings,
   Bell,
+  BarChart,
 } from "lucide-react";
 
 type Submenu = {
@@ -203,7 +204,8 @@ export function getMenuList(pathname: string): Group[] {
             !pathname.includes("/ai-config") &&
             !pathname.includes("/analytics/view") &&
             !pathname.includes("/settings") &&
-            !pathname.includes("/notification"),
+            !pathname.includes("/notification")&&
+            !pathname.includes('/leaderboard'),
           icon: SquarePen,
         },
         {
@@ -222,6 +224,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "Overview",
           active: pathname.includes("/analytics/view"),
           icon: BarChart2,
+        },
+        {
+          href: `/projects/leaderboard/${projectId}`,
+          label: "Leaderboard",
+          active: pathname.includes("/leaderboard"),
+          icon: BarChart,
         },
       ],
     },

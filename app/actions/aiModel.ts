@@ -127,29 +127,17 @@ const getProviderFromModel = (model: string): Provider | null => {
   return null;
 };
 
-export async function generateAiResponse(model: string, prompt: string, projectId: string) {
+export async function generateAiResponse(provider: string,model:string, prompt: string, projectId: string,apiKey:string) {
+  console.log(model)
+  console.log(provider)
+  console.log(prompt)
+  console.log(projectId)
+  console.log(apiKey)
   try {
-    // Get AI model configurations for the project
-    const response = await getAIModels(projectId);
-    const aiModels = JSON.parse(response).models
-    const selectedModel = aiModels.find(m => m.model === model);
-    
-    if (!selectedModel) {
-      throw new Error("Model configuration not found");
-    }
-
-    // Determine the provider based on the model name
-    const provider = getProviderFromModel(model);
-
-    if (!provider) {
-      throw new Error("Invalid model selected");
-    }
-
-    // Handle different providers
     switch (provider) {
       case "OpenAI": {
         const openai = new OpenAI({
-          apiKey: selectedModel.apiKey
+          apiKey: apiKey
         });
 
         const completion = await openai.chat.completions.create({
@@ -162,7 +150,7 @@ export async function generateAiResponse(model: string, prompt: string, projectI
 
       case "Anthropic": {
         const anthropic = new Anthropic({
-          apiKey:selectedModel.apiKey
+          apiKey:apiKey
         })
         const message = await anthropic.messages.create({
           model: model,
@@ -175,7 +163,7 @@ export async function generateAiResponse(model: string, prompt: string, projectI
 
       case "Gemini": {
         const genAI = new GoogleGenerativeAI(
-          selectedModel.apiKey
+          apiKey
         );
         
         const modelInstance = genAI.getGenerativeModel({ model });

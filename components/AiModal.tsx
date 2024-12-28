@@ -8,18 +8,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Bot, Brain, Upload, LucideIcon } from "lucide-react";
-import { addModel } from "@/app/actions/aiModel";
-import { usePathname } from "next/navigation";
+import { Bot, Brain, Upload, TypeIcon as type, LucideIcon } from 'lucide-react';
 
 type Provider = "OpenAI" | "Anthropic" | "Gemini"
 
 interface FormValues {
-  name: string;
   model: string;
   provider: Provider | "";
   apiKey: string;
+  systemPrompt: string;
 }
 
 interface AIProvider {
@@ -30,7 +29,7 @@ interface AIProvider {
 }
 
 interface AIModalProps {
-  onConfigure:(projectId:string)=>void
+  onConfigure: (provider: string, model: string, systemPrompt: string, apiKey: string) => Promise<void>;
   isAIModalOpen: boolean;
   setIsAIModalOpen: (isOpen: boolean) => void;
 }
@@ -41,52 +40,46 @@ const providerModels: Record<Provider, string[]> = {
   Gemini: ["gemini-1.0-pro", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"],
 };
 
+const aiProviders: AIProvider[] = [
+  {
+    name: "Anthropic",
+    icon: Bot,
+    description: "Advanced AI for complex tasks",
+    color: "bg-purple-500",
+  },
+  {
+    name: "OpenAI",
+    icon: Brain,
+    description: "Versatile language models",
+    color: "bg-green-500",
+  },
+  {
+    name: "Gemini",
+    icon: Upload,
+    description: "Multi-modal AI capabilities",
+    color: "bg-blue-500",
+  },
+];
+
 const AIModal: React.FC<AIModalProps> = ({ 
-  onConfigure,isAIModalOpen, setIsAIModalOpen }) => {
-  const [step, setStep] = useState(1);
-  const [selectedAI, setSelectedAI] = useState<Provider | "">("");
+  onConfigure, isAIModalOpen, setIsAIModalOpen 
+}) => {
   const [formValues, setFormValues] = useState<FormValues>({
-    name: "",
     model: "",
     provider: "",
     apiKey: "",
+    systemPrompt: "",
   });
 
-    const pathName = usePathname();
-    const projectId = pathName.split("/")[2];
-
-  const aiProviders: AIProvider[] = [
-    {
-      name: "Anthropic",
-      icon: Bot,
-      description: "Advanced AI for complex tasks",
-      color: "bg-purple-500",
-    },
-    {
-      name: "OpenAI",
-      icon: Brain,
-      description: "Versatile language models",
-      color: "bg-green-500",
-    },
-    {
-      name: "Gemini",
-      icon: Upload,
-      description: "Multi-modal AI capabilities",
-      color: "bg-blue-500",
-    },
-  ];
-
-  const handleAISelection = (aiProvider: Provider) => {
-    setSelectedAI(aiProvider);
+  const handleProviderChange = (value: string) => {
     setFormValues((prev) => ({
       ...prev,
-      provider: aiProvider,
-      model: "",
+      provider: value as Provider,
+      model: "", // Reset model when provider changes
     }));
-    setStep(2);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormValues((prev) => ({ ...prev, [name]: value }));
   };
@@ -96,36 +89,24 @@ const AIModal: React.FC<AIModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (!formValues.provider || !projectId) return;
+    if (formValues.provider && formValues.model && formValues.apiKey) {
 
-    try {
-      const res = await addModel(
-        formValues.provider,
-        projectId,
-        formValues.model,
-        formValues.apiKey,
-        formValues.name
-      );
+      await onConfigure(formValues.provider, formValues.model, formValues.systemPrompt,formValues.apiKey);
       resetAndClose();
-      onConfigure(projectId)
-    } catch (error) {
-      console.error("nError adding model:", error);
     }
   };
 
   const resetAndClose = () => {
     setIsAIModalOpen(false);
-    setStep(1);
-    setSelectedAI("");
     setFormValues({
-      name: "",
       model: "",
       provider: "",
       apiKey: "",
+      systemPrompt: "",
     });
   };
 
-  const isSubmitDisabled = !formValues.name || !formValues.model || !formValues.apiKey;
+  const isSubmitDisabled = !formValues.provider || !formValues.model || !formValues.apiKey;
 
   const getAvailableModels = (provider: Provider | ""): string[] => {
     if (!provider || !(provider in providerModels)) return [];
@@ -133,103 +114,95 @@ const AIModal: React.FC<AIModalProps> = ({
   };
 
   return (
-    <Dialog open={isAIModalOpen} onOpenChange={resetAndClose}>
+    <Dialog open={isAIModalOpen} onOpenChange={setIsAIModalOpen}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-            {step === 2 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setStep(1)}
-                className="h-8 w-8"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            {step === 1 ? "Choose AI Provider" : "Configure AI Model"}
+          <DialogTitle className="text-2xl font-bold">
+            Configure AI Model
           </DialogTitle>
         </DialogHeader>
 
-        <div className="py-6">
-          {step === 1 ? (
-            <div className="grid gap-4">
-              {aiProviders.map((provider) => {
-                const Icon = provider.icon;
-                return (
-                  <button
-                    key={provider.name}
-                    onClick={() => handleAISelection(provider.name)}
-                    className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                  >
-                    <div className={`p-2 rounded-lg ${provider.color}`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold">{provider.name}</h3>
-                      <p className="text-sm text-gray-500">{provider.description}</p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  placeholder="Enter model name"
-                  name="name"
-                  value={formValues.name}
-                  onChange={handleInputChange}
-                />
-              </div>
+        <div className="py-6 space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">AI Provider</label>
+            <Select
+              value={formValues.provider}
+              onValueChange={handleProviderChange}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select an AI provider" />
+              </SelectTrigger>
+              <SelectContent>
+                {aiProviders.map((provider) => {
+                  const Icon = provider.icon;
+                  return (
+                    <SelectItem key={provider.name} value={provider.name}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span>{provider.name}</span>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Model Version</label>
-                <Select
-                  value={formValues.model}
-                  onValueChange={handleModelChange}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableModels(selectedAI).map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Model Version</label>
+            <Select
+              value={formValues.model}
+              onValueChange={handleModelChange}
+              disabled={!formValues.provider}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {getAvailableModels(formValues.provider).map((model) => (
+                  <SelectItem key={model} value={model}>
+                    {model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">API Key</label>
-                <Input
-                  placeholder="Enter your API key"
-                  name="apiKey"
-                  type="password"
-                  value={formValues.apiKey}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-          )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">API Key</label>
+            <Input
+              placeholder="Enter your API key"
+              name="apiKey"
+              type="password"
+              value={formValues.apiKey}
+              onChange={handleInputChange}
+              disabled={!formValues.provider}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">System Prompt</label>
+            <Textarea
+              placeholder="Enter system prompt"
+              name="systemPrompt"
+              value={formValues.systemPrompt}
+              onChange={handleInputChange}
+              disabled={!formValues.provider}
+              rows={4}
+            />
+          </div>
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={resetAndClose}>
             Cancel
           </Button>
-          {step === 2 && (
-            <Button 
-              onClick={handleSubmit}
-              disabled={isSubmitDisabled}
-            >
-              Configure {selectedAI}
-            </Button>
-          )}
+          <Button 
+            onClick={handleSubmit}
+            disabled={isSubmitDisabled}
+          >
+            Configure {formValues.provider || 'AI Model'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -237,3 +210,4 @@ const AIModal: React.FC<AIModalProps> = ({
 };
 
 export default AIModal;
+
