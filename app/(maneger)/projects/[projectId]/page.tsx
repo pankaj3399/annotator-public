@@ -28,7 +28,8 @@ interface Model {
   name:string;
   apiKey:string;
   provider:string;
-  enabled:boolean
+  enabled:boolean;
+  model:string;
 }
 
 export default function ProjectDashboard() {
@@ -305,6 +306,7 @@ export default function ProjectDashboard() {
           </div>
         )}
         {project && template &&   <TaskDialog 
+        onConfigure={fetchAIModels}
         aiModels={models}
     template={template} 
     setIsDialogOpen={setIsDialogOpen} 

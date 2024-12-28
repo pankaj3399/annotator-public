@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,35 +8,56 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { motion } from "framer-motion";
-import { ArrowLeft, Bot, Brain, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Bot, Brain, Upload, LucideIcon } from "lucide-react";
 import { addModel } from "@/app/actions/aiModel";
 import { usePathname } from "next/navigation";
 
-const AIModal = ({ isAIModalOpen, setIsAIModalOpen }) => {
+type Provider = "OpenAI" | "Anthropic" | "Gemini"
+
+interface FormValues {
+  name: string;
+  model: string;
+  provider: Provider | "";
+  apiKey: string;
+}
+
+interface AIProvider {
+  name: Provider;
+  icon: LucideIcon;
+  description: string;
+  color: string;
+}
+
+interface AIModalProps {
+  onConfigure:(projectId:string)=>void
+  isAIModalOpen: boolean;
+  setIsAIModalOpen: (isOpen: boolean) => void;
+}
+
+const providerModels: Record<Provider, string[]> = {
+  OpenAI: ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+  Anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-sonnet-20240620", "claude-3-haiku-20240307", "claude-3-opus-latest", "claude-3-opus-20240229"],
+  Gemini: ["gemini-1.0-pro", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"],
+};
+
+const AIModal: React.FC<AIModalProps> = ({ 
+  onConfigure,isAIModalOpen, setIsAIModalOpen }) => {
   const [step, setStep] = useState(1);
-  const [selectedAI, setSelectedAI] = useState("");
-  const [availableModels, setAvailableModels] = useState([]);
-  const [formValues, setFormValues] = useState({
+  const [selectedAI, setSelectedAI] = useState<Provider | "">("");
+  const [formValues, setFormValues] = useState<FormValues>({
     name: "",
     model: "",
     provider: "",
     apiKey: "",
   });
 
-  const providerModels = {
-    OpenAI: ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
-    Anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-sonnet-20240620", "claude-3-haiku-20240307", "claude-3-opus-latest", "claude-3-opus-20240229"],
-    Gemini: ["gemini-1.0-pro", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"],
-  };
-  const pathName = usePathname();
-  const projectId = pathName.split("/")[2];
+    const pathName = usePathname();
+    const projectId = pathName.split("/")[2];
 
-
-  const aiProviders = [
+  const aiProviders: AIProvider[] = [
     {
-      name: "Claude",
+      name: "Anthropic",
       icon: Bot,
       description: "Advanced AI for complex tasks",
       color: "bg-purple-500",
@@ -55,22 +76,41 @@ const AIModal = ({ isAIModalOpen, setIsAIModalOpen }) => {
     },
   ];
 
-  const handleAISelection = (aiProvider) => {
+  const handleAISelection = (aiProvider: Provider) => {
     setSelectedAI(aiProvider);
-    setFormValues({ ...formValues, provider: aiProvider, model: "" });
-    setAvailableModels(providerModels[aiProvider]);
+    setFormValues((prev) => ({
+      ...prev,
+      provider: aiProvider,
+      model: "",
+    }));
     setStep(2);
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormValues({ ...formValues, [name]: value });
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleModelChange = (value: string) => {
+    setFormValues((prev) => ({ ...prev, model: value }));
   };
 
   const handleSubmit = async () => {
-    const res = await addModel(formValues.provider,projectId,formValues.model,formValues.apiKey,formValues.name)
-    console.log(res)
-    resetAndClose();
+    if (!formValues.provider || !projectId) return;
+
+    try {
+      const res = await addModel(
+        formValues.provider,
+        projectId,
+        formValues.model,
+        formValues.apiKey,
+        formValues.name
+      );
+      resetAndClose();
+      onConfigure(projectId)
+    } catch (error) {
+      console.error("nError adding model:", error);
+    }
   };
 
   const resetAndClose = () => {
@@ -83,7 +123,13 @@ const AIModal = ({ isAIModalOpen, setIsAIModalOpen }) => {
       provider: "",
       apiKey: "",
     });
-    setAvailableModels([]);
+  };
+
+  const isSubmitDisabled = !formValues.name || !formValues.model || !formValues.apiKey;
+
+  const getAvailableModels = (provider: Provider | ""): string[] => {
+    if (!provider || !(provider in providerModels)) return [];
+    return providerModels[provider as Provider];
   };
 
   return (
@@ -108,21 +154,24 @@ const AIModal = ({ isAIModalOpen, setIsAIModalOpen }) => {
         <div className="py-6">
           {step === 1 ? (
             <div className="grid gap-4">
-              {aiProviders.map((provider) => (
-                <button
-                  key={provider.name}
-                  onClick={() => handleAISelection(provider.name)}
-                  className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
-                >
-                  <div className={`p-2 rounded-lg ${provider.color}`}>
-                    <provider.icon className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <h3 className="font-semibold">{provider.name}</h3>
-                    <p className="text-sm text-gray-500">{provider.description}</p>
-                  </div>
-                </button>
-              ))}
+              {aiProviders.map((provider) => {
+                const Icon = provider.icon;
+                return (
+                  <button
+                    key={provider.name}
+                    onClick={() => handleAISelection(provider.name)}
+                    className="flex items-center gap-4 p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-all duration-200"
+                  >
+                    <div className={`p-2 rounded-lg ${provider.color}`}>
+                      <Icon className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-semibold">{provider.name}</h3>
+                      <p className="text-sm text-gray-500">{provider.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-6">
@@ -138,19 +187,21 @@ const AIModal = ({ isAIModalOpen, setIsAIModalOpen }) => {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Model Version</label>
-                <select
-                  name="model"
+                <Select
                   value={formValues.model}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded"
+                  onValueChange={handleModelChange}
                 >
-                  <option value="">Select a model</option>
-                  {availableModels.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableModels(selectedAI).map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -172,7 +223,10 @@ const AIModal = ({ isAIModalOpen, setIsAIModalOpen }) => {
             Cancel
           </Button>
           {step === 2 && (
-            <Button onClick={handleSubmit}>
+            <Button 
+              onClick={handleSubmit}
+              disabled={isSubmitDisabled}
+            >
               Configure {selectedAI}
             </Button>
           )}

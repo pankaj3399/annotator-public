@@ -28,10 +28,9 @@ import { useEffect, useRef, useState } from "react";
 import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
 import { CarouselContent } from "./ui/carousel";
-import AIModal from "./AiModal";
 import AIConfigModal from "./AiModal";
-import { generateGeminiResponse } from "@/app/actions/aiModel";
-import { Textarea } from "./ui/textarea";
+import { generateAiResponse } from "@/app/actions/aiModel";
+import { usePathname } from "next/navigation";
 
 interface TaskValue {
   content: string;
@@ -122,6 +121,7 @@ interface Model {
 }
 
 export function TaskDialog({
+  onConfigure,
   aiModels,
   template,
   isDialogOpen,
@@ -129,6 +129,7 @@ export function TaskDialog({
   project,
   handleAssignUser,
 }: {
+  onConfigure:(projectId:string)=>Promise<any>
   aiModels:Model[] | undefined
   template: template & { _id: string; testTemplate?: boolean };
   isDialogOpen: boolean;
@@ -147,8 +148,7 @@ export function TaskDialog({
     template.testTemplate || false
   );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null); 
   const [isAiModalOpen,setIsAiModalOpen]=useState(false)
   useEffect(() => {
@@ -158,6 +158,8 @@ export function TaskDialog({
     }
   }, [isDialogOpen]);
 
+  const pathName = usePathname();
+  const projectId = pathName.split("/")[2];
   const fetchAnnotators = async () => {
     try {
       const annotatorsData = JSON.parse(
@@ -526,9 +528,9 @@ export function TaskDialog({
 
 
     const handleGenerateAI = async () => {
-      if(!selectedProvider){
+      if(!selectedModel){
         toast({
-          title:"Please select an modal",
+          title:"Please select an model",
           variant:"destructive"
         })
         return
@@ -540,7 +542,7 @@ export function TaskDialog({
         })
         return
       }
-      const response = await generateGeminiResponse(selectedProvider, task.values[placeholder.index].content);
+      const response = await generateAiResponse(selectedModel, task.values[placeholder.index].content,projectId);
       handleInputChange(task.id,placeholder,response)
   
   
@@ -887,6 +889,7 @@ export function TaskDialog({
   return (
     <div>
 <AIConfigModal
+  onConfigure={onConfigure}
   isAIModalOpen={isAiModalOpen}
   setIsAIModalOpen={() => setIsAiModalOpen(false)}
 />       
@@ -930,7 +933,7 @@ export function TaskDialog({
 
   {/* Right section - AI model selector and settings icon */}
   <div className="flex items-center space-x-4">
-    <Select value={selectedProvider} onValueChange={setSelectedProvider}>
+    <Select value={selectedModel} onValueChange={setSelectedModel}>
       <SelectTrigger className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white hover:bg-gray-100 transition ease-in-out">
         <SelectValue placeholder="Select AI Model" />
       </SelectTrigger>
