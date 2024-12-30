@@ -137,6 +137,7 @@ export default function AuthPageComponent() {
           status: "pending",
           timeTaken: 0,
           feedback: "",
+          template:testTask.template,
           ai: null,
         };
 
