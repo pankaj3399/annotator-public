@@ -9,10 +9,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, Brain, Upload, TypeIcon as type, LucideIcon } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Bot, Brain, Upload, LucideIcon } from "lucide-react";
+import { Task } from "./taskDialog";
+import { Placeholder } from "./taskDialog";
+import { Badge } from "./ui/badge";
 
-type Provider = "OpenAI" | "Anthropic" | "Gemini"
+type Provider = "OpenAI" | "Anthropic" | "Gemini";
 
 interface FormValues {
   model: string;
@@ -29,14 +38,27 @@ interface AIProvider {
 }
 
 interface AIModalProps {
-  onConfigure: (provider: string, model: string, systemPrompt: string, apiKey: string) => Promise<void>;
+  onConfigure: (
+    provider: string,
+    model: string,
+    systemPrompt: string,
+    apiKey: string
+  ) => Promise<void>;
   isAIModalOpen: boolean;
   setIsAIModalOpen: (isOpen: boolean) => void;
+  tasks: Task[];
+  placeholders: Placeholder[];
 }
 
 const providerModels: Record<Provider, string[]> = {
   OpenAI: ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
-  Anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-sonnet-20240620", "claude-3-haiku-20240307", "claude-3-opus-latest", "claude-3-opus-20240229"],
+  Anthropic: [
+    "claude-3-5-sonnet-latest",
+    "claude-3-5-sonnet-20240620",
+    "claude-3-haiku-20240307",
+    "claude-3-opus-latest",
+    "claude-3-opus-20240229",
+  ],
   Gemini: ["gemini-1.0-pro", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"],
 };
 
@@ -61,8 +83,12 @@ const aiProviders: AIProvider[] = [
   },
 ];
 
-const AIModal: React.FC<AIModalProps> = ({ 
-  onConfigure, isAIModalOpen, setIsAIModalOpen 
+const AIModal: React.FC<AIModalProps> = ({
+  onConfigure,
+  isAIModalOpen,
+  setIsAIModalOpen,
+  tasks,
+  placeholders,
 }) => {
   const [formValues, setFormValues] = useState<FormValues>({
     model: "",
@@ -75,11 +101,13 @@ const AIModal: React.FC<AIModalProps> = ({
     setFormValues((prev) => ({
       ...prev,
       provider: value as Provider,
-      model: "", // Reset model when provider changes
+      model: "",
     }));
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target;
     setFormValues((prev) => ({ ...prev, [name]: value }));
   };
@@ -88,10 +116,37 @@ const AIModal: React.FC<AIModalProps> = ({
     setFormValues((prev) => ({ ...prev, model: value }));
   };
 
+  const handleBadgeClick = (placeholderName: string) => {
+    setFormValues((prev) => ({
+      ...prev,
+      systemPrompt: prev.systemPrompt
+        ? `${prev.systemPrompt} {{${placeholderName}}}`
+        : `{{${placeholderName}}}`,
+    }));
+  };
+
+  const resolveSystemPrompt = (): string => {
+    let resolvedPrompt = formValues.systemPrompt;
+  
+    placeholders.forEach((placeholder) => {
+      const valueIndex = placeholder.index;
+      const valueContent = tasks[0]?.values[valueIndex]?.content || ""; // Default to empty string
+      const placeholderPattern = new RegExp(`{{${placeholder.name}}}`, "g");
+      resolvedPrompt = resolvedPrompt.replace(placeholderPattern, valueContent);
+    });
+  
+    return resolvedPrompt;
+  };
+  
   const handleSubmit = async () => {
     if (formValues.provider && formValues.model && formValues.apiKey) {
-
-      await onConfigure(formValues.provider, formValues.model, formValues.systemPrompt,formValues.apiKey);
+      const resolvedPrompt = resolveSystemPrompt();
+      await onConfigure(
+        formValues.provider,
+        formValues.model,
+        resolvedPrompt,
+        formValues.apiKey
+      );
       resetAndClose();
     }
   };
@@ -106,7 +161,8 @@ const AIModal: React.FC<AIModalProps> = ({
     });
   };
 
-  const isSubmitDisabled = !formValues.provider || !formValues.model || !formValues.apiKey;
+  const isSubmitDisabled =
+    !formValues.provider || !formValues.model || !formValues.apiKey;
 
   const getAvailableModels = (provider: Provider | ""): string[] => {
     if (!provider || !(provider in providerModels)) return [];
@@ -187,9 +243,24 @@ const AIModal: React.FC<AIModalProps> = ({
               name="systemPrompt"
               value={formValues.systemPrompt}
               onChange={handleInputChange}
-              disabled={!formValues.provider}
               rows={4}
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Available Placeholders</label>
+            <div className="flex flex-wrap gap-2">
+              {placeholders.map((placeholder) => (
+                <Badge
+                  key={placeholder.index}
+                  variant="outline"
+                  className="cursor-pointer"
+                  onClick={() => handleBadgeClick(placeholder.name)}
+                >
+                  {placeholder.name}
+                </Badge>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -197,11 +268,8 @@ const AIModal: React.FC<AIModalProps> = ({
           <Button variant="outline" onClick={resetAndClose}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={isSubmitDisabled}
-          >
-            Configure {formValues.provider || 'AI Model'}
+          <Button onClick={handleSubmit} disabled={isSubmitDisabled}>
+            Configure {formValues.provider || "AI Model"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -210,4 +278,3 @@ const AIModal: React.FC<AIModalProps> = ({
 };
 
 export default AIModal;
-

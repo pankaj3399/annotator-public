@@ -128,11 +128,6 @@ const getProviderFromModel = (model: string): Provider | null => {
 };
 
 export async function generateAiResponse(provider: string,model:string, prompt: string, projectId: string,apiKey:string) {
-  console.log(model)
-  console.log(provider)
-  console.log(prompt)
-  console.log(projectId)
-  console.log(apiKey)
   try {
     switch (provider) {
       case "OpenAI": {

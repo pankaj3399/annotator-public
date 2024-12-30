@@ -7,6 +7,7 @@ const templateSchema = new Schema({
     project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
     timer: { type: Number, default: 0 },
     private: { type: Boolean, default: false },
+    testTemplate:{type:Boolean,default:false},
     type:{type:String,enum:['test','training','core'],default:'test'},
     groundTruthTask:{type:Schema.Types.ObjectId,ref:'Task',required:false}
 });
