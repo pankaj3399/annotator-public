@@ -49,14 +49,14 @@ interface CarouselContent {
   currentSlideIndex?: number;
 }
 
-interface Task {
+export interface Task {
   id: number;
   values: {
     [key: string]: TaskValue | CarouselContent;
   };
 }
 
-interface Placeholder {
+export interface Placeholder {
   type: "text" | "video" | "img" | "audio" | "upload" | "carousel";
   index: number;
   name: string;
@@ -569,7 +569,7 @@ export function TaskDialog({
     if (provider && selectedModel && systemPrompt && apiKey && currentTask && currentPlaceholder) {
       handleGenerateAI(currentTask, currentPlaceholder);
     }
-  }, [provider, selectedModel, systemPrompt, apiKey, currentTask, currentPlaceholder]);
+  }, [provider, selectedModel, systemPrompt, apiKey]);
   
   const handleConfigureAi = async (
     provider: string,
@@ -908,6 +908,8 @@ export function TaskDialog({
   }
   isAIModalOpen={isAiModalOpen}
   setIsAIModalOpen={() => setIsAiModalOpen(false)}
+  tasks={tasks}
+  placeholders={placeholders}
 />
    
 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -1014,3 +1016,5 @@ export function TaskDialog({
 
   );
 }
+
+

@@ -230,6 +230,7 @@ export async function createTestTasks(
     status: string;
     timeTaken: number;
     feedback: string;
+    template:string;
     ai?: null; // Make ai optional but include it
   }[]
 ) {

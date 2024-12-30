@@ -17,7 +17,7 @@ export async function updateTestTemplate(_id: string, value: boolean) {
         const updatedTemplate = await Template.findOneAndUpdate(
             { _id },
             { $set: { testTemplate: value } },
-            { new: true }
+            { new: true }   
         );
         
         if (!updatedTemplate) {
