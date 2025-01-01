@@ -57,6 +57,13 @@ export function getMenuList(pathname: string): Group[] {
             icon: MessageCircle,
             submenus: [],
           },
+          {
+            href: '/tasks/viewCourses',
+            label:' View Courses',
+            active:  pathname.includes('/viewCourses'),
+            icon:Folder,
+            submenus:[]
+          },
         ],
       },
       {
@@ -68,6 +75,7 @@ export function getMenuList(pathname: string): Group[] {
             active:
               pathname.includes("/tasks") &&
               !pathname.includes("/tasks/all") &&
+              !pathname.includes('/viewCourses')&&
               !pathname.includes("/annotatorDashboard"),
             icon: Folder,
           },
@@ -99,12 +107,14 @@ export function getMenuList(pathname: string): Group[] {
     ];
   }
 
+  // For home page, courses pages, or top-level pages
   if (
     projectId == "" ||
     projectId == "dashboard" ||
     projectId == "annotator" ||
     projectId == "chat" ||
-    projectId == "profile"
+    projectId == "profile" ||
+    fpath == "courses"  // Changed to check first path segment for courses
   ) {
     return [
       {
@@ -142,6 +152,12 @@ export function getMenuList(pathname: string): Group[] {
             active: pathname === "/",
             icon: Folder,
           },
+          {
+            href: '/courses',
+            label: "Courses",
+            active: pathname.startsWith('/courses'),  // Changed to handle all course paths
+            icon: Folder
+          }
         ],
       },
       {
@@ -204,7 +220,7 @@ export function getMenuList(pathname: string): Group[] {
             !pathname.includes("/ai-config") &&
             !pathname.includes("/analytics/view") &&
             !pathname.includes("/settings") &&
-            !pathname.includes("/notification")&&
+            !pathname.includes("/notification") &&
             !pathname.includes('/leaderboard'),
           icon: SquarePen,
         },
@@ -248,7 +264,6 @@ export function getMenuList(pathname: string): Group[] {
           active: pathname.includes("/settings"),
           icon: Settings,
         },
-
         {
           href: `/projects/notification/${projectId}`,
           label: "Notification",
@@ -280,7 +295,7 @@ export function getMenuList(pathname: string): Group[] {
         {
           href: "/tasks/annotatorDashboard",
           label: "Overview",
-          active: false, // This will not be active since it redirects
+          active: false,
           icon: BarChart2,
         },
       ],
