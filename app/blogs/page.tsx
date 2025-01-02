@@ -10,13 +10,46 @@ const POSTS_QUERY = `*[
 ]|order(publishedAt desc)[0...9]{_id, title, slug, image, publishedAt, excerpt, categories, estimatedReadingTime}`;
 
 const { projectId, dataset } = client.config();
-const urlFor = (source: any) =>
-  projectId && dataset ? imageUrlBuilder({ projectId, dataset }).image(source) : null;
+
+// Improved image URL builder with fallback
+const getImageUrl = (image: any, width: number, height: number) => {
+  if (!image || !projectId || !dataset) {
+    return `/placeholder.svg?height=${height}&width=${width}`;
+  }
+  
+  try {
+    return imageUrlBuilder({ projectId, dataset })
+      .image(image)
+      .width(width)
+      .height(height)
+      .url();
+  } catch (error) {
+    console.error('Error generating image URL:', error);
+    return `/placeholder.svg?height=${height}&width=${width}`;
+  }
+};
 
 const options = { next: { revalidate: 30 } };
 
 export default async function BlogsPage() {
   const posts = await client.fetch<SanityDocument[]>(POSTS_QUERY, {}, options);
+  
+  // Return early if no posts are found
+  if (!posts || posts.length === 0) {
+    return (
+      <main className="min-h-screen bg-gray-50">
+        <div className="container mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+          <h1 className="text-5xl font-extrabold text-center mb-12 text-gray-900">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+              Insights & Ideas
+            </span>
+          </h1>
+          <p className="text-center text-gray-600">No posts available at the moment.</p>
+        </div>
+      </main>
+    );
+  }
+
   const [featuredPost, ...otherPosts] = posts;
 
   return (
@@ -24,7 +57,7 @@ export default async function BlogsPage() {
       <div className="container mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
         <h1 className="text-5xl font-extrabold text-center mb-12 text-gray-900">
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-            Insights & Ideas
+            Featured Blogs
           </span>
         </h1>
         
@@ -33,8 +66,8 @@ export default async function BlogsPage() {
           <Link href={`/blogs/${featuredPost.slug.current}`} className="group">
             <div className="relative overflow-hidden rounded-3xl shadow-2xl transition-all duration-300 group-hover:shadow-3xl">
               <img
-                src={urlFor(featuredPost.image)?.width(1200).height(675).url() || '/placeholder.svg?height=675&width=1200'}
-                alt={featuredPost.title}
+                src={getImageUrl(featuredPost.image, 1200, 675)}
+                alt={featuredPost.title || 'Featured post'}
                 className="w-full h-[500px] object-cover transition-transform duration-300 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent">
@@ -54,6 +87,7 @@ export default async function BlogsPage() {
                       })}
                     </span>
                     <Clock className="w-4 h-4 mr-2" />
+                    <span className="text-sm">{featuredPost.estimatedReadingTime || '5'} min read</span>
                   </div>
                   <span className="inline-flex items-center text-purple-400 group-hover:text-purple-300 transition-colors duration-300">
                     Read Article <ArrowRight className="ml-2 h-4 w-4" />
@@ -71,13 +105,15 @@ export default async function BlogsPage() {
               <div className="bg-white rounded-2xl overflow-hidden shadow-lg transition-all duration-300 group-hover:shadow-2xl">
                 <div className="relative">
                   <img
-                    src={urlFor(post.image)?.width(400).height(225).url() || '/placeholder.svg?height=225&width=400'}
-                    alt={post.title}
+                    src={getImageUrl(post.image, 400, 225)}
+                    alt={post.title || 'Blog post'}
                     className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                  <div className="absolute top-0 right-0 bg-white px-3 py-1 m-2 rounded-full text-xs font-semibold text-gray-700">
-                    {post.categories?.[0]}
-                  </div>
+                  {post.categories?.[0] && (
+                    <div className="absolute top-0 right-0 bg-white px-3 py-1 m-2 rounded-full text-xs font-semibold text-gray-700">
+                      {post.categories[0]}
+                    </div>
+                  )}
                 </div>
                 <div className="p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors duration-300">
@@ -98,7 +134,7 @@ export default async function BlogsPage() {
                     </span>
                     <span className="text-gray-500 text-sm flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
-                      {post.estimatedReadingTime} min
+                      {post.estimatedReadingTime || '5'} min
                     </span>
                   </div>
                 </div>
@@ -118,4 +154,3 @@ export default async function BlogsPage() {
     </main>
   );
 }
-
