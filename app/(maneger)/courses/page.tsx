@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { FileUpload } from "@/components/FileUpload";
+import { S3Upload } from '@/components/S3Upload';
 import { Plus, Book, Tag, Clock, Trash2, Upload } from 'lucide-react';
 import {
   createCourse,
@@ -57,6 +57,7 @@ export default function CoursePage() {
   const router = useRouter();
   const { data: session } = useSession();
   const [courses, setCourses] = useState<CourseData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState<{
@@ -88,6 +89,7 @@ export default function CoursePage() {
     }
   };
 
+
   useEffect(() => {
     fetchCourses();
   }, [session?.user?.role]);
@@ -95,6 +97,13 @@ export default function CoursePage() {
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+
+    if (!formData.name || !formData.description) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
+
+    setIsUploading(true);
     try {
       const courseData: Partial<CourseData> = {
         name: formData.name,
@@ -106,7 +115,7 @@ export default function CoursePage() {
           .filter((tag) => tag),
         videos: [],
       };
-  
+
       const result = await createCourse(courseData as CourseData);
       if (result.error) {
         toast.error("Failed to create course");
@@ -116,17 +125,23 @@ export default function CoursePage() {
         toast.success("Course created successfully");
         setIsDialogOpen(false);
         setFormData({ name: '', description: '', thumbnail: '', tags: '' });
-        // Fetch courses again to ensure we have the latest data
-        await fetchCourses();
       }
     } catch (error) {
       toast.error("An error occurred while creating the course");
     } finally {
       setLoading(false);
+      setIsUploading(false);
     }
   };
-  
+
+  const handleUploadComplete = (uploadedFile: string) => {
+    setFormData({ ...formData, thumbnail: uploadedFile });
+  };
   const handleDeleteCourse = async (courseId: string) => {
+    if (!window.confirm("Are you sure you want to delete this course?")) {
+      return;
+    }
+
     try {
       const result = await deleteCourse(courseId);
       if (result.error) {
@@ -139,18 +154,6 @@ export default function CoursePage() {
       toast.error("An error occurred while deleting the course");
     }
   };
-
-  const handleThumbnailUpload = (url: string) => {
-    setFormData(prev => ({ ...prev, thumbnail: url }));
-  };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
-      </div>
-    );
-  }
 
   if (!session || session.user.role !== 'project manager') {
     return (
@@ -207,8 +210,8 @@ export default function CoursePage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Thumbnail</Label>
-                  <FileUpload
-                    onUploadComplete={handleThumbnailUpload}
+                  <S3Upload // Change the component name here to S3Upload
+                    onUploadComplete={handleUploadComplete}
                     currentFile={formData.thumbnail}
                     accept="image/*"
                     uploadType="imageUploader"
@@ -225,8 +228,12 @@ export default function CoursePage() {
                   />
                 </div>
                 <DialogFooter>
-                  <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-                    Create Course
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-blue-600 hover:bg-blue-700" 
+                    disabled={isUploading}
+                  >
+                    {isUploading ? "Uploading..." : "Create Course"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -244,64 +251,60 @@ export default function CoursePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map((course) => (
               <Card
-  key={course._id}
-  className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer flex flex-col h-[450px] p-2"
-  onClick={() => router.push(`/courses/${course._id}`)}
->
-  <div className="relative h-64 w-full rounded-lg overflow-hidden">
-    <Image
-      src={course.thumbnail || DEFAULT_THUMBNAIL}
-      alt={course.name}
-      layout="fill"
-      objectFit="cover"
-      className="rounded-lg"
-    />
-  </div>
+                key={course._id}
+                className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer flex flex-col h-[450px] p-2"
+                onClick={() => router.push(`/courses/${course._id}`)}
+              >
+                <div className="relative h-64 w-full rounded-lg overflow-hidden">
+                  <Image
+                    src={course.thumbnail || DEFAULT_THUMBNAIL}
+                    alt={course.name}
+                    layout="fill"
+                    objectFit="cover"
+                    className="rounded-lg"
+                  />
+                </div>
 
-  <CardHeader className="flex-shrink-0 ">
-    <CardTitle className="text-xl font-semibold text-gray-900 truncate">{course.name}</CardTitle>
-  </CardHeader>
+                <CardHeader className="flex-shrink-0 ">
+                  <CardTitle className="text-xl font-semibold text-gray-900 truncate">{course.name}</CardTitle>
+                </CardHeader>
 
-  <CardContent className="flex-grow flex flex-col justify-between">
-    <p className="text-gray-600 text-sm line-clamp-3 mb-3 truncate">
-      {course.description || "No description available"}
-    </p>
-    <div className="flex flex-wrap gap-1 mt-auto">
-      {course.tags.length > 0 ? (
-        course.tags.map((tag, index) => (
-          <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-            <Tag className="w-3 h-3 mr-1" />
-            {tag}
-          </Badge>
-        ))
-      ) : (
-        <span className="text-gray-500 text-sm">No tags available</span>
-      )}
-    </div>
-  </CardContent>
+                <CardContent className="flex-grow flex flex-col justify-between">
+                  <p className="text-gray-600 text-sm line-clamp-3 mb-3 truncate">
+                    {course.description || "No description available"}
+                  </p>
+                  <div className="flex flex-wrap gap-1 mt-auto">
+                    {course.tags.length > 0 ? (
+                      course.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                          <Tag className="w-3 h-3 mr-1" />
+                          {tag}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-sm">No tags available</span>
+                    )}
+                  </div>
+                </CardContent>
 
-  <CardFooter className="mt-2 flex justify-between items-center text-sm text-gray-500">
-    <div className="flex items-center">
-      <Clock className="w-4 h-4 mr-1" />
-      {new Date(course.created_at).toLocaleDateString()}
-    </div>
-    <Button
-      variant="destructive"
-      size="sm"
-      onClick={(e) => {
-        e.stopPropagation();
-        handleDeleteCourse(course._id);
-      }}
-    >
-      <Trash2 className="w-4 h-4 mr-1" />
-      Delete
-    </Button>
-  </CardFooter>
-</Card>
-
-
-
-
+                <CardFooter className="mt-2 flex justify-between items-center text-sm text-gray-500">
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(course.created_at).toLocaleDateString()}
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCourse(course._id);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
+                </CardFooter>
+              </Card>
             ))}
           </div>
         )}
@@ -309,4 +312,3 @@ export default function CoursePage() {
     </div>
   );
 }
-

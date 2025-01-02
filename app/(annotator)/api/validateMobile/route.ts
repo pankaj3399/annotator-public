@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import { getTask } from "@/app/actions/task";
 import { getAnnotatorByTaskId } from "@/app/actions/annotatorTask";
 import { encode } from "next-auth/jwt";
+export const dynamic = "force-dynamic";  // Force dynamic behavior for this route
 
 export async function GET(req: NextRequest) {
   try {
