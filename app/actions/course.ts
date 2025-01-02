@@ -25,6 +25,7 @@ interface CourseData {
 }
 
 
+
 export async function createCourse(courseData) {
   try {
     await connectToDatabase();
@@ -36,7 +37,7 @@ export async function createCourse(courseData) {
       instructor: session?.user.id,
     });
 
-    return { data: JSON.stringify({ message: `Course created successfully with title ${newCourse.title}` }) };
+    return { data: JSON.stringify(newCourse) };
   } catch (e) {
     console.error(e);
     return { error: "Error while creating the course" };

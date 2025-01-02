@@ -134,9 +134,11 @@ const CourseDetails = () => {
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Clock className="w-4 h-4" />
                             <span>
-                              {video.duration 
-                                ? `${Math.floor(video.duration / 60)}:${(video.duration % 60).toString().padStart(2, '0')}` 
-                                : "Duration N/A"}
+                            {video.duration 
+  ? `${Math.floor(Math.round(video.duration) / 60)}:${(Math.round(video.duration) % 60).toString().padStart(2, '0')}` 
+  : ""}
+
+
                             </span>
                           </div>
                         </div>

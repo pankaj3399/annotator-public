@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlayCircle, Clock, ChevronRight, User, Calendar, Tag } from 'lucide-react';
+import { S3Upload } from '@/components/S3Upload';
 
 const DEFAULT_COURSE_THUMBNAIL = '/courseThumbnail.jpg';
 const DEFAULT_VIDEO_THUMBNAIL = '/videoThumbnail.jpg';
@@ -172,14 +173,17 @@ const CourseDetails = () => {
               </div>
             </div>
             <div className="mt-8 md:mt-0 md:flex-shrink-0">
-              <Image
-                src={course.thumbnail || DEFAULT_COURSE_THUMBNAIL}
-                alt={course.name}
-                width={400}
-                height={220}
-                className="rounded-lg shadow-xl object-cover w-full md:w-auto"
-                style={{ maxHeight: '220px' }}
-              />
+            {course.thumbnail && course.thumbnail !== '/courseThumbnail.jpg' && (
+  <Image
+    src={course.thumbnail}
+    alt={course.name}
+    width={400}
+    height={220}
+    className="rounded-lg shadow-xl object-cover w-full md:w-auto"
+    style={{ maxHeight: '220px' }}
+  />
+)}
+
             </div>
           </div>
         </div>
@@ -222,7 +226,7 @@ const CourseDetails = () => {
                   />
                 </div>
 
-                <FileUpload
+                <S3Upload
                   onUploadComplete={handleVideoUploadComplete}
                   accept="video/*"
                   uploadType="videoUploader"

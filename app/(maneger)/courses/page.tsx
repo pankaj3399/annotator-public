@@ -96,7 +96,6 @@ export default function CoursePage() {
 
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
 
     if (!formData.name || !formData.description) {
       toast.error("Please fill in all fields.");
@@ -120,8 +119,8 @@ export default function CoursePage() {
       if (result.error) {
         toast.error("Failed to create course");
       } else if (result.data) {
-        const newCourse: CourseData = JSON.parse(result.data).course;
-        setCourses((prev) => [...prev, newCourse]);
+        const newCourse = JSON.parse(result.data);
+        setCourses(prevCourses => [...prevCourses, newCourse]);
         toast.success("Course created successfully");
         setIsDialogOpen(false);
         setFormData({ name: '', description: '', thumbnail: '', tags: '' });
@@ -129,7 +128,7 @@ export default function CoursePage() {
     } catch (error) {
       toast.error("An error occurred while creating the course");
     } finally {
-      setLoading(false);
+      // setLoading(false); //Removed as per update 3
       setIsUploading(false);
     }
   };
@@ -312,3 +311,4 @@ export default function CoursePage() {
     </div>
   );
 }
+

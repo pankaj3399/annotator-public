@@ -17,22 +17,21 @@ interface Video {
   duration: number;
 }
 
-interface Instructor{
-  name:string;
+interface Instructor {
+  name: string;
 }
 
 export interface CourseData {
-  _id:string;
+  _id: string;
   name: string;
   description: string;
-  thumbnail: string ;
+  thumbnail: string; // This should be a URL to your image in AWS S3
   tags: string[];
   videos: Video[]; // Make this optional
-  instructor:Instructor;
-  created_at:string;
-  updated_at:string;
+  instructor: Instructor;
+  created_at: string;
+  updated_at: string;
 }
-
 
 const DefaultThumbnail = () => (
   <div className="relative w-full aspect-video bg-slate-100 rounded-t-lg overflow-hidden">
@@ -68,7 +67,7 @@ const CourseList: React.FC<CourseListProps> = ({ courses, onDeleteCourse }) => {
             <div className="relative">
               {course.thumbnail ? (
                 <Image
-                  src={course.thumbnail}
+                  src={course.thumbnail} // This should be the full URL to your AWS S3 image
                   alt={course.name}
                   width={400}
                   height={225}
@@ -143,4 +142,3 @@ const CourseList: React.FC<CourseListProps> = ({ courses, onDeleteCourse }) => {
 };
 
 export default CourseList;
-
