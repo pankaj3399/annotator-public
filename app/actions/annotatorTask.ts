@@ -6,6 +6,8 @@ import Task from "@/models/Task";
 import Rework from "@/models/Rework";
 import mongoose from 'mongoose';
 import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
+import { User } from "@/models/User";
 
 export async function getAnnotatorTasks() {
   try {
@@ -14,7 +16,6 @@ export async function getAnnotatorTasks() {
     const session = await getServerSession(authOptions);
     const annotatorId = session?.user?.id;
 
-    console.log('Annotator ID:', annotatorId); // Debug log
 
     if (!annotatorId) {
       console.log('No annotator ID found'); // Debug log
@@ -286,6 +287,37 @@ export async function getAnnotatorEarnings() {
   } catch (error) {
     console.error('Error in getAnnotatorEarnings:', error);
     return { error: 'Error occurred while calculating earnings' };
+  }
+}
+
+
+export async function getAnnotatorByTaskId(taskId: string) {
+  try {
+    await connectToDatabase();
+    const task = await Task.findById(taskId).select('annotator').exec();
+    if (!task || !task.annotator) {
+      return { error: 'Task or annotator not found' };
+    }
+
+    // Fetch the annotator details
+    const annotator = await User.findById(task.annotator)
+      .select('id name email role') // Include relevant fields
+      .exec();
+
+    if (!annotator) {
+      return { error: 'Annotator details not found' };
+    }
+
+    // Return the annotator details
+    return { data: JSON.stringify({
+      id: annotator.id,
+      name: annotator.name,
+      email: annotator.email,
+      role: annotator.role,
+    }) };
+  } catch (error) {
+    console.error('Error in getAnnotatorByTaskId:', error);
+    return { error: 'Error occurred while fetching the user from taskId' };
   }
 }
 

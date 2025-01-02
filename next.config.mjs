@@ -13,7 +13,7 @@ const nextConfig = {
     },
   },
   images: {
-    domains: ['via.placeholder.com', 'cdn.sanity.io'], // Add Sanity CDN domain here
+    domains: ['via.placeholder.com', 'cdn.sanity.io','annotator-public.s3.ap-south-1.amazonaws.com'], // Add Sanity CDN domain here
   },
 };
 
