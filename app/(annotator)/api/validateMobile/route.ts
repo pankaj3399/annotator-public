@@ -2,23 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { getTask } from "@/app/actions/task";
 import { getAnnotatorByTaskId } from "@/app/actions/annotatorTask";
+import { encode } from "next-auth/jwt";
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // Extract taskId and secretKey from the request
+    // Extract taskId and secretKey from the URL query parameters
     const url = new URL(req.url);
     const taskId = url.searchParams.get("taskId");
-    const secretKey = req.headers.get("secret-key");
+    const secretKey = url.searchParams.get("secret-key");
 
     if (!taskId || !secretKey) {
       return NextResponse.json(
-        {
-          msg: "taskId or secretKey is missing",
-          error: null,
-        },
-        {
-          status: 400,
-        }
+        { msg: "taskId or secretKey is missing" },
+        { status: 400 }
       );
     }
 
@@ -26,13 +22,8 @@ export async function POST(req: NextRequest) {
     const envSecretKey = process.env.MOBILE_SECRET_KEY;
     if (secretKey !== envSecretKey) {
       return NextResponse.json(
-        {
-          msg: "Invalid secret key",
-          error: null,
-        },
-        {
-          status: 401,
-        }
+        { msg: "Invalid secret key" },
+        { status: 401 }
       );
     }
 
@@ -40,61 +31,90 @@ export async function POST(req: NextRequest) {
     const task = await getTask(taskId);
     if (!task) {
       return NextResponse.json(
-        {
-          msg: "No task found for the provided taskId",
-          error: null,
-        },
-        {
-          status: 404,
-        }
+        { msg: "No task found for the provided taskId" },
+        { status: 404 }
       );
     }
 
     // Fetch annotator based on task's annotator field
-    const response = await getAnnotatorByTaskId(taskId);
-    if (response.data) {
-      const annotator = JSON.parse(response.data);
-      if (!annotator) {
-        return NextResponse.json(
-          {
-            msg: "No annotator found for this task",
-            error: null,
-          },
-          {
-            status: 404,
-          }
-        );
-      }
-
-      // Create a JWT token for the annotator
-      const token = jwt.sign(
-        {
-          id: annotator?.data?.id,
-          name: annotator?.data?.name,
-          email: annotator?.data?.email,
-          role: annotator?.data?.role,
-          exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours expiration
-        },
-        process.env.NEXTAUTH_SECRET!
+    const annotatorResponse = await getAnnotatorByTaskId(taskId);
+    if (!annotatorResponse.data) {
+      return NextResponse.json(
+        { msg: "Bad request" },
+        { status: 400 }
       );
-
-      // Set the JWT token in a cookie
-      const cookie = `next-auth.session-token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${24 * 60 * 60}`;
-
-      // Construct the absolute URL for redirection
-      const redirectUrl = `${process.env.NEXTAUTH_URL}/tasks/${taskId}`;
-
-      // Return a successful response with the redirect URL and cookie
-      return NextResponse.redirect(redirectUrl, {
-        headers: {
-          "Set-Cookie": cookie,
-        },
-      });
-    } else {
-      return NextResponse.json({
-        msg: "Bad request",
-      });
     }
+
+    const annotator = JSON.parse(annotatorResponse.data);
+    if (!annotator) {
+      return NextResponse.json(
+        { msg: "No annotator found for this task" },
+        { status: 404 }
+      );
+    }
+
+    // Create session token in NextAuth format with required user information
+    const token = await encode({
+      token: {
+        name: annotator.name,
+        email: annotator.email,
+        sub: annotator.id,
+        id: annotator.id,  // Added to match the session.user.id check
+        role: annotator.role,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
+      },
+      secret: process.env.NEXTAUTH_SECRET!,
+    });
+
+    // Set secure cookie options
+    const cookieOptions = [
+      `next-auth.session-token=${token}`,
+      'Path=/',
+      'HttpOnly',
+      'SameSite=Lax',
+      `Max-Age=${24 * 60 * 60}`,
+    ];
+
+    // Add Secure flag in production
+    if (process.env.NODE_ENV === 'production') {
+      cookieOptions.push('Secure');
+    }
+
+    // Add user session cookie for client-side access
+    const userSession = {
+      user: {
+        id: annotator.id,
+        name: annotator.name,
+        email: annotator.email,
+        role: annotator.role,
+      },
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    const sessionCookieOptions = [
+      `next-auth.session=${encodeURIComponent(JSON.stringify(userSession))}`,
+      'Path=/',
+      'HttpOnly',
+      'SameSite=Lax',
+      `Max-Age=${24 * 60 * 60}`,
+    ];
+
+    if (process.env.NODE_ENV === 'production') {
+      sessionCookieOptions.push('Secure');
+    }
+
+    // Construct redirect URL
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const redirectUrl = new URL(`/task/${taskId}`, baseUrl).toString();
+
+    // Create response with redirect and cookies
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    redirectResponse.headers.append('Set-Cookie', cookieOptions.join('; '));
+    redirectResponse.headers.append('Set-Cookie', sessionCookieOptions.join('; '));
+
+    return redirectResponse;
+
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -102,9 +122,7 @@ export async function POST(req: NextRequest) {
         msg: "Error while processing the request",
         error: error instanceof Error ? error.message : "Unknown error",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }
