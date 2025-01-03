@@ -312,7 +312,23 @@
 					"request": {
 						"method": "GET",
 						"header": [],
-						"url": "{{baseurl}}/api/getAnnotatorTasks"
+						"url": {
+							"raw": "{{baseurl}}/api/getAnnotatorTasks?taskType=",
+							"host": [
+								"{{baseurl}}"
+							],
+							"path": [
+								"api",
+								"getAnnotatorTasks"
+							],
+							"query": [
+								{
+									"key": "taskType",
+									"value": "",
+									"description": "could be: test/training/core"
+								}
+							]
+						}
 					},
 					"response": []
 				},
