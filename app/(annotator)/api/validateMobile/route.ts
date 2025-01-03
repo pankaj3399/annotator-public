@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTask } from "@/app/actions/task";
 import { getAnnotatorByTaskId } from "@/app/actions/annotatorTask";
 import { encode } from "next-auth/jwt";
-export const dynamic = "force-dynamic";  // Force dynamic behavior for this route
+
+export const dynamic = "force-dynamic"; // Force dynamic behavior for this route
 
 export async function GET(req: NextRequest) {
   try {
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
         name: annotator.name,
         email: annotator.email,
         sub: annotator.id,
-        id: annotator.id,  // Added to match the session.user.id check
+        id: annotator.id, // Added to match the session.user.id check
         role: annotator.role,
         iat: Math.floor(Date.now() / 1000),
         exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // 24 hours
@@ -67,18 +68,23 @@ export async function GET(req: NextRequest) {
       secret: process.env.NEXTAUTH_SECRET!,
     });
 
-    // Set secure cookie options
+    // Determine cookie name based on environment
+    const sessionTokenCookieName =
+      process.env.NODE_ENV === "production"
+        ? "__Secure-next-auth.session-token"
+        : "next-auth.session-token";
+
     const cookieOptions = [
-      `next-auth.session-token=${token}`,
-      'Path=/',
-      'HttpOnly',
-      'SameSite=Lax',
+      `${sessionTokenCookieName}=${token}`,
+      "Path=/",
+      "HttpOnly",
+      "SameSite=Lax",
       `Max-Age=${24 * 60 * 60}`,
     ];
 
     // Add Secure flag in production
-    if (process.env.NODE_ENV === 'production') {
-      cookieOptions.push('Secure');
+    if (process.env.NODE_ENV === "production") {
+      cookieOptions.push("Secure");
     }
 
     // Add user session cookie for client-side access
@@ -94,27 +100,29 @@ export async function GET(req: NextRequest) {
 
     const sessionCookieOptions = [
       `next-auth.session=${encodeURIComponent(JSON.stringify(userSession))}`,
-      'Path=/',
-      'HttpOnly',
-      'SameSite=Lax',
+      "Path=/",
+      "HttpOnly",
+      "SameSite=Lax",
       `Max-Age=${24 * 60 * 60}`,
     ];
 
-    if (process.env.NODE_ENV === 'production') {
-      sessionCookieOptions.push('Secure');
+    if (process.env.NODE_ENV === "production") {
+      sessionCookieOptions.push("Secure");
     }
 
     // Construct redirect URL
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const redirectUrl = new URL(`/task/${taskId}`, baseUrl).toString();
 
     // Create response with redirect and cookies
     const redirectResponse = NextResponse.redirect(redirectUrl);
-    redirectResponse.headers.append('Set-Cookie', cookieOptions.join('; '));
-    redirectResponse.headers.append('Set-Cookie', sessionCookieOptions.join('; '));
+    redirectResponse.headers.append("Set-Cookie", cookieOptions.join("; "));
+    redirectResponse.headers.append(
+      "Set-Cookie",
+      sessionCookieOptions.join("; ")
+    );
 
     return redirectResponse;
-
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
