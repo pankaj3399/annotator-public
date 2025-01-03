@@ -1,4 +1,5 @@
 import { authOptions } from "@/auth";
+import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
@@ -12,9 +13,13 @@ export async function GET() {
             status: 403
         });
     }
+    console.log(session.user)
 
     try {
-        const user = await User.findById(session.user.id).select('-password');
+        await connectToDatabase();
+        const user = await User.find({
+            _id:session.user.id
+        }).select('-password');
 
         if (!user) {
             return NextResponse.json({
@@ -24,7 +29,6 @@ export async function GET() {
             });
         }
 
-        console.log(user);
         return NextResponse.json({
             data: user
         }, {
