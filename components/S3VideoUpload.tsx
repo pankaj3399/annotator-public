@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 
-interface VideoProps{
-  onSuccess:(mongoId:string,videoDuration:string)=>void
+interface VideoProps {
+  onSuccess: (mongoId: string,videoDuration:string) => void;
 }
 
-function VideoUploader({onSuccess}:VideoProps) {
+function VideoUploader({ onSuccess }: VideoProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -17,64 +17,26 @@ function VideoUploader({onSuccess}:VideoProps) {
     setLoading(true);
     setError(null);
     setSuccess(false);
-    setProgress("Transcoding video...");
+    setProgress("Uploading and transcoding video...");
 
     try {
-      // Step 1: Send file to transcode API and get mongoId and files
       const formData = new FormData();
       formData.append("file", file);
 
-      const transcodeResponse = await fetch("/api/s3/transcode", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_TRANSCODE_URL}/transcode-and-upload`, {
         method: "POST",
         body: formData,
       });
 
-      const transcodeData = await transcodeResponse.json();
-      if (!transcodeData.success) throw new Error("Failed to convert video");
+      const data = await response.json();
+      console.log(data)
+      if (!data.success) throw new Error("Failed to upload and transcode video");
 
-      const { mongoId, files,videoDuration } = transcodeData;
-      console.log("MongoDB ObjectId:", mongoId);
+      const { mongoId,videoDuration } = data;
       
-      setProgress("Getting upload URLs...");
-
-      // Step 2: Send mongoId and files to video API to get presigned URLs
-      const videoResponse = await fetch("/api/s3/video", {
-        method: "POST",
-        body: JSON.stringify({ mongoId, files }),
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const videoData = await videoResponse.json();
-      if (!videoData.success) throw new Error("Failed to get upload URLs");
-
-      setProgress("Uploading files to S3...");
-
-      // Step 3: Upload files to S3 using presigned URLs
-      for (const file of files) {
-        const presignedUrl = videoData.presignedUrls[file.name];
-        if (!presignedUrl) {
-          console.error(`No presigned URL for file: ${file.name}`);
-          continue;
-        }
-
-        const response = await fetch(presignedUrl, {
-          method: "PUT",
-          body: Buffer.from(file.content, 'base64'),
-          headers: {
-            'Content-Type': file.name.endsWith('.m3u8') 
-              ? 'application/vnd.apple.mpegurl'
-              : 'video/MP2T'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to upload ${file.name}`);
-        }
-      }
-
       setSuccess(true);
-      alert("Video uploaded successfully!");
-      onSuccess(mongoId,videoDuration)
+      alert("Video uploaded and transcoded successfully!");
+      onSuccess(mongoId,videoDuration);
     } catch (error) {
       console.error("Error uploading video:", error);
       setError(error instanceof Error ? error.message : "Failed to upload video");
@@ -124,3 +86,4 @@ function VideoUploader({onSuccess}:VideoProps) {
 }
 
 export default VideoUploader;
+
