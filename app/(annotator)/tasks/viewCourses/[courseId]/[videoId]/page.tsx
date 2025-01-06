@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCourseById } from '@/app/actions/course';
 import { Skeleton } from '@/components/ui/skeleton';
+import Hls from 'hls.js';
 
 interface Video {
   _id: string;
   title: string;
   description: string;
-  url: string;
+  url: string;  // This should be the playlist URL (e.g., `.m3u8`)
   duration: number;
   thumbnail: string;
 }
@@ -35,6 +36,7 @@ const VideoPlayerPage: React.FC = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);  // Video reference for HLS.js
 
   useEffect(() => {
     if (!courseId) return;
@@ -62,6 +64,27 @@ const VideoPlayerPage: React.FC = () => {
     router.push(`/courses/${courseId}/${video._id}`); // Update the URL to reflect the selected video
   };
 
+  useEffect(() => {
+    if (selectedVideo?.url && videoRef.current) {
+      const hls = new Hls();
+      const videoElement = videoRef.current;
+
+      // Bind HLS.js to the video element
+      hls.loadSource(selectedVideo.url); // Use the playlist URL (e.g., `.m3u8`)
+      hls.attachMedia(videoElement);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        console.log('HLS Manifest Loaded');
+      });
+
+      return () => {
+        if (hls) {
+          hls.destroy();  // Clean up HLS.js instance when the component unmounts
+        }
+      };
+    }
+  }, [selectedVideo]);
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -80,12 +103,13 @@ const VideoPlayerPage: React.FC = () => {
         {/* Video Player */}
         <div className="relative w-full bg-black">
           <video
+            ref={videoRef}
             controls
             className="w-full max-w-full"
-            poster={selectedVideo.thumbnail || '/default-video-thumbnail.jpg'}
+            poster=''
           >
-            <source src={selectedVideo.url} type="video/mp4" />
-            Your browser does not support the video tag.
+            {/* Fallback content for browsers that don't support HLS.js */}
+            Your browser does not support HLS streaming.
           </video>
         </div>
         <h2 className="text-2xl font-bold">{selectedVideo.title}</h2>

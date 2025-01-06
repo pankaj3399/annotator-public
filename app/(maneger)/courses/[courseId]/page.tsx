@@ -1,3 +1,5 @@
+// pages/course/[id].tsx
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -8,15 +10,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import Image from 'next/image';
-import { FileUpload } from "@/components/FileUpload";
+import VideoUploader from '@/components/S3VideoUpload';  // Ensure the path is correct
 import { toast } from 'sonner';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlayCircle, Clock, ChevronRight, User, Calendar, Tag } from 'lucide-react';
-import { S3Upload } from '@/components/S3Upload';
+import { PlayCircle, Clock, User, Calendar, Tag } from 'lucide-react';
 
 const DEFAULT_COURSE_THUMBNAIL = '/courseThumbnail.jpg';
 const DEFAULT_VIDEO_THUMBNAIL = '/videoThumbnail.jpg';
@@ -26,7 +27,7 @@ export interface Video {
   title: string;
   description: string;
   url: string;
-  duration: number;
+  duration: string;
 }
 
 export interface Instructor {
@@ -64,6 +65,7 @@ const CourseDetails = () => {
   const [newVideo, setNewVideo] = useState<Video | null>(null);
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
+  const [videoDuration,setVideoDuration]=useState('')
   const [loading, setLoading] = useState(false);  // New state for loading
 
   useEffect(() => {
@@ -79,13 +81,21 @@ const CourseDetails = () => {
     fetchCourse();
   }, [courseId]);
 
-  const handleVideoUploadComplete = (url: string) => {
+  const handleVideoUploadComplete = (mongoId: string,videoDuration:string) => {
+
+    setVideoDuration(videoDuration)
+    // Now, you can update the state with the correct video data
     setNewVideo(prevState => ({
       ...prevState!,
-      url: url,
+      url: `${process.env.NEXT_PUBLIC_S3_BASE_URL}/hls/${mongoId}/playlist.m3u8`,  // Store playlist URL
+      _id: mongoId,
+      duration:videoDuration
     }));
+  
     toast.success('Video uploaded successfully!');
   };
+  
+
 
   const handleAddVideo = async () => {
     if (!newVideo || !videoTitle || !newVideo.url) {
@@ -97,7 +107,7 @@ const CourseDetails = () => {
       ...newVideo,
       title: videoTitle,
       description: videoDescription,
-      duration: 0,
+      duration: videoDuration,
     };
 
     setLoading(true);  // Set loading to true when adding the video
@@ -173,17 +183,16 @@ const CourseDetails = () => {
               </div>
             </div>
             <div className="mt-8 md:mt-0 md:flex-shrink-0">
-            {course.thumbnail && course.thumbnail !== '/courseThumbnail.jpg' && (
-  <Image
-    src={course.thumbnail}
-    alt={course.name}
-    width={400}
-    height={220}
-    className="rounded-lg shadow-xl object-cover w-full md:w-auto"
-    style={{ maxHeight: '220px' }}
-  />
-)}
-
+              {course.thumbnail && course.thumbnail !== '/courseThumbnail.jpg' && (
+                <Image
+                  src={course.thumbnail}
+                  alt={course.name}
+                  width={400}
+                  height={220}
+                  className="rounded-lg shadow-xl object-cover w-full md:w-auto"
+                  style={{ maxHeight: '220px' }}
+                />
+              )}
             </div>
           </div>
         </div>
@@ -226,19 +235,14 @@ const CourseDetails = () => {
                   />
                 </div>
 
-                <S3Upload
-                  onUploadComplete={handleVideoUploadComplete}
-                  accept="video/*"
-                  uploadType="videoUploader"
-                  label="Video"
-                />
+                {/* Video Upload Section */}
+                <VideoUploader onSuccess={handleVideoUploadComplete}/>
               </div>
 
               <DialogFooter>
                 <Button
                   onClick={handleAddVideo}
                   className="w-full bg-blue-600 hover:bg-blue-700"
-                  disabled={loading}  // Disable button during loading
                 >
                   {loading ? 'Processing...' : 'Add Video'}
                 </Button>
@@ -257,31 +261,23 @@ const CourseDetails = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {course.videos.map((video) => (
               <Card key={video._id} className="overflow-hidden hover:shadow-lg transition-shadow duration-300" onClick={() => router.push(`/courses/${course._id}/${video._id}`)}>
-  <div className="relative h-48">
-    <Image
-      src={DEFAULT_VIDEO_THUMBNAIL}
-      alt={video.title}
-      layout="fill"
-      objectFit="cover"
-    />
-    <div className="absolute inset-0 bg-black bg-opacity-30 flex items-center justify-center">
-      <PlayCircle className="w-16 h-16 text-white opacity-75" />
-    </div>
-  </div>
-  <CardHeader>
-    <CardTitle className="text-xl font-semibold line-clamp-2">{video.title}</CardTitle>
-  </CardHeader>
-  <CardContent>
-    <p className="text-gray-600 line-clamp-3">{video.description || "No description available."}</p>
-  </CardContent>
-  <CardFooter className="flex justify-between items-center">
-    <div className="flex items-center text-sm text-gray-500">
-      <Clock className="w-4 h-4 mr-1" />
-      {video.duration ? `${Math.floor(video.duration)} sec` : "Duration N/A"}
-    </div>
-  </CardFooter>
-</Card>
-
+                <div className="relative h-48">
+                  <Image
+                    src={DEFAULT_VIDEO_THUMBNAIL}
+                    alt="Video Thumbnail"
+                    layout="fill"
+                    objectFit="cover"
+                    className="absolute inset-0"
+                  />
+                </div>
+                <CardContent>
+                  <CardTitle>{video.title}</CardTitle>
+                  <p className="text-sm text-gray-600">{video.description}</p>
+                </CardContent>
+                <CardFooter className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Duration: {video.duration} seconds</span>
+                </CardFooter>
+              </Card>
             ))}
           </div>
         )}
