@@ -1049,3 +1049,35 @@ export async function assignReviewer(_id: string, reviewerId: string | null) {
 
 
 
+export async function getReviewerByTaskId(taskId: string) {
+  try {
+    await connectToDatabase();
+    
+    // Find the task by ID and select the reviewer field
+    const task = await Task.findById(taskId).select('reviewer').exec();
+    
+    if (!task || !task.reviewer) {
+      return { error: 'Task or reviewer not found' };
+    }
+
+    // Fetch the reviewer details using the reviewer ID
+    const reviewer = await User.findById(task.reviewer)
+      .select('id name email role') // Include relevant fields
+      .exec();
+
+    if (!reviewer) {
+      return { error: 'Reviewer details not found' };
+    }
+
+    // Return the reviewer details
+    return { data: JSON.stringify({
+      id: reviewer.id,
+      name: reviewer.name,
+      email: reviewer.email,
+      role: reviewer.role,
+    }) };
+  } catch (error) {
+    console.error('Error in getReviewerByTaskId:', error);
+    return { error: 'Error occurred while fetching the reviewer from taskId' };
+  }
+}
