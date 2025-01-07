@@ -56,7 +56,6 @@ export async function POST(req: Request) {
                         Bitrate: 5000000,
                         RateControlMode: "CBR",
                         QualityTuningLevel: "MULTI_PASS_HQ",
-                        CodecLevel: "LEVEL_4_2",
                       },
                     },
                   },
