@@ -81,15 +81,15 @@ const CourseDetails = () => {
     fetchCourse();
   }, [courseId]);
 
-  const handleVideoUploadComplete = (mongoId: string,videoDuration:string) => {
+  const handleVideoUploadComplete = (mongoId: string) => {
 
     setVideoDuration(videoDuration)
     // Now, you can update the state with the correct video data
     setNewVideo(prevState => ({
       ...prevState!,
-      url: `${process.env.NEXT_PUBLIC_S3_BASE_URL}/hls/${mongoId}/playlist.m3u8`,  // Store playlist URL
+      url: `${process.env.NEXT_PUBLIC_S3_BASE_URL}/hls/${mongoId}/${mongoId}.m3u8`,  // Store playlist URL
       _id: mongoId,
-      duration:videoDuration
+      duration:"0"
     }));
   
     toast.success('Video uploaded successfully!');
@@ -275,7 +275,7 @@ const CourseDetails = () => {
                   <p className="text-sm text-gray-600">{video.description}</p>
                 </CardContent>
                 <CardFooter className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Duration: {video.duration} seconds</span>
+                  {/* <span className="text-xs text-gray-500">Duration: {video.duration} seconds</span> */}
                 </CardFooter>
               </Card>
             ))}

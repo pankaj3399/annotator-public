@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 
 interface VideoProps {
-  onSuccess: (mongoId: string,videoDuration:string) => void;
+  onSuccess: (mongoId: string) => void;
 }
 
 function VideoUploader({ onSuccess }: VideoProps) {
@@ -17,26 +17,60 @@ function VideoUploader({ onSuccess }: VideoProps) {
     setLoading(true);
     setError(null);
     setSuccess(false);
-    setProgress("Uploading and transcoding video...");
+    setProgress("Getting presigned URL...");
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_TRANSCODE_URL}/transcode-and-upload`, {
+      // Step 1: Get the presigned URL from the backend
+      const response = await fetch('/api/s3', {
         method: "POST",
-        body: formData,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+        }),
       });
 
       const data = await response.json();
-      console.log(data)
-      if (!data.success) throw new Error("Failed to upload and transcode video");
+      if (!data.success) throw new Error("Failed to get presigned URL");
+      const { url, s3Path,mongoId } = data; // s3Path should be the file path in S3
+      setProgress("Uploading video...");
 
-      const { mongoId,videoDuration } = data;
-      
+      // Step 2: Upload the file directly to S3 using the presigned URL
+      const uploadRes = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type,
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) throw new Error("Failed to upload video to S3");
+
+      setProgress("Starting transcoding...");
+
+      // Step 3: Trigger MediaConvert job after upload
+      const transcodeRes = await fetch('/api/s3/mediaconvert', {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          s3Path,
+          mongoId // Pass the S3 file path to MediaConvert
+        }),
+      });
+
+      const transcodeData = await transcodeRes.json();
+      if (!transcodeData.success) throw new Error("Failed to trigger transcoding");
+
       setSuccess(true);
-      alert("Video uploaded and transcoded successfully!");
-      onSuccess(mongoId,videoDuration);
+      alert("Video uploaded and transcoding started successfully!");
+
+
+      onSuccess(mongoId);
+
     } catch (error) {
       console.error("Error uploading video:", error);
       setError(error instanceof Error ? error.message : "Failed to upload video");
@@ -86,4 +120,3 @@ function VideoUploader({ onSuccess }: VideoProps) {
 }
 
 export default VideoUploader;
-
