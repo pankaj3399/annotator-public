@@ -10,7 +10,7 @@ interface Video {
   title: string;
   description: string;
   url: string;
-  duration: number;
+  duration: string;
 }
 
 interface CourseData {
@@ -107,18 +107,12 @@ export async function updateCourse(courseId: string, updatedData: any) {
   
 
 
-  
   export async function addVideoToCourse(courseId: string, video: Video) {
     try {
       await connectToDatabase();
-  
-      // Get the video duration using ffmpeg
-      const videoDuration = await getVideoDuration(video.url);
       
-      // Add video duration to the video object (assuming 'duration' is a field)
-      video.duration = videoDuration;
-  
-      // Update the course with the new video
+      // Update the course with the new video without the duration
+      console.log(video)
       const updatedCourse = await Course.findByIdAndUpdate(
         courseId,
         {
@@ -137,6 +131,7 @@ export async function updateCourse(courseId: string, updatedData: any) {
       return { error: "Error while adding video to course" };
     }
   }
+  
   
   async function getVideoDuration(url: string): Promise<number> {
     return new Promise((resolve, reject) => {

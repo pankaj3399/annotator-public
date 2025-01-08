@@ -40,7 +40,7 @@ const CourseSchema = new mongoose.Schema({
         required: true 
       }, // URL for the video
       duration:{
-        type:Number,
+        type:String,
         required:false
       }
     }

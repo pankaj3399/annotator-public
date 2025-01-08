@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { getCourseById } from '@/app/actions/course';
 import { Skeleton } from '@/components/ui/skeleton';
+import Hls from 'hls.js';  // Import HLS.js
 
 interface Video {
   _id: string;
@@ -35,6 +36,7 @@ const VideoPlayerPage: React.FC = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);  // Reference to the video element
 
   useEffect(() => {
     if (!courseId) return;
@@ -56,6 +58,27 @@ const VideoPlayerPage: React.FC = () => {
 
     fetchCourseDetails();
   }, [courseId, videoId]);
+
+  useEffect(() => {
+    if (!selectedVideo || !videoRef.current) return;
+
+    const videoElement = videoRef.current;
+    const hls = new Hls();  // Create an HLS.js instance
+
+    if (Hls.isSupported()) {
+      hls.loadSource(selectedVideo.url);  // Load the HLS stream
+      hls.attachMedia(videoElement);  // Attach the video element to HLS.js
+    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+      // If HLS.js is not supported, use the native HLS support for browsers like Safari
+      videoElement.src = selectedVideo.url;
+    }
+
+    return () => {
+      if (hls) {
+        hls.destroy();  // Clean up when the component unmounts
+      }
+    };
+  }, [selectedVideo]);
 
   const handleVideoClick = (video: Video) => {
     setSelectedVideo(video);
@@ -80,11 +103,11 @@ const VideoPlayerPage: React.FC = () => {
         {/* Video Player */}
         <div className="relative w-full bg-black">
           <video
+            ref={videoRef} // Attach the video element to the ref
             controls
             className="w-full max-w-full"
-            poster={selectedVideo.thumbnail || '/default-video-thumbnail.jpg'}
+            poster={ ''}
           >
-            <source src={selectedVideo.url} type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         </div>
