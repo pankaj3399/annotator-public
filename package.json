@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "seed": "node scripts/seed.mjs"
-  },
+"scripts": {
+  "migrate":"node scripts/taskMigration.mjs && node scripts/templateMigration.mjs",
+   "dev": "next dev",
+   "build": "next build",
+   "start": "next start",
+   "lint": "next lint",
+   "seed": "node scripts/seed.mjs"
+}
+,
   "dependencies": {
     "@ai-sdk/anthropic": "^0.0.55",
     "@ai-sdk/google": "^0.0.55",
@@ -114,6 +116,7 @@
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.15",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2"
   }
 }
