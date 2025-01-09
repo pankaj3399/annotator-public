@@ -1094,6 +1094,7 @@ export async function createRepeatTask(
     if (!annotators || annotators.length === 0) {
       throw new Error('No annotators found for this project.');
     }
+    console.log(repeatTasks);
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
