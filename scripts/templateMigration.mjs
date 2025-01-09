@@ -20,7 +20,7 @@ const templateSchema = new mongoose.Schema({
   private: { type: Boolean, default: false },
   testTemplate: { type: Boolean, default: false },
   type: { type: String, enum: ['test', 'training', 'core'], default: 'test' },
-  groundTruthTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: false, default: '' }
+  groundTruthTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task', required: false}
 });
 
 const Template = mongoose.models?.Template || mongoose.model('Template', templateSchema);

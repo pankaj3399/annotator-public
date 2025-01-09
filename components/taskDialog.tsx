@@ -1,6 +1,6 @@
 "use client";
 
-import { createTasks, saveRepeatTasks } from "@/app/actions/task";
+import { createRepeatTask, createTasks, saveRepeatTasks } from "@/app/actions/task";
 import { Project } from "@/app/(maneger)/page";
 import { template } from "@/app/template/page";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ interface FilledTask {
   template:string;
 }
 
-interface RepeatTask {
+export interface RepeatTask {
   project: string;
   name: string;
   content: string;
@@ -81,6 +81,7 @@ interface RepeatTask {
   annotator?: string | null;
   reviewer: string;
   template:string;
+  type:string;
 
 }
 
@@ -800,24 +801,11 @@ export function TaskDialog({
     try {
       const filledTasks: FilledTask[] = [];
       const repeatTasks: RepeatTask[] = [];
+      let repeatTaskCount;
       tasks.forEach((task) => {
         const filled = renderFilledTemplate(task.values);
 
         if (assignToAllAnnotators) {
-          annotators.forEach((annotator) => {
-            const newTask = {
-              project: project._id,
-              name: `${project.name} - ${template.name} - Task${task.id}`,
-              content: filled,
-              timer: template.timer,
-              annotator: annotator._id,
-              reviewer: "",
-              type:template.type,
-              template:template._id
-            };
-            filledTasks.push(newTask);
-          });
-
           repeatTasks.push({
             project: project._id,
             name: `${project.name} - ${template.name} - Task${task.id}`,
@@ -825,7 +813,8 @@ export function TaskDialog({
             timer: template.timer,
             annotator: null,
             reviewer: "",
-            template:template._id
+            template:template._id,
+            type:'test'
           });
         } else {
           for (let i = 0; i < globalRepeat; i++) {
@@ -847,6 +836,14 @@ export function TaskDialog({
       const response = (await createTasks(
         filledTasks
       )) as unknown as CreateTasksResponse;
+      if(assignToAllAnnotators){
+        const createRepeatResponse = await createRepeatTask(repeatTasks)
+        repeatTaskCount=createRepeatResponse.createdTasks
+        if(!createRepeatResponse.success){
+          throw new Error("Failed to save repeat tasks")
+
+        }
+      }
 
       let repeatresponse: SaveTasksResponse | undefined;
       if (assignToAllAnnotators) {
@@ -870,22 +867,18 @@ export function TaskDialog({
         }
       }
 
-      if (
-        assignToAllAnnotators &&
-        response?.success &&
-        repeatresponse?.success
-      ) {
-        const assignments = response.tasks
-          .filter((task) => task.annotator)
-          .map((task) => handleAssignUser(task.annotator!, task._id, false));
-
-        await Promise.all(assignments);
+      if(assignToAllAnnotators){
+        toast({
+          title: "Tasks created successfully",
+          description: `Created ${repeatTaskCount} tasks and ${repeatTasks.length} repeat tasks successfully`,
+        });
       }
-
-      toast({
-        title: "Tasks created successfully",
-        description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
-      });
+      else{
+        toast({
+          title: "Tasks created successfully",
+          description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
+        });
+      }
 
       setTasks([{ id: 1, values: {} }]);
       setGlobalRepeat(1);
