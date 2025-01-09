@@ -14,6 +14,7 @@ const taskRepeatSchema = new Schema({
     enum: ["pending", "accepted", "rejected", "reassigned"],
     default: "pending",
   },
+  type:{type:String,enum:['test','training','core'],default:'test'},
   submitted: { type: Boolean, default: false },
   timeTaken: { type: Number, default: 0 },
   feedback: { type: String, default: "" },

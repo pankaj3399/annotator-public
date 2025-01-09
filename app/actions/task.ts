@@ -15,6 +15,9 @@ import { AIJob } from "@/models/aiModel";
 import { NextResponse } from "next/server";
 import AnnotatorPoints from "@/models/points";
 import AnnotatorHistory from "@/models/points";
+import { getAllAnnotators } from "./annotator";
+import { Annotator, RepeatTask} from "@/components/taskDialog";
+import { Project } from "../(maneger)/page";
 
 
 
@@ -1079,5 +1082,72 @@ export async function getReviewerByTaskId(taskId: string) {
   } catch (error) {
     console.error('Error in getReviewerByTaskId:', error);
     return { error: 'Error occurred while fetching the reviewer from taskId' };
+  }
+}
+export async function createRepeatTask(
+  repeatTasks: RepeatTask[],
+) {
+  try {
+    // Fetch all annotators for the project
+    const response = await getAllAnnotators();
+    const annotators = JSON.parse(response);
+    if (!annotators || annotators.length === 0) {
+      throw new Error('No annotators found for this project.');
+    }
+    console.log(repeatTasks);
+    const session = await getServerSession(authOptions);
+
+    if (!session || !session.user) {
+      throw new Error("Unauthorized");
+    }
+
+    // Create tasks for each annotator based on repeatTasks
+    const tasksToCreate = repeatTasks.flatMap((repeatTask) =>
+      annotators.map((annotator: Annotator) => ({
+        project: repeatTask.project,
+        name: repeatTask.name,  // Use the same name from repeatTasks
+        project_Manager: session.user.id,
+        content: repeatTask.content,
+        timer: repeatTask.timer,
+        annotator: annotator._id,  // Annotator's ID
+        reviewer: repeatTask.reviewer || null,
+        template: repeatTask.template,
+        type: repeatTask.type,
+      }))
+    );
+
+    // Insert tasks into the database
+    const insertResult = await Task.insertMany(tasksToCreate);
+
+    // Assign users to tasks using a function similar to handleAssignUser
+    const assignUserPromises = tasksToCreate.map((task) =>
+      assignUserToTask(task._id, task.annotator)
+    );
+
+    await Promise.all(assignUserPromises);
+
+    // Return the count of created tasks
+    return {
+      success: true,
+      createdTasks: insertResult.length,  // Return the number of tasks created
+      message: 'Repeat tasks created and assigned successfully.',
+    };
+  } catch (error: any) {
+    console.error('Error in createRepeatTask:', error);
+    return {
+      success: false,
+      message: error.message || 'An error occurred.',
+    };
+  }
+}
+
+// Backend function to assign a user to a task (similar to handleAssignUser)
+async function assignUserToTask(taskId: string, annotatorId: string) {
+  try {
+    const res = await changeAnnotator(taskId, annotatorId);
+    return res;
+  } catch (error) {
+    console.error('Error assigning user to task:', error);
+    throw error;
   }
 }
