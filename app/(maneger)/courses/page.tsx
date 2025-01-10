@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from 'next/image';
+import Loader from '@/components/ui/Loader/Loader';
 
 interface Video {
   title: string;
@@ -76,6 +77,8 @@ export default function CoursePage() {
     thumbnail: '',
     tags: '',
   });
+
+  console.log(courses);
 
   const fetchCourses = async () => {
     if (session?.user?.role === 'project manager') {
@@ -157,9 +160,12 @@ export default function CoursePage() {
     }
   };
 
+  console.log(courses);
+
   const handleUploadComplete = (uploadedFile: string) => {
     setFormData({ ...formData, thumbnail: uploadedFile });
   };
+  
 
   const handleDeleteCourse = async (courseId: string) => {
     if (!window.confirm("Are you sure you want to delete this course?")) {
@@ -291,9 +297,7 @@ export default function CoursePage() {
 
         <ScrollArea className="h-[calc(100vh-200px)]">
           {loading ? (
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
+            <Loader></Loader>
           ) : filteredCourses.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg shadow-sm">
               <Book className="mx-auto h-16 w-16 text-gray-400" />
@@ -309,11 +313,9 @@ export default function CoursePage() {
                   onClick={() => router.push(`/courses/${course._id}`)}
                 >
                   <div className="relative h-48 w-full overflow-hidden">
-                    <Image
+                    <img
                       src={course.thumbnail || DEFAULT_THUMBNAIL}
                       alt={course.name}
-                      layout="fill"
-                      objectFit="cover"
                       className="transition-transform duration-300 hover:scale-110"
                     />
                   </div>
