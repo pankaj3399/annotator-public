@@ -78,7 +78,6 @@ export default function CoursePage() {
     tags: '',
   });
 
-  console.log(courses);
 
   const fetchCourses = async () => {
     if (session?.user?.role === 'project manager') {
