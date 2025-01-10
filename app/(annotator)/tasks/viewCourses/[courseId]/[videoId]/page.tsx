@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getCourseById } from '@/app/actions/course';
+import { getCourseById, getCourseByIdAndPublishedVideo } from '@/app/actions/course';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -55,7 +55,7 @@ const VideoPlayerPage: React.FC = () => {
 
     const fetchCourseDetails = async () => {
       try {
-        const response = await getCourseById(courseId);
+        const response = await getCourseByIdAndPublishedVideo(courseId);
         const courseData: Course = JSON.parse(response.data!);
         const selected = courseData.videos.find((video) => video._id === videoId);
         setCourse(courseData);
@@ -80,7 +80,7 @@ const VideoPlayerPage: React.FC = () => {
   }
 
   if (!selectedVideo) {
-    return <div className="p-8">Video not found or invalid course ID.</div>;
+    <Loader></Loader>
   }
 
   return (
@@ -95,14 +95,14 @@ const VideoPlayerPage: React.FC = () => {
             <CardContent className="p-0">
               <div className="relative w-full aspect-video bg-black">
                 <MediaPlayer
-                  src={selectedVideo.url}
+                  src={selectedVideo?.url}
                   viewType="video"
                   streamType="on-demand"
                   logLevel="warn"
                   crossOrigin
                   playsInline
-                  title={selectedVideo.title}
-                  poster={selectedVideo.thumbnail}
+                  title={selectedVideo?.title}
+                  poster={selectedVideo?.thumbnail}
                 >
                   <MediaProvider>
                     <Poster className="vds-poster" />
@@ -131,7 +131,7 @@ const VideoPlayerPage: React.FC = () => {
                   <div
                     key={video._id}
                     className={`p-4 rounded-lg cursor-pointer mb-2 transition-colors duration-200 ${
-                      video._id === selectedVideo._id
+                      video._id === selectedVideo?._id
                         ? 'bg-primary text-primary-foreground'
                         : 'hover:bg-secondary'
                     }`}
@@ -148,10 +148,10 @@ const VideoPlayerPage: React.FC = () => {
           {/* Video Description */}
           <Card className="col-span-2">
             <CardHeader>
-              <CardTitle>{selectedVideo.title}</CardTitle>
+              <CardTitle>{selectedVideo?.title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm">{selectedVideo.description}</p>
+              <p className="text-sm">{selectedVideo?.description}</p>
             </CardContent>
           </Card>
         </div>

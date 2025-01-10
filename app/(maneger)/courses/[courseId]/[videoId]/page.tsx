@@ -89,7 +89,7 @@ const VideoPlayerPage: React.FC = () => {
   }
 
   if (!selectedVideo) {
-    return <div className="p-8">Video not found or invalid course ID.</div>;
+    <Loader></Loader>
   }
 
   return (
@@ -103,13 +103,13 @@ const VideoPlayerPage: React.FC = () => {
             <CardContent className="p-0">
               <div className="relative w-full aspect-video bg-black">
                 <MediaPlayer
-                  src={selectedVideo.url}
+                  src={selectedVideo?.url}
                   viewType="video"
                   streamType="on-demand"
                   logLevel="warn"
                   crossOrigin
                   playsInline
-                  title={selectedVideo.title}
+                  title={selectedVideo?.title}
                 >
                   <MediaProvider />
                   <DefaultVideoLayout icons={defaultLayoutIcons} />
@@ -127,7 +127,7 @@ const VideoPlayerPage: React.FC = () => {
                   <div
                     key={video._id}
                     className={`p-4 rounded-lg cursor-pointer mb-2 transition-colors duration-200 ${
-                      video._id === selectedVideo._id
+                      video._id === selectedVideo?._id
                         ? 'bg-zinc-200'
                         : 'hover:bg-secondary'
                     }`}
@@ -142,10 +142,10 @@ const VideoPlayerPage: React.FC = () => {
           </Card>
           <Card className="col-span-2">
             <CardHeader>
-              <CardTitle>{selectedVideo.title}</CardTitle>
+              <CardTitle>{selectedVideo?.title}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm">{selectedVideo.description}</p>
+              <p className="text-sm">{selectedVideo?.description}</p>
             </CardContent>
           </Card>
         </div>

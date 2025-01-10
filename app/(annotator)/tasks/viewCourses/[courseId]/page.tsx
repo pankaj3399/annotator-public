@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, usePathname } from 'next/navigation';
-import { getCourseById } from '@/app/actions/course';
+import { getCourseById, getCourseByIdAndPublishedVideo } from '@/app/actions/course';
 import { notFound } from 'next/navigation';
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -47,7 +47,7 @@ const CourseDetails = () => {
 
   useEffect(() => {
     const fetchCourse = async () => {
-      const result = await getCourseById(courseId);
+      const result = await getCourseByIdAndPublishedVideo(courseId);
       if (result.error) {
         notFound();
       }

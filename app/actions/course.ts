@@ -105,6 +105,31 @@ export async function updateCourse(courseId: string, updatedData: any) {
     }
   }
   
+  export async function getCourseByIdAndPublishedVideo(courseId: string) {
+    try {
+      await connectToDatabase();
+  
+      // Fetch the course by its ID and populate the instructor
+      const course = await Course.findById(courseId)
+        .populate('instructor', 'name') // Populate the instructor's name
+        .exec();
+  
+      if (!course) {
+        return { error: "Course not found" };
+      }
+  
+      // Filter the videos to include only those where isPublished is true
+      course.videos = course.videos.filter(video => video.isPublished === true);
+  
+      // Return the course with only published videos (structure remains the same)
+      return { data: JSON.stringify(course) };
+    } catch (e) {
+      console.error(e);
+      return { error: "Error while retrieving the course" };
+    }
+  }
+  
+  
 
 
   export async function addVideoToCourse(courseId: string, video: Video) {
@@ -182,5 +207,35 @@ export async function updateCourse(courseId: string, updatedData: any) {
     catch(e){
       console.error(e);
       return {error:"Error while fetching all the projects"}
+    }
+  }
+
+
+  export async function PublishVideo({ courseId, videoId }: { courseId: string, videoId: string }) {
+    try {
+      await connectToDatabase();
+  
+      // Find the course and toggle the isPublished field for the specific video
+      const course = await Course.findById(courseId);
+      if (!course) {
+        return { error: "Course not found" };
+      }
+  
+      // Find the video by its ID
+      const video = course.videos.find(video => video._id.toString() === videoId);
+      if (!video) {
+        return { error: "Video not found" };
+      }
+  
+      // Toggle the isPublished field
+      video.isPublished = video.isPublished === "true" ? "false" : "true"; // Toggle between "true" and "false"
+  
+      // Save the updated course
+      await course.save();
+  
+      return { success: true };
+    } catch (error) {
+      console.error(error);
+      return { error: "An error occurred while updating the video status" };
     }
   }

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { addVideoToCourse, getCourseById } from '@/app/actions/course';
+import { addVideoToCourse, getCourseById, PublishVideo } from '@/app/actions/course';
 import { notFound } from 'next/navigation';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlayCircle, Clock, User, Calendar, Tag, Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from '@/components/ui/switch';
 
 const VIDEO_THUMBNAIL = '/videoThumbnail.jpg';
 
@@ -24,6 +25,7 @@ interface Video {
   description: string;
   url: string;
   duration: string;
+  isPublished: boolean;
 }
 
 interface Instructor {
@@ -60,6 +62,7 @@ const CourseDetails = () => {
   const [videoDescription, setVideoDescription] = useState('');
   const [videoDuration, setVideoDuration] = useState('');
   const [loading, setLoading] = useState(false);
+  const [updatingVideoId, setUpdatingVideoId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -73,13 +76,50 @@ const CourseDetails = () => {
     fetchCourse();
   }, [courseId]);
 
+  const handleUpdatePublishStatus = async (e: React.MouseEvent, videoId: string, currentStatus: boolean) => {
+    e.stopPropagation(); // Prevent the card click event from firing
+    
+    if (updatingVideoId === videoId) return; // Prevent multiple clicks while updating
+    
+    setUpdatingVideoId(videoId);
+    
+    try {
+      const result = await PublishVideo({ courseId, videoId });
+      
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        // Update the local state to reflect the change
+        setCourse(prevCourse => {
+          if (!prevCourse) return null;
+          return {
+            ...prevCourse,
+            videos: prevCourse.videos.map(video => 
+              video._id === videoId 
+                ? { ...video, isPublished: !currentStatus }
+                : video
+            )
+          };
+        });
+        
+        toast.success(`Video ${!currentStatus ? 'published' : 'unpublished'} successfully!`);
+      }
+    } catch (error) {
+      console.error('Error updating video publication status:', error);
+      toast.error('An error occurred while updating the video status.');
+    } finally {
+      setUpdatingVideoId(null);
+    }
+  };
+
   const handleVideoUploadComplete = (mongoId: string) => {
     setVideoDuration(videoDuration);
     setNewVideo(prevState => ({
       ...prevState!,
       url: `${process.env.NEXT_PUBLIC_S3_BASE_URL}/hls/${mongoId}/${mongoId}.m3u8`,
       _id: mongoId,
-      duration: "0"
+      duration: "0",
+      isPublished: false
     }));
     toast.success('Video uploaded successfully!');
   };
@@ -123,6 +163,10 @@ const CourseDetails = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCardClick = (videoId: string) => {
+    router.push(`/courses/${courseId}/${videoId}`);
   };
 
   if (!course) {
@@ -259,89 +303,52 @@ const CourseDetails = () => {
               <PlayCircle className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <h3 className="text-xl font-semibold mb-2">No videos yet</h3>
               <p className="text-gray-500 mb-6">Get started by adding your first video to this course.</p>
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-blue-600 hover:bg-blue-700">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Your First Video
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[600px]">
-                  <DialogHeader>
-                    <DialogTitle>Add a New Video</DialogTitle>
-                    <DialogDescription>
-                      Fill in the details of the new video you want to add to this course.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-6 py-4">
-                    <div className="space-y-2">
-                      <label htmlFor="videoTitle" className="text-sm font-medium">
-                        Video Title
-                      </label>
-                      <Input
-                        id="videoTitle"
-                        value={videoTitle}
-                        onChange={(e) => setVideoTitle(e.target.value)}
-                        placeholder="Enter video title"
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="videoDescription" className="text-sm font-medium">
-                        Video Description
-                      </label>
-                      <Textarea
-                        id="videoDescription"
-                        value={videoDescription}
-                        onChange={(e) => setVideoDescription(e.target.value)}
-                        placeholder="Enter video description"
-                        className="w-full"
-                        rows={4}
-                      />
-                    </div>
-                    <VideoUploader onSuccess={handleVideoUploadComplete} />
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={handleAddVideo} disabled={loading}>
-                      {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      {loading ? 'Adding...' : 'Add Video'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
             </CardContent>
           </Card>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {course.videos.map((video) => (
-                <Card
-                  key={video._id}
-                  className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer bg-white"
-                  onClick={() => router.push(`/courses/${course._id}/${video._id}`)}
-                >
-                  <div className="relative aspect-video">
-                    <Image
-                      src={VIDEO_THUMBNAIL}
-                      alt={video.title}
-                      layout="fill"
-                      objectFit="cover"
-                      className="transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <PlayCircle className="w-12 h-12 text-white" />
-                    </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {course.videos.map((video) => (
+              <Card
+                key={video._id}
+                className="group overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer bg-white"
+                onClick={() => handleCardClick(video._id)}
+              >
+                <div className="relative aspect-video">
+                  <Image
+                    src={VIDEO_THUMBNAIL}
+                    alt={video.title}
+                    layout="fill"
+                    objectFit="cover"
+                    className="transition-transform duration-300"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <PlayCircle className="w-12 h-12 text-white" />
                   </div>
-                  <CardContent className="p-4">
+                </div>
+                <CardContent className="p-4 flex justify-between items-center">
+                  <div>
                     <h3 className="font-semibold text-lg mb-2 line-clamp-2">
                       {video.title}
                     </h3>
                     <p className="text-gray-600 text-sm line-clamp-2">
                       {video.description}
                     </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </div>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Switch
+                      checked={video.isPublished}
+                      disabled={updatingVideoId === video._id}
+                      onCheckedChange={(checked) => {
+                        const e = { stopPropagation: () => {} } as React.MouseEvent;
+                        handleUpdatePublishStatus(e, video._id, video.isPublished);
+                      }}
+                      className="ml-4"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
     </div>
