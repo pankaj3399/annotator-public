@@ -66,7 +66,6 @@ function VideoUploader({ onSuccess }: VideoProps) {
       if (!transcodeData.success) throw new Error("Failed to trigger transcoding");
 
       setSuccess(true);
-      alert("Video uploaded and transcoding started successfully!");
 
 
       onSuccess(mongoId);

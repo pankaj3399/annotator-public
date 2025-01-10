@@ -128,7 +128,7 @@ const VideoPlayerPage: React.FC = () => {
                     key={video._id}
                     className={`p-4 rounded-lg cursor-pointer mb-2 transition-colors duration-200 ${
                       video._id === selectedVideo._id
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'bg-zinc-200'
                         : 'hover:bg-secondary'
                     }`}
                     onClick={() => handleVideoClick(video)}

@@ -312,7 +312,6 @@ const CourseDetails = () => {
             </CardContent>
           </Card>
         ) : (
-          <ScrollArea className="h-[calc(100vh-400px)]">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {course.videos.map((video) => (
                 <Card
@@ -343,7 +342,6 @@ const CourseDetails = () => {
                 </Card>
               ))}
             </div>
-          </ScrollArea>
         )}
       </div>
     </div>
