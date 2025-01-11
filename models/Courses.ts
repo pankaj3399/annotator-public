@@ -10,6 +10,7 @@ const CourseSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
+
   instructor: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
@@ -42,7 +43,12 @@ const CourseSchema = new mongoose.Schema({
       duration:{
         type:String,
         required:false
-      }
+      },
+      isPublished:{
+        type:Boolean,
+        required:true,
+        default:false
+      },
     }
   ],
   created_at: { 

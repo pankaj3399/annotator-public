@@ -6,7 +6,8 @@ import { getCourses } from '@/app/actions/course';
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, BookOpen, Clock, User, ChevronRight, Bookmark, Filter } from 'lucide-react';
+import { Search, BookOpen, Clock, User, ChevronRight, Bookmark, Sparkles } from 'lucide-react';
+import Loader from '@/components/ui/Loader/Loader';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
@@ -68,26 +69,32 @@ export default function CoursePage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
+        <Loader></Loader>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       {/* Hero Section */}
-      <div className="relative bg-blue-600">
+      <div className="relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute inset-0 bg-[url('/courseThumbnail.jpg')] bg-cover bg-center opacity-90 mix-blend-overlay"></div>
-          <div className="absolute inset-0 bg-blue-600/80"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-700 to-blue-500/90"></div>
         </div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="max-w-3xl">
-            <h1 className="text-5xl font-bold text-white mb-6 leading-tight">
+            <div className="flex items-center gap-2 mb-6">
+              <Badge className="bg-blue-400/20 text-white border-0 backdrop-blur-sm">
+                <Sparkles className="w-4 h-4 mr-1" />
+                Featured Courses
+              </Badge>
+            </div>
+            <h1 className="text-6xl font-bold text-white mb-6 leading-tight">
               Discover Your Next
-              <span className="block text-blue-200">Learning Adventure</span>
+              <span className="block bg-gradient-to-r from-blue-200 to-white bg-clip-text text-transparent">
+                Learning Adventure
+              </span>
             </h1>
             <p className="text-xl text-blue-100 leading-relaxed">
               Embark on a journey of knowledge with our expert-crafted courses designed to transform your skills and advance your career.
@@ -97,67 +104,70 @@ export default function CoursePage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        {/* Search and Filter Section */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-12">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="relative flex-grow">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <Input
-                type="text"
-                placeholder="Search courses by name, description, or tags..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 rounded-lg border-gray-200 focus:border-blue-300 focus:ring-blue-300"
-              />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16 relative z-10">
+        {/* Search Section */}
+        <Card className="bg-white/80 backdrop-blur-lg shadow-xl rounded-2xl border-0 mb-12">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative flex-grow">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <Input
+                  type="text"
+                  placeholder="Search courses by name, description, or tags..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-xl border-gray-200 focus:border-blue-300 focus:ring-blue-300 bg-white/50"
+                />
+              </div>
             </div>
-            <button className="flex items-center gap-2 px-4 py-3 text-gray-600 hover:text-blue-600 transition-colors">
-              <Filter className="w-5 h-5" />
-              <span className="hidden md:inline">Filters</span>
-            </button>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="flex flex-wrap gap-6 mt-6 pt-6 border-t border-gray-100">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-blue-600" />
-              <span className="text-gray-600">{courses.length} Courses Available</span>
+
+            {/* Quick Stats */}
+            <div className="flex flex-wrap gap-6 mt-6 pt-6 border-t border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-gray-600 font-medium">{courses.length} Courses Available</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <Clock className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-gray-600 font-medium">Updated Weekly</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-blue-600" />
-              <span className="text-gray-600">Updated Recently</span>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Course Grid */}
         {filteredCourses.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl shadow">
+          <div className="text-center py-16 bg-white rounded-xl shadow-lg">
             <h3 className="text-2xl font-semibold text-gray-700 mb-2">No courses found</h3>
             <p className="text-gray-500">Try adjusting your search terms or browse all courses</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-16">
             {filteredCourses.map((course) => (
               <Card 
                 key={course._id} 
-                className="group cursor-pointer bg-white hover:bg-blue-50 transition-all duration-300 border-0 shadow-md hover:shadow-lg rounded-xl overflow-hidden"
+                className="group cursor-pointer bg-white hover:bg-blue-50 transition-all duration-300 border-0 shadow-lg hover:shadow-xl rounded-2xl overflow-hidden transform hover:-translate-y-1"
                 onClick={() => handleCourseClick(course._id)}
               >
-                <div className="relative h-48">
+                <div className="relative h-56">
                   <Image
                     src={course.thumbnail || '/videoThumbnail.jpg'}
                     alt={course.name}
                     layout="fill"
                     objectFit="cover"
+                    className="transition-transform duration-300"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                   <div className="absolute top-4 right-4">
-                    <Badge className="bg-blue-600 text-white px-3 py-1">
+                    <Badge className="bg-blue-600/90 backdrop-blur-sm text-white px-3 py-1 text-sm font-medium">
                       {course.duration || "Self-paced"}
                     </Badge>
                   </div>
-                  <button className="absolute top-4 left-4 p-2 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors">
+                  <button className="absolute top-4 left-4 p-2 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors group-hover:scale-110">
                     <Bookmark className="w-5 h-5 text-white" />
                   </button>
                 </div>
@@ -175,7 +185,7 @@ export default function CoursePage() {
                       <Badge 
                         key={index} 
                         variant="secondary" 
-                        className="bg-blue-50 text-blue-700 px-2 py-0.5 text-xs"
+                        className="bg-blue-50 text-blue-700 px-2 py-0.5 text-xs font-medium"
                       >
                         {tag}
                       </Badge>
@@ -183,11 +193,15 @@ export default function CoursePage() {
                   </div>
                   
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <User className="w-4 h-4 mr-2 text-blue-600" />
-                      <span>{course.instructor.name}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                        <User className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">{course.instructor.name}</span>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-blue-600" />
+                    <div className="p-2 rounded-full bg-blue-50 group-hover:bg-blue-100 transition-colors">
+                      <ChevronRight className="w-5 h-5 text-blue-600" />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

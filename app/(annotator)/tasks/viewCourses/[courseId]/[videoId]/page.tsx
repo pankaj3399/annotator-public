@@ -1,16 +1,23 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { getCourseById } from '@/app/actions/course';
-import { Skeleton } from '@/components/ui/skeleton';
-import Hls from 'hls.js';
+import { getCourseById, getCourseByIdAndPublishedVideo } from '@/app/actions/course';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2 } from 'lucide-react';
+import '@vidstack/react/player/styles/default/theme.css';
+import '@vidstack/react/player/styles/default/layouts/audio.css';
+import '@vidstack/react/player/styles/default/layouts/video.css';
+import { MediaPlayer, MediaProvider, Poster, Track } from "@vidstack/react";
+import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/layouts/default';
 
 interface Video {
   _id: string;
   title: string;
   description: string;
-  url: string;  // This should be the playlist URL (e.g., `.m3u8`)
+  url: string;
   duration: number;
   thumbnail: string;
 }
@@ -27,6 +34,12 @@ interface Course {
   updated_at: string;
 }
 
+const Loader = () => (
+  <div className="flex justify-center items-center min-h-screen">
+    <Loader2 className="h-8 w-8 animate-spin" />
+  </div>
+);
+
 const VideoPlayerPage: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -36,19 +49,17 @@ const VideoPlayerPage: React.FC = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const videoRef = useRef<HTMLVideoElement | null>(null);  // Video reference for HLS.js
 
   useEffect(() => {
     if (!courseId) return;
 
     const fetchCourseDetails = async () => {
       try {
-        const response = await getCourseById(courseId);
+        const response = await getCourseByIdAndPublishedVideo(courseId);
         const courseData: Course = JSON.parse(response.data!);
-
         const selected = courseData.videos.find((video) => video._id === videoId);
         setCourse(courseData);
-        setSelectedVideo(selected || courseData.videos[0]); // Default to the first video if no match
+        setSelectedVideo(selected || courseData.videos[0]);
       } catch (error) {
         console.error('Error fetching course details:', error);
       } finally {
@@ -61,79 +72,88 @@ const VideoPlayerPage: React.FC = () => {
 
   const handleVideoClick = (video: Video) => {
     setSelectedVideo(video);
-    router.push(`/courses/${courseId}/${video._id}`); // Update the URL to reflect the selected video
+    router.push(`/tasks/viewCourses/${courseId}/${video._id}`);
   };
 
-  useEffect(() => {
-    if (selectedVideo?.url && videoRef.current) {
-      const hls = new Hls();
-      const videoElement = videoRef.current;
-
-      // Bind HLS.js to the video element
-      hls.loadSource(selectedVideo.url); // Use the playlist URL (e.g., `.m3u8`)
-      hls.attachMedia(videoElement);
-
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log('HLS Manifest Loaded');
-      });
-
-      return () => {
-        if (hls) {
-          hls.destroy();  // Clean up HLS.js instance when the component unmounts
-        }
-      };
-    }
-  }, [selectedVideo]);
-
   if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <Loader />;
   }
 
   if (!selectedVideo) {
-    return <div className="p-8">Video not found or invalid course ID.</div>;
+    <Loader></Loader>
   }
 
   return (
-    <div className="flex flex-col md:flex-row p-8 space-y-6 md:space-y-0 md:space-x-6">
-      <div className="flex-1 space-y-4">
-        {/* Video Player */}
-        <div className="relative w-full bg-black">
-          <video
-            ref={videoRef}
-            controls
-            className="w-full max-w-full"
-            poster=''
-          >
-            {/* Fallback content for browsers that don't support HLS.js */}
-            Your browser does not support HLS streaming.
-          </video>
+    <div className="min-h-screen bg-white text-gray-900">
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">{course?.name}</h1>
         </div>
-        <h2 className="text-2xl font-bold">{selectedVideo.title}</h2>
-        <p className="text-lg">{selectedVideo.description}</p>
-      </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Video Player */}
+          <Card className="col-span-2">
+            <CardContent className="p-0">
+              <div className="relative w-full aspect-video bg-black">
+                <MediaPlayer
+                  src={selectedVideo?.url}
+                  viewType="video"
+                  streamType="on-demand"
+                  logLevel="warn"
+                  crossOrigin
+                  playsInline
+                  title={selectedVideo?.title}
+                  poster={selectedVideo?.thumbnail}
+                >
+                  <MediaProvider>
+                    <Poster className="vds-poster" />
+                    {/* You can add text tracks if necessary */}
+                    {/* {textTracks.map(track => (
+                      <Track {...track} key={track.src} />
+                    ))} */}
+                  </MediaProvider>
+                  <DefaultVideoLayout
+                    thumbnails="https://files.vidstack.io/sprite-fight/thumbnails.vtt"
+                    icons={defaultLayoutIcons}
+                  />
+                </MediaPlayer>
+              </div>
+            </CardContent>
+          </Card>
 
-      <div className="w-full md:w-96">
-        {/* Video List */}
-        <h3 className="text-lg font-bold mb-4">Other Videos in the Course</h3>
-        <div className="space-y-4">
-          {course?.videos.map((video) => (
-            <div
-              key={video._id}
-              className={`p-4 rounded-lg cursor-pointer border ${
-                video._id === selectedVideo._id
-                  ? 'bg-gray-200 border-gray-400'
-                  : 'hover:bg-gray-100 border-gray-300'
-              }`}
-              onClick={() => handleVideoClick(video)}
-            >
-              <h4 className="font-semibold text-lg">{video.title}</h4>
-              <p className="text-sm text-gray-600 mt-1">{video.description}</p>
-            </div>
-          ))}
+          {/* Course Content */}
+          <Card className="lg:row-span-2">
+            <CardHeader>
+              <CardTitle>Course Content</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[calc(100vh-300px)]">
+                {course?.videos.map((video) => (
+                  <div
+                    key={video._id}
+                    className={`p-4 rounded-lg cursor-pointer mb-2 transition-colors duration-200 ${
+                      video._id === selectedVideo?._id
+                        ? 'bg-primary text-primary-foreground'
+                        : 'hover:bg-secondary'
+                    }`}
+                    onClick={() => handleVideoClick(video)}
+                  >
+                    <h4 className="font-semibold">{video.title}</h4>
+                    <p className="text-sm mt-1 line-clamp-2">{video.description}</p>
+                  </div>
+                ))}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Video Description */}
+          <Card className="col-span-2">
+            <CardHeader>
+              <CardTitle>{selectedVideo?.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm">{selectedVideo?.description}</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

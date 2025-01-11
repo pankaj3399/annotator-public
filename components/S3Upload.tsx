@@ -24,7 +24,7 @@ export function S3Upload({
       setUploading(true);
 
       // Step 1: Get the signed URL from the API route
-      const response = await fetch("/api/s3", {
+      const response = await fetch("/api/s3/photo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
