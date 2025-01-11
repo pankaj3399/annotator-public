@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from '@/components/ui/switch';
 
 const VIDEO_THUMBNAIL = '/videoThumbnail.jpg';
+const DEFAULT_THUMBNAIL = '/courseThumbnail.jpg';
 
 interface Video {
   _id: string;
@@ -223,14 +224,12 @@ const CourseDetails = () => {
             </div>
 
             <div className="md:w-1/3">
-              {course.thumbnail && course.thumbnail !== '/courseThumbnail.jpg' ? (
-                <Image
-                  src={course.thumbnail}
-                  alt={course.name}
-                  width={400}
-                  height={225}
-                  className="rounded-xl shadow-lg object-cover w-full"
-                />
+              {course.thumbnail ? (
+                    <img
+                    src={course.thumbnail || DEFAULT_THUMBNAIL}
+                    alt={course.name}
+                    className="transition-transform duration-300 hover:scale-110 rounded-sm  w-96 h-48 object-cover"
+                  />
               ) : (
                 <div className="bg-gray-100 rounded-xl w-full aspect-video flex items-center justify-center">
                   <PlayCircle className="w-16 h-16 text-gray-400" />

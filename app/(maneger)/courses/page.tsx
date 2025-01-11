@@ -159,7 +159,6 @@ export default function CoursePage() {
     }
   };
 
-  console.log(courses);
 
   const handleUploadComplete = (uploadedFile: string) => {
     setFormData({ ...formData, thumbnail: uploadedFile });
