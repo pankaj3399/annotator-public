@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "migrate": "node scripts/taskMigration.mjs && node scripts/templateMigration.mjs",
-    "migrate:repeat": "node scripts/repeatTypeMigration.mjs",
+    "migrate:repeat": "node scripts/repeatTypeMigration.mjs && node scripts/repeatTypeMigrationForTemplate.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
