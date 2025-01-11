@@ -154,13 +154,11 @@ export default function CoursePage() {
                 onClick={() => handleCourseClick(course._id)}
               >
                 <div className="relative h-56">
-                  <Image
-                    src={course.thumbnail || '/videoThumbnail.jpg'}
-                    alt={course.name}
-                    layout="fill"
-                    objectFit="cover"
-                    className="transition-transform duration-300"
-                  />
+                <img
+                src={course.thumbnail || '/courseThumbnail.jpg'}
+                alt={course.name}
+                className="w-full h-full object-cover"
+              />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
                   <div className="absolute top-4 right-4">
                     <Badge className="bg-blue-600/90 backdrop-blur-sm text-white px-3 py-1 text-sm font-medium">
