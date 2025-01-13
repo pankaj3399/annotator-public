@@ -47,6 +47,7 @@ export interface CourseData {
   name: string;
   description: string;
   thumbnail: string;
+  price: number;
   tags: string[];
   videos: Video[];
   instructor: Instructor;
@@ -71,11 +72,13 @@ export default function CoursePage() {
     description: string;
     thumbnail: string;
     tags: string;
+    price: number;
   }>({
     name: '',
     description: '',
     thumbnail: '',
     tags: '',
+    price: 0,
   });
 
 
@@ -140,6 +143,7 @@ export default function CoursePage() {
           .map((tag) => tag.trim())
           .filter((tag) => tag),
         videos: [],
+        price: formData.price
       };
 
       const result = await createCourse(courseData as CourseData);
@@ -150,7 +154,7 @@ export default function CoursePage() {
         setCourses(prevCourses => [...prevCourses, newCourse]);
         toast.success("Course created successfully");
         setIsDialogOpen(false);
-        setFormData({ name: '', description: '', thumbnail: '', tags: '' });
+        setFormData({ name: '', description: '', thumbnail: '', tags: '', price: 0 });
       }
     } catch (error) {
       toast.error("An error occurred while creating the course");
@@ -201,9 +205,7 @@ export default function CoursePage() {
     <div className="min-h-screen bg-white p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-          <h1 className="text-4xl font-bold text-gray-900">
-            Your Courses
-          </h1>
+          <h1 className="text-4xl font-bold text-gray-900">Your Courses</h1>
           <div className="flex items-center gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -235,7 +237,8 @@ export default function CoursePage() {
                 <DialogHeader>
                   <DialogTitle>Create New Course</DialogTitle>
                   <DialogDescription>
-                    Fill in the details below to create a new course. Don't forget to add a thumbnail!
+                    Fill in the details below to create a new course. Don't
+                    forget to add a thumbnail!
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateCourse} className="space-y-6">
@@ -244,7 +247,9 @@ export default function CoursePage() {
                     <Input
                       id="name"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       placeholder="Enter course name"
                       required
                     />
@@ -254,7 +259,12 @@ export default function CoursePage() {
                     <Textarea
                       id="description"
                       value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          description: e.target.value,
+                        })
+                      }
                       placeholder="Enter course description"
                       required
                     />
@@ -274,14 +284,27 @@ export default function CoursePage() {
                     <Input
                       id="tags"
                       value={formData.tags}
-                      onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, tags: e.target.value })
+                      }
+                      placeholder="Enter tags (comma-separated)"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Price</Label>
+                    <Input
+                      id="tags"
+                      value={formData.price}
+                      onChange={(e) =>
+                        setFormData({ ...formData, price: parseInt(e.target.value) })
+                      }
                       placeholder="Enter tags (comma-separated)"
                     />
                   </div>
                   <DialogFooter>
-                    <Button 
-                      type="submit" 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white" 
+                    <Button
+                      type="submit"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                       disabled={isUploading}
                     >
                       {isUploading ? "Uploading..." : "Create Course"}
@@ -299,8 +322,12 @@ export default function CoursePage() {
           ) : filteredCourses.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-lg shadow-sm">
               <Book className="mx-auto h-16 w-16 text-gray-400" />
-              <h3 className="mt-4 text-xl font-semibold text-gray-900">No courses found</h3>
-              <p className="mt-2 text-gray-500">Get started by creating a new course or try a different search.</p>
+              <h3 className="mt-4 text-xl font-semibold text-gray-900">
+                No courses found
+              </h3>
+              <p className="mt-2 text-gray-500">
+                Get started by creating a new course or try a different search.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -319,7 +346,9 @@ export default function CoursePage() {
                   </div>
 
                   <CardHeader className="flex-shrink-0 pb-2">
-                    <CardTitle className="text-xl font-semibold text-gray-900 truncate">{course.name}</CardTitle>
+                    <CardTitle className="text-xl font-semibold text-gray-900 truncate">
+                      {course.name}
+                    </CardTitle>
                   </CardHeader>
 
                   <CardContent className="flex-grow flex flex-col justify-between py-2">
@@ -329,13 +358,19 @@ export default function CoursePage() {
                     <div className="flex flex-wrap gap-2 mt-auto">
                       {course.tags.length > 0 ? (
                         course.tags.map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                          >
                             <Tag className="w-3 h-3 mr-1" />
                             {tag}
                           </Badge>
                         ))
                       ) : (
-                        <span className="text-gray-500 text-sm">No tags available</span>
+                        <span className="text-gray-500 text-sm">
+                          No tags available
+                        </span>
                       )}
                     </div>
                   </CardContent>

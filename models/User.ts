@@ -29,9 +29,9 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
-    isReadyToWork:{
-      type:Boolean,
-      default:false
+    isReadyToWork: {
+      type: Boolean,
+      default: false,
     },
     lang: [
       {
@@ -49,6 +49,12 @@ const userSchema = new Schema(
       ref: "Invitation",
       default: null,
     },
+    enrolledCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "EnrolledCourse",
+      },
+    ],
     linkedin: {
       type: String,
       default: null,
