@@ -456,7 +456,37 @@
 						"url": "{{baseurl}}/api/users/profile/id"
 					},
 					"response": []
-				}
+				}, {
+					"name": "Upload File",
+					"request": {
+					  "method": "POST",
+					  "header": [
+						{
+						  "key": "Cookie",
+						  "value": "next-auth.session-token={{sessionToken}}",
+						  "type": "text"
+						}
+					  ],
+					  "body": {
+						"mode": "formdata",
+						"formdata": [
+						  {
+							"key": "file",
+							"type": "file",
+							"src": []
+						  },
+						  {
+							"key": "type",
+							"value": "nda",
+							"description": "Allowed values: resume, nda",
+							"type": "text"
+						  }
+						]
+					  },
+					  "url": "{{baseurl}}/api/upload/{{userId}}"
+					},
+					"response": []
+				  }
 			]
 		},
 		{
