@@ -291,16 +291,32 @@ export default function CoursePage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="price">Price</Label>
-                    <Input
-                      id="tags"
-                      value={formData.price}
-                      onChange={(e) =>
-                        setFormData({ ...formData, price: parseInt(e.target.value) })
-                      }
-                      placeholder="Enter tags (comma-separated)"
-                    />
+                    <Label
+                      htmlFor="price"
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      Price
+                    </Label>
+                    <div className="relative mt-1">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                        $
+                      </span>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={formData.price || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            price: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        className="pl-7 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                        placeholder="Enter price"
+                      />
+                    </div>
                   </div>
+
                   <DialogFooter>
                     <Button
                       type="submit"
@@ -350,28 +366,35 @@ export default function CoursePage() {
                       {course.name}
                     </CardTitle>
                   </CardHeader>
-
                   <CardContent className="flex-grow flex flex-col justify-between py-2">
                     <p className="text-gray-600 text-sm line-clamp-3 mb-3">
                       {course.description || "No description available"}
                     </p>
-                    <div className="flex flex-wrap gap-2 mt-auto">
+                    <div className="flex flex-wrap gap-2 mt-auto items-center justify-between">
+                      {/* Tags Section */}
                       {course.tags.length > 0 ? (
-                        course.tags.map((tag, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                          >
-                            <Tag className="w-3 h-3 mr-1" />
-                            {tag}
-                          </Badge>
-                        ))
+                        <div className="flex flex-wrap gap-2">
+                          {course.tags.map((tag, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                            >
+                              <Tag className="w-3 h-3 mr-1" />
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-gray-500 text-sm">
                           No tags available
                         </span>
                       )}
+
+                      {/* Price Section */}
+                      <div className="ml-auto text-gray-900 font-medium text-sm">
+                        ${course.price || "0.00"}
+                      </div>
                     </div>
                   </CardContent>
 

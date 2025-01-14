@@ -64,6 +64,13 @@ export function getMenuList(pathname: string): Group[] {
             icon:Folder,
             submenus:[]
           },
+          {
+            href: '/tasks/myCourses',
+            label:'My Courses',
+            active:  pathname.includes('/myCourses'),
+            icon:Folder,
+            submenus:[]
+          }
         ],
       },
       {

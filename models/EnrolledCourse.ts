@@ -20,6 +20,14 @@ const EnrolledCourseSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  paymentIntent: {
+    type: String,
+    required: true,
+  },
+  amountPaid: {
+    type: Number,
+    required: true,
+  },
   enrollmentDate: {
     type: Date,
     default: Date.now,

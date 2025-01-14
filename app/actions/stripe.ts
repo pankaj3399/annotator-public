@@ -28,8 +28,8 @@ export async function stripe(data: any) {
       },
     ],
     mode: "payment",
-    success_url: `http://localhost:3000/`,
-    // cancel_url: `http://localhost:3000/cancel?booking_id=${data.bookingId}`,
+    success_url: `${process.env.NEXTAUTH_URL}/tasks/myCourses`,
+    cancel_url: `${process.env.NEXTAUTH_URL}/tasks/viewCourses?payment=cancelled`,
     metadata: {
       courseId: data.id,
     },

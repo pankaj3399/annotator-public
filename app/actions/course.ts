@@ -284,6 +284,8 @@ export const enrollCourse = async (data: any) => {
       course: data.courseId,
       enrollmentStatus: "active",
       certificateIssued: false,
+      paymentIntent: data.payment_intent,
+      amountPaid: data.price,
     });
 
     // Save to database
