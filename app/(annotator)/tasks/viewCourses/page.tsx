@@ -102,7 +102,8 @@ export default function CoursePage() {
   }, [searchTerm, courses]);
 
   const handleCourseClick = (courseId: string) => {
-    router.push(`/tasks/viewCourses/${courseId}`);
+    // router.push(`/tasks/viewCourses/${courseId}`);
+
   };
 
   const handleEnrollClick = async (course: any) => {
@@ -112,6 +113,7 @@ export default function CoursePage() {
         name: course.name,
         price: parseFloat(course.price),
       };
+      console.log(stripeData);
       //@ts-ignore
       const { url, session } = await stripe(stripeData);
       if (url) {
@@ -216,7 +218,7 @@ console.log(enrolledCourses);
             {filteredCourses.map((course) => (
               <Card
                 className="group cursor-pointer bg-white hover:bg-blue-50 transition-all duration-300 border-0 shadow-lg hover:shadow-xl rounded-2xl overflow-hidden transform hover:-translate-y-1"
-                onClick={() => handleCourseClick(course._id)}
+                onClick={() => handleEnrollClick(course)}
               >
                 <div className="relative h-56">
                   <img

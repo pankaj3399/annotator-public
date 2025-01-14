@@ -1,4 +1,6 @@
 "use server";
+import { authOptions } from "@/auth";
+import { getServerSession } from "next-auth";
 import Stripe from "stripe";
 
 interface PaymentData {
@@ -9,6 +11,12 @@ interface PaymentData {
 }
 
 export async function stripe(data: any) {
+
+  const authSession = await getServerSession(authOptions);
+  if (!authSession?.user?.id) {
+    return { error: "You need to be logged in to make a payment" };
+  }
+
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2024-12-18.acacia",
   });
@@ -28,10 +36,11 @@ export async function stripe(data: any) {
       },
     ],
     mode: "payment",
-    success_url: `/tasks/myCourses`,
-    cancel_url: `/tasks/viewCourses?payment=cancelled`,
+    success_url: `${process.env.NEXTAUTH_URL}/tasks/myCourses`,
+    cancel_url: `${process.env.NEXTAUTH_URL}/tasks/viewCourses?payment=cancelled`,
     metadata: {
       courseId: data.id,
+      userEmail: authSession?.user?.id,
     },
     payment_intent_data: {
       shipping: {

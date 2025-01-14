@@ -247,14 +247,16 @@ export async function PublishVideo({
 }
 
 export const enrollCourse = async (data: any) => {
-  const { courseId, customerEmail } = data;
+  const { courseId, userId } = data;
   // Get session and immediately check for user
 
   try {
     await connectToDatabase();
 
-    const user = await User.findOne({ email: customerEmail });
 
+    console.log(data);
+    const user = await User.findById(userId);
+console.log(user);
     if (!user) {
       return { error: "User not found enter valid customerEmail in stripe" };
     }
