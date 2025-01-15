@@ -62,6 +62,7 @@ const CourseDetails = () => {
   const [videoTitle, setVideoTitle] = useState('');
   const [videoDescription, setVideoDescription] = useState('');
   const [videoDuration, setVideoDuration] = useState('');
+  const [videoInstructor, setVideoInstructor] = useState('');
   const [loading, setLoading] = useState(false);
   const [updatingVideoId, setUpdatingVideoId] = useState<string | null>(null);
 
@@ -136,6 +137,7 @@ const CourseDetails = () => {
       title: videoTitle,
       description: videoDescription,
       duration: videoDuration,
+      instructor: videoInstructor,
     };
 
     setLoading(true);
@@ -156,6 +158,7 @@ const CourseDetails = () => {
       setVideoTitle('');
       setVideoDescription('');
       setNewVideo(null);
+      setVideoInstructor('');
       setIsDialogOpen(false);
       toast.success('Video added successfully!');
     } catch (error) {
@@ -183,24 +186,26 @@ const CourseDetails = () => {
       {/* Hero Section */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-8">
-          <Button 
-            variant="ghost" 
-            className="mb-6" 
+          <Button
+            variant="ghost"
+            className="mb-6"
             onClick={() => router.back()}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Courses
           </Button>
-          
+
           <div className="flex flex-col md:flex-row gap-8">
             <div className="md:w-2/3">
               <h1 className="text-4xl font-bold mb-4">{course.name}</h1>
               <p className="text-lg text-gray-600 mb-6">{course.description}</p>
-              
+
               <div className="flex flex-wrap gap-6 mb-6">
                 <div className="flex items-center">
                   <User className="w-5 h-5 mr-2 text-blue-600" />
-                  <span className="text-gray-700">{course.instructor.name}</span>
+                  <span className="text-gray-700">
+                    {course.instructor.name}
+                  </span>
                 </div>
                 <div className="flex items-center">
                   <Calendar className="w-5 h-5 mr-2 text-blue-600" />
@@ -210,7 +215,9 @@ const CourseDetails = () => {
                 </div>
                 <div className="flex items-center">
                   <PlayCircle className="w-5 h-5 mr-2 text-blue-600" />
-                  <span className="text-gray-700">{course.videos.length} videos</span>
+                  <span className="text-gray-700">
+                    {course.videos.length} videos
+                  </span>
                 </div>
               </div>
 
@@ -225,11 +232,11 @@ const CourseDetails = () => {
 
             <div className="md:w-1/3">
               {course.thumbnail ? (
-                    <img
-                    src={course.thumbnail || DEFAULT_THUMBNAIL}
-                    alt={course.name}
-                    className="transition-transform duration-300 hover:scale-110 rounded-sm  w-96 h-48 object-cover"
-                  />
+                <img
+                  src={course.thumbnail || DEFAULT_THUMBNAIL}
+                  alt={course.name}
+                  className="transition-transform duration-300 hover:scale-110 rounded-sm  w-96 h-48 object-cover"
+                />
               ) : (
                 <div className="bg-gray-100 rounded-xl w-full aspect-video flex items-center justify-center">
                   <PlayCircle className="w-16 h-16 text-gray-400" />
@@ -255,7 +262,8 @@ const CourseDetails = () => {
               <DialogHeader>
                 <DialogTitle>Add a New Video</DialogTitle>
                 <DialogDescription>
-                  Fill in the details of the new video you want to add to this course.
+                  Fill in the details of the new video you want to add to this
+                  course.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-6 py-4">
@@ -272,7 +280,25 @@ const CourseDetails = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="videoDescription" className="text-sm font-medium">
+                  <label
+                    htmlFor="videoInstructor"
+                    className="text-sm font-medium"
+                  >
+                    Video Instructor
+                  </label>
+                  <Input
+                    id="instructor"
+                    value={videoInstructor}
+                    onChange={(e) => setVideoInstructor(e.target.value)}
+                    placeholder="Enter video instructor name"
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label
+                    htmlFor="videoDescription"
+                    className="text-sm font-medium"
+                  >
                     Video Description
                   </label>
                   <Textarea
@@ -289,7 +315,7 @@ const CourseDetails = () => {
               <DialogFooter>
                 <Button onClick={handleAddVideo} disabled={loading}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {loading ? 'Adding...' : 'Add Video'}
+                  {loading ? "Adding..." : "Add Video"}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -301,7 +327,9 @@ const CourseDetails = () => {
             <CardContent>
               <PlayCircle className="mx-auto h-16 w-16 text-gray-400 mb-4" />
               <h3 className="text-xl font-semibold mb-2">No videos yet</h3>
-              <p className="text-gray-500 mb-6">Get started by adding your first video to this course.</p>
+              <p className="text-gray-500 mb-6">
+                Get started by adding your first video to this course.
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -338,8 +366,14 @@ const CourseDetails = () => {
                       checked={video.isPublished}
                       disabled={updatingVideoId === video._id}
                       onCheckedChange={(checked) => {
-                        const e = { stopPropagation: () => {} } as React.MouseEvent;
-                        handleUpdatePublishStatus(e, video._id, video.isPublished);
+                        const e = {
+                          stopPropagation: () => {},
+                        } as React.MouseEvent;
+                        handleUpdatePublishStatus(
+                          e,
+                          video._id,
+                          video.isPublished
+                        );
                       }}
                       className="ml-4"
                     />

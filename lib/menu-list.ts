@@ -12,6 +12,7 @@ import {
   Settings,
   Bell,
   BarChart,
+  GraduationCap,
 } from "lucide-react";
 
 type Submenu = {
@@ -34,152 +35,164 @@ type Group = {
 };
 
 export function getMenuList(pathname: string): Group[] {
-  const projectId = pathname.split("/")[pathname.split("/").length - 1];
-  const fpath = pathname.split("/")[1];
+    const projectId = pathname.split("/")[pathname.split("/").length - 1];
+    const fpath = pathname.split("/")[1];
 
-  // For tasks path
-  if (fpath === "tasks") {
-    return [
-      {
-        groupLabel: "",
-        menus: [
-          {
-            href: "/tasks/annotatorDashboard",
-            label: "Dashboard",
-            active: pathname.includes("/annotatorDashboard"),
-            icon: LayoutGrid,
-            submenus: [],
-          },
-          {
-            href: "/tasks/chat",
-            label: "Chat",
-            active: pathname.includes("/chat"),
-            icon: MessageCircle,
-            submenus: [],
-          },
-          {
-            href: '/tasks/viewCourses',
-            label:' View Courses',
-            active:  pathname.includes('/viewCourses'),
-            icon:Folder,
-            submenus:[]
-          },
-          {
-            href: '/tasks/myCourses',
-            label:'My Courses',
-            active:  pathname.includes('/myCourses'),
-            icon:Folder,
-            submenus:[]
-          }
-        ],
-      },
-      {
-        groupLabel: "Contents",
-        menus: [
-          {
-            href: "/tasks",
-            label: "Projects",
-            active:
-              pathname.includes("/tasks") &&
-              !pathname.includes("/tasks/all") &&
-              !pathname.includes('/viewCourses')&&
-              !pathname.includes("/annotatorDashboard"),
-            icon: Folder,
-          },
-          {
-            href: "/tasks/all",
-            label: "All Tasks",
-            active: pathname === "/tasks/all",
-            icon: ClipboardList,
-          },
-          {
-            href: "/tasks/review",
-            label: "Review Tasks",
-            active: pathname.includes("/tasks/review"),
-            icon: SquarePen,
-          },
-        ],
-      },
-      {
-        groupLabel: "User",
-        menus: [
-          {
-            href: "/tasks/profile",
-            label: "Profile",
-            active: false,
-            icon: User,
-          },
-        ],
-      },
-    ];
-  }
+    // For tasks path
+    if (fpath === "tasks") {
+      return [
+        {
+          groupLabel: "",
+          menus: [
+            {
+              href: "/tasks/annotatorDashboard",
+              label: "Dashboard",
+              active: pathname.includes("/annotatorDashboard"),
+              icon: LayoutGrid,
+              submenus: [],
+            },
+            {
+              href: "/tasks/chat",
+              label: "Chat",
+              active: pathname.includes("/chat"),
+              icon: MessageCircle,
+              submenus: [],
+            },
+          ],
+        },
+        {
+          groupLabel: "AI Academy",
+          menus: [
+            {
+              href: "/tasks/viewCourses",
+              label: "View Courses",
+              active: pathname.includes("/viewCourses"),
+              icon: GraduationCap,
+              submenus: [],
+            },
+            {
+              href: "/tasks/myCourses",
+              label: "My Courses",
+              active: pathname.includes("/myCourses"),
+              icon: GraduationCap,
+              submenus: [],
+            },
+          ],
+        },
+        {
+          groupLabel: "Contents",
+          menus: [
+            {
+              href: "/tasks",
+              label: "Projects",
+              active:
+                pathname.includes("/tasks") &&
+                !pathname.includes("/tasks/all") &&
+                !pathname.includes("/viewCourses") &&
+                !pathname.includes("/annotatorDashboard"),
+              icon: Folder,
+            },
+            {
+              href: "/tasks/all",
+              label: "All Tasks",
+              active: pathname === "/tasks/all",
+              icon: ClipboardList,
+            },
+            {
+              href: "/tasks/review",
+              label: "Review Tasks",
+              active: pathname.includes("/tasks/review"),
+              icon: SquarePen,
+            },
+          ],
+        },
 
-  // For home page, courses pages, or top-level pages
-  if (
-    projectId == "" ||
-    projectId == "dashboard" ||
-    projectId == "annotator" ||
-    projectId == "chat" ||
-    projectId == "profile" ||
-    fpath == "courses"  // Changed to check first path segment for courses
-  ) {
-    return [
-      {
-        groupLabel: "",
-        menus: [
-          {
-            href: "/dashboard",
-            label: "Dashboard",
-            active: pathname.includes("/dashboard"),
-            icon: LayoutGrid,
-            submenus: [],
-          },
-          {
-            href: "/annotator",
-            label: "Expert",
-            active: pathname.includes("/annotator"),
-            icon: BookUser,
-            submenus: [],
-          },
-          {
-            href: "/chat",
-            label: "Chat",
-            active: pathname.includes("/chat"),
-            icon: MessageCircle,
-            submenus: [],
-          },
-        ],
-      },
-      {
-        groupLabel: "Contents",
-        menus: [
-          {
-            href: "/",
-            label: "Projects",
-            active: pathname === "/",
-            icon: Folder,
-          },
-          {
-            href: '/courses',
-            label: "Courses",
-            active: pathname.startsWith('/courses'),  // Changed to handle all course paths
-            icon: Folder
-          }
-        ],
-      },
-      {
-        groupLabel: "User",
-        menus: [
-          {
-            href: "/projects/profile",
-            label: "Profile",
-            active: false,
-            icon: User,
-          },
-        ],
-      },
-    ];
-  }
+        {
+          groupLabel: "User",
+          menus: [
+            {
+              href: "/tasks/profile",
+              label: "Profile",
+              active: false,
+              icon: User,
+            },
+          ],
+        },
+      ];
+    }
+
+    // For home page, courses pages, or top-level pages
+    if (
+      projectId == "" ||
+      projectId == "dashboard" ||
+      projectId == "annotator" ||
+      projectId == "chat" ||
+      projectId == "profile" ||
+      fpath == "courses"
+    ) {
+      return [
+        {
+          groupLabel: "",
+          menus: [
+            {
+              href: "/dashboard",
+              label: "Dashboard",
+              active: pathname.includes("/dashboard"),
+              icon: LayoutGrid,
+              submenus: [],
+            },
+            {
+              href: "/annotator",
+              label: "Expert",
+              active: pathname.includes("/annotator"),
+              icon: BookUser,
+              submenus: [],
+            },
+            {
+              href: "/chat",
+              label: "Chat",
+              active: pathname.includes("/chat"),
+              icon: MessageCircle,
+              submenus: [],
+            },
+          ],
+        },
+        {
+          groupLabel: "Contents",
+          menus: [
+            {
+              href: "/",
+              label: "Projects",
+              active: pathname === "/",
+              icon: Folder,
+            },
+          ],
+        },
+        {
+          groupLabel: "AI Academy",
+          menus: [
+            {
+              href: "/courses",
+              label: "Courses",
+              active: pathname.startsWith("/courses"),
+              icon: GraduationCap,
+            },
+          ],
+        },
+        {
+          groupLabel: "User",
+          menus: [
+            {
+              href: "/projects/profile",
+              label: "Profile",
+              active: false,
+              icon: User,
+            },
+          ],
+        },
+      ];
+    }
+
 
   // Default menu structure for project context
   const menu = [
@@ -239,6 +252,7 @@ export function getMenuList(pathname: string): Group[] {
         },
       ],
     },
+    
     {
       groupLabel: "Analytics",
       menus: [
