@@ -2,7 +2,11 @@
 
 import React, { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { enrollCourse, getCourses, getEnrolledCourses } from "@/app/actions/course";
+import {
+  enrollCourse,
+  getCourses,
+  getEnrolledCourses,
+} from "@/app/actions/course";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +50,7 @@ export default function CoursePage() {
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
 
-  const searchParams = useSearchParams(); 
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Check for payment status in URL parameters
@@ -77,7 +81,6 @@ export default function CoursePage() {
         } else if (enrolledResult.data) {
           // Directly set the data since it's already serialized
           setEnrolledCourses(enrolledResult.data);
-
         }
       } catch (error) {
         toast.error("An error occurred while fetching courses");
@@ -103,7 +106,6 @@ export default function CoursePage() {
 
   const handleCourseClick = (courseId: string) => {
     // router.push(`/tasks/viewCourses/${courseId}`);
-
   };
 
   const handleEnrollClick = async (course: any) => {
@@ -128,7 +130,7 @@ export default function CoursePage() {
     return <Loader></Loader>;
   }
 
-console.log(enrolledCourses);
+  console.log(enrolledCourses);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -216,10 +218,7 @@ console.log(enrolledCourses);
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-16">
             {filteredCourses.map((course) => (
-              <Card
-                className="group cursor-pointer bg-white hover:bg-blue-50 transition-all duration-300 border-0 shadow-lg hover:shadow-xl rounded-2xl overflow-hidden transform hover:-translate-y-1"
-                onClick={() => handleEnrollClick(course)}
-              >
+              <Card className="group cursor-pointer bg-white hover:bg-blue-50 transition-all duration-300 border-0 shadow-lg hover:shadow-xl rounded-2xl overflow-hidden transform hover:-translate-y-1">
                 <div className="relative h-56">
                   <img
                     src={course.thumbnail || "/courseThumbnail.jpg"}
@@ -268,19 +267,6 @@ console.log(enrolledCourses);
                     </Button>
                   )}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-600" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">
-                        {course.instructor?.name || "" }
-                      </span>
-                    </div>
-                    <div className="p-2 rounded-full bg-blue-50 group-hover:bg-blue-100 transition-colors">
-                      <ChevronRight className="w-5 h-5 text-blue-600" />
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             ))}

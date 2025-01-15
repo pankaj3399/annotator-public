@@ -14,6 +14,9 @@ import {
   BarChart,
   GraduationCap,
 } from "lucide-react";
+import bookIcon from "@/public/static/book.png"; 
+import { BookIcon } from "@/components/BookIcon";
+
 
 type Submenu = {
   href: string;
@@ -25,7 +28,7 @@ type Menu = {
   href: string;
   label: string;
   active: boolean;
-  icon: LucideIcon;
+  icon: LucideIcon | any;
   submenus?: Submenu[];
 };
 
@@ -67,14 +70,14 @@ export function getMenuList(pathname: string): Group[] {
               href: "/tasks/viewCourses",
               label: "View Courses",
               active: pathname.includes("/viewCourses"),
-              icon: GraduationCap,
+              icon: BookIcon,
               submenus: [],
             },
             {
               href: "/tasks/myCourses",
               label: "My Courses",
               active: pathname.includes("/myCourses"),
-              icon: GraduationCap,
+              icon: BookIcon,
               submenus: [],
             },
           ],

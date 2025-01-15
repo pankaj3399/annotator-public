@@ -62,7 +62,7 @@ const CourseDetails: React.FC = () => {
 
   const handleVideoClick = (videoId: string): void => {
     setActiveVideoId(videoId);
-    router.push(`/tasks/viewCourses/${courseId}/${videoId}`);
+    router.push(`/tasks/myCourses/${courseId}/${videoId}`);
   };
 
   const formatDuration = (duration: number): string => {

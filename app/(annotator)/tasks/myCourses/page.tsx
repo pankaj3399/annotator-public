@@ -187,7 +187,9 @@ export default function EnrolledCoursesPage() {
                       {enrolled.course.duration || "Self-paced"}
                     </Badge>
                   </div>
-                  <div className="absolute bottom-4 left-4 right-4">
+                  {/* progress bar */}
+                  
+                  {/* <div className="absolute bottom-4 left-4 right-4">
                     <div className="w-full bg-white/20 rounded-full h-2">
                       <div
                         className="bg-green-400 h-2 rounded-full"
@@ -197,7 +199,7 @@ export default function EnrolledCoursesPage() {
                     <p className="text-white text-sm mt-2">
                       {enrolled.progress || 0}% Complete
                     </p>
-                  </div>
+                  </div> */}
                 </div>
 
                 <CardContent className="p-6">
@@ -220,19 +222,7 @@ export default function EnrolledCoursesPage() {
                     ))}
                   </div> */}
 
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-600" />
-                      </div>
-                      {/* <span className="text-sm font-medium text-gray-700">
-                        {enrolled.course.instructor.name}
-                      </span> */}
-                    </div>
-                    <div className="p-2 rounded-full bg-blue-50 group-hover:bg-blue-100 transition-colors">
-                      <ChevronRight className="w-5 h-5 text-blue-600" />
-                    </div>
-                  </div>
+
                 </CardContent>
               </Card>
             ))}
