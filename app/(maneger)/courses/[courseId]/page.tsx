@@ -27,6 +27,7 @@ interface Video {
   url: string;
   duration: string;
   isPublished: boolean;
+  instructor: string;
 }
 
 interface Instructor {
@@ -202,12 +203,6 @@ const CourseDetails = () => {
 
               <div className="flex flex-wrap gap-6 mb-6">
                 <div className="flex items-center">
-                  <User className="w-5 h-5 mr-2 text-blue-600" />
-                  <span className="text-gray-700">
-                    {course.instructor.name}
-                  </span>
-                </div>
-                <div className="flex items-center">
                   <Calendar className="w-5 h-5 mr-2 text-blue-600" />
                   <span className="text-gray-700">
                     Updated {new Date(course.updated_at).toLocaleDateString()}
@@ -352,31 +347,40 @@ const CourseDetails = () => {
                     <PlayCircle className="w-12 h-12 text-white" />
                   </div>
                 </div>
-                <CardContent className="p-4 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                      {video.title}
-                    </h3>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-semibold text-lg line-clamp-2">
+                        {video.title}
+                      </h3>
+                      <div onClick={(e) => e.stopPropagation()} className='gap-3 my-1'> 
+                        <Switch
+                          checked={video.isPublished}
+                          disabled={updatingVideoId === video._id}
+                          onCheckedChange={(checked) => {
+                            const e = {
+                              stopPropagation: () => {},
+                            } as React.MouseEvent;
+                            handleUpdatePublishStatus(
+                              e,
+                              video._id,
+                              video.isPublished
+                            );
+                          }}
+                        />
+                      </div>
+                    </div>
+
                     <p className="text-gray-600 text-sm line-clamp-2">
                       {video.description}
                     </p>
-                  </div>
-                  <div onClick={(e) => e.stopPropagation()}>
-                    <Switch
-                      checked={video.isPublished}
-                      disabled={updatingVideoId === video._id}
-                      onCheckedChange={(checked) => {
-                        const e = {
-                          stopPropagation: () => {},
-                        } as React.MouseEvent;
-                        handleUpdatePublishStatus(
-                          e,
-                          video._id,
-                          video.isPublished
-                        );
-                      }}
-                      className="ml-4"
-                    />
+
+                    <div className="flex items-center gap-2 pt-2">
+                      <User className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-700">
+                        {video.instructor || ""}
+                      </span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
