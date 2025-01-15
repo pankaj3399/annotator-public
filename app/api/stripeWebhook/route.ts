@@ -1,60 +1,119 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { enrollCourse } from "@/app/actions/course";
+import { headers } from "next/headers";
 
+// Initialize Stripe with proper typing for the secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2024-12-18.acacia",
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-console.log("endpointSecret", endpointSecret);
+console.log(endpointSecret);
 
 export async function POST(req: NextRequest) {
-  const body = await req.text();
-  const sig = req.headers.get("stripe-signature") as string;
-
-  console.log("init")
-
-  let event: Stripe.Event;
-
   try {
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: `Webhook Error: ${err.message}` },
-      { status: 400 }
-    );
-  }
+    const body = await req.text();
+    const headersList = headers();
+    const sig = headersList.get("stripe-signature");
 
-  // Handle the event
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const courseId = session.metadata?.courseId;
-    const price = session.amount_total;
-    const customerEmail = session.customer_details?.email;
-
-    console.log(session)
-
-    console.log("Course ID:", courseId, price, customerEmail);
-
-    let response;
-
-    try {
-      if (session.payment_status === "paid") {
-        const status = await enrollCourse({ courseId, customerEmail });
-        console.log("Enrollment status:", status);
-        response = status
-    }
-    return NextResponse.json({ received: true, status: response });
-    } catch (error) {
-      console.error("Error saving payment details:", error);
+    if (!sig) {
       return NextResponse.json(
-        { error: "Failed to save payment details" },
-        { status: 500 }
+        { error: "No signature found" },
+        { status: 400 }
       );
     }
-  }
 
-  return NextResponse.json({ received: true });
+    let event: Stripe.Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    } catch (err: any) {
+      console.error("Webhook signature verification failed:", err.message);
+      return NextResponse.json(
+        { error: `Webhook Error: ${err.message}` },
+        { status: 400 }
+      );
+    }
+
+    // Handle the event
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const successSession = event.data.object as Stripe.Checkout.Session;
+        const courseId = successSession.metadata?.courseId;
+        const price = successSession.amount_total;
+        const userId = successSession.metadata?.userEmail;
+        const payment_intent = successSession.payment_intent as string;
+
+        if (!courseId || !userId) {
+          throw new Error("Missing required session data");
+        }
+
+        console.log({ courseId, userId, payment_intent, price });
+
+        try {
+          if (successSession.payment_status === "paid" ) {
+            const status = await enrollCourse({
+              courseId,
+              userId,
+              payment_intent,
+              price,
+            });
+
+            console.log("Enrollment status:", status);
+            return NextResponse.json({ received: true, status });
+          }
+        } catch (error) {
+          console.error("Error saving payment details:", error);
+          return NextResponse.json(
+            { error: "Failed to save payment details" },
+            { status: 500 }
+          );
+        }
+        break;
+      }
+
+      case "payment_intent.payment_failed": {
+        const failedPayment = event.data.object as Stripe.PaymentIntent;
+        const failureMessage =
+          failedPayment.last_payment_error?.message || "Payment failed";
+
+        // Return error response instead of redirect
+        return NextResponse.json({
+          received: true,
+          status: "failed",
+          message: failureMessage,
+        });
+      }
+
+      case "checkout.session.expired": {
+        return NextResponse.json({
+          received: true,
+          status: "expired",
+          message: "Session expired",
+        });
+      }
+
+      case "payment_intent.canceled": {
+        return NextResponse.json({
+          received: true,
+          status: "canceled",
+          message: "Payment canceled",
+        });
+      }
+
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+        return NextResponse.json({ received: true });
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error("Webhook handler error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
