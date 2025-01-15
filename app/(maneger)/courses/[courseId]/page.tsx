@@ -353,7 +353,7 @@ const CourseDetails = () => {
                       <h3 className="font-semibold text-lg line-clamp-2">
                         {video.title}
                       </h3>
-                      <div onClick={(e) => e.stopPropagation()} className='gap-3 my-1'> 
+                      <div onClick={(e) => e.stopPropagation()} className='gap-2 my-1'> 
                         <Switch
                           checked={video.isPublished}
                           disabled={updatingVideoId === video._id}
