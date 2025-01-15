@@ -53,6 +53,10 @@ const CourseSchema = new mongoose.Schema({
         required: true,
         default: false,
       },
+      instructor: {
+        type: String,
+        required: true,
+      }, // Individual video instructor
     },
   ],
   created_at: {

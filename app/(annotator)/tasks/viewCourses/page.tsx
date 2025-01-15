@@ -274,7 +274,7 @@ console.log(enrolledCourses);
                         <User className="w-4 h-4 text-blue-600" />
                       </div>
                       <span className="text-sm font-medium text-gray-700">
-                        {course.instructor.name}
+                        {course.instructor?.name || "" }
                       </span>
                     </div>
                     <div className="p-2 rounded-full bg-blue-50 group-hover:bg-blue-100 transition-colors">

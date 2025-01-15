@@ -72,7 +72,7 @@ const VideoPlayerPage: React.FC = () => {
 
   const handleVideoClick = (video: Video) => {
     setSelectedVideo(video);
-    router.push(`/tasks/viewCourses/${courseId}/${video._id}`);
+    router.push(`/tasks/myCourses/${courseId}/${video._id}`);
   };
 
   if (loading) {
