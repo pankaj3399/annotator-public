@@ -70,7 +70,7 @@ export function getMenuList(pathname: string): Group[] {
               href: "/tasks/viewCourses",
               label: "View Courses",
               active: pathname.includes("/viewCourses"),
-              icon: BookIcon,
+              icon: GraduationCap,
               submenus: [],
             },
             {
