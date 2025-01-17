@@ -41,10 +41,16 @@ export default function AuthPageComponent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", {
+      const result = await signIn("google", {
         callbackUrl: "/",
         redirect: true,
-      });
+      });    if (result?.error) {
+        toast({
+          variant: "destructive",
+          title: "Authentication failed",
+          description: "Failed to sign in with Google. Please try again.",
+        });
+      }
     } catch (error) {
       toast({
         variant: "destructive",
