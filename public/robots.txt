@@ -1,18 +1,12 @@
 # *
 User-agent: *
 Allow: /
-Allow: /about
-Disallow: /api/*
-Disallow: /auth/*
-Disallow: /dashboard/*
-Disallow: /admin/*
-Disallow: /(manager)/*
-Disallow: /(annotator)/*
-Disallow: /profile/*
-Disallow: /*.json$
+Allow: /blogs
+Allow: /blogs/*
+Disallow: *
 
 # Host
-Host: http://localhost:3000/
+Host: http://localhost:3001/
 
 # Sitemaps
-Sitemap: http://localhost:3000/sitemap.xml
+Sitemap: http://localhost:3001/sitemap.xml

@@ -21,16 +21,10 @@ export const getPublicPages = () => {
       priority: 1,
     },
     {
-      url: `${baseUrl}/courses`,
-      lastModified: new Date(),
-      changeFrequency: 'daily' as ChangeFreq,
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/about`,
+      url: `${baseUrl}/blogs`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as ChangeFreq,
-      priority: 0.7,
+      priority: 0.8,
     },
   ];
 };
