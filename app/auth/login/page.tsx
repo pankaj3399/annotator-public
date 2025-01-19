@@ -6,12 +6,18 @@ import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function AuthPageComponent() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  // Handle hydration mismatch by waiting for client-side mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,14 +30,12 @@ export default function AuthPageComponent() {
 
     if (res?.ok) {
       router.push("/");
-      console.log("Login successful");
     } else {
       toast({
         title: "Invalid login credentials",
         description: "Please check your email and password and try again.",
         variant: "destructive",
       });
-      console.log("Invalid login credentials");
     }
   };
 
@@ -40,8 +44,7 @@ export default function AuthPageComponent() {
       const result = await signIn("google", {
         callbackUrl: "/",
         redirect: true,
-      });
-
+      }); 
       if (result?.error) {
         toast({
           variant: "destructive",
