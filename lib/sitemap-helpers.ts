@@ -1,6 +1,5 @@
 import { cache } from 'react';
 import mongoose from 'mongoose';
-import { CourseDocument } from '@/types';
 
 type ChangeFreq = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
 
@@ -21,7 +20,7 @@ export const getPublicPages = () => {
       priority: 1,
     },
     {
-      url: `${baseUrl}/blogs`,
+      url: `${baseUrl}blogs`,
       lastModified: new Date(),
       changeFrequency: 'monthly' as ChangeFreq,
       priority: 0.8,

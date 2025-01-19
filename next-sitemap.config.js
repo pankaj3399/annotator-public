@@ -1,13 +1,13 @@
 /** @type {import('next-sitemap').IConfig} */
 export default {
-  siteUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+  siteUrl: process.env.NEXTAUTH_URL || 'http://localhost:3000/',
   generateRobotsTxt: true,
   exclude: ['*'],  // Exclude everything by default
   robotsTxtOptions: {
     policies: [
       {
         userAgent: '*',
-        allow: ['/', '/blogs', '/blogs/*'],
+        allow: ['/', 'blogs', 'blogs/*'],
         disallow: ['*']  // Disallow everything else
       },
     ],
@@ -25,7 +25,7 @@ export default {
 
     // Add blogs page
     result.push({
-      loc: '/blogs',
+      loc: 'blogs',
       changefreq: 'daily',
       priority: 0.8,
       lastmod: new Date().toISOString(),
