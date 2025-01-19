@@ -23,6 +23,7 @@ import { PlusCircle, Save, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/ui/Loader/Loader";
+import AddProductForm from "@/components/AddProduct";
 
 interface CustomField {
   _id?: string;
@@ -37,6 +38,9 @@ interface CustomField {
 const CustomFieldsPage = () => {
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
+
   const { data: session, status } = useSession();
   const router = useRouter();
 
@@ -161,6 +165,13 @@ const CustomFieldsPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Custom Fields</h1>
           <div className="flex gap-4">
             <Button
+              onClick={() => setIsAddProductModalOpen(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              Add products
+            </Button>
+            <Button
               onClick={handleAddField}
               variant="outline"
               className="flex items-center gap-2"
@@ -271,6 +282,13 @@ const CustomFieldsPage = () => {
           ))}
         </div>
       </div>
+      {isAddProductModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <AddProductForm onClose={() => setIsAddProductModalOpen(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
