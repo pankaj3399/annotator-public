@@ -1,3 +1,4 @@
+// app/blogs/page.tsx
 import Link from "next/link";
 import { type SanityDocument } from "next-sanity";
 import imageUrlBuilder from "@sanity/image-url";
