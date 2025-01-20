@@ -14,6 +14,8 @@ import {
   BarChart,
   GraduationCap,
   Heart,
+  List,
+  Dock,
 } from "lucide-react";
 import bookIcon from "@/public/static/book.png";
 import { BookIcon } from "@/components/BookIcon";
@@ -170,7 +172,7 @@ export function getMenuList(pathname: string): Group[] {
             active: pathname.includes("/wishlist"),
             icon: Heart,
             submenus: [],
-          },
+          }
         ],
       },
       {
@@ -263,7 +265,9 @@ export function getMenuList(pathname: string): Group[] {
             !pathname.includes("/analytics/view") &&
             !pathname.includes("/settings") &&
             !pathname.includes("/notification") &&
-            !pathname.includes("/leaderboard"),
+            !pathname.includes("/leaderboard") &&
+            !pathname.includes("/job-list") &&
+            !pathname.includes("/job-applications"),
           icon: SquarePen,
         },
         {
@@ -271,6 +275,18 @@ export function getMenuList(pathname: string): Group[] {
           label: "Tasks",
           active: pathname.includes("/task"),
           icon: ClipboardList,
+        },
+        {
+          href: `/projects/job-list/${projectId}`,
+          label: "Job List",
+          active: pathname.includes("/job-list"),
+          icon: List,
+        },
+        {
+          href: `/projects/job-applications/${projectId}`,
+          label: "View Job Applications",
+          active: pathname.includes("/job-applications"),
+          icon: Dock,
         },
       ],
     },
