@@ -98,6 +98,8 @@ export function TaskTable({
   const [dialog, setDialog] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isGrading, setIsGrading] = useState(false);
+  const [gradingProgress, setGradingProgress] = useState(0);
+
   const { setJob, getJobs, removeJobByTaskid } = useJobList();
   const checkboxRef = useRef<HTMLInputElement | null>(null);
   const pathName = usePathname();
@@ -211,13 +213,18 @@ export function TaskTable({
       await Promise.all(
         pendingTasks.map((task) => compareWithGroundTruth(task._id))
       );
+      setGradingProgress(100);
+      toast.success('All tasks graded successfully');
       router.refresh();
     } catch (error) {
       console.error('Error grading tasks:', error);
+      toast.error('Failed to grade some tasks');
     } finally {
       setIsGrading(false);
+      setGradingProgress(0);
     }
   }
+
   return (
     <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
       <div className='flex justify-end'>
@@ -233,6 +240,19 @@ export function TaskTable({
           Grade Tasks
         </Button>
       </div>
+      {isGrading && (
+        <div className='flex items-center justify-end gap-2'>
+          <div className='h-2 w-48 bg-gray-200 rounded-full overflow-hidden'>
+            <div
+              className='h-full bg-blue-500 transition-all duration-300'
+              style={{ width: `${gradingProgress}%` }}
+            />
+          </div>
+          <span className='text-sm text-gray-600'>
+            {Math.round(gradingProgress)}%
+          </span>
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
