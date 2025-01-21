@@ -10,6 +10,7 @@ import FAQSection from '@/components/LandingPage/FAQSection';
 import IndexPage from '@/components/LandingPage/Blog';
 import OurTeam from '@/components/LandingPage/OurTeam';
 import "@/styles/landing.css";
+import JobPostsGrid from '@/components/LandingPage/Jobs';
 
 const Landingpage = () => {
   return (
@@ -22,6 +23,7 @@ const Landingpage = () => {
         <Pricing />
         <Newsletter />
         <IndexPage />
+        <JobPostsGrid />
         <FAQSection />
         {/* <OurTeam /> */}
       </div>

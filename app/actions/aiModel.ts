@@ -24,7 +24,7 @@ export async function addModel(provider: string, projectId: string, model: strin
   try {
     const newModel = await AImodel.create({ user: session?.user.id,name, projectid: projectId, provider, model, apiKey, systemPrompt });
     return { message: 'Model added successfully', model: JSON.stringify(newModel) };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error adding model:', error);
     return { error: error.message };
   }
