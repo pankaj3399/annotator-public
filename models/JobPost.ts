@@ -38,6 +38,11 @@ const JobPostSchema = new Schema({
     type: String,
     required: true,
   },
+  projectId: {
+    type: Schema.Types.ObjectId,
+    ref: "Project",
+    required: true,
+  },
   status: {
     type: String,
     enum: ["draft", "published"],

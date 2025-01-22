@@ -18,6 +18,7 @@ export async function createJobPost(data: {
   endDate: Date;
   compensation: string;
   status?: "draft" | "published";
+  projectId: string;
 }) {
   try {
     await connectToDatabase();
@@ -34,6 +35,7 @@ export async function createJobPost(data: {
       },
       compensation: data.compensation,
       status: data.status || "draft",
+      projectId: data.projectId,
     });
 
     revalidatePath("/jobs"); // Revalidate the jobs listing page

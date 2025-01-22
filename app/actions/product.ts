@@ -160,3 +160,31 @@ export async function fetchProducts() {
 
   return Product.find().sort({ created_at: -1 }).lean();
 }
+
+export async function updateStatus(itemId: string) {
+
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || session.user.role !== "project manager") {
+      throw new Error("Unauthorized");
+    }
+
+    await connectToDatabase();
+
+    const product = await ProductRequest.findOneAndUpdate(
+      { _id: itemId },
+      {
+        $set: {
+          status: "approved",
+        },
+      },
+      { new: true }
+    );
+
+    revalidatePath("/wishlist");
+    return { success: true, product };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
+
+}
