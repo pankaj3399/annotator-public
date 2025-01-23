@@ -16,7 +16,7 @@ export type AddToWishlistParams = {
     description: string;
     product_url: string;
   };
- address: {
+  address: {
     street: string;
     city: string;
     state: string;
@@ -162,7 +162,6 @@ export async function fetchProducts() {
 }
 
 export async function updateStatus(itemId: string) {
-
   try {
     const session = await getServerSession(authOptions);
     if (!session || session.user.role !== "project manager") {
@@ -186,5 +185,58 @@ export async function updateStatus(itemId: string) {
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
-
 }
+
+export async function updatePaymentStatus(
+  wishlistId: string,
+  itemId: string,
+  paymentDetails: {
+    stripe_payment_intent: string;
+    payment_status: "pending" | "succeeded" | "failed";
+    total_price_paid: number | any;
+  }
+) {
+  try {
+    await connectToDatabase();
+
+    const updatedWishlist = await Wishlist.findOneAndUpdate(
+      {
+        _id: wishlistId,
+        "items._id": itemId,
+      },
+      {
+        $set: {
+          "items.$.payment_data": {
+            stripe_payment_intent: paymentDetails.stripe_payment_intent,
+            payment_status: paymentDetails.payment_status,
+            total_price_paid: paymentDetails.total_price_paid / 100,
+            paid_at: new Date(),
+          },
+          "items.$.status":
+            paymentDetails.payment_status === "succeeded"
+              ? "succeeded"
+              : "pending",
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedWishlist) {
+      throw new Error("Wishlist or Item not found");
+    }
+
+    revalidatePath("/wishlist");
+    return {
+      success: true,
+      item: updatedWishlist.items.find(
+        (item: any) => item._id.toString() === itemId
+      ),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: (error as Error).message,
+    };
+  }
+}
+
