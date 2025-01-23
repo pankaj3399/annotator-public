@@ -10,12 +10,29 @@ interface PaymentData {
   //   bookingId: string;
 }
 
-export async function stripe(data: any) {
 
+
+export async function stripe(data: any) {
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.id) {
     return { error: "You need to be logged in to make a payment" };
   }
+
+  const metadata = {
+    ...(data.type === "product"
+      ? {
+          wishlistId: data.id,
+          itemId: data.itemId,
+          name: data.name,
+          userEmail: authSession?.user?.id,
+          type: data.type,
+        }
+      : {
+          courseId: data.id,
+          userEmail: authSession?.user?.id,
+          type: data.type,
+        }),
+  };
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2024-12-18.acacia",
@@ -36,12 +53,15 @@ export async function stripe(data: any) {
       },
     ],
     mode: "payment",
-    success_url: `${process.env.NEXTAUTH_URL}/tasks/myCourses`,
-    cancel_url: `${process.env.NEXTAUTH_URL}/tasks/viewCourses?payment=cancelled`,
-    metadata: {
-      courseId: data.id,
-      userEmail: authSession?.user?.id,
-    },
+    success_url:
+      data.type == "product"
+        ? `${process.env.NEXTAUTH_URL}/wishlist?payment=success`
+        : `${process.env.NEXTAUTH_URL}/tasks/myCourses`,
+    cancel_url:
+      data.type == "product"
+        ? `${process.env.NEXTAUTH_URL}/wishlist?payment=cancelled`
+        : `${process.env.NEXTAUTH_URL}/tasks/viewCourses?payment=cancelled`,
+    metadata: metadata,
     payment_intent_data: {
       shipping: {
         name: "Rahul Sharma",
