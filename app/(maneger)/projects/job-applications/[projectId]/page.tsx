@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getAllJobApplications } from "@/app/actions/job";
+import Link from "next/link";
 
 interface User {
   _id: string;
@@ -88,18 +89,27 @@ const JobApplicationsTable = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {applications.map((application: JobApplication) => (
+              {applications.map((application: any) => (
                 <TableRow key={application._id}>
                   <TableCell className="font-medium">
                     {application.jobId.title || "Empty"}
                   </TableCell>
-                  <TableCell>{application.jobId._id || "Empty"}</TableCell>
+                  <TableCell>
+                    {" "}
+                    <Link href={`/projects/${application.jobId.projectId}`} className=" text-blue-500 underline">
+                      {application.jobId.projectId || "Empty"}
+                    </Link>
+                  </TableCell>
                   <TableCell>{application.userId.name || "Empty"}</TableCell>
                   <TableCell>{application.userId.email || "Empty"}</TableCell>
                   <TableCell>
-                    <Badge variant="default">{application.status || "Empty"}</Badge>
+                    <Badge variant="default">
+                      {application.status || "Empty"}
+                    </Badge>
                   </TableCell>
-                  <TableCell>{formatDate(application.appliedAt) || "Empty"}</TableCell>
+                  <TableCell>
+                    {formatDate(application.appliedAt) || "Empty"}
+                  </TableCell>
                 </TableRow>
               ))}
               {applications.length === 0 && (

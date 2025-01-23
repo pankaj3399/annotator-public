@@ -139,6 +139,7 @@ export function getMenuList(pathname: string): Group[] {
     projectId == "annotator" ||
     projectId == "chat" ||
     projectId == "profile" ||
+    projectId == "wishlist" ||
     fpath == "courses"
   ) {
     return [
@@ -172,7 +173,7 @@ export function getMenuList(pathname: string): Group[] {
             active: pathname.includes("/wishlist"),
             icon: Heart,
             submenus: [],
-          }
+          },
         ],
       },
       {

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { authOptions } from "@/auth";
+import ApproveButton from "@/components/ApproveButton";
 
 export default async function PMWishlistsPage() {
   const session = await getServerSession(authOptions);
@@ -142,7 +143,10 @@ export default async function PMWishlistsPage() {
                 </TableCell>
                 <TableCell>
                   {item.status === "pending" && (
-                    <Button size="sm">Approve</Button>
+                    <ApproveButton
+                      wishlistId={item.wishlistId.toString()}
+                      itemId={item._id.toString()}
+                    />
                   )}
                 </TableCell>
               </TableRow>

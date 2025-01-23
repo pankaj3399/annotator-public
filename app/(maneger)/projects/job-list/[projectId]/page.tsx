@@ -16,6 +16,8 @@ import {
 import { generateAiResponse } from "@/app/actions/aiModel";
 import { useParams } from "next/navigation";
 import { createJobPost } from "@/app/actions/job";
+import { toast } from "sonner";
+import { string } from "zod";
 
 interface JobFormData {
   projectTitle: string;
@@ -202,16 +204,20 @@ Don't include any extra fields outside of mentioned above`;
         endDate: new Date(formData.endDate),
         compensation: formData.payRange,
         status: "published",
+        projectId: Array.isArray(projectId) ? projectId[0] : projectId
       });
 
       if (response.success) {
         // Show success message or redirect
+        toast.success("Job post published successfully!")
         console.log("Job post published successfully!");
       } else {
         // Handle error
+        toast.error("Failed to publish job post:");
         console.error("Failed to publish job post:", response.error);
       }
     } catch (error) {
+      toast.error("Error publishing job post:");
       console.error("Error publishing job post:", error);
     }
   };
