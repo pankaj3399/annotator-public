@@ -414,11 +414,11 @@ export async function getPaginatedTasks(
   projectid: string,
   page: number,
   activeTab: string,
-  type: "test" | "training" | "core" | "" = ""
+  type: "test" | "training" | "core" | "" = "",
+  pageSize: number = 10 
 ) {
   await connectToDatabase();
-  const limit = parseInt(process.env.NEXT_PUBLIC_PAGE_LIMIT!);
-  const skip = (page - 1) * limit;
+  const skip = (page - 1) * pageSize;
 
   let tasks = [];
   let total = 0;
@@ -433,16 +433,16 @@ export async function getPaginatedTasks(
 
   // Active tab specific filters
   if (activeTab === "all") {
-    tasks = await Task.find(baseFilter).skip(skip).limit(limit);
+    tasks = await Task.find(baseFilter).skip(skip).limit(pageSize);
     total = await Task.countDocuments(baseFilter);
   } else if (activeTab === "submitted") {
-    tasks = await Task.find({ ...baseFilter, submitted: true }).skip(skip).limit(limit);
+    tasks = await Task.find({ ...baseFilter, submitted: true }).skip(skip).limit(pageSize);
     total = await Task.countDocuments({ ...baseFilter, submitted: true });
   } else if (activeTab === "unassigned") {
     tasks = await Task.find({
       ...baseFilter,
       $or: [{ annotator: null }],
-    }).skip(skip).limit(limit);
+    }).skip(skip).limit(pageSize);
     total = await Task.countDocuments({
       ...baseFilter,
       $or: [{ annotator: null }],
@@ -453,7 +453,7 @@ export async function getPaginatedTasks(
     tasks: tasks || [],
     total,
     page,
-    pages: Math.ceil(total / limit),
+    pages: Math.ceil(total / pageSize),
   });
 }
 

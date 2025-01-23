@@ -77,6 +77,9 @@ interface TaskTableProps {
   currentPage: number;
   onPageChange: (page: number) => void;
   totalPages: number;
+  pageSize: number;
+  onPageSizeChange: (size: number) => void;
+  totalItems: number;
 }
 
 export function TaskTable({
@@ -94,6 +97,9 @@ export function TaskTable({
   currentPage,
   onPageChange,
   totalPages,
+  pageSize,
+  onPageSizeChange,
+  totalItems,
 }: TaskTableProps) {
   const [dialog, setDialog] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -212,15 +218,15 @@ export function TaskTable({
     try {
       const pendingTasks = tasks.filter((task) => task.status === 'pending');
       let gradedTasksCount = 0;
-      
+
       for (const task of pendingTasks) {
         try {
           await compareWithGroundTruth(task._id);
           gradedTasksCount++;
           setGradingProgress((gradedTasksCount / pendingTasks.length) * 100);
         } catch (error: any) {
-          if (error.message === "Ground truth not set") {
-            toast.error("No ground truth set. Please set ground truth first.");
+          if (error.message === 'Ground truth not set') {
+            toast.error('No ground truth set. Please set ground truth first.');
           } else {
             console.error('Error grading tasks:', error);
             toast.error('Failed to grade some tasks');
@@ -230,7 +236,7 @@ export function TaskTable({
           return;
         }
       }
-      
+
       if (gradedTasksCount === pendingTasks.length && pendingTasks.length > 0) {
         toast.success('All tasks graded successfully');
         router.refresh();
@@ -449,57 +455,92 @@ export function TaskTable({
           })}
         </TableBody>
       </Table>
-      <Pagination className=' mt-6 mb-4'>
-        <PaginationContent>
-          <PaginationItem>
-            <PaginationPrevious
-              href={`?page=${currentPage - 1}`}
-              onClick={() => onPageChange(currentPage - 1)}
-              className={
-                currentPage === 1 ? 'pointer-events-none opacity-50' : ''
-              }
-            />
-          </PaginationItem>
-          {[...Array(totalPages)].map((_, index) => {
-            const pageNumber = index + 1;
-            if (
-              pageNumber === 1 ||
-              pageNumber === totalPages ||
-              (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
-            ) {
-              return (
-                <PaginationItem key={pageNumber}>
-                  <PaginationLink
-                    href={`?page=${currentPage}`}
-                    onClick={() => onPageChange(pageNumber)}
-                    isActive={pageNumber === currentPage}
-                  >
-                    {pageNumber}
-                  </PaginationLink>
-                </PaginationItem>
-              );
-            } else if (
-              pageNumber === currentPage - 2 ||
-              pageNumber === currentPage + 2
-            ) {
-              return <PaginationEllipsis key={pageNumber} />;
-            }
-            return null;
-          })}
-          <PaginationItem>
-            <PaginationNext
-              href={`?page=${currentPage + 1}`}
-              onClick={() => onPageChange(currentPage + 1)}
-              className={
-                currentPage === totalPages
-                  ? 'pointer-events-none opacity-50'
-                  : ''
-              }
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
+      <div className='flex items-center justify-between px-2 mt-6 mb-4'>
+        <div className='flex items-center gap-4'>
+          <div className='flex items-center gap-2'>
+            <span className='text-sm text-gray-600'>Items per page:</span>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(value) => onPageSizeChange(Number(value))}
+            >
+              <SelectTrigger className='w-[80px]'>
+                <SelectValue>{pageSize}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100].map((size) => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <span className='text-sm text-gray-600'>
+            Showing {Math.min((currentPage - 1) * pageSize + 1, totalItems)} to{' '}
+            {Math.min(currentPage * pageSize, totalItems)} of {totalItems} items
+          </span>
+        </div>
 
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                href={`?page=${currentPage - 1}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (currentPage > 1) onPageChange(currentPage - 1);
+                }}
+                className={
+                  currentPage === 1 ? 'pointer-events-none opacity-50' : ''
+                }
+              />
+            </PaginationItem>
+            {[...Array(totalPages)].map((_, index) => {
+              const pageNumber = index + 1;
+              if (
+                pageNumber === 1 ||
+                pageNumber === totalPages ||
+                (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+              ) {
+                return (
+                  <PaginationItem key={pageNumber}>
+                    <PaginationLink
+                      href={`?page=${pageNumber}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onPageChange(pageNumber);
+                      }}
+                      isActive={pageNumber === currentPage}
+                    >
+                      {pageNumber}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              } else if (
+                pageNumber === currentPage - 2 ||
+                pageNumber === currentPage + 2
+              ) {
+                return <PaginationEllipsis key={pageNumber} />;
+              }
+              return null;
+            })}
+            <PaginationItem>
+              <PaginationNext
+                href={`?page=${currentPage + 1}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (currentPage < totalPages) onPageChange(currentPage + 1);
+                }}
+                className={
+                  currentPage === totalPages
+                    ? 'pointer-events-none opacity-50'
+                    : ''
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
