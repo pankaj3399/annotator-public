@@ -206,16 +206,35 @@ export function TaskTable({
       toast.error('Failed to assign reviewer');
     }
   };
+
   async function handleGradeTasks() {
     setIsGrading(true);
     try {
       const pendingTasks = tasks.filter((task) => task.status === 'pending');
-      await Promise.all(
-        pendingTasks.map((task) => compareWithGroundTruth(task._id))
-      );
-      setGradingProgress(100);
-      toast.success('All tasks graded successfully');
-      router.refresh();
+      let gradedTasksCount = 0;
+      
+      for (const task of pendingTasks) {
+        try {
+          await compareWithGroundTruth(task._id);
+          gradedTasksCount++;
+          setGradingProgress((gradedTasksCount / pendingTasks.length) * 100);
+        } catch (error: any) {
+          if (error.message === "Ground truth not set") {
+            toast.error("No ground truth set. Please set ground truth first.");
+          } else {
+            console.error('Error grading tasks:', error);
+            toast.error('Failed to grade some tasks');
+          }
+          setIsGrading(false);
+          setGradingProgress(0);
+          return;
+        }
+      }
+      
+      if (gradedTasksCount === pendingTasks.length && pendingTasks.length > 0) {
+        toast.success('All tasks graded successfully');
+        router.refresh();
+      }
     } catch (error) {
       console.error('Error grading tasks:', error);
       toast.error('Failed to grade some tasks');
@@ -224,7 +243,6 @@ export function TaskTable({
       setGradingProgress(0);
     }
   }
-
   return (
     <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
       <div className='flex justify-end'>

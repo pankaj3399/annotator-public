@@ -37,7 +37,7 @@ export default function InvitationStep({
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="bg-white p-8 max-w-md w-full">
         <h2 className="text-4xl font-bold text-center mb-6">
-          Project Manager Access
+          AI Innovator Access
         </h2>
         
         <div className="space-y-6">

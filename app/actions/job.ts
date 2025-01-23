@@ -47,12 +47,16 @@ export async function createJobPost(data: {
 export async function getJobPosts(options: {
   status?: "draft" | "published";
   page?: number;
-  limit?: number;
+  limit?: 10 | 20 | 50 | 100;
 }) {
   try {
     await connectToDatabase();
+    let limit = options.limit || 10;
 
-    const { status, page = 1, limit = 10 } = options;
+    if (![10, 20, 50, 100].includes(limit)) {
+      limit = 10; 
+    }
+    const { status, page = 1} = options;
     const skip = (page - 1) * limit;
 
     const query = status ? { status } : {};

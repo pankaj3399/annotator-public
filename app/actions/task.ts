@@ -83,8 +83,7 @@ export async function compareWithGroundTruth(taskId: string) {
     }
 
     if (!template.groundTruthTask) {
-      return;
-    }
+      throw new Error("Ground truth not set");     }
 
     const groundTruthTask = await Task.findById(template.groundTruthTask);
 

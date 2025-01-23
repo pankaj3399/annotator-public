@@ -77,7 +77,7 @@ export function getMenuList(pathname: string): Group[] {
         menus: [
           {
             href: "/tasks/viewCourses",
-            label: "View Courses",
+            label: "All Courses",
             active: pathname.includes("/viewCourses"),
             icon: GraduationCap,
             submenus: [],
@@ -168,7 +168,7 @@ export function getMenuList(pathname: string): Group[] {
           },
           {
             href: "/wishlist",
-            label: "View Wishlists",
+            label: "Wishlist",
             active: pathname.includes("/wishlist"),
             icon: Heart,
             submenus: [],
@@ -239,7 +239,7 @@ export function getMenuList(pathname: string): Group[] {
         },
         {
           href: "/wishlist",
-          label: "View Wishlists",
+          label: "Wishlist",
           active: pathname.includes("/wishlist"),
           icon: Heart,
           submenus: [],
@@ -284,7 +284,7 @@ export function getMenuList(pathname: string): Group[] {
         },
         {
           href: `/projects/job-applications/${projectId}`,
-          label: "View Job Applications",
+          label: "Job Applicants",
           active: pathname.includes("/job-applications"),
           icon: Dock,
         },
