@@ -11,7 +11,7 @@ import Image from "next/image";
 import analytics from "@/public/static/analytics.png";
 import token from "@/public/static/token.png";
 import codecollab from "@/public/static/codecollab.png";
-import hero from "@/public/static/hero.png";
+import hero from "@/public/static/1.png";
 
 const Features = () => {
   return (

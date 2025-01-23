@@ -31,7 +31,7 @@ function truncateContent(markdownContent: string, maxLength: number = 100) {
 }
 
 export default async function JobPostsGrid() {
-  const response = await getJobPosts({ limit: 4 });
+  const response = await getJobPosts({ limit: 10 });
 
   if (!response.success || !response.data) {
     return (

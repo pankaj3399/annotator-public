@@ -344,7 +344,7 @@ export default function AuthPageComponent() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Building2 className="mr-2 h-6 w-6" />
-                  Project Manager
+                  AI Innovator
                 </CardTitle>
                 <CardDescription>I need data for my projects</CardDescription>
               </CardHeader>
