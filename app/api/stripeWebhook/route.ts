@@ -3,6 +3,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { enrollCourse } from "@/app/actions/course";
 import { headers } from "next/headers";
 import { updatePaymentStatus } from "@/app/actions/product";
+import nodemailer from "nodemailer";
+import { getAdminPaymentNotificationTemplate } from "../template/recent/emailTemplates";
+
+// Configure nodemailer
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
+
+const sendEmail = async ({
+  paymentIntentId,
+  date = new Date(),
+  amount,
+  productName,
+  projectManager,
+}: {
+  paymentIntentId: string;
+  date?: Date;
+  amount: number;
+  productName: string;
+  projectManager: string;
+}) => {
+  await transporter.sendMail({
+    from: process.env.FROM_EMAIL || "noreply@yourdomain.com",
+    to: process.env.ADMIN_EMAIL,
+    subject: "New Payment Received",
+    html: getAdminPaymentNotificationTemplate({
+      paymentIntentId,
+      date,
+      amount,
+      productName,
+      pmId: projectManager,
+    }),
+  });
+};
 
 // Initialize Stripe with proper typing for the secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -76,6 +116,16 @@ export async function POST(req: NextRequest) {
                   total_price_paid: price,
                 }
               );
+
+              // Send email notification to admin
+              await sendEmail({
+                paymentIntentId: payment_intent,
+                date: new Date(),
+                amount: (price ?? 0) / 100,
+                productName: successSession.metadata?.name as string,
+                projectManager: userId,
+              });
+              console.log("Email sent to admin");
 
               console.log("Product payment status:", status);
               return NextResponse.json({

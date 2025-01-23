@@ -10,6 +10,8 @@ interface PaymentData {
   //   bookingId: string;
 }
 
+
+
 export async function stripe(data: any) {
   const authSession = await getServerSession(authOptions);
   if (!authSession?.user?.id) {
