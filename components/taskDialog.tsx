@@ -1,6 +1,10 @@
 "use client";
 
-import { createRepeatTask, createTasks, saveRepeatTasks } from "@/app/actions/task";
+import {
+  createRepeatTask,
+  createTasks,
+  saveRepeatTasks,
+} from "@/app/actions/task";
 import { Project } from "@/app/(maneger)/page";
 import { template } from "@/app/template/page";
 import { Button } from "@/components/ui/button";
@@ -69,8 +73,8 @@ interface FilledTask {
   timer: number;
   annotator?: string;
   reviewer: string;
-  type:string;
-  template:string;
+  type: string;
+  template: string;
 }
 
 export interface RepeatTask {
@@ -80,9 +84,8 @@ export interface RepeatTask {
   timer: number;
   annotator?: string | null;
   reviewer: string;
-  template:string;
-  type:string;
-
+  template: string;
+  type: string;
 }
 
 export interface Annotator {
@@ -111,14 +114,14 @@ interface SaveTasksResponse {
   }[];
 }
 interface Model {
-  _id:string;
-  user:string;
-  projectid:string;
-  name:string;
-  apiKey:string;
-  provider:string;
-  enabled:boolean;
-  model:string
+  _id: string;
+  user: string;
+  projectid: string;
+  name: string;
+  apiKey: string;
+  provider: string;
+  enabled: boolean;
+  model: string;
 }
 
 export function TaskDialog({
@@ -130,8 +133,8 @@ export function TaskDialog({
   project,
   handleAssignUser,
 }: {
-  onConfigure:(projectId:string)=>Promise<any>
-  aiModels:Model[] | undefined
+  onConfigure: (projectId: string) => Promise<any>;
+  aiModels: Model[] | undefined;
   template: template & { _id: string; testTemplate?: boolean };
   isDialogOpen: boolean;
   setIsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -142,7 +145,7 @@ export function TaskDialog({
     ai: boolean
   ) => Promise<any>;
 }) {
-  const [provider,setProvider]=useState('')
+  const [provider, setProvider] = useState("");
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
@@ -150,14 +153,15 @@ export function TaskDialog({
     template.testTemplate || false
   );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
-  const [systemPrompt,setSystemPrompt]=useState('')
-  const [apiKey,setApiKey]=useState('')
-  const [generateAi,setGenerateAi]=useState(false)
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [generateAi, setGenerateAi] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
-  const [currentTask,setCurrentTask]=useState<Task>()
-  const [currentPlaceholder,setCurrentPlaceholder]=useState<Placeholder>()
-  const fileInputRef = useRef<HTMLInputElement>(null); 
-  const [isAiModalOpen,setIsAiModalOpen]=useState(false)
+  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [currentPlaceholder, setCurrentPlaceholder] = useState<Placeholder | null>(null);
+  const [isGeneratingForAll, setIsGeneratingForAll] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   useEffect(() => {
     if (isDialogOpen) {
       fetchCurrentTemplateState();
@@ -206,7 +210,6 @@ export function TaskDialog({
       });
     }
   };
-
 
   const handleAnnotatorAssignmentToggle = async (checked: boolean) => {
     try {
@@ -357,11 +360,14 @@ export function TaskDialog({
       const carouselElement = templateContent?.[0]?.content?.find(
         (item: any) =>
           item.name === placeholder.name && item.type === "dynamicCarousel"
-      );  
-  
+      );
+
       if (!carouselElement) {
-        console.error("Carousel element not found for placeholder:", placeholder.name);
-        return; 
+        console.error(
+          "Carousel element not found for placeholder:",
+          placeholder.name
+        );
+        return;
       }
       const carouselProperties: CarouselContent = carouselElement?.content || {
         slides: [{ type: "text", innerText: "" }],
@@ -372,127 +378,126 @@ export function TaskDialog({
 
       console.log("courseElement:", carouselElement);
 
-    const currentSlides =
-    (task.values[placeholder.index] as CarouselContent)?.slides ||
-    carouselProperties.slides.map(
-      (slide: { type: string; src?: string; innerText?: string }) => ({
-        ...slide,
-        innerText: slide.innerText || "",
-        src: slide.src || "",
-      })
-    );
+      const currentSlides =
+        (task.values[placeholder.index] as CarouselContent)?.slides ||
+        carouselProperties.slides.map(
+          (slide: { type: string; src?: string; innerText?: string }) => ({
+            ...slide,
+            innerText: slide.innerText || "",
+            src: slide.src || "",
+          })
+        );
 
-    console.log("currentSlides:", currentSlides);
+      console.log("currentSlides:", currentSlides);
 
+      return (
+        <div className="border rounded p-4 space-y-4">
+          <h4 className="text-lg font-semibold">
+            Carousel Content for {placeholder.name}
+          </h4>
 
-    return (
-      <div className="border rounded p-4 space-y-4">
-        <h4 className="text-lg font-semibold">
-          Carousel Content for {placeholder.name}
-        </h4>
-    
-        {currentSlides.map((slide, index) => (
-          <div key={index} className="mb-4 p-2 border rounded">
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Slide {index + 1} ({slide.type})
-              </label>
+          {currentSlides.map((slide, index) => (
+            <div key={index} className="mb-4 p-2 border rounded">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Slide {index + 1} ({slide.type})
+                </label>
+              </div>
+
+              {slide.type === "text" && (
+                <Input
+                  value={slide.innerText || ""}
+                  onChange={(e) => {
+                    setTasks((prevTasks) =>
+                      prevTasks.map((t) =>
+                        t.id === task.id
+                          ? {
+                              ...t,
+                              values: {
+                                ...t.values,
+                                [placeholder.index]: {
+                                  ...carouselProperties,
+                                  slides: currentSlides.map((s, i) =>
+                                    i === index
+                                      ? { ...s, innerText: e.target.value }
+                                      : s
+                                  ),
+                                },
+                              },
+                            }
+                          : t
+                      )
+                    );
+                  }}
+                  placeholder={`Enter text for Slide ${index + 1}`}
+                  className="w-full"
+                />
+              )}
+
+              {slide.type === "image" && (
+                <Input
+                  value={slide.src || ""}
+                  onChange={(e) => {
+                    setTasks((prevTasks) =>
+                      prevTasks.map((t) =>
+                        t.id === task.id
+                          ? {
+                              ...t,
+                              values: {
+                                ...t.values,
+                                [placeholder.index]: {
+                                  ...carouselProperties,
+                                  slides: currentSlides.map((s, i) =>
+                                    i === index
+                                      ? { ...s, src: e.target.value }
+                                      : s
+                                  ),
+                                },
+                              },
+                            }
+                          : t
+                      )
+                    );
+                  }}
+                  placeholder={`Enter image URL for Slide ${index + 1}`}
+                  className="w-full"
+                />
+              )}
+
+              {slide.type === "video" && (
+                <Input
+                  value={slide.src || ""}
+                  onChange={(e) => {
+                    setTasks((prevTasks) =>
+                      prevTasks.map((t) =>
+                        t.id === task.id
+                          ? {
+                              ...t,
+                              values: {
+                                ...t.values,
+                                [placeholder.index]: {
+                                  ...carouselProperties,
+                                  slides: currentSlides.map((s, i) =>
+                                    i === index
+                                      ? { ...s, src: e.target.value }
+                                      : s
+                                  ),
+                                },
+                              },
+                            }
+                          : t
+                      )
+                    );
+                  }}
+                  placeholder={`Enter video URL for Slide ${index + 1}`}
+                  className="w-full"
+                />
+              )}
             </div>
-    
-            {slide.type === "text" && (
-              <Input
-                value={slide.innerText || ""}
-                onChange={(e) => {
-                  setTasks((prevTasks) =>
-                    prevTasks.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            values: {
-                              ...t.values,
-                              [placeholder.index]: {
-                                ...carouselProperties,
-                                slides: currentSlides.map((s, i) =>
-                                  i === index
-                                    ? { ...s, innerText: e.target.value }
-                                    : s
-                                ),
-                              },
-                            },
-                          }
-                        : t
-                    )
-                  );
-                }}
-                placeholder={`Enter text for Slide ${index + 1}`}
-                className="w-full"
-              />
-            )}
-    
-            {slide.type === "image" && (
-              <Input
-                value={slide.src || ""}
-                onChange={(e) => {
-                  setTasks((prevTasks) =>
-                    prevTasks.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            values: {
-                              ...t.values,
-                              [placeholder.index]: {
-                                ...carouselProperties,
-                                slides: currentSlides.map((s, i) =>
-                                  i === index
-                                    ? { ...s, src: e.target.value }
-                                    : s
-                                ),
-                              },
-                            },
-                          }
-                        : t
-                    )
-                  );
-                }}
-                placeholder={`Enter image URL for Slide ${index + 1}`}
-                className="w-full"
-              />
-            )}
-    
-            {slide.type === "video" && (
-              <Input
-                value={slide.src || ""}
-                onChange={(e) => {
-                  setTasks((prevTasks) =>
-                    prevTasks.map((t) =>
-                      t.id === task.id
-                        ? {
-                            ...t,
-                            values: {
-                              ...t.values,
-                              [placeholder.index]: {
-                                ...carouselProperties,
-                                slides: currentSlides.map((s, i) =>
-                                  i === index
-                                    ? { ...s, src: e.target.value }
-                                    : s
-                                ),
-                              },
-                            },
-                          }
-                        : t
-                    )
-                  );
-                }}
-                placeholder={`Enter video URL for Slide ${index + 1}`}
-                className="w-full"
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  }
+          ))}
+        </div>
+      );
+    }
     // Existing input rendering logic for other placeholders
     if (placeholder.type === "upload") {
       return (
@@ -533,45 +538,57 @@ export function TaskDialog({
       );
     }
 
-
-
-
     // Default input rendering for other types
     return (
       <div className="flex items-center space-x-4">
-              <Input
-        id={`${task.id}-${placeholder.index}`}
-        value={(task.values[placeholder.index] as TaskValue)?.content || ""}
-        onChange={(e) =>
-          handleInputChange(task.id, placeholder, e.target.value)
-        }
-        placeholder={`Enter ${placeholder.type} or AI prompt`}
-      />
-      <Button onClick={()=>{
-                        setCurrentTask(task)
-                        setCurrentPlaceholder(placeholder)
-                        setIsAiModalOpen(true)}
-                      }
-                 variant={'outline'}>
-                  AI
-                </Button>
+        <Input
+          id={`${task.id}-${placeholder.index}`}
+          value={(task.values[placeholder.index] as TaskValue)?.content || ""}
+          onChange={(e) =>
+            handleInputChange(task.id, placeholder, e.target.value)
+          }
+          placeholder={`Enter ${placeholder.type} or AI prompt`}
+        />
+        <Button
+          onClick={() => {
+            setCurrentTask(task);
+            setCurrentPlaceholder(placeholder);
+            setIsGeneratingForAll(false);
+            setIsAiModalOpen(true);
+          }}
+          variant={"outline"}
+        >
+          AI
+        </Button>
       </div>
-      
     );
   };
-  const handleGenerateAI = async (task:Task,placeholder:Placeholder) => {
-    const response = await generateAiResponse(provider,selectedModel,systemPrompt,projectId,apiKey);
-    handleInputChange(task.id,placeholder,response)
-    console.log(response)
+  const handleGenerateAI = async (task: Task, placeholder: Placeholder) => {
+    const response = await generateAiResponse(
+      provider,
+      selectedModel,
+      systemPrompt,
+      projectId,
+      apiKey
+    );
+    handleInputChange(task.id, placeholder, response);
+    console.log(response);
   };
 
   useEffect(() => {
     // Ensure all necessary states and task/placeholder are present
-    if (provider && selectedModel && systemPrompt && apiKey && currentTask && currentPlaceholder) {
+    if (
+      provider &&
+      selectedModel &&
+      systemPrompt &&
+      apiKey &&
+      currentTask &&
+      currentPlaceholder
+    ) {
       handleGenerateAI(currentTask, currentPlaceholder);
     }
   }, [provider, selectedModel, systemPrompt, apiKey]);
-  
+
   const handleConfigureAi = async (
     provider: string,
     model: string,
@@ -580,20 +597,31 @@ export function TaskDialog({
     task: Task,
     placeholder: Placeholder
   ) => {
-  
     // Update the necessary state variables
     setProvider(provider);
     setSelectedModel(model);
     setSystemPrompt(systemPrompt);
     setApiKey(apiKey);
-  
+
     // Store task and placeholder in state for later use
     setCurrentTask(task);
     setCurrentPlaceholder(placeholder);
   };
-  
-  
 
+  const handleConfigureAiForAll = async (
+    provider: string,
+    model: string,
+    systemPrompt: string,
+    apiKey: string
+  ) => {
+    setProvider(provider);
+    setSelectedModel(model);
+    setSystemPrompt(systemPrompt);
+    setApiKey(apiKey);
+
+    // Trigger AI generation for all placeholders
+    handleGenerateAIForAllPlaceholders();
+  };
 
   const renderFilledTemplate = (values: {
     [key: string]: TaskValue | CarouselContent;
@@ -705,7 +733,7 @@ export function TaskDialog({
                     `{{${placeholder.type}}}`,
                 },
               };
-            }else if(item.type==="dynamicText"){
+            } else if (item.type === "dynamicText") {
               return {
                 ...item,
                 content: {
@@ -715,9 +743,7 @@ export function TaskDialog({
                     `{{${placeholder.type}}}`,
                 },
               };
-
-            }
-             else {
+            } else {
               return {
                 ...item,
                 content: {
@@ -813,8 +839,8 @@ export function TaskDialog({
             timer: template.timer,
             annotator: null,
             reviewer: "",
-            template:template._id,
-            type:'test'
+            template: template._id,
+            type: "test",
           });
         } else {
           for (let i = 0; i < globalRepeat; i++) {
@@ -826,8 +852,8 @@ export function TaskDialog({
               content: filled,
               timer: template.timer,
               reviewer: "",
-              type:template.type,
-              template:template._id
+              type: template.type,
+              template: template._id,
             });
           }
         }
@@ -836,12 +862,11 @@ export function TaskDialog({
       const response = (await createTasks(
         filledTasks
       )) as unknown as CreateTasksResponse;
-      if(assignToAllAnnotators){
-        const createRepeatResponse = await createRepeatTask(repeatTasks)
-        repeatTaskCount=createRepeatResponse.createdTasks
-        if(!createRepeatResponse.success){
-          throw new Error("Failed to save repeat tasks")
-
+      if (assignToAllAnnotators) {
+        const createRepeatResponse = await createRepeatTask(repeatTasks);
+        repeatTaskCount = createRepeatResponse.createdTasks;
+        if (!createRepeatResponse.success) {
+          throw new Error("Failed to save repeat tasks");
         }
       }
 
@@ -867,13 +892,12 @@ export function TaskDialog({
         }
       }
 
-      if(assignToAllAnnotators){
+      if (assignToAllAnnotators) {
         toast({
           title: "Tasks created successfully",
           description: `Created ${repeatTaskCount} tasks and ${repeatTasks.length} repeat tasks successfully`,
         });
-      }
-      else{
+      } else {
         toast({
           title: "Tasks created successfully",
           description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
@@ -893,121 +917,168 @@ export function TaskDialog({
     }
   };
 
+  const handleGenerateAIForAllPlaceholders = async () => {
+    if (!provider || !selectedModel || !systemPrompt || !apiKey) {
+      setIsGeneratingForAll(true);
+      setIsAiModalOpen(true);
+      return;
+    }
+
+    const updatedTasks = await Promise.all(
+      tasks.map(async (task) => {
+        const updatedValues = await Promise.all(
+          placeholders.map(async (placeholder) => {
+            const response = await generateAiResponse(
+              provider,
+              selectedModel,
+              systemPrompt,
+              projectId,
+              apiKey
+            );
+            return {
+              ...task.values,
+              [placeholder.index]: {
+                content: response,
+                fileType: (task.values[placeholder.index] as TaskValue)?.fileType || "document",
+              },
+            };
+          })
+        );
+
+        return {
+          ...task,
+          values: Object.assign({}, ...updatedValues),
+        };
+      })
+    );
+
+    setTasks(updatedTasks);
+  };
+
+  useEffect(() => {
+    if (provider && selectedModel && systemPrompt && apiKey) {
+      handleGenerateAIForAllPlaceholders();
+    }
+  }, [provider, selectedModel, systemPrompt, apiKey]);
+
   return (
     <div>
-<AIConfigModal
-  onConfigure={(provider, model, systemPrompt,apiKey) =>
-    handleConfigureAi(provider, model, systemPrompt,apiKey, currentTask!, currentPlaceholder!)
-  }
-  isAIModalOpen={isAiModalOpen}
-  setIsAIModalOpen={() => setIsAiModalOpen(false)}
-  tasks={tasks}
-  placeholders={placeholders}
-/>
-   
-<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-      <DialogContent className="sm:max-w-[425px] md:max-w-fit">
-        <DialogHeader className="flex flex-col gap-4">
-          <div className="flex flex-row items-center justify-between pr-8">
-            <DialogTitle className="flex-1">Ingest Data</DialogTitle>
-            <div className="flex items-center gap-2 ml-4">
-              <label
-                htmlFor="global-repeat"
-                className="text-sm font-medium text-gray-700"
-              >
-                Repeat Each Task:
-              </label>
-              <Input
-                id="global-repeat"
-                type="number"
-                min="1"
-                value={globalRepeat}
-                onChange={(e) =>
-                  handleGlobalRepeatChange(parseInt(e.target.value, 10))
-                }
-                className="w-20"
-                disabled={assignToAllAnnotators}
-              />
-            </div>
-          </div>
-          <div className="flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm">
-  {/* Left section - Switch for annotator assignment */}
-  <div className="flex items-center space-x-3">
-    <Switch
-      checked={assignToAllAnnotators}
-      onCheckedChange={handleAnnotatorAssignmentToggle}
-      className="transition duration-200 ease-in-out"
-    />
-    <label className="text-sm font-medium text-gray-700">
-      Assign to all annotators ({annotators.length} annotators)
-    </label>
-  </div>
+      <AIConfigModal
+        onConfigure={async (provider, model, systemPrompt, apiKey) => {
+          if (isGeneratingForAll) {
+            handleConfigureAiForAll(provider, model, systemPrompt, apiKey);
+          } else {
+            if (currentTask && currentPlaceholder) {
+              handleConfigureAi(provider, model, systemPrompt, apiKey, currentTask, currentPlaceholder);
+            }
+          }
+        }}
+        isAIModalOpen={isAiModalOpen}
+        setIsAIModalOpen={() => setIsAiModalOpen(false)}
+        tasks={tasks}
+        placeholders={placeholders}
+      />
 
-  {/* Right section - AI model selector and settings icon */}
-
-</div>
-
-
-        </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto">
-          {tasks.map((task) => (
-            <div key={task.id} className="mb-4 p-2 border rounded">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold">Task {task.id}</h3>
-                <div className="flex items-center space-x-2">
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleRemoveTask(task.id)}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px] md:max-w-fit">
+          <DialogHeader className="flex flex-col gap-4">
+            <div className="flex flex-row items-center justify-between pr-8">
+              <DialogTitle className="flex-1">Ingest Data</DialogTitle>
+              <div className="flex items-center gap-2 ml-4">
+                <label
+                  htmlFor="global-repeat"
+                  className="text-sm font-medium text-gray-700"
                 >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                </div>
+                  Repeat Each Task:
+                </label>
+                <Input
+                  id="global-repeat"
+                  type="number"
+                  min="1"
+                  value={globalRepeat}
+                  onChange={(e) =>
+                    handleGlobalRepeatChange(parseInt(e.target.value, 10))
+                  }
+                  className="w-20"
+                  disabled={assignToAllAnnotators}
+                />
               </div>
-              {placeholders.map((placeholder) => (
-                <div key={placeholder.index} className="mb-2">
-                  <label
-                    htmlFor={`${task.id}-${placeholder.index}`}
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    {placeholder.name} ({placeholder.type})
-                  </label>
-                  {renderPlaceholderInput(task, placeholder)}
-                </div>
-              ))}
             </div>
-          ))}
-        </div>
-        <DialogFooter className="flex w-full">
-          <Button onClick={handleAddTask} className="mr-auto">
-            <Plus className="mr-2 h-4 w-4" /> Add More Task
-          </Button>
-          <div className="flex gap-2">
-            <Button onClick={() => fileInputRef.current?.click()}>
-              <Upload className="mr-2 h-4 w-4" /> Upload CSV
-            </Button>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".csv"
-              onChange={handleFileUpload}
-            />
-            <Button onClick={generateFilledTemplates}>
-              Save Tasks ({tasks.length * globalRepeat} total)
-            </Button>
+            <div className="flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm">
+              {/* Left section - Switch for annotator assignment */}
+              <div className="flex items-center space-x-3">
+                <Switch
+                  checked={assignToAllAnnotators}
+                  onCheckedChange={handleAnnotatorAssignmentToggle}
+                  className="transition duration-200 ease-in-out"
+                />
+                <label className="text-sm font-medium text-gray-700">
+                  Assign to all annotators ({annotators.length} annotators)
+                </label>
+              </div>
+
+              {/* Right section - AI model selector and settings icon */}
+            </div>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {tasks.map((task) => (
+              <div key={task.id} className="mb-4 p-2 border rounded">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-semibold">Task {task.id}</h3>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveTask(task.id)}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                {placeholders.map((placeholder) => (
+                  <div key={placeholder.index} className="mb-2">
+                    <label
+                      htmlFor={`${task.id}-${placeholder.index}`}
+                      className="block text-sm font-medium text-gray-700"
+                    >
+                      {placeholder.name} ({placeholder.type})
+                    </label>
+                    {renderPlaceholderInput(task, placeholder)}
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-
-
+          <DialogFooter className="flex w-full">
+            <Button onClick={handleAddTask} className="mr-auto">
+              <Plus className="mr-2 h-4 w-4" /> Add More Task
+            </Button>
+            <div className="flex gap-2">
+              <Button onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" /> Upload CSV
+              </Button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv"
+                onChange={handleFileUpload}
+              />
+              <Button onClick={generateFilledTemplates}>
+                Save Tasks ({tasks.length * globalRepeat} total)
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsGeneratingForAll(true);
+                  setIsAiModalOpen(true);
+                }}
+              >
+                Generate AI for All Placeholders
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-
-
   );
 }
-
-
