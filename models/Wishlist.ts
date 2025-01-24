@@ -3,7 +3,7 @@ import { Schema, model, models } from "mongoose";
 
 const wishlistSchema = new Schema(
   {
-    expert : {
+    expert: {
       // Changed from expert to user
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -58,6 +58,17 @@ const wishlistSchema = new Schema(
           required: function (this: any) {
             return this.is_external_request;
           },
+        },
+
+        payment_data: {
+          stripe_payment_intent: { type: String },
+          payment_status: {
+            type: String,
+            enum: ["not_paid", "pending", "succeeded", "failed"],
+            default: "not_paid",
+          },
+          total_price_paid: { type: Number },
+          paid_at: { type: Date },
         },
       },
     ],

@@ -19,7 +19,7 @@ import ApproveButton from "@/components/ApproveButton";
 
 export default async function PMWishlistsPage() {
   const session = await getServerSession(authOptions);
-
+  
   if (!session || session.user.role !== "project manager") {
     redirect("/");
   }
@@ -53,7 +53,6 @@ export default async function PMWishlistsPage() {
               <TableHead>Product Details</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Shipping Address</TableHead>
-              <TableHead>Status</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead>Action</TableHead>
             </TableRow>
@@ -124,28 +123,13 @@ export default async function PMWishlistsPage() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant={
-                      item.status === "approved"
-                        ? "default"
-                        : item.status === "pending"
-                          ? "secondary"
-                          : item.status === "purchased"
-                            ? "default"
-                            : "destructive"
-                    }
-                  >
-                    {item.status}
-                  </Badge>
-                </TableCell>
-                <TableCell>
                   {new Date(item.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
-                  {item.status === "pending" && (
+                  {!item.is_external_request && (
                     <ApproveButton
                       wishlistId={item.wishlistId.toString()}
-                      itemId={item._id.toString()}
+                      item={item}
                     />
                   )}
                 </TableCell>
