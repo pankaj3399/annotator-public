@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { connectToDatabase } from "@/lib/db";
 import { authOptions } from "@/auth";
 import { ProductRequest } from "@/models/ProductRequest";
+import mongoose, { Types } from "mongoose";
 
 export type AddToWishlistParams = {
   productId?: string;
@@ -240,3 +241,83 @@ export async function updatePaymentStatus(
   }
 }
 
+export async function getPaidWishlistProducts(): Promise<any> {
+  try {
+    await connectToDatabase();
+
+    const paidProducts = await Wishlist.aggregate([
+      // Match all wishlists
+      { $match: {} },
+
+      // Unwind the items array
+      { $unwind: "$items" },
+
+      // Filter only paid products
+      {
+        $match: {
+          "items.payment_data.payment_status": "succeeded",
+          "items.is_external_request": false, // Only catalog products
+        },
+      },
+
+      // Project and transform the data
+      {
+        $project: {
+          product_id: "$items.catalog_details.product_id",
+          stripe_payment_intent: "$items.payment_data.stripe_payment_intent",
+          name: "$items.catalog_details.name",
+          description: "$items.catalog_details.description",
+          price: "$items.catalog_details.price",
+          image_url: "$items.catalog_details.image_url",
+          payment_status: "$items.payment_data.payment_status",
+          total_price_paid: "$items.payment_data.total_price_paid",
+          paid_at: "$items.payment_data.paid_at",
+          expert: "$expert", // Include the expert/user reference
+        },
+      },
+
+      // Lookup user details
+      {
+        $lookup: {
+          from: "users", // Ensure this matches your users collection name
+          localField: "expert",
+          foreignField: "_id",
+          as: "user_details",
+        },
+      },
+
+      // Unwind user details
+      {
+        $unwind: {
+          path: "$user_details",
+          preserveNullAndEmptyArrays: true, // This ensures records are not dropped if no user found
+        },
+      },
+
+      // Final projection with user details
+      {
+        $project: {
+          product_id: 1,
+          stripe_payment_intent: 1,
+          name: 1,
+          description: 1,
+          price: 1,
+          image_url: 1,
+          payment_status: 1,
+          total_price_paid: 1,
+          paid_at: 1,
+          user_details: {
+            userId: "$user_details._id",
+            userName: "$user_details.name",
+            email: "$user_details.email",
+          },
+        },
+      },
+    ]);
+
+    return paidProducts;
+  } catch (error) {
+    console.error("Error fetching paid wishlist products:", error);
+    throw new Error("Failed to retrieve paid products");
+  }
+}
