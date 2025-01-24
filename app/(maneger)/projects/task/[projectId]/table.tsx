@@ -229,7 +229,7 @@ export function TaskTable({
             toast.error('No ground truth set. Please set ground truth first.');
           } else {
             console.error('Error grading tasks:', error);
-            toast.error('Failed to grade some tasks');
+            toast.error('Please set one task as  a ground truth to be able to auto grade');
           }
           setIsGrading(false);
           setGradingProgress(0);
