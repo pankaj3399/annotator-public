@@ -5,7 +5,7 @@ import { connectToDatabase } from "@/lib/db";
 import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
 import { Template } from "@/models/Template";
-import {User} from "@/models/User";
+import { User } from "@/models/User";
 import { TaskRepeat } from "@/models/TaskRepeat";
 import { template } from "../template/page";
 import NotificationTemplate from "@/models/NotificationTemplate";
@@ -16,7 +16,7 @@ import { NextResponse } from "next/server";
 import AnnotatorPoints from "@/models/points";
 import AnnotatorHistory from "@/models/points";
 import { getAllAnnotators } from "./annotator";
-import { Annotator, RepeatTask} from "@/components/taskDialog";
+import { Annotator, RepeatTask } from "@/components/taskDialog";
 import { Project } from "../(maneger)/page";
 
 
@@ -68,12 +68,12 @@ export async function updateTask(
       timeTaken: time,
     }
   );
-    const response = await compareWithGroundTruth(_id)
-    console.log(response)
+  const response = await compareWithGroundTruth(_id)
+  console.log(response)
   return JSON.stringify(res);
 }
 
-async function compareWithGroundTruth(taskId: string) {
+export async function compareWithGroundTruth(taskId: string) {
   try {
     const task = await Task.findById(taskId);
     const template = await Template.findById(task.template);
@@ -83,8 +83,7 @@ async function compareWithGroundTruth(taskId: string) {
     }
 
     if (!template.groundTruthTask) {
-      return;
-    }
+      throw new Error("Ground truth not set");     }
 
     const groundTruthTask = await Task.findById(template.groundTruthTask);
 
@@ -159,10 +158,15 @@ async function compareWithGroundTruth(taskId: string) {
 
       // Compare arrays after sorting
       if (userCheckboxArray.length === groundTruthCheckboxArray.length &&
-          userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
+        userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
         pointsEarned++;
         comparisonResult = true;
       }
+    }
+    if (comparisonResult) {
+      await Task.findByIdAndUpdate(taskId, { status: "accepted" });
+    } else {
+      await Task.findByIdAndUpdate(taskId, { status: "rejected" });
     }
 
     const annotatorHistory = await AnnotatorHistory.findOne({
@@ -233,7 +237,7 @@ export async function createTestTasks(
     status: string;
     timeTaken: number;
     feedback: string;
-    template:string;
+    template: string;
     ai?: null; // Make ai optional but include it
   }[]
 ) {
@@ -296,7 +300,7 @@ export async function setGroundTruth(id: string) {
     const submittedTasks = await Task.find({
       template: task.template,
       isGroundTruth: false, // Don't include the current ground truth task
-       submitted:true,  // Only include submitted tasks
+      submitted: true,  // Only include submitted tasks
     });
 
     for (const submittedTask of submittedTasks) {
@@ -320,8 +324,8 @@ export async function createTasks(
     content: string;
     timer: number;
     reviewer: string;
-    type:string;
-    template:string
+    type: string;
+    template: string
   }[]
 ) {
   await connectToDatabase();
@@ -333,7 +337,7 @@ export async function createTasks(
 
   const taskData = tasks.map((task) => ({
     ...task,
-    type:task.type,
+    type: task.type,
     project_Manager: session.user.id,
     reviewer: task.reviewer || null,
   }));
@@ -395,7 +399,7 @@ export async function saveRepeatTasks(
     console.error("Error in saveRepeatTasks function:", error);
     throw new Error(
       (error as Error)?.message ||
-        "An unknown error occurred while saving repeat tasks."
+      "An unknown error occurred while saving repeat tasks."
     );
   }
 }
@@ -410,11 +414,11 @@ export async function getPaginatedTasks(
   projectid: string,
   page: number,
   activeTab: string,
-  type: "test" | "training" | "core" | "" = ""
+  type: "test" | "training" | "core" | "" = "",
+  pageSize: number = 10 
 ) {
   await connectToDatabase();
-  const limit = parseInt(process.env.NEXT_PUBLIC_PAGE_LIMIT!);
-  const skip = (page - 1) * limit;
+  const skip = (page - 1) * pageSize;
 
   let tasks = [];
   let total = 0;
@@ -429,16 +433,16 @@ export async function getPaginatedTasks(
 
   // Active tab specific filters
   if (activeTab === "all") {
-    tasks = await Task.find(baseFilter).skip(skip).limit(limit);
+    tasks = await Task.find(baseFilter).skip(skip).limit(pageSize);
     total = await Task.countDocuments(baseFilter);
   } else if (activeTab === "submitted") {
-    tasks = await Task.find({ ...baseFilter, submitted: true }).skip(skip).limit(limit);
+    tasks = await Task.find({ ...baseFilter, submitted: true }).skip(skip).limit(pageSize);
     total = await Task.countDocuments({ ...baseFilter, submitted: true });
   } else if (activeTab === "unassigned") {
     tasks = await Task.find({
       ...baseFilter,
       $or: [{ annotator: null }],
-    }).skip(skip).limit(limit);
+    }).skip(skip).limit(pageSize);
     total = await Task.countDocuments({
       ...baseFilter,
       $or: [{ annotator: null }],
@@ -449,7 +453,7 @@ export async function getPaginatedTasks(
     tasks: tasks || [],
     total,
     page,
-    pages: Math.ceil(total / limit),
+    pages: Math.ceil(total / pageSize),
   });
 }
 
@@ -548,7 +552,7 @@ export async function changeAnnotator(
         $set: {
           annotator: null,
           ai: null,
-          assignedTime:existingTask.created_at
+          assignedTime: existingTask.created_at
         },
       },
       {
@@ -564,15 +568,15 @@ export async function changeAnnotator(
       $set: {
         annotator,
         ai: null,
-        assignedTime:Date.now()
+        assignedTime: Date.now()
       },
     },
     {
       new: true,
     }
   );
-  if(res){
-    sendNotificationEmail(res._id,'assigned')
+  if (res) {
+    sendNotificationEmail(res._id, 'assigned')
     console.log("Email sent")
   }
   return JSON.stringify(res);
@@ -587,12 +591,12 @@ export async function getTasksByProject(id: string) {
   return JSON.stringify(res);
 }
 
-export async function getTasksOfAnnotator(taskType:'core' | 'training' | 'test') {
+export async function getTasksOfAnnotator(taskType: 'core' | 'training' | 'test') {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const annotatorId = session?.user.id;
 
-  const res = await Task.find({ annotator: annotatorId, type:taskType });
+  const res = await Task.find({ annotator: annotatorId, type: taskType });
   return JSON.stringify(res);
 }
 
@@ -685,7 +689,7 @@ export async function setTaskStatus(
         project: res.project,
         project_Manager: res.project_Manager,
         annotator: res.annotator,
-        reviewer: userId, 
+        reviewer: userId,
         task: res._id,
         feedback: res.feedback,
       });
@@ -755,8 +759,8 @@ export async function sendNotificationEmail(taskId: string, action: string) {
         port: parseInt(process.env.SMTP_PORT || '587'),
         secure: process.env.SMTP_SECURE === 'true',
         auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASSWORD,
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASSWORD,
         },
       });
 
@@ -1055,10 +1059,10 @@ export async function assignReviewer(_id: string, reviewerId: string | null) {
 export async function getReviewerByTaskId(taskId: string) {
   try {
     await connectToDatabase();
-    
+
     // Find the task by ID and select the reviewer field
     const task = await Task.findById(taskId).select('reviewer').exec();
-    
+
     if (!task || !task.reviewer) {
       return { error: 'Task or reviewer not found' };
     }
@@ -1073,12 +1077,14 @@ export async function getReviewerByTaskId(taskId: string) {
     }
 
     // Return the reviewer details
-    return { data: JSON.stringify({
-      id: reviewer.id,
-      name: reviewer.name,
-      email: reviewer.email,
-      role: reviewer.role,
-    }) };
+    return {
+      data: JSON.stringify({
+        id: reviewer.id,
+        name: reviewer.name,
+        email: reviewer.email,
+        role: reviewer.role,
+      })
+    };
   } catch (error) {
     console.error('Error in getReviewerByTaskId:', error);
     return { error: 'Error occurred while fetching the reviewer from taskId' };

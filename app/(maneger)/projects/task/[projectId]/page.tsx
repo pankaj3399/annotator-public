@@ -85,7 +85,8 @@ export default function Component() {
   const [statusFilter, setStatusFilter] = useState('');
 const [expertFilter, setExpertFilter] = useState('');
 const [reviewerFilter, setReviewerFilter] = useState('');
-
+const [pageSize, setPageSize] = useState(10);
+const [totalItems, setTotalItems] = useState(0);
   const { toast } = useToast();
   const [selectedTask,setSelectedTask]=useState<Task[]>([])
   const fetchJudges = async () => {
@@ -115,7 +116,7 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     if (session) {
       init();
     }
-  }, [projectId, session,activeTab,taskType]);
+  }, [projectId, session,activeTab,taskType,pageSize]);
   if (!session) {
     return <Loader />;
   }
@@ -126,7 +127,7 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     if (!session?.user) return;
     
     const paginatedResponse = JSON.parse(await 
-      getPaginatedTasks(projectId,page,activeTab,taskType));
+      getPaginatedTasks(projectId,page,activeTab,taskType, pageSize));
       const projectManager: Annotator = {
         _id: session.user.id,
         name: session.user.name || "Project Manager",
@@ -140,9 +141,10 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     const tasks = paginatedResponse.tasks as Task[]
     setCurrentPage(paginatedResponse.page)
     setTotalPages(paginatedResponse.pages)
+    setTotalItems(paginatedResponse.total);
     setTasks(
 
-      tasks.map((task: Task) => ({
+      paginatedResponse.tasks.map((task: Task) => ({
         ...task,
         reviewer: task.reviewer || projectManager._id, // Set project manager as default reviewer
       }))
@@ -159,7 +161,11 @@ const [reviewerFilter, setReviewerFilter] = useState('');
     setCurrentPage(newPage)
 
   }
-
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+    fetchTask(projectId, 1); // Refetch with new page size
+  };
   async function handleAssignUser(
     annotatorId: string,
     taskId: string,
@@ -712,6 +718,10 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                 handleDeleteTemplate={handleDeleteTemplate}
                 router={router}
                 session={session}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+
               />
             </TabsContent>
             <TabsContent value="submitted">
@@ -730,6 +740,9 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                 handleDeleteTemplate={handleDeleteTemplate}
                 router={router}
                 session={session}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                totalItems={totalItems}
               />
             </TabsContent>
             <TabsContent value="unassigned">
@@ -748,6 +761,9 @@ const [reviewerFilter, setReviewerFilter] = useState('');
                 handleDeleteTemplate={handleDeleteTemplate}
                 router={router}
                 session={session}
+                pageSize={pageSize}
+                onPageSizeChange={handlePageSizeChange}
+                totalItems={totalItems}
               />
             </TabsContent>
           </Tabs>
