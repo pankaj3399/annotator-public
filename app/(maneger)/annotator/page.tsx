@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
 import { domains, languages } from '@/lib/constants';
+import { Badge } from '@/components/ui/badge';
 interface User {
   _id: string;
   name: string;
@@ -226,6 +227,8 @@ export default function AnnotatorsPage() {
       name: user.name,
       email: user.email,
       permissions: user.permission.join(', '),
+      domains: user.domain?.join(', ') || '',
+      languages: user.lang?.join(', ') || '',
       lastLogin: format(parseISO(user.lastLogin.toString()), 'PPPpp')
     }));
 
@@ -238,7 +241,7 @@ export default function AnnotatorsPage() {
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
     } else {
-      const headers = ['name', 'email', 'permissions', 'lastLogin'];
+      const headers = ['name', 'email', 'permissions','domains', 'languages', 'lastLogin'];
       const csvContent = [
         headers.join(','),
         ...dataToExport.map((row) =>
@@ -344,6 +347,8 @@ export default function AnnotatorsPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Permission</TableHead>
+                  <TableHead>Domains</TableHead>
+                  <TableHead>Languages</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Action</TableHead>
                 </TableRow>
@@ -359,7 +364,7 @@ export default function AnnotatorsPage() {
                       <TableCell className='font-medium'>{user.name}</TableCell>
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
-                        <div className='flex items-center w-2/3'>
+                        <div className='flex items-center'>
                           <MultiCombobox
                             options={permissionOptions}
                             value={localReviewPermission}
@@ -371,6 +376,24 @@ export default function AnnotatorsPage() {
                             }}
                             placeholder='Select Permission'
                           />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className='flex flex-wrap gap-1'>
+                          {user.domain?.map((domain, index) => (
+                            <Badge key={index} variant="secondary" className='text-xs'>
+                              {domain}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className='flex flex-wrap gap-1'>
+                          {user.lang?.map((language, index) => (
+                            <Badge key={index} variant="outline" className='text-xs'>
+                              {language}
+                            </Badge>
+                          ))}
                         </div>
                       </TableCell>
                       <TableCell>
