@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useRouter } from 'next/navigation';
-import { domains, languages } from '@/lib/constants';
+import { domains, languages, locations } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 interface User {
   _id: string;
@@ -50,6 +50,7 @@ interface User {
   lastLogin: Date;
   domain: string[];
   lang: string[];
+  location: string;
 }
 
 interface Option {
@@ -82,6 +83,11 @@ const languageOptions: Option[] = languages.map((language) => ({
   label: language,
 }));
 
+const locationOptions: Option[] = locations.map((location) => ({
+  value: location.toLowerCase(),
+  label: location.charAt(0).toUpperCase() + location.slice(1),
+}));
+
 export default function AnnotatorsPage() {
   const [annotators, setAnnotators] = useState<User[]>([]);
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([]);
@@ -93,6 +99,8 @@ export default function AnnotatorsPage() {
   const [reviewPermissionsState, setReviewPermissionsState] = useState<{
     [key: string]: string[];
   }>({});
+  const [selectedLocation, setSelectedLocation] = useState<string[]>([]);
+
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -100,20 +108,21 @@ export default function AnnotatorsPage() {
   useEffect(() => {
     const fetchAnnotators = async () => {
       try {
-        const data = JSON.parse(await getAllAnnotators())
+        const data = JSON.parse(await getAllAnnotators());
         const transformedData = data.map((annotator: User) => {
           const currentPermissions = annotator.permission || ['noPermission'];
-          const transformedPermissions = currentPermissions.map((perm) => permissionMapping[perm] || 'No Permission'
+          const transformedPermissions = currentPermissions.map(
+            (perm) => permissionMapping[perm] || 'No Permission'
           );
 
           return {
             ...annotator,
-            permission: transformedPermissions
+            permission: transformedPermissions,
           };
         });
 
-        setAnnotators(transformedData)
-        setFilteredAnnotators(transformedData)
+        setAnnotators(transformedData);
+        setFilteredAnnotators(transformedData);
 
         const initialPermissionsState = transformedData.reduce(
           (acc: { [key: string]: string[] }, user: User) => {
@@ -134,20 +143,19 @@ export default function AnnotatorsPage() {
       }
     };
 
-    fetchAnnotators()
-  }, [toast])
+    fetchAnnotators();
+  }, [toast]);
 
-  const handleViewDetails = (user:User)=>{
-    router.push(`/annotator/profileView/${user._id}`)
-  }
+  const handleViewDetails = (user: User) => {
+    router.push(`/annotator/profileView/${user._id}`);
+  };
 
   useEffect(() => {
-    const filtered = annotators.filter(user => {
+    const filtered = annotators.filter((user) => {
       const matchesSearch =
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email.toLowerCase().includes(searchTerm.toLowerCase());
 
-      // Check if any of the selected domains match any domain in the user's domain array
       const matchesDomain =
         selectedDomain.length === 0 ||
         (user.domain &&
@@ -157,7 +165,6 @@ export default function AnnotatorsPage() {
               .includes(selected.toLowerCase())
           ));
 
-      // Check if any of the selected languages match any language in the user's lang array
       const matchesLanguage =
         selectedLanguage.length === 0 ||
         (user.lang &&
@@ -167,12 +174,27 @@ export default function AnnotatorsPage() {
               .includes(selected.toLowerCase())
           ));
 
-      return matchesSearch && matchesDomain && matchesLanguage;
+      const matchesLocation =
+        selectedLocation.length === 0 ||
+        (user.location &&
+          selectedLocation.some(
+            (selected) => user.location.toLowerCase() === selected.toLowerCase()
+          ));
+
+      return (
+        matchesSearch && matchesDomain && matchesLanguage && matchesLocation
+      );
     });
 
     setFilteredAnnotators(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
-  }, [searchTerm, selectedDomain, selectedLanguage, annotators]);
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    selectedDomain,
+    selectedLanguage,
+    selectedLocation,
+    annotators,
+  ]);
 
   const savePermissions = async (userId: string) => {
     const currentPermissions = reviewPermissionsState[userId] || [
@@ -190,7 +212,7 @@ export default function AnnotatorsPage() {
         },
         body: JSON.stringify({
           user_id: userId,
-          permission: backendPermissions
+          permission: backendPermissions,
         }),
       });
 
@@ -228,20 +250,30 @@ export default function AnnotatorsPage() {
       email: user.email,
       permissions: user.permission.join(', '),
       domains: user.domain?.join(', ') || '',
-      languages: user.lang?.join(', ') || '',
-      lastLogin: format(parseISO(user.lastLogin.toString()), 'PPPpp')
+      languages: user.location,
+      location: user.lang?.join(', ') || '',
+      lastLogin: format(parseISO(user.lastLogin.toString()), 'PPPpp'),
     }));
 
     if (exportFormat === 'json') {
       const dataStr = JSON.stringify(dataToExport, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      const dataUri =
+        'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
       const exportFileDefaultName = 'annotators.json';
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
     } else {
-      const headers = ['name', 'email', 'permissions','domains', 'languages', 'lastLogin'];
+      const headers = [
+        'name',
+        'email',
+        'permissions',
+        'domains',
+        'languages',
+        'location',
+        'lastLogin',
+      ];
       const csvContent = [
         headers.join(','),
         ...dataToExport.map((row) =>
@@ -314,21 +346,12 @@ export default function AnnotatorsPage() {
               placeholder='Select Language'
             />
 
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => setPageSize(Number(value))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Page Size' />
-              </SelectTrigger>
-              <SelectContent>
-                {PAGE_SIZES.map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size} per page
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <MultiCombobox
+              options={locationOptions}
+              value={selectedLocation}
+              onChange={setSelectedLocation}
+              placeholder='Select Location'
+            />
           </div>
         </div>
 
@@ -349,6 +372,7 @@ export default function AnnotatorsPage() {
                   <TableHead>Permission</TableHead>
                   <TableHead>Domains</TableHead>
                   <TableHead>Languages</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead>Last Login</TableHead>
                   <TableHead>Action</TableHead>
                 </TableRow>
@@ -381,7 +405,11 @@ export default function AnnotatorsPage() {
                       <TableCell>
                         <div className='flex flex-wrap gap-1'>
                           {user.domain?.map((domain, index) => (
-                            <Badge key={index} variant="secondary" className='text-xs'>
+                            <Badge
+                              key={index}
+                              variant='secondary'
+                              className='text-xs'
+                            >
                               {domain}
                             </Badge>
                           ))}
@@ -390,11 +418,21 @@ export default function AnnotatorsPage() {
                       <TableCell>
                         <div className='flex flex-wrap gap-1'>
                           {user.lang?.map((language, index) => (
-                            <Badge key={index} variant="outline" className='text-xs'>
+                            <Badge
+                              key={index}
+                              variant='outline'
+                              className='text-xs'
+                            >
                               {language}
                             </Badge>
                           ))}
                         </div>
+                      </TableCell>
+                      <TableCell className='font-medium'>
+                        {user.location
+                          ? user.location.charAt(0).toUpperCase() +
+                            user.location.slice(1)
+                          : ''}
                       </TableCell>
                       <TableCell>
                         <div className='flex items-center text-sm text-gray-500'>
@@ -426,11 +464,30 @@ export default function AnnotatorsPage() {
 
             {/* Pagination Controls */}
             <div className='flex items-center justify-between p-4 border-t'>
-              <div className='text-sm text-gray-700'>
-                Showing {startIndex + 1} to{' '}
-                {Math.min(endIndex, filteredAnnotators.length)} of{' '}
-                {filteredAnnotators.length} results
+              <div className='flex items-center space-x-4'>
+                <Select
+                  value={pageSize.toString()}
+                  onValueChange={(value) => setPageSize(Number(value))}
+                >
+                  <SelectTrigger className='w-[120px]'>
+                    <SelectValue placeholder='Page Size' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAGE_SIZES.map((size) => (
+                      <SelectItem key={size} value={size.toString()}>
+                        {size} per page
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <div className='text-sm text-gray-700'>
+                  Showing {startIndex + 1} to{' '}
+                  {Math.min(endIndex, filteredAnnotators.length)} of{' '}
+                  {filteredAnnotators.length} results
+                </div>
               </div>
+
               <div className='flex items-center space-x-2'>
                 <Button
                   variant='outline'
