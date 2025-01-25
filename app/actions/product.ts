@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { connectToDatabase } from "@/lib/db";
 import { authOptions } from "@/auth";
 import { ProductRequest } from "@/models/ProductRequest";
+import mongoose, { Types } from "mongoose";
 
 export type AddToWishlistParams = {
   productId?: string;
@@ -194,6 +195,7 @@ export async function updatePaymentStatus(
     stripe_payment_intent: string;
     payment_status: "pending" | "succeeded" | "failed";
     total_price_paid: number | any;
+    paid_by: string;
   }
 ) {
   try {
@@ -211,6 +213,7 @@ export async function updatePaymentStatus(
             payment_status: paymentDetails.payment_status,
             total_price_paid: paymentDetails.total_price_paid / 100,
             paid_at: new Date(),
+            paid_by: paymentDetails.paid_by,
           },
           "items.$.status":
             paymentDetails.payment_status === "succeeded"
@@ -240,3 +243,80 @@ export async function updatePaymentStatus(
   }
 }
 
+export async function getPaidWishlistProducts(): Promise<any> {
+  try {
+    await connectToDatabase();
+
+    const paidProduct = await Wishlist.findById("678c077ab48ef8621f709214");
+
+    console.log(paidProduct.items);
+
+    const paidProducts = await Wishlist.aggregate([
+      { $match: {} },
+      { $unwind: "$items" },
+      {
+        $match: {
+          "items.payment_data.payment_status": "succeeded",
+          "items.is_external_request": false,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "expert",
+          foreignField: "_id",
+          as: "user_details",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "items.payment_data.paid_by",
+          foreignField: "_id",
+          as: "paid_by_details",
+        },
+      },
+      {
+        $unwind: {
+          path: "$user_details",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$paid_by_details",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          product_id: "$items.catalog_details.product_id",
+          stripe_payment_intent: "$items.payment_data.stripe_payment_intent",
+          name: "$items.catalog_details.name",
+          description: "$items.catalog_details.description",
+          price: "$items.catalog_details.price",
+          image_url: "$items.catalog_details.image_url",
+          payment_status: "$items.payment_data.payment_status",
+          total_price_paid: "$items.payment_data.total_price_paid",
+          paid_at: "$items.payment_data.paid_at",
+          shipping_address: "$items.shipping_address",
+          user_details: {
+            userId: "$user_details._id",
+            userName: "$user_details.name",
+            email: "$user_details.email",
+          },
+          paid_by_details: {
+            userId: "$paid_by_details._id",
+            userName: "$paid_by_details.name",
+            email: "$paid_by_details.email",
+          },
+        },
+      },
+    ]);
+
+    return paidProducts;
+  } catch (error) {
+    console.error("Error fetching paid wishlist products:", error);
+    throw new Error("Failed to retrieve paid products");
+  }
+}
