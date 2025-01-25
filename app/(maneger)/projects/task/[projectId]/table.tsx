@@ -300,254 +300,267 @@ export function TaskTable({
           </span>
         </div>
       )}
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className='w-12'>
-              <input
-                type='checkbox'
-                className='rounded border-zinc-300 dark:border-zinc-600'
-                onChange={handleSelectAll}
-                checked={
-                  selectedTask.length === tasks.length &&
-                  selectedTask.length > 0
-                } // Check if all tasks are selected
-              />
-            </TableHead>{' '}
-            <TableHead>Tasks Name</TableHead>
-            <TableHead>Created Date</TableHead>
-            <TableHead>Assignee</TableHead>
-            <TableHead>Reviewer</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className='text-center'>Time Taken</TableHead>
-            <TableHead className='text-center'>Submitted</TableHead>
-            <TableHead className='text-right'>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {tasks.map((task: Task) => {
-            const assignedAnnotator = annotators.find(
-              (a) => a._id === task.annotator
-            );
-            const assignedReviewer =
-              reviewers.find((r) => r._id === task.reviewer) ||
-              (session?.user && task.reviewer === session.user.id
-                ? ({
-                    _id: session.user.id,
-                    name: session.user.name || 'Project Manager',
-                    email: '',
-                    lastLogin: '',
-                    permission: ['canReview'],
-                  } as Annotator)
-                : null);
-            const assignedJudge = judges.find((j) => j._id === task.ai);
+      <div className='w-full overflow-x-auto'>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className='w-12 min-w-[3rem]'>
+                <input
+                  type='checkbox'
+                  className='rounded border-zinc-300 dark:border-zinc-600'
+                  onChange={handleSelectAll}
+                  checked={
+                    selectedTask.length === tasks.length &&
+                    selectedTask.length > 0
+                  } // Check if all tasks are selected
+                />
+              </TableHead>{' '}
+              <TableHead className='min-w-[150px]'>Tasks Name</TableHead>
+              <TableHead className='min-w-[150px]'>Created Date</TableHead>
+              <TableHead className='min-w-[150px]'>Assignee</TableHead>
+              <TableHead className='min-w-[300px]'>Reviewer</TableHead>
+              <TableHead className='min-w-[120px]'>Status</TableHead>
+              <TableHead className='text-center min-w-[50px]'>
+                Time Taken
+              </TableHead>
+              <TableHead className='text-center min-w-[50px]'>
+                Submitted
+              </TableHead>
+              <TableHead className='text-right min-w-[50px]'>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {tasks.map((task: Task) => {
+              const assignedAnnotator = annotators.find(
+                (a) => a._id === task.annotator
+              );
+              const assignedReviewer =
+                reviewers.find((r) => r._id === task.reviewer) ||
+                (session?.user && task.reviewer === session.user.id
+                  ? ({
+                      _id: session.user.id,
+                      name: session.user.name || 'Project Manager',
+                      email: '',
+                      lastLogin: '',
+                      permission: ['canReview'],
+                    } as Annotator)
+                  : null);
+              const assignedJudge = judges.find((j) => j._id === task.ai);
 
-            return (
-              <TableRow
-                key={task._id}
-                onClick={() => {
-                  router.push(`/task/${task._id}`);
-                }}
-                className='cursor-pointer hover:bg-gray-50'
-              >
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <input
-                    type='checkbox'
-                    checked={selectedTask.some(
-                      (selected) => selected._id === task._id
-                    )}
-                    onChange={() => handleSelect(task)}
-                    className='rounded border-zinc-300 dark:border-zinc-600'
-                  />
-                </TableCell>
-                <TableCell className='font-medium'>{task.name}</TableCell>
-                <TableCell>
-                  <div className='flex items-center text-sm text-gray-500'>
-                    <CalendarIcon className='mr-2 h-4 w-4' />
-                    {format(parseISO(task.created_at), 'PPP')}
-                  </div>
-                </TableCell>
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant='outline'
-                        className='w-[180px] justify-between'
-                      >
-                        {task.ai
-                          ? assignedJudge?.name
-                          : task.annotator
-                            ? assignedAnnotator?.name
-                            : 'Unassigned'}
-                        <CaretSortIcon className=' h-4 w-4 shrink-0 opacity-50' />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-[180px] p-0' side='bottom'>
-                      <Command>
-                        <div className='flex items-center pb-2 border-b'>
-                          <CommandInput
-                            placeholder='Search assignees...'
-                            value={assigneeSearch.value}
-                            onValueChange={(value) =>
-                              setAssigneeSearch({ value, focused: true })
-                            }
-                            className='h-8'
-                          />
-                        </div>
-                        <CommandList>
-                          <CommandGroup>
-                            <CommandItem
-                              value='unassigned'
-                              onSelect={() =>
-                                handleAssigneeChange('unassigned', task)
+              return (
+                <TableRow
+                  key={task._id}
+                  onClick={() => {
+                    router.push(`/task/${task._id}`);
+                  }}
+                  className='cursor-pointer hover:bg-gray-50'
+                >
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type='checkbox'
+                      checked={selectedTask.some(
+                        (selected) => selected._id === task._id
+                      )}
+                      onChange={() => handleSelect(task)}
+                      className='rounded border-zinc-300 dark:border-zinc-600'
+                    />
+                  </TableCell>
+                  <TableCell className='font-medium'>{task.name}</TableCell>
+                  <TableCell>
+                    <div className='flex items-center text-sm text-gray-500'>
+                      <CalendarIcon className='mr-2 h-4 w-4' />
+                      {format(parseISO(task.created_at), 'PPP')}
+                    </div>
+                  </TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant='outline'
+                          className='w-[180px] justify-between'
+                        >
+                          {task.ai
+                            ? assignedJudge?.name
+                            : task.annotator
+                              ? assignedAnnotator?.name
+                              : 'Unassigned'}
+                          <CaretSortIcon className=' h-4 w-4 shrink-0 opacity-50' />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className='w-[180px] p-0' side='bottom'>
+                        <Command>
+                          <div className='flex items-center pb-2 border-b'>
+                            <CommandInput
+                              placeholder='Search assignees...'
+                              value={assigneeSearch.value}
+                              onValueChange={(value) =>
+                                setAssigneeSearch({ value, focused: true })
                               }
-                            >
-                              Unassigned
-                            </CommandItem>
-                            {judges
-                              .filter((judge) =>
-                                judge.name
-                                  .toLowerCase()
-                                  .includes(assigneeSearch.value.toLowerCase())
-                              )
-                              .map((judge) => (
-                                <CommandItem
-                                  key={judge._id}
-                                  value={judge._id}
-                                  onSelect={() =>
-                                    handleAssigneeChange(judge._id, task)
-                                  }
-                                >
-                                  {judge.name} (AI)
-                                </CommandItem>
-                              ))}
-                            {annotators
-                              .filter(
-                                (annotator) =>
-                                  annotator._id !== session?.user?.id &&
-                                  annotator.name
+                              className='h-8'
+                            />
+                          </div>
+                          <CommandList>
+                            <CommandGroup>
+                              <CommandItem
+                                value='unassigned'
+                                onSelect={() =>
+                                  handleAssigneeChange('unassigned', task)
+                                }
+                              >
+                                Unassigned
+                              </CommandItem>
+                              {judges
+                                .filter((judge) =>
+                                  judge.name
                                     .toLowerCase()
                                     .includes(
                                       assigneeSearch.value.toLowerCase()
                                     )
-                              )
-                              .map((annotator) => (
-                                <CommandItem
-                                  key={annotator._id}
-                                  value={annotator._id}
-                                  onSelect={() =>
-                                    handleAssigneeChange(annotator._id, task)
-                                  }
-                                  disabled={annotator._id === task.reviewer}
-                                >
-                                  {annotator.name}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </TableCell>
+                                )
+                                .map((judge) => (
+                                  <CommandItem
+                                    key={judge._id}
+                                    value={judge._id}
+                                    onSelect={() =>
+                                      handleAssigneeChange(judge._id, task)
+                                    }
+                                  >
+                                    {judge.name} (AI)
+                                  </CommandItem>
+                                ))}
+                              {annotators
+                                .filter(
+                                  (annotator) =>
+                                    annotator._id !== session?.user?.id &&
+                                    annotator.name
+                                      .toLowerCase()
+                                      .includes(
+                                        assigneeSearch.value.toLowerCase()
+                                      )
+                                )
+                                .map((annotator) => (
+                                  <CommandItem
+                                    key={annotator._id}
+                                    value={annotator._id}
+                                    onSelect={() =>
+                                      handleAssigneeChange(annotator._id, task)
+                                    }
+                                    disabled={annotator._id === task.reviewer}
+                                  >
+                                    {annotator.name}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
 
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <Popover>
-                    <PopoverTrigger asChild>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant='outline'
+                          className='w-full justify-between'
+                        >
+                          {getUserDisplayName(assignedReviewer)}
+                          <CaretSortIcon className='h-4 w-4 shrink-0 opacity-50' />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className='w-[180px] p-0' side='bottom'>
+                        <Command>
+                          <div className='flex items-center pb-2 border-b'>
+                            <CommandInput
+                              placeholder='Search reviewers...'
+                              value={reviewerSearch.value}
+                              onValueChange={(value) =>
+                                setReviewerSearch({ value, focused: true })
+                              }
+                              className='h-8'
+                            />
+                          </div>
+                          <CommandList>
+                            <CommandGroup>
+                              {reviewers
+                                .sort((a, b) => {
+                                  if (a._id === session?.user?.id) return -1;
+                                  if (b._id === session?.user?.id) return 1;
+                                  return a.name.localeCompare(b.name);
+                                })
+                                .filter((reviewer) =>
+                                  getUserDisplayName(reviewer)
+                                    .toLowerCase()
+                                    .includes(
+                                      reviewerSearch.value.toLowerCase()
+                                    )
+                                )
+                                .map((reviewer) => (
+                                  <CommandItem
+                                    key={reviewer._id}
+                                    value={reviewer._id}
+                                    onSelect={() =>
+                                      handleReviewerChange(reviewer._id, task)
+                                    }
+                                    disabled={reviewer._id === task.annotator}
+                                  >
+                                    {getUserDisplayName(reviewer)}
+                                    {reviewer._id === task.annotator
+                                      ? ' (Annotator)'
+                                      : ''}
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </TableCell>
+                  <TableCell className='font-medium'>
+                    <Badge variant={getStatusBadgeVariant(task.status)}>
+                      {task.status.charAt(0).toUpperCase() +
+                        task.status.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className='font-medium text-center'>
+                    {formatTime(task.timeTaken)}
+                  </TableCell>
+                  <TableCell className='font-medium text-center'>
+                    <span
+                      role='img'
+                      aria-label={
+                        task.submitted ? 'Submitted' : 'Not submitted'
+                      }
+                    >
+                      {task.submitted ? '✔️' : '❌'}
+                    </span>
+                  </TableCell>
+                  <TableCell className='text-right'>
+                    {task.feedback && (
                       <Button
-                        variant='outline'
-                        className='w-[180px] justify-between'
+                        variant='ghost'
+                        size='sm'
+                        onClick={(e) => handleClick(e, task.feedback)}
                       >
-                        {getUserDisplayName(assignedReviewer)}
-                        <CaretSortIcon className='h-4 w-4 shrink-0 opacity-50' />
+                        <NotebookPen className='h-4 w-4' />
+                        <span className='sr-only'>feedback</span>
                       </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className='w-[180px] p-0' side='bottom'>
-                      <Command>
-                        <div className='flex items-center pb-2 border-b'>
-                          <CommandInput
-                            placeholder='Search reviewers...'
-                            value={reviewerSearch.value}
-                            onValueChange={(value) =>
-                              setReviewerSearch({ value, focused: true })
-                            }
-                            className='h-8'
-                          />
-                        </div>
-                        <CommandList>
-                          <CommandGroup>
-                            {reviewers
-                              .sort((a, b) => {
-                                if (a._id === session?.user?.id) return -1;
-                                if (b._id === session?.user?.id) return 1;
-                                return a.name.localeCompare(b.name);
-                              })
-                              .filter((reviewer) =>
-                                getUserDisplayName(reviewer)
-                                  .toLowerCase()
-                                  .includes(reviewerSearch.value.toLowerCase())
-                              )
-                              .map((reviewer) => (
-                                <CommandItem
-                                  key={reviewer._id}
-                                  value={reviewer._id}
-                                  onSelect={() =>
-                                    handleReviewerChange(reviewer._id, task)
-                                  }
-                                  disabled={reviewer._id === task.annotator}
-                                >
-                                  {getUserDisplayName(reviewer)}
-                                  {reviewer._id === task.annotator
-                                    ? ' (Annotator)'
-                                    : ''}
-                                </CommandItem>
-                              ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </TableCell>
-                <TableCell className='font-medium'>
-                  <Badge variant={getStatusBadgeVariant(task.status)}>
-                    {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                  </Badge>
-                </TableCell>
-                <TableCell className='font-medium text-center'>
-                  {formatTime(task.timeTaken)}
-                </TableCell>
-                <TableCell className='font-medium text-center'>
-                  <span
-                    role='img'
-                    aria-label={task.submitted ? 'Submitted' : 'Not submitted'}
-                  >
-                    {task.submitted ? '✔️' : '❌'}
-                  </span>
-                </TableCell>
-                <TableCell className='text-right'>
-                  {task.feedback && (
+                    )}
                     <Button
                       variant='ghost'
                       size='sm'
-                      onClick={(e) => handleClick(e, task.feedback)}
+                      onClick={(e) => handleDeleteTemplate(e, task._id)}
                     >
-                      <NotebookPen className='h-4 w-4' />
-                      <span className='sr-only'>feedback</span>
+                      <Trash2Icon className='h-4 w-4' />
+                      <span className='sr-only'>Delete</span>
                     </Button>
-                  )}
-                  <Button
-                    variant='ghost'
-                    size='sm'
-                    onClick={(e) => handleDeleteTemplate(e, task._id)}
-                  >
-                    <Trash2Icon className='h-4 w-4' />
-                    <span className='sr-only'>Delete</span>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
       <div className='flex items-center justify-between px-2 mt-6 mb-4'>
         <div className='flex items-center gap-4'>
           <div className='flex items-center gap-2'>
