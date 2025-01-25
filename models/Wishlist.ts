@@ -69,6 +69,7 @@ const wishlistSchema = new Schema(
           },
           total_price_paid: { type: Number },
           paid_at: { type: Date },
+          paid_by: { type: Schema.Types.ObjectId, ref: "User"}
         },
       },
     ],

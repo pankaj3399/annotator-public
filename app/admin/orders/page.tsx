@@ -28,6 +28,18 @@ interface Product {
     userName: string;
     email: string;
   };
+  paid_by_details: {
+    userId: string;
+    userName: string;
+    email: string;
+  };
+  shipping_address: {
+    street: string;
+    city: string;
+    state: string;
+    postal_code: string;
+    country: string;
+  };
 }
 
 const OrdersPage: React.FC = () => {
@@ -39,6 +51,7 @@ const OrdersPage: React.FC = () => {
     const fetchProducts = async () => {
       try {
         const result = await getPaidWishlistProducts();
+        console.log(result);
         setProducts(result);
       } catch (err) {
         setError("Failed to fetch products. Please try again later.");
@@ -85,7 +98,9 @@ const OrdersPage: React.FC = () => {
                   <TableHead>Total Price Paid</TableHead>
                   <TableHead>Payment intent reference</TableHead>
                   <TableHead>Paid At</TableHead>
-                  <TableHead>User</TableHead>
+                  <TableHead>Paid By</TableHead>
+                  <TableHead>For Expert</TableHead>
+                  <TableHead>Shipping Address</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -101,7 +116,9 @@ const OrdersPage: React.FC = () => {
                     <TableCell>
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(product.stripe_payment_intent);
+                          navigator.clipboard.writeText(
+                            product.stripe_payment_intent
+                          );
                           toast.success("Payment intent ID copied!");
                         }}
                         className="text-blue-500 underline"
@@ -113,9 +130,25 @@ const OrdersPage: React.FC = () => {
                       {new Date(product.paid_at).toLocaleString()}
                     </TableCell>
                     <TableCell>
+                      <div>{product.paid_by_details.userName}</div>
+                      <div className="text-sm text-gray-500">
+                        {product.paid_by_details.email}
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <div>{product.user_details.userName}</div>
                       <div className="text-sm text-gray-500">
                         {product.user_details.email}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {product.shipping_address.street},<br />
+                        {product.shipping_address.city},{" "}
+                        {product.shipping_address.state}
+                        <br />
+                        {product.shipping_address.postal_code},{" "}
+                        {product.shipping_address.country}
                       </div>
                     </TableCell>
                   </TableRow>
