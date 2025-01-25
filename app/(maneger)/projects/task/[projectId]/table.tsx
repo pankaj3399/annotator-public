@@ -266,20 +266,6 @@ export function TaskTable({
       setGradingProgress(0);
     }
   }
-  const searchFilter = (searchValue: string, name: string): boolean => {
-    if (!searchValue) return true;
-    const search = searchValue.toLowerCase();
-    const itemName = name.toLowerCase();
-
-    // Handle multi-word search
-    if (search.includes(' ')) {
-      const searchTerms = search.split(' ').filter((term) => term.length > 0);
-      return searchTerms.every((term) => itemName.includes(term));
-    }
-
-    // Single word/character search - simple substring match
-    return itemName.includes(search);
-  };
 
   return (
     <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
