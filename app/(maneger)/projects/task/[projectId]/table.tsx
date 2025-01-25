@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   NotebookPen,
   RefreshCcw,
+  Search,
   Trash2Icon,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,7 +51,20 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination';
 import { compareWithGroundTruth } from '@/app/actions/task';
-
+import { CaretSortIcon } from '@radix-ui/react-icons';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 interface TaskTableProps {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
@@ -105,7 +119,14 @@ export function TaskTable({
   const [feedback, setFeedback] = useState('');
   const [isGrading, setIsGrading] = useState(false);
   const [gradingProgress, setGradingProgress] = useState(0);
-
+  const [assigneeSearch, setAssigneeSearch] = useState({
+    value: '',
+    focused: false,
+  });
+  const [reviewerSearch, setReviewerSearch] = useState({
+    value: '',
+    focused: false,
+  });
   const { setJob, getJobs, removeJobByTaskid } = useJobList();
   const checkboxRef = useRef<HTMLInputElement | null>(null);
   const pathName = usePathname();
@@ -229,7 +250,9 @@ export function TaskTable({
             toast.error('No ground truth set. Please set ground truth first.');
           } else {
             console.error('Error grading tasks:', error);
-            toast.error('Please set one task as  a ground truth to be able to auto grade');
+            toast.error(
+              'Please set one task as  a ground truth to be able to auto grade'
+            );
           }
           setIsGrading(false);
           setGradingProgress(0);
@@ -344,75 +367,145 @@ export function TaskTable({
                     {format(parseISO(task.created_at), 'PPP')}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Select
-                    value={task.ai ? task.ai : task.annotator || 'unassigned'}
-                    onValueChange={(value) => handleAssigneeChange(value, task)}
-                  >
-                    <SelectTrigger className='w-[180px]'>
-                      <SelectValue>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant='outline'
+                        className='w-[180px] justify-between'
+                      >
                         {task.ai
                           ? assignedJudge?.name
                           : task.annotator
                             ? assignedAnnotator?.name
                             : 'Unassigned'}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='unassigned'>Unassigned</SelectItem>
-                      {judges.length > 0 &&
-                        judges.map((judge) => (
-                          <SelectItem key={judge._id} value={judge._id}>
-                            {judge.name} (AI)
-                          </SelectItem>
-                        ))}
-                      {annotators
-                        .filter(
-                          (annotator) => annotator._id !== session?.user?.id
-                        )
-                        .map((annotator: Annotator) => (
-                          <SelectItem
-                            key={annotator._id}
-                            value={annotator._id}
-                            disabled={annotator._id === task.reviewer}
-                          >
-                            {annotator.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                        <CaretSortIcon className=' h-4 w-4 shrink-0 opacity-50' />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className='w-[180px] p-0' side='bottom'>
+                      <Command>
+                        <div className='flex items-center pb-2 border-b'>
+                          <CommandInput
+                            placeholder='Search assignees...'
+                            value={assigneeSearch.value}
+                            onValueChange={(value) =>
+                              setAssigneeSearch({ value, focused: true })
+                            }
+                            className='h-8'
+                          />
+                        </div>
+                        <CommandList>
+                          <CommandGroup>
+                            <CommandItem
+                              value='unassigned'
+                              onSelect={() =>
+                                handleAssigneeChange('unassigned', task)
+                              }
+                            >
+                              Unassigned
+                            </CommandItem>
+                            {judges
+                              .filter((judge) =>
+                                judge.name
+                                  .toLowerCase()
+                                  .includes(assigneeSearch.value.toLowerCase())
+                              )
+                              .map((judge) => (
+                                <CommandItem
+                                  key={judge._id}
+                                  value={judge._id}
+                                  onSelect={() =>
+                                    handleAssigneeChange(judge._id, task)
+                                  }
+                                >
+                                  {judge.name} (AI)
+                                </CommandItem>
+                              ))}
+                            {annotators
+                              .filter(
+                                (annotator) =>
+                                  annotator._id !== session?.user?.id &&
+                                  annotator.name
+                                    .toLowerCase()
+                                    .includes(
+                                      assigneeSearch.value.toLowerCase()
+                                    )
+                              )
+                              .map((annotator) => (
+                                <CommandItem
+                                  key={annotator._id}
+                                  value={annotator._id}
+                                  onSelect={() =>
+                                    handleAssigneeChange(annotator._id, task)
+                                  }
+                                  disabled={annotator._id === task.reviewer}
+                                >
+                                  {annotator.name}
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </TableCell>
-                <TableCell>
-                  <Select
-                    value={task.reviewer || session?.user?.id || ''}
-                    onValueChange={(value) => handleReviewerChange(value, task)}
-                  >
-                    <SelectTrigger className='w-[180px]'>
-                      <SelectValue>
+
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant='outline'
+                        className='w-[180px] justify-between'
+                      >
                         {getUserDisplayName(assignedReviewer)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reviewers
-                        .sort((a, b) => {
-                          if (a._id === session?.user?.id) return -1;
-                          if (b._id === session?.user?.id) return 1;
-                          return a.name.localeCompare(b.name);
-                        })
-                        .map((reviewer: Annotator) => (
-                          <SelectItem
-                            key={reviewer._id}
-                            value={reviewer._id}
-                            disabled={reviewer._id === task.annotator}
-                          >
-                            {getUserDisplayName(reviewer)}
-                            {reviewer._id === task.annotator
-                              ? ' (Annotator)'
-                              : ''}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                        <CaretSortIcon className='h-4 w-4 shrink-0 opacity-50' />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className='w-[180px] p-0' side='bottom'>
+                      <Command>
+                        <div className='flex items-center pb-2 border-b'>
+                          <CommandInput
+                            placeholder='Search reviewers...'
+                            value={reviewerSearch.value}
+                            onValueChange={(value) =>
+                              setReviewerSearch({ value, focused: true })
+                            }
+                            className='h-8'
+                          />
+                        </div>
+                        <CommandList>
+                          <CommandGroup>
+                            {reviewers
+                              .sort((a, b) => {
+                                if (a._id === session?.user?.id) return -1;
+                                if (b._id === session?.user?.id) return 1;
+                                return a.name.localeCompare(b.name);
+                              })
+                              .filter((reviewer) =>
+                                getUserDisplayName(reviewer)
+                                  .toLowerCase()
+                                  .includes(reviewerSearch.value.toLowerCase())
+                              )
+                              .map((reviewer) => (
+                                <CommandItem
+                                  key={reviewer._id}
+                                  value={reviewer._id}
+                                  onSelect={() =>
+                                    handleReviewerChange(reviewer._id, task)
+                                  }
+                                  disabled={reviewer._id === task.annotator}
+                                >
+                                  {getUserDisplayName(reviewer)}
+                                  {reviewer._id === task.annotator
+                                    ? ' (Annotator)'
+                                    : ''}
+                                </CommandItem>
+                              ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </TableCell>
                 <TableCell className='font-medium'>
                   <Badge variant={getStatusBadgeVariant(task.status)}>
