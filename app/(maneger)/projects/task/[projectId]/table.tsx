@@ -119,14 +119,8 @@ export function TaskTable({
   const [feedback, setFeedback] = useState('');
   const [isGrading, setIsGrading] = useState(false);
   const [gradingProgress, setGradingProgress] = useState(0);
-  const [assigneeSearch, setAssigneeSearch] = useState({
-    value: '',
-    focused: false,
-  });
-  const [reviewerSearch, setReviewerSearch] = useState({
-    value: '',
-    focused: false,
-  });
+  const [assigneeSearch, setAssigneeSearch] = useState('');
+  const [reviewerSearch, setReviewerSearch] = useState('');
   const { setJob, getJobs, removeJobByTaskid } = useJobList();
   const checkboxRef = useRef<HTMLInputElement | null>(null);
   const pathName = usePathname();
@@ -272,6 +266,21 @@ export function TaskTable({
       setGradingProgress(0);
     }
   }
+  const searchFilter = (searchValue: string, name: string): boolean => {
+    if (!searchValue) return true;
+    const search = searchValue.toLowerCase();
+    const itemName = name.toLowerCase();
+
+    // Handle multi-word search
+    if (search.includes(' ')) {
+      const searchTerms = search.split(' ').filter((term) => term.length > 0);
+      return searchTerms.every((term) => itemName.includes(term));
+    }
+
+    // Single word/character search - simple substring match
+    return itemName.includes(search);
+  };
+
   return (
     <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
       <div className='flex justify-end'>
@@ -389,16 +398,12 @@ export function TaskTable({
                       </PopoverTrigger>
                       <PopoverContent className='w-[180px] p-0' side='bottom'>
                         <Command>
-                          <div className='flex items-center pb-2 border-b'>
-                            <CommandInput
-                              placeholder='Search assignees...'
-                              value={assigneeSearch.value}
-                              onValueChange={(value) =>
-                                setAssigneeSearch({ value, focused: true })
-                              }
-                              className='h-8'
-                            />
-                          </div>
+                          <CommandInput
+                            placeholder='Search assignees...'
+                            value={assigneeSearch}
+                            onValueChange={setAssigneeSearch}
+                            className='h-8'
+                          />
                           <CommandList>
                             <CommandGroup>
                               <CommandItem
@@ -409,39 +414,26 @@ export function TaskTable({
                               >
                                 Unassigned
                               </CommandItem>
-                              {judges
-                                .filter((judge) =>
-                                  judge.name
-                                    .toLowerCase()
-                                    .includes(
-                                      assigneeSearch.value.toLowerCase()
-                                    )
-                                )
-                                .map((judge) => (
-                                  <CommandItem
-                                    key={judge._id}
-                                    value={judge._id}
-                                    onSelect={() =>
-                                      handleAssigneeChange(judge._id, task)
-                                    }
-                                  >
-                                    {judge.name} (AI)
-                                  </CommandItem>
-                                ))}
+                              {judges.map((judge) => (
+                                <CommandItem
+                                  key={judge._id}
+                                  value={judge.name}
+                                  onSelect={() =>
+                                    handleAssigneeChange(judge._id, task)
+                                  }
+                                >
+                                  {judge.name} (AI)
+                                </CommandItem>
+                              ))}
                               {annotators
                                 .filter(
                                   (annotator) =>
-                                    annotator._id !== session?.user?.id &&
-                                    annotator.name
-                                      .toLowerCase()
-                                      .includes(
-                                        assigneeSearch.value.toLowerCase()
-                                      )
+                                    annotator._id !== session?.user?.id
                                 )
                                 .map((annotator) => (
                                   <CommandItem
                                     key={annotator._id}
-                                    value={annotator._id}
+                                    value={annotator.name}
                                     onSelect={() =>
                                       handleAssigneeChange(annotator._id, task)
                                     }
@@ -470,16 +462,12 @@ export function TaskTable({
                       </PopoverTrigger>
                       <PopoverContent className='w-[180px] p-0' side='bottom'>
                         <Command>
-                          <div className='flex items-center pb-2 border-b'>
-                            <CommandInput
-                              placeholder='Search reviewers...'
-                              value={reviewerSearch.value}
-                              onValueChange={(value) =>
-                                setReviewerSearch({ value, focused: true })
-                              }
-                              className='h-8'
-                            />
-                          </div>
+                          <CommandInput
+                            placeholder='Search reviewers...'
+                            value={reviewerSearch}
+                            onValueChange={setReviewerSearch}
+                            className='h-8'
+                          />
                           <CommandList>
                             <CommandGroup>
                               {reviewers
@@ -488,17 +476,10 @@ export function TaskTable({
                                   if (b._id === session?.user?.id) return 1;
                                   return a.name.localeCompare(b.name);
                                 })
-                                .filter((reviewer) =>
-                                  getUserDisplayName(reviewer)
-                                    .toLowerCase()
-                                    .includes(
-                                      reviewerSearch.value.toLowerCase()
-                                    )
-                                )
                                 .map((reviewer) => (
                                   <CommandItem
                                     key={reviewer._id}
-                                    value={reviewer._id}
+                                    value={getUserDisplayName(reviewer)}
                                     onSelect={() =>
                                       handleReviewerChange(reviewer._id, task)
                                     }
