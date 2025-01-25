@@ -24,6 +24,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Loader from "@/components/ui/Loader/Loader";
 import AddProductForm from "@/components/AddProduct";
+import Link from "next/link";
 
 interface CustomField {
   _id?: string;
@@ -170,6 +171,10 @@ const CustomFieldsPage = () => {
               className="flex items-center gap-2"
             >
               Add products
+            </Button>
+            <Button>
+              {" "}
+              <Link href={"/admin/orders"}>View Orders</Link>
             </Button>
             <Button
               onClick={handleAddField}
