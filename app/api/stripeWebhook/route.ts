@@ -78,9 +78,10 @@ export async function POST(req: NextRequest) {
       case "checkout.session.completed": {
         const successSession = event.data.object as Stripe.Checkout.Session;
         const type = successSession.metadata?.type;
-        const userId = successSession.metadata?.userEmail;
+        const userId = successSession.metadata?.userEmail; //typo here userEmail gives userId
         const price = successSession.amount_total;
         const payment_intent = successSession.payment_intent as string;
+        
 
         if (!userId) {
           throw new Error("Missing required user data");
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
                   stripe_payment_intent: payment_intent,
                   payment_status: "succeeded",
                   total_price_paid: price,
+                  paid_by: userId,
                 }
               );
 

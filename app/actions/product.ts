@@ -195,6 +195,7 @@ export async function updatePaymentStatus(
     stripe_payment_intent: string;
     payment_status: "pending" | "succeeded" | "failed";
     total_price_paid: number | any;
+    paid_by: string;
   }
 ) {
   try {
@@ -212,6 +213,7 @@ export async function updatePaymentStatus(
             payment_status: paymentDetails.payment_status,
             total_price_paid: paymentDetails.total_price_paid / 100,
             paid_at: new Date(),
+            paid_by: paymentDetails.paid_by,
           },
           "items.$.status":
             paymentDetails.payment_status === "succeeded"
@@ -245,22 +247,47 @@ export async function getPaidWishlistProducts(): Promise<any> {
   try {
     await connectToDatabase();
 
+    const paidProduct = await Wishlist.findById("678c077ab48ef8621f709214");
+
+    console.log(paidProduct.items);
+
     const paidProducts = await Wishlist.aggregate([
-      // Match all wishlists
       { $match: {} },
-
-      // Unwind the items array
       { $unwind: "$items" },
-
-      // Filter only paid products
       {
         $match: {
           "items.payment_data.payment_status": "succeeded",
-          "items.is_external_request": false, // Only catalog products
+          "items.is_external_request": false,
         },
       },
-
-      // Project and transform the data
+      {
+        $lookup: {
+          from: "users",
+          localField: "expert",
+          foreignField: "_id",
+          as: "user_details",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "items.payment_data.paid_by",
+          foreignField: "_id",
+          as: "paid_by_details",
+        },
+      },
+      {
+        $unwind: {
+          path: "$user_details",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $unwind: {
+          path: "$paid_by_details",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
       {
         $project: {
           product_id: "$items.catalog_details.product_id",
@@ -272,44 +299,16 @@ export async function getPaidWishlistProducts(): Promise<any> {
           payment_status: "$items.payment_data.payment_status",
           total_price_paid: "$items.payment_data.total_price_paid",
           paid_at: "$items.payment_data.paid_at",
-          expert: "$expert", // Include the expert/user reference
-        },
-      },
-
-      // Lookup user details
-      {
-        $lookup: {
-          from: "users", // Ensure this matches your users collection name
-          localField: "expert",
-          foreignField: "_id",
-          as: "user_details",
-        },
-      },
-
-      // Unwind user details
-      {
-        $unwind: {
-          path: "$user_details",
-          preserveNullAndEmptyArrays: true, // This ensures records are not dropped if no user found
-        },
-      },
-
-      // Final projection with user details
-      {
-        $project: {
-          product_id: 1,
-          stripe_payment_intent: 1,
-          name: 1,
-          description: 1,
-          price: 1,
-          image_url: 1,
-          payment_status: 1,
-          total_price_paid: 1,
-          paid_at: 1,
+          shipping_address: "$items.shipping_address",
           user_details: {
             userId: "$user_details._id",
             userName: "$user_details.name",
             email: "$user_details.email",
+          },
+          paid_by_details: {
+            userId: "$paid_by_details._id",
+            userName: "$paid_by_details.name",
+            email: "$paid_by_details.email",
           },
         },
       },
