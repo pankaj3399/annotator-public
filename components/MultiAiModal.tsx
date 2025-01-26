@@ -42,12 +42,18 @@ interface AIModalProps {
     provider: string,
     model: string,
     systemPrompt: string,
-    apiKey: string
+    apiKey: string,
+    placeholder: any,
+    number: any
   ) => Promise<void>;
   isAIModalOpen: boolean;
   setIsAIModalOpen: (isOpen: boolean) => void;
   tasks: Task[];
   placeholders: Placeholder[];
+  selectedPlaceholder: Placeholder | any;
+  setSelectedPlaceholder: (placeholder: Placeholder | any) => void;
+  numberOfTasks: number;
+  setNumberOfTasks: (number: number) => void;
 }
 
 const providerModels: Record<Provider, string[]> = {
@@ -88,12 +94,16 @@ const aiProviders: AIProvider[] = [
   },
 ];
 
-const AIModal: React.FC<AIModalProps> = ({
+const MultiAIModal: React.FC<AIModalProps> = ({
   onConfigure,
   isAIModalOpen,
   setIsAIModalOpen,
   tasks,
   placeholders,
+  selectedPlaceholder,
+  setSelectedPlaceholder,
+  numberOfTasks,
+  setNumberOfTasks,
 }) => {
   const [formValues, setFormValues] = useState<FormValues>({
     model: "",
@@ -135,7 +145,7 @@ const AIModal: React.FC<AIModalProps> = ({
 
     placeholders.forEach((placeholder) => {
       const valueIndex = placeholder.index;
-      // @ts-ignore
+      //   @ts-ignore
       const valueContent = tasks[0]?.values[valueIndex]?.content || ""; // Default to empty string
       const placeholderPattern = new RegExp(`{{${placeholder.name}}}`, "g");
       resolvedPrompt = resolvedPrompt.replace(placeholderPattern, valueContent);
@@ -151,7 +161,9 @@ const AIModal: React.FC<AIModalProps> = ({
         formValues.provider,
         formValues.model,
         resolvedPrompt,
-        formValues.apiKey
+        formValues.apiKey,
+        selectedPlaceholder,
+        numberOfTasks
       );
       resetAndClose();
     }
@@ -165,6 +177,7 @@ const AIModal: React.FC<AIModalProps> = ({
       apiKey: "",
       systemPrompt: "",
     });
+    setSelectedPlaceholder({});
   };
 
   const isSubmitDisabled =
@@ -242,6 +255,29 @@ const AIModal: React.FC<AIModalProps> = ({
             />
           </div>
 
+          <div className="flex items-center space-x-2 w-full max-w-md">
+            <Select onValueChange={setSelectedPlaceholder}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select Placeholder" />
+              </SelectTrigger>
+              <SelectContent>
+                {placeholders.map((p) => (
+                  <SelectItem key={p.index} value={p as any}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Input
+              type="number"
+              placeholder="# of Tasks"
+              className="w-[100px]"
+              value={numberOfTasks}
+              onChange={(e) => setNumberOfTasks(parseInt(e.target.value))}
+            />
+          </div>
+
           <div className="space-y-2">
             <label className="text-sm font-medium">System Prompt</label>
             <Textarea
@@ -285,4 +321,4 @@ const AIModal: React.FC<AIModalProps> = ({
   );
 };
 
-export default AIModal;
+export default MultiAIModal;

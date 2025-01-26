@@ -33,6 +33,7 @@ import { updateTestTemplate } from "@/app/actions/template";
 import Papa from "papaparse";
 import { CarouselContent } from "./ui/carousel";
 import AIConfigModal from "./AiModal";
+import MultiAIModal from "./MultiAiModal";
 import { generateAiResponse } from "@/app/actions/aiModel";
 import { usePathname } from "next/navigation";
 
@@ -158,10 +159,16 @@ export function TaskDialog({
   const [generateAi, setGenerateAi] = useState(false);
   const [selectedModel, setSelectedModel] = useState("");
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
-  const [currentPlaceholder, setCurrentPlaceholder] = useState<Placeholder | null>(null);
+  const [currentPlaceholder, setCurrentPlaceholder] =
+    useState<Placeholder | null>(null);
   const [isGeneratingForAll, setIsGeneratingForAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isMultiAiModalOpen, setIsMultiAiModalOpen] = useState(false);
+  //for multi-ai-modal
+  const [selectedPlaceholder, setSelectedPlaceholder] = useState<any>({});
+  const [numberOfTasks, setNumberOfTasks] = useState(tasks.length);
+
   useEffect(() => {
     if (isDialogOpen) {
       fetchCurrentTemplateState();
@@ -572,7 +579,6 @@ export function TaskDialog({
       apiKey
     );
     handleInputChange(task.id, placeholder, response);
-    console.log(response);
   };
 
   useEffect(() => {
@@ -583,7 +589,8 @@ export function TaskDialog({
       systemPrompt &&
       apiKey &&
       currentTask &&
-      currentPlaceholder
+      currentPlaceholder &&
+      isGeneratingForAll == false
     ) {
       handleGenerateAI(currentTask, currentPlaceholder);
     }
@@ -612,15 +619,19 @@ export function TaskDialog({
     provider: string,
     model: string,
     systemPrompt: string,
-    apiKey: string
+    apiKey: string,
+    placeholder: any,
+    numberOfTasks: any
   ) => {
     setProvider(provider);
     setSelectedModel(model);
     setSystemPrompt(systemPrompt);
     setApiKey(apiKey);
 
-    // Trigger AI generation for all placeholders
-    handleGenerateAIForAllPlaceholders();
+    // setCurrentPlaceholder(placeholder);
+
+    // // Trigger AI generation for all placeholders
+    // handleGenerateAIForAllPlaceholders();
   };
 
   const renderFilledTemplate = (values: {
@@ -918,65 +929,112 @@ export function TaskDialog({
   };
 
   const handleGenerateAIForAllPlaceholders = async () => {
-    if (!provider || !selectedModel || !systemPrompt || !apiKey) {
+    if (!provider || !selectedModel || !systemPrompt || !apiKey || !selectedPlaceholder || !numberOfTasks) {
       setIsGeneratingForAll(true);
-      setIsAiModalOpen(true);
+      setIsMultiAiModalOpen(true);
       return;
     }
 
-    const updatedTasks = await Promise.all(
-      tasks.map(async (task) => {
-        const updatedValues = await Promise.all(
-          placeholders.map(async (placeholder) => {
-            const response = await generateAiResponse(
-              provider,
-              selectedModel,
-              systemPrompt,
-              projectId,
-              apiKey
-            );
-            return {
-              ...task.values,
-              [placeholder.index]: {
-                content: response,
-                fileType: (task.values[placeholder.index] as TaskValue)?.fileType || "document",
-              },
-            };
-          })
-        );
-
-        return {
-          ...task,
-          values: Object.assign({}, ...updatedValues),
-        };
-      })
+    const response = await generateAiResponse(
+      provider,
+      selectedModel,
+      `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
+      limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & the total response
+      quantity should be: ${numberOfTasks}`,
+      projectId,
+      apiKey
     );
+    const parsedQuestions = response
+      .split(/\d+\.\s*/)
+      .filter((q: string) => q.trim() !== "");
 
-    setTasks(updatedTasks);
+    if (parsedQuestions.length > tasks.length) {
+      const additionalTasksCount = parsedQuestions.length - tasks.length;
+      for (let i = 0; i < additionalTasksCount; i++) {
+        handleAddTask();
+      }
+    }
+    // Use state update callback to ensure tasks are added first
+    setTasks((prevTasks) => {
+      const updatedTasks = [...prevTasks];
+      parsedQuestions.forEach((question: string, index: number) => {
+        handleInputChange(
+          updatedTasks[index].id,
+          selectedPlaceholder as Placeholder,
+          question
+        );
+      });
+      return updatedTasks;
+    });
+
+    setSystemPrompt("");
   };
 
   useEffect(() => {
-    if (provider && selectedModel && systemPrompt && apiKey) {
+    if (
+      provider &&
+      selectedModel &&
+      systemPrompt &&
+      apiKey &&
+      selectedPlaceholder &&
+      numberOfTasks
+    ) {
       handleGenerateAIForAllPlaceholders();
     }
-  }, [provider, selectedModel, systemPrompt, apiKey]);
+  }, [
+    provider,
+    selectedModel,
+    systemPrompt,
+    apiKey,
+    selectedPlaceholder,
+    numberOfTasks,
+  ]);
 
   return (
     <div>
       <AIConfigModal
-        onConfigure={async (provider, model, systemPrompt, apiKey) => {
-          if (isGeneratingForAll) {
-            handleConfigureAiForAll(provider, model, systemPrompt, apiKey);
-          } else {
-            if (currentTask && currentPlaceholder) {
-              handleConfigureAi(provider, model, systemPrompt, apiKey, currentTask, currentPlaceholder);
-            }
-          }
-        }}
+        onConfigure={(provider, model, systemPrompt, apiKey) =>
+          handleConfigureAi(
+            provider,
+            model,
+            systemPrompt,
+            apiKey,
+            currentTask!,
+            currentPlaceholder!
+          )
+        }
         isAIModalOpen={isAiModalOpen}
         setIsAIModalOpen={() => setIsAiModalOpen(false)}
         tasks={tasks}
         placeholders={placeholders}
+      />
+
+      <MultiAIModal
+        onConfigure={(
+          provider,
+          model,
+          systemPrompt,
+          apiKey,
+          placeholder,
+          numberOfTasks
+        ) =>
+          handleConfigureAiForAll(
+            provider,
+            model,
+            systemPrompt,
+            apiKey,
+            placeholder,
+            numberOfTasks
+          )
+        }
+        isAIModalOpen={isMultiAiModalOpen}
+        setIsAIModalOpen={() => setIsMultiAiModalOpen(false)}
+        tasks={tasks}
+        placeholders={placeholders}
+        selectedPlaceholder={selectedPlaceholder}
+        setSelectedPlaceholder={setSelectedPlaceholder}
+        numberOfTasks={numberOfTasks}
+        setNumberOfTasks={setNumberOfTasks}
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -1070,7 +1128,7 @@ export function TaskDialog({
               <Button
                 onClick={() => {
                   setIsGeneratingForAll(true);
-                  setIsAiModalOpen(true);
+                  setIsMultiAiModalOpen(true);
                 }}
               >
                 Generate AI for All Placeholders
