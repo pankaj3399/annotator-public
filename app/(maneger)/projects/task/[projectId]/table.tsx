@@ -231,22 +231,29 @@ export function TaskTable({
   async function handleGradeTasks() {
     setIsGrading(true);
     try {
+      // Only get tasks with 'pending' status
       const pendingTasks = tasks.filter((task) => task.status === 'pending');
       let gradedTasksCount = 0;
 
       for (const task of pendingTasks) {
         try {
-          await compareWithGroundTruth(task._id);
+          // Call compareWithGroundTruth with throwError=true for grading
+          await compareWithGroundTruth(task._id, true);
           gradedTasksCount++;
           setGradingProgress((gradedTasksCount / pendingTasks.length) * 100);
         } catch (error: any) {
+          // Handle specific error cases
           if (error.message === 'Ground truth not set') {
             toast.error('No ground truth set. Please set ground truth first.');
+          } else if (error.message === 'Ground truth task not found') {
+            toast.error(
+              'Ground truth task not found. Please set ground truth again.'
+            );
+          } else if (error.message.includes('Mismatch in number of')) {
+            toast.error('Template structure mismatch with ground truth.');
           } else {
             console.error('Error grading tasks:', error);
-            toast.error(
-              'Please set one task as  a ground truth to be able to auto grade'
-            );
+            toast.error('An error occurred while grading tasks.');
           }
           setIsGrading(false);
           setGradingProgress(0);
@@ -254,13 +261,16 @@ export function TaskTable({
         }
       }
 
+      // Show success message only if we actually graded some tasks
       if (gradedTasksCount === pendingTasks.length && pendingTasks.length > 0) {
         toast.success('All tasks graded successfully');
         router.refresh();
+      } else if (pendingTasks.length === 0) {
+        toast.info('No pending tasks to grade');
       }
     } catch (error) {
-      console.error('Error grading tasks:', error);
-      toast.error('Failed to grade some tasks');
+      console.error('Error in handleGradeTasks:', error);
+      toast.error('Failed to complete grading process');
     } finally {
       setIsGrading(false);
       setGradingProgress(0);
