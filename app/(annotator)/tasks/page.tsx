@@ -5,6 +5,7 @@ import {
   createTasks,
   getDistinctProjectsByAnnotator,
   getProjectsWithRepeatTasks,
+  getTasksOfAnnotator,
   getTestTemplateTasks,
   handleTakeTest,
 } from '@/app/actions/task';
@@ -48,12 +49,28 @@ interface TaskResponse {
   tasks: TestTask[];
   count?: number;
 }
+interface TestTaskResponse {
+  project: string;
+  _id: string;
+  name: string;
+  content: string;
+  timer: number;
+  reviewer?: string;
+  type?: string;
+}
+interface TakeTestResponse {
+  success: boolean;
+  message?: string;
+  tasks?: TestTaskResponse[];
+}
+
 export default function ProjectDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const { data: session } = useSession();
+  const [assignedTestProjects, setAssignedTestProjects] = useState<Set<string>>(new Set());
   const [projectsWithTests, setProjectsWithTests] = useState<Set<string>>(
     new Set()
   );
@@ -81,21 +98,18 @@ export default function ProjectDashboard() {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        // Get all distinct projects assigned to the annotator
         const assignedProjects = await getDistinctProjectsByAnnotator();
         const projectsWithRepeatTasks = await getProjectsWithRepeatTasks();
 
-        // Parse both results
         const assignedProjectsList = JSON.parse(assignedProjects);
         const projectsWithTestsList = JSON.parse(projectsWithRepeatTasks);
 
-        // Create a Set of project IDs that have repeat tasks
+        // Important: Don't use toString() here as _id is already a string
         const testProjectIds = new Set<string>(
-          projectsWithTestsList.map((p: Project) => p._id.toString())
+          projectsWithTestsList.map((p: Project) => p._id)
         );
         setProjectsWithTests(testProjectIds);
 
-        // Combine and deduplicate projects
         const allProjects = [...assignedProjectsList];
         projectsWithTestsList.forEach((project: Project) => {
           if (!allProjects.some((p) => p._id === project._id)) {
@@ -114,18 +128,40 @@ export default function ProjectDashboard() {
     loadProjects();
   }, []);
 
+  useEffect(() => {
+    const fetchAssignedTests = async () => {
+      try {
+        const testTasksResponse = await getTasksOfAnnotator('test');
+        const testTasks = JSON.parse(testTasksResponse) as TestTaskResponse[];
+        
+        const assignedProjects = new Set<string>(
+          testTasks.map((task) => task.project)
+        );
+        
+        setAssignedTestProjects(assignedProjects);
+      } catch (error) {
+        console.error('Error fetching assigned tests:', error);
+      }
+    };
+
+    if (session?.user?.id) {
+      fetchAssignedTests();
+    }
+  }, [session?.user?.id]);
+
   const handleTakeTestClick = async (projectId: string) => {
     try {
       if (!session?.user?.id) {
         toast.error('User session not found');
         return;
       }
-
-      // Get test tasks for this project
-      const response = await handleTakeTest(projectId, session.user.id);
-
+  
+      const response = await handleTakeTest(projectId, session.user.id) as TakeTestResponse;
+  
       if (response.success) {
         toast.success('Test tasks assigned successfully');
+        // Create new Set with spread operator ensuring string type
+        setAssignedTestProjects(prev => new Set<string>([...prev, projectId]));
         router.push(`/tasks/${projectId}`);
       } else {
         toast.error(response.message || 'Failed to assign test tasks');
@@ -209,20 +245,26 @@ export default function ProjectDashboard() {
                       {project.name}
                     </TableCell>
                     <TableCell>
-                      {projectsWithTests.has(project._id) && (
-                        <Button
-                          variant='outline'
-                          size='sm'
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTakeTestClick(project._id);
-                          }}
-                        >
-                          <ClipboardList className='mr-2 h-4 w-4' />
-                          Take Test
-                        </Button>
-                      )}
-                    </TableCell>
+      {(() => {
+        const projectId = project._id.trim();
+        const hasTests = projectsWithTests.has(projectId);
+        const isAssigned = assignedTestProjects.has(projectId);
+
+        return hasTests && !isAssigned ? (
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={(e) => {
+              e.stopPropagation();
+              handleTakeTestClick(projectId);
+            }}
+          >
+            <ClipboardList className='mr-2 h-4 w-4' />
+            Take Test
+          </Button>
+        ) : null;
+      })()}
+    </TableCell>
                     <TableCell className='text-right'>
                       <div className='flex justify-end items-center text-sm text-gray-500'>
                         <CalendarIcon className='mr-2 h-4 w-4' />
