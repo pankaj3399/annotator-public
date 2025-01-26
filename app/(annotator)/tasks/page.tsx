@@ -104,13 +104,10 @@ export default function ProjectDashboard() {
         const assignedProjectsList = JSON.parse(assignedProjects);
         const projectsWithTestsList = JSON.parse(projectsWithRepeatTasks);
 
-        console.log('Projects with tests:', projectsWithTestsList);
-
         // Important: Don't use toString() here as _id is already a string
         const testProjectIds = new Set<string>(
           projectsWithTestsList.map((p: Project) => p._id)
         );
-        console.log('Test project IDs:', [...testProjectIds]);
         setProjectsWithTests(testProjectIds);
 
         const allProjects = [...assignedProjectsList];
@@ -141,7 +138,6 @@ export default function ProjectDashboard() {
           testTasks.map((task) => task.project)
         );
         
-        console.log('Assigned test projects:', [...assignedProjects]);
         setAssignedTestProjects(assignedProjects);
       } catch (error) {
         console.error('Error fetching assigned tests:', error);
@@ -253,12 +249,6 @@ export default function ProjectDashboard() {
         const projectId = project._id.trim();
         const hasTests = projectsWithTests.has(projectId);
         const isAssigned = assignedTestProjects.has(projectId);
-        
-        console.log(`Project ${project.name}:`, {
-          id: projectId,
-          hasTests,
-          isAssigned
-        });
 
         return hasTests && !isAssigned ? (
           <Button
