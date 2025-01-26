@@ -68,12 +68,12 @@ export async function updateTask(
       timeTaken: time,
     }
   );
-  const response = await compareWithGroundTruth(_id)
+  const response = await compareWithGroundTruth(_id,false)
   console.log(response)
   return JSON.stringify(res);
 }
 
-export async function compareWithGroundTruth(taskId: string) {
+export async function compareWithGroundTruth(taskId: string, throwError: boolean = true) {
   try {
     const task = await Task.findById(taskId);
     const template = await Template.findById(task.template);
@@ -83,12 +83,19 @@ export async function compareWithGroundTruth(taskId: string) {
     }
 
     if (!template.groundTruthTask) {
-      throw new Error("Ground truth not set");     }
+      if (throwError) {
+        throw new Error("Ground truth not set");
+      }
+      return { pointsEarned: 0, comparisonResult: false };
+    }
 
     const groundTruthTask = await Task.findById(template.groundTruthTask);
 
     if (!groundTruthTask) {
-      throw new Error("Ground truth task not found");
+      if (throwError) {
+        throw new Error("Ground truth task not found");
+      }
+      return { pointsEarned: 0, comparisonResult: false };
     }
 
     const projectId = task.project;
@@ -156,19 +163,21 @@ export async function compareWithGroundTruth(taskId: string) {
       const userCheckboxArray = userContent.checkboxes[i].sort();
       const groundTruthCheckboxArray = groundTruthContent.checkboxes[i].sort();
 
-      // Compare arrays after sorting
       if (userCheckboxArray.length === groundTruthCheckboxArray.length &&
-        userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
+          userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
         pointsEarned++;
         comparisonResult = true;
       }
     }
+
+    // Update task status based on comparison result
     if (comparisonResult) {
       await Task.findByIdAndUpdate(taskId, { status: "accepted" });
     } else {
       await Task.findByIdAndUpdate(taskId, { status: "rejected" });
     }
 
+    // Handle annotator history
     const annotatorHistory = await AnnotatorHistory.findOne({
       annotator: annotatorId,
       project: projectId,
@@ -216,8 +225,11 @@ export async function compareWithGroundTruth(taskId: string) {
 
     return { pointsEarned, comparisonResult };
   } catch (error) {
-    console.error(error);
-    throw new Error("Error comparing submission with ground truth: " + error);
+    if (throwError) {
+      throw error;
+    }
+    console.error("Error in comparison:", error);
+    return { pointsEarned: 0, comparisonResult: false };
   }
 }
 
@@ -342,8 +354,12 @@ export async function createTasks(
     reviewer: task.reviewer || null,
   }));
 
-  await Task.insertMany(taskData);
-}
+  const createdTasks = await Task.insertMany(taskData);
+  
+  return JSON.stringify({
+    success: true,
+    tasks: createdTasks
+  });}
 
 
 
@@ -1090,70 +1106,138 @@ export async function getReviewerByTaskId(taskId: string) {
     return { error: 'Error occurred while fetching the reviewer from taskId' };
   }
 }
-export async function createRepeatTask(
-  repeatTasks: RepeatTask[],
-) {
+// Consolidated repeat task creation function
+export async function createRepeatTask(repeatTasks: RepeatTask[]) {
   try {
-    // Fetch all annotators for the project
-    const response = await getAllAnnotators();
-    const annotators = JSON.parse(response);
-    if (!annotators || annotators.length === 0) {
-      throw new Error('No annotators found for this project.');
-    }
-    console.log(repeatTasks);
+    await connectToDatabase();
     const session = await getServerSession(authOptions);
 
     if (!session || !session.user) {
       throw new Error("Unauthorized");
     }
 
-    // Create tasks for each annotator based on repeatTasks
-    const tasksToCreate = repeatTasks.flatMap((repeatTask) =>
-      annotators.map((annotator: Annotator) => ({
-        project: repeatTask.project,
-        name: repeatTask.name,  // Use the same name from repeatTasks
-        project_Manager: session.user.id,
-        content: repeatTask.content,
-        timer: repeatTask.timer,
-        annotator: annotator._id,  // Annotator's ID
-        reviewer: repeatTask.reviewer || null,
-        template: repeatTask.template,
-        type: repeatTask.type,
-      }))
-    );
+    // Prepare tasks for creation
+    const tasksToCreate = repeatTasks.map((task) => ({
+      project: task.project,
+      name: task.name,
+      content: task.content,
+      timer: task.timer,
+      reviewer: task.reviewer || null,
+      template: task.template,
+      type: task.type,
+      project_Manager: session.user.id,
+      submitted: false,
+      status: "pending"
+    }));
 
-    // Insert tasks into the database
-    const insertResult = await Task.insertMany(tasksToCreate);
+    // Create tasks in TaskRepeat collection
+    const createdTasks = await TaskRepeat.insertMany(tasksToCreate);
 
-    // Assign users to tasks using a function similar to handleAssignUser
-    const assignUserPromises = tasksToCreate.map((task) =>
-      assignUserToTask(task._id, task.annotator)
-    );
-
-    await Promise.all(assignUserPromises);
-
-    // Return the count of created tasks
     return {
       success: true,
-      createdTasks: insertResult.length,  // Return the number of tasks created
-      message: 'Repeat tasks created and assigned successfully.',
+      createdTasks: createdTasks.length,
+      tasks: createdTasks,
+      message: 'Repeat tasks created successfully'
     };
-  } catch (error: any) {
-    console.error('Error in createRepeatTask:', error);
+
+  } catch (error) {
+    console.error("Error in createRepeatTask:", error);
     return {
       success: false,
-      message: error.message || 'An error occurred.',
+      message: error instanceof Error ? error.message : 'Failed to create repeat tasks',
+      error: error
     };
   }
 }
 
+// Function to handle taking a test
+export async function handleTakeTest(projectId: string, userId: string) {
+  try {
+    await connectToDatabase();
+
+    // 1. Get repeat tasks for the project and populate project_Manager
+    const repeatTasks = await TaskRepeat.find({ project: projectId });
+    
+    if (!repeatTasks || repeatTasks.length === 0) {
+      return {
+        success: false,
+        message: "No test tasks available for this project"
+      };
+    }
+
+    // 2. Create new tasks from repeat tasks
+    const tasksToCreate = repeatTasks.map(task => ({
+      project: task.project,
+      name: task.name,
+      content: task.content,
+      timer: task.timer,
+      reviewer: task.reviewer,
+      template: task.template,
+      type: "test",
+      annotator: userId,
+      submitted: false,
+      status: "pending",
+      project_Manager: task.project_Manager, // Get from repeat task
+      feedback: "",
+      timeTaken: 0,
+      assignedAt: new Date(),
+      isGroundTruth: false
+    }));
+
+    // 3. Create the actual tasks
+    const createdTasks = await Task.insertMany(tasksToCreate);
+
+    return {
+      success: true,
+      tasks: createdTasks,
+      message: "Test tasks created and assigned successfully"
+    };
+
+  } catch (error) {
+    console.error("Error in handleTakeTest:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to create test tasks'
+    };
+  }
+}
+
+
 // Backend function to assign a user to a task (similar to handleAssignUser)
-async function assignUserToTask(taskId: string, annotatorId: string) {
+export async function assignUserToTask(taskId: string, annotatorId: string) {
+  if (!taskId || !annotatorId) {
+    throw new Error("Task ID and Annotator ID are required");
+  }
+
   try {
     const res = await changeAnnotator(taskId, annotatorId);
-    return res;
+    return JSON.parse(res);
   } catch (error) {
     console.error('Error assigning user to task:', error);
+    throw error;
+  }
+}
+export async function getProjectsWithRepeatTasks() {
+  await connectToDatabase();
+  try {
+    // Get unique projects from TaskRepeat collection
+    const uniqueProjects = await TaskRepeat.aggregate([
+      { $group: { _id: "$project" } },
+      {
+        $lookup: {
+          from: "projects",
+          localField: "_id",
+          foreignField: "_id",
+          as: "projectDetails",
+        },
+      },
+      { $unwind: "$projectDetails" },
+      { $project: { _id: 0, project: "$projectDetails" } },
+    ]);
+
+    return JSON.stringify(uniqueProjects.map(project => project.project));
+  } catch (error) {
+    console.error("Error fetching projects with repeat tasks:", error);
     throw error;
   }
 }
