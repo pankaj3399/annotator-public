@@ -15,7 +15,7 @@ export async function getTasksStatusOfManager() {
     await connectToDatabase();
     const session = await getServerSession(authOptions)
     const res = await Task.find({ project_Manager: session?.user.id })
-      .select('status') 
+      .select('status')
       .lean();
     return { data: JSON.stringify(res) }
   } catch (error) {
@@ -36,11 +36,11 @@ export async function getGlobalDashboard() {
 
     // Aggregating project, task, and other related data
     const result = await Task.aggregate([
-      { 
-        $match: { 
+      {
+        $match: {
           project_Manager: new mongoose.Types.ObjectId(managerId),
           timeTaken: { $gt: 0 } // Only include tasks with time > 0
-        } 
+        }
       },
       {
         $group: {
@@ -61,9 +61,13 @@ export async function getGlobalDashboard() {
 
     // Count annotators
     const annotators = await User.countDocuments({ role: 'annotator' });
+    const zeroTimeTasks = await Task.countDocuments({
+      project_Manager: managerId,
+      timeTaken: 0
+    });
 
     return JSON.stringify({
-      tasksData: result.length ? result[0] : {},
+      tasksData: result.length ? { ...result[0], zeroTimeTasks } : { zeroTimeTasks },
       projects,
       templates,
       annotators
@@ -88,14 +92,14 @@ export async function getProjectDashboard(id: string) {
 
     // Aggregating project, task, and other related data
     const result = await Task.aggregate([
-      { 
-        $match: { 
-          project_Manager: new mongoose.Types.ObjectId(managerId), 
+      {
+        $match: {
+          project_Manager: new mongoose.Types.ObjectId(managerId),
           project: new mongoose.Types.ObjectId(id),
           timeTaken: { $gt: 0 } // Only include tasks with time > 0
         }
       },
-      
+
       // Group to count tasks, calculate average time, and statuses/submissions
       {
         $group: {
@@ -110,9 +114,9 @@ export async function getProjectDashboard(id: string) {
 
     // To get the total number of tasks (including those with zero time)
     const totalTasksResult = await Task.aggregate([
-      { 
-        $match: { 
-          project_Manager: new mongoose.Types.ObjectId(managerId), 
+      {
+        $match: {
+          project_Manager: new mongoose.Types.ObjectId(managerId),
           project: new mongoose.Types.ObjectId(id)
         }
       },
@@ -132,12 +136,20 @@ export async function getProjectDashboard(id: string) {
     // Count annotators
     const annotators = await User.countDocuments({ role: 'annotator' });
 
+    const zeroTimeTasks = await Task.countDocuments({
+      project_Manager: new mongoose.Types.ObjectId(managerId),
+      project: new mongoose.Types.ObjectId(id),
+      timeTaken: 0
+    });
+
+
     // Combine the results
     const tasksData = result.length ? {
       ...result[0],
       totalTasks: totalTasksResult.length ? totalTasksResult[0].totalTasks : 0,
       submittedTasks: totalTasksResult.length ? totalTasksResult[0].submittedTasks : 0,
-      statuses: totalTasksResult.length ? totalTasksResult[0].statuses : []
+      statuses: totalTasksResult.length ? totalTasksResult[0].statuses : [],
+      zeroTimeTasks: zeroTimeTasks
     } : {};
 
     return JSON.stringify({
