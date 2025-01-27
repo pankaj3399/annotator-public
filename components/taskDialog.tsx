@@ -955,8 +955,8 @@ export function TaskDialog({
       .split(/\d+\.\s*/)
       .filter((q: string) => q.trim() !== "");
 
-    if (parsedQuestions.length > tasks.length) {
-      const additionalTasksCount = parsedQuestions.length - tasks.length;
+    if (numberOfTasks > tasks.length) {
+      const additionalTasksCount = numberOfTasks - tasks.length;
       for (let i = 0; i < additionalTasksCount; i++) {
         handleAddTask();
       }
