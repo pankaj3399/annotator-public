@@ -6,12 +6,14 @@
   "scripts": {
     "migrate": "node scripts/taskMigration.mjs && node scripts/templateMigration.mjs",
     "migrate:repeat": "node scripts/repeatTypeMigration.mjs && node scripts/repeatTypeMigrationForTemplate.mjs",
+    "migrate:deleteNonSubmitted": "node scripts/deleteNonSubmittedTasks.js",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "seed": "node scripts/seed.mjs",
     "postbuild": "next-sitemap"
+    
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^0.0.55",
