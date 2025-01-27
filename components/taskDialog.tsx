@@ -928,68 +928,106 @@ export function TaskDialog({
     }
   };
 
-const handleGenerateAIForAllPlaceholders = async () => {
-  if (
-    !provider ||
-    !selectedModel ||
-    !systemPrompt ||
-    !apiKey ||
-    !selectedPlaceholder ||
-    !numberOfTasks
-  ) {
-    setIsGeneratingForAll(true);
-    setIsMultiAiModalOpen(true);
-    return;
-  }
-
-  const response = await generateAiResponse(
-    provider,
-    selectedModel,
-    `Generate exactly ${numberOfTasks} numbered tasks. Each task should start with a number followed by a period and a space (e.g., "1. Task"). The tasks should be about: ${systemPrompt}`,
-    projectId,
-    apiKey
-  );
-
-  // More precise regex to match numbered items
-  const parsedQuestions = response
-    .split(/^\d+\.\s*/m) // Split on numbers at start of line
-    .filter((q: string) => q.trim() !== "")
-    .slice(0, numberOfTasks); // Ensure we don't exceed numberOfTasks
-
-  // Log for debugging
-  console.log("Parsed questions:", parsedQuestions);
-  console.log("Number of tasks requested:", numberOfTasks);
-  console.log("Current tasks length:", tasks.length);
-
-  // First, ensure we have the correct number of task slots
-  if (numberOfTasks > tasks.length) {
-    const additionalTasksCount = numberOfTasks - tasks.length;
-    for (let i = 0; i < additionalTasksCount; i++) {
-      await handleAddTask(); // If handleAddTask is async
-    }
-  } else if (numberOfTasks < tasks.length) {
-    // Optionally remove extra tasks if there are too many
-    setTasks((prevTasks) => prevTasks.slice(0, numberOfTasks));
-  }
-
-  // Update tasks with new content
-  setTasks((prevTasks) => {
-    const updatedTasks = [...prevTasks];
-    parsedQuestions.forEach((question: string, index: number) => {
-      if (index < numberOfTasks) {
-        // Additional safety check
-        handleInputChange(
-          updatedTasks[index].id,
-          selectedPlaceholder as Placeholder,
-          question.trim()
-        );
-      }
+  const handleGenerateAIForAllPlaceholders = async () => {
+    // Add initial debug logging
+    console.log("=== Starting Task Generation ===");
+    console.log("Initial state:", {
+      numberOfTasks,
+      currentTasksLength: tasks.length,
+      provider,
+      selectedModel,
+      hasPlaceholder: !!selectedPlaceholder,
     });
-    return updatedTasks;
-  });
 
-  setSystemPrompt("");
-};
+    if (
+      !provider ||
+      !selectedModel ||
+      !systemPrompt ||
+      !apiKey ||
+      !selectedPlaceholder ||
+      !numberOfTasks
+    ) {
+      setIsGeneratingForAll(true);
+      setIsMultiAiModalOpen(true);
+      return;
+    }
+
+    try {
+      const response = await generateAiResponse(
+        provider,
+        selectedModel,
+        `Generate EXACTLY ${numberOfTasks} tasks. No more, no less.
+       Format each task as a number followed by a period and a space.
+       Example format:
+       1. First task
+       2. Second task
+       Content: ${systemPrompt}`,
+        projectId,
+        apiKey
+      );
+
+      // Log raw response
+      console.log("Raw AI Response:", response);
+
+      // Split and clean the response
+      const allMatches = response.match(/^\d+\.\s*.+$/gm) || [];
+      console.log("Regex matches found:", allMatches);
+
+      const parsedQuestions = allMatches
+        .slice(0, numberOfTasks)
+        .map((match: any) => match.replace(/^\d+\.\s*/, "").trim());
+
+      console.log("Parsed and sliced questions:", parsedQuestions);
+      console.log("Length of parsed questions:", parsedQuestions.length);
+
+      // Ensure task slots synchronously
+      let currentTasks = [...tasks];
+
+      if (parsedQuestions.length > currentTasks.length) {
+        const additionalNeeded = parsedQuestions.length - currentTasks.length;
+        console.log(`Adding ${additionalNeeded} new task slots`);
+
+        // Add tasks synchronously instead of async
+        for (let i = 0; i < additionalNeeded; i++) {
+          handleAddTask();
+        }
+      }
+
+      // Force wait for state update
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Update tasks with strict control
+      setTasks((prevTasks) => {
+        const updatedTasks = [...prevTasks];
+        const finalTaskCount = Math.min(numberOfTasks, parsedQuestions.length);
+
+        console.log("Updating tasks:", {
+          requestedCount: numberOfTasks,
+          parsedCount: parsedQuestions.length,
+          finalCount: finalTaskCount,
+          currentTasksLength: updatedTasks.length,
+        });
+
+        for (let i = 0; i < finalTaskCount; i++) {
+          if (updatedTasks[i] && parsedQuestions[i]) {
+            handleInputChange(
+              updatedTasks[i].id,
+              selectedPlaceholder as Placeholder,
+              parsedQuestions[i]
+            );
+          }
+        }
+
+        // Ensure we only return the number of tasks requested
+        return updatedTasks.slice(0, numberOfTasks);
+      });
+    } catch (error) {
+      console.error("Error in task generation:", error);
+    } finally {
+      setSystemPrompt("");
+      console.log("=== Task Generation Complete ===");
+    }
+  };
 
   useEffect(() => {
     if (
