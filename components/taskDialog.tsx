@@ -956,7 +956,9 @@ export function TaskDialog({
       .filter((q: string) => q.trim() !== "");
 
     if (numberOfTasks > tasks.length) {
+      console.log(numberOfTasks, tasks.length);
       const additionalTasksCount = numberOfTasks - tasks.length;
+      console.log(additionalTasksCount);
       for (let i = 0; i < additionalTasksCount; i++) {
         handleAddTask();
       }
