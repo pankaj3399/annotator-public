@@ -168,6 +168,7 @@ export function TaskDialog({
   //for multi-ai-modal
   const [selectedPlaceholder, setSelectedPlaceholder] = useState<any>({});
   const [numberOfTasks, setNumberOfTasks] = useState(tasks.length);
+  const [aiResponse, setAiResponse] = useState<any>([]);
 
   useEffect(() => {
     if (isDialogOpen) {
@@ -928,6 +929,40 @@ export function TaskDialog({
     }
   };
 
+  const updateTaskHelper = (response: any) => {
+    console.log("init", response);
+    setTasks((prevTasks) => {
+      let updatedTasks = [...prevTasks];
+
+      // Process each AI response
+      // @ts-ignore
+      response.forEach((response, index) => {
+        // If we need more tasks, add them
+        if (index >= updatedTasks.length) {
+          updatedTasks.push({
+            id: updatedTasks.length + 1,
+            values: {},
+          });
+        }
+
+        // Update the task with AI response
+        updatedTasks[index] = {
+          ...updatedTasks[index],
+          values: {
+            ...updatedTasks[index].values,
+            [selectedPlaceholder.index]: {
+              content: response,
+              fileType: "document",
+            },
+          },
+        };
+      });
+
+      setIsMultiAiModalOpen(false);
+      return updatedTasks;
+    });
+  };
+
   const handleGenerateAIForAllPlaceholders = async () => {
     console.log("=== Starting Task Generation ===");
     console.log("Initial state:", {
@@ -936,6 +971,7 @@ export function TaskDialog({
       provider,
       selectedModel,
       hasPlaceholder: !!selectedPlaceholder,
+      systemPrompt,
     });
 
     if (
@@ -952,15 +988,16 @@ export function TaskDialog({
     }
 
     try {
+      const modifiedPrompt = `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
+      limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & 
+      the total response quantity should be: ${numberOfTasks}`;
+
+      console.log("mod" ,modifiedPrompt);
+
       const response = await generateAiResponse(
         provider,
         selectedModel,
-        `Generate EXACTLY ${numberOfTasks} tasks. No more, no less.
-         Format each task as a number followed by a period and a space.
-         Example format:
-         1. First task
-         2. Second task
-         Content: ${systemPrompt}`,
+        modifiedPrompt,
         projectId,
         apiKey
       );
@@ -970,48 +1007,8 @@ export function TaskDialog({
         .slice(0, numberOfTasks)
         .map((match: any) => match.replace(/^\d+\.\s*/, "").trim());
 
-      // Create all necessary tasks first
-      const additionalNeeded = parsedQuestions.length - tasks.length;
-      if (additionalNeeded > 0) {
-        // Use state updater function to ensure we have the latest state
-        setTasks((prevTasks) => {
-          const newTasks = [...prevTasks];
-          for (let i = 0; i < additionalNeeded; i++) {
-            const newId = Math.max(...newTasks.map((t) => t.id), 0) + 1;
-            newTasks.push({
-              id: newId,
-              values: {},
-            });
-          }
-          return newTasks;
-        });
-
-        // Wait for state update to complete
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      // Update tasks one at a time to avoid race conditions
-      for (let i = 0; i < parsedQuestions.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay between updates
-        setTasks((prevTasks) =>
-          prevTasks.map((task, index) =>
-            index === i
-              ? {
-                  ...task,
-                  values: {
-                    ...task.values,
-                    [selectedPlaceholder.index]: {
-                      content: parsedQuestions[i],
-                      fileType:
-                        (task.values[selectedPlaceholder.index] as TaskValue)
-                          ?.fileType || "document",
-                    },
-                  },
-                }
-              : task
-          )
-        );
-      }
+      setAiResponse(parsedQuestions);
+      updateTaskHelper(parsedQuestions);
 
       setSystemPrompt("");
     } catch (error) {

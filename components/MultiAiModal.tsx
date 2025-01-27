@@ -144,12 +144,23 @@ const MultiAIModal: React.FC<AIModalProps> = ({
     let resolvedPrompt = formValues.systemPrompt;
 
     placeholders.forEach((placeholder) => {
-      const valueIndex = placeholder.index;
-      //   @ts-ignore
-      const valueContent = tasks[0]?.values[valueIndex]?.content || ""; // Default to empty string
       const placeholderPattern = new RegExp(`{{${placeholder.name}}}`, "g");
-      resolvedPrompt = resolvedPrompt.replace(placeholderPattern, valueContent);
+      let valuesString = "";
+
+      tasks.forEach((task, index) => {
+        const valueIndex = placeholder.index;
+        // @ts-ignore
+        const valueContent = task.values[valueIndex]?.content || ""; // Default to empty string
+        valuesString += `\`${index + 1}. ${valueContent}\` `;
+      });
+
+      resolvedPrompt = resolvedPrompt.replace(
+        placeholderPattern,
+        valuesString.trim()
+      );
     });
+
+    console.log(resolvedPrompt);
 
     return resolvedPrompt;
   };
@@ -170,7 +181,7 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   };
 
   const resetAndClose = () => {
-    setIsAIModalOpen(false);
+    // setIsAIModalOpen(false);
     setFormValues({
       model: "",
       provider: "",
