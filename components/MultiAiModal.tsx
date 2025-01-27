@@ -112,6 +112,7 @@ const MultiAIModal: React.FC<AIModalProps> = ({
     systemPrompt: '',
   });
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setLoading] = useState<boolean>(false);
 
   const handleProviderChange = (value: string) => {
     setFormValues((prev) => ({
@@ -167,16 +168,30 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    if (formValues.provider && formValues.model && formValues.apiKey) {
-      const resolvedPrompt = resolveSystemPrompt();
-      await onConfigure(
-        formValues.provider,
-        formValues.model,
-        resolvedPrompt,
-        formValues.apiKey,
-        selectedPlaceholder,
+    console.log(isLoading);
+    try {
+      if (
+        formValues.provider &&
+        formValues.model &&
+        formValues.apiKey &&
+        selectedPlaceholder &&
         numberOfTasks
-      );
+      ) {
+        const resolvedPrompt = resolveSystemPrompt();
+        await onConfigure(
+          formValues.provider,
+          formValues.model,
+          resolvedPrompt,
+          formValues.apiKey,
+          selectedPlaceholder,
+          numberOfTasks
+        );
+      }
+    } catch (error) {
+      setLoading(false)
+      console.error('Error during configuration:', error);
+    } finally {
+      setLoading(false);
       resetAndClose();
     }
   };
@@ -208,61 +223,62 @@ const MultiAIModal: React.FC<AIModalProps> = ({
         </DialogHeader>
 
         <div className="py-6 space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">AI Provider</label>
-            <Select
-              value={formValues.provider}
-              onValueChange={handleProviderChange}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select an AI provider" />
-              </SelectTrigger>
-              <SelectContent>
-                {aiProviders.map((provider) => {
-                  const Icon = provider.icon;
-                  return (
-                    <SelectItem key={provider.name} value={provider.name}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span>{provider.name}</span>
-                      </div>
+          <div>
+            {' '}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">AI Provider</label>
+              <Select
+                value={formValues.provider}
+                onValueChange={handleProviderChange}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select an AI provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aiProviders.map((provider) => {
+                    const Icon = provider.icon;
+                    return (
+                      <SelectItem key={provider.name} value={provider.name}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span>{provider.name}</span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Model Version</label>
+              <Select
+                value={formValues.model}
+                onValueChange={handleModelChange}
+                disabled={!formValues.provider}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {getAvailableModels(formValues.provider).map((model) => (
+                    <SelectItem key={model} value={model}>
+                      {model}
                     </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Model Version</label>
-            <Select
-              value={formValues.model}
-              onValueChange={handleModelChange}
-              disabled={!formValues.provider}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a model" />
-              </SelectTrigger>
-              <SelectContent>
-                {getAvailableModels(formValues.provider).map((model) => (
-                  <SelectItem key={model} value={model}>
-                    {model}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">API Key</label>
-            <Input
-              placeholder="Enter your API key"
-              name="apiKey"
-              type="password"
-              value={formValues.apiKey}
-              onChange={handleInputChange}
-              disabled={!formValues.provider}
-            />
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">API Key</label>
+              <Input
+                placeholder="Enter your API key"
+                name="apiKey"
+                type="password"
+                value={formValues.apiKey}
+                onChange={handleInputChange}
+                disabled={!formValues.provider}
+              />
+            </div>
           </div>
 
           <div className="flex items-center space-x-2 w-full max-w-md">
@@ -319,13 +335,28 @@ const MultiAIModal: React.FC<AIModalProps> = ({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={resetAndClose}>
+          <Button
+            variant="outline"
+            onClick={resetAndClose}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitDisabled}>
-            {isGenerating
-              ? 'Generating...'
-              : `Configure ${formValues.provider || 'AI Model'}`}
+          <Button
+            onClick={() => {
+              setLoading(true);
+              handleSubmit();
+            }}
+            disabled={isSubmitDisabled || isLoading}
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin">⚪</div>
+                Generating...
+              </div>
+            ) : (
+              `Configure ${formValues.provider || 'AI Model'}`
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
