@@ -1,45 +1,42 @@
-"use client";
+'use client';
 
-import {
-  createRepeatTask,
-  createTasks,
-  saveRepeatTasks,
-} from "@/app/actions/task";
-import { Project } from "@/app/(maneger)/page";
-import { template } from "@/app/template/page";
-import { Button } from "@/components/ui/button";
-import { getTemplate } from "@/app/actions/template";
-import { getAllAnnotators } from "@/app/actions/annotator";
+import { createRepeatTask, createTasks } from '@/app/actions/task';
+import { Project } from '@/app/(maneger)/page';
+import { template } from '@/app/template/page';
+import { Button } from '@/components/ui/button';
+import { getTemplate } from '@/app/actions/template';
+import { getAllAnnotators } from '@/app/actions/annotator';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Minus, Plus, Settings, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { updateTestTemplate } from "@/app/actions/template";
-import Papa from "papaparse";
-import { CarouselContent } from "./ui/carousel";
-import AIConfigModal from "./AiModal";
-import MultiAIModal from "./MultiAiModal";
-import { generateAiResponse } from "@/app/actions/aiModel";
-import { usePathname } from "next/navigation";
+
+} from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
+import { ArrowRight, Minus, Plus, Settings, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { updateTestTemplate } from '@/app/actions/template';
+import Papa from 'papaparse';
+import { CarouselContent } from './ui/carousel';
+import AIConfigModal from './AiModal';
+import { generateAiResponse } from '@/app/actions/aiModel';
+import { usePathname } from 'next/navigation';
+
 
 interface TaskValue {
   content: string;
-  fileType?: "image" | "video" | "document" | "audio";
+  fileType?: 'image' | 'video' | 'document' | 'audio';
 }
 
 interface CarouselContent {
@@ -62,7 +59,7 @@ export interface Task {
 }
 
 export interface Placeholder {
-  type: "text" | "video" | "img" | "audio" | "upload" | "carousel";
+  type: 'text' | 'video' | 'img' | 'audio' | 'upload' | 'carousel';
   index: number;
   name: string;
 }
@@ -146,7 +143,7 @@ export function TaskDialog({
     ai: boolean
   ) => Promise<any>;
 }) {
-  const [provider, setProvider] = useState("");
+  const [provider, setProvider] = useState('');
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
@@ -154,10 +151,10 @@ export function TaskDialog({
     template.testTemplate || false
   );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [apiKey, setApiKey] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [generateAi, setGenerateAi] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("");
+  const [selectedModel, setSelectedModel] = useState('');
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [currentPlaceholder, setCurrentPlaceholder] =
     useState<Placeholder | null>(null);
@@ -177,7 +174,7 @@ export function TaskDialog({
   }, [isDialogOpen]);
 
   const pathName = usePathname();
-  const projectId = pathName.split("/")[2];
+  const projectId = pathName.split('/')[2];
   const fetchAnnotators = async () => {
     try {
       const annotatorsData = JSON.parse(
@@ -188,11 +185,11 @@ export function TaskDialog({
         setGlobalRepeat(annotatorsData.length);
       }
     } catch (error) {
-      console.error("Error fetching annotators:", error);
+      console.error('Error fetching annotators:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch annotators",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch annotators',
+        variant: 'destructive',
       });
     }
   };
@@ -209,11 +206,11 @@ export function TaskDialog({
         setGlobalRepeat(1);
       }
     } catch (error) {
-      console.error("Error fetching template state:", error);
+      console.error('Error fetching template state:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch template settings",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch template settings',
+        variant: 'destructive',
       });
     }
   };
@@ -231,12 +228,12 @@ export function TaskDialog({
         setGlobalRepeat(1);
       }
     } catch (error) {
-      console.error("Error updating template:", error);
+      console.error('Error updating template:', error);
       setAssignToAllAnnotators(!checked);
       toast({
-        title: "Error",
-        description: "Failed to update template settings",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to update template settings',
+        variant: 'destructive',
       });
     }
   };
@@ -248,26 +245,26 @@ export function TaskDialog({
       const extractPlaceholders = (item: any) => {
         if (Array.isArray(item.content)) {
           item.content.forEach(extractPlaceholders);
-        } else if (item.type && item.type.startsWith("dynamic")) {
-          let type: "text" | "video" | "img" | "audio" | "upload" | "carousel";
+        } else if (item.type && item.type.startsWith('dynamic')) {
+          let type: 'text' | 'video' | 'img' | 'audio' | 'upload' | 'carousel';
           switch (item.type) {
-            case "dynamicText":
-              type = "text";
+            case 'dynamicText':
+              type = 'text';
               break;
-            case "dynamicVideo":
-              type = "video";
+            case 'dynamicVideo':
+              type = 'video';
               break;
-            case "dynamicImage":
-              type = "img";
+            case 'dynamicImage':
+              type = 'img';
               break;
-            case "dynamicAudio":
-              type = "audio";
+            case 'dynamicAudio':
+              type = 'audio';
               break;
-            case "dynamicUpload":
-              type = "upload";
+            case 'dynamicUpload':
+              type = 'upload';
               break;
-            case "dynamicCarousel":
-              type = "carousel";
+            case 'dynamicCarousel':
+              type = 'carousel';
               break;
             default:
               return;
@@ -283,12 +280,12 @@ export function TaskDialog({
       content.forEach(extractPlaceholders);
       setPlaceholders(extractedPlaceholders);
     } catch (error) {
-      console.error("Error parsing template content:", error);
+      console.error('Error parsing template content:', error);
       toast({
-        title: "Template Error",
+        title: 'Template Error',
         description:
-          "Failed to parse template content. Please check the template format.",
-        variant: "destructive",
+          'Failed to parse template content. Please check the template format.',
+        variant: 'destructive',
       });
     }
   }, [template]);
@@ -320,7 +317,7 @@ export function TaskDialog({
                   content: value,
                   fileType:
                     (task.values[placeholder.index] as TaskValue)?.fileType ||
-                    "document",
+                    'document',
                 },
               },
             }
@@ -332,7 +329,7 @@ export function TaskDialog({
   const handleFileTypeChange = (
     taskId: number,
     placeholder: Placeholder,
-    fileType: "image" | "video" | "document" | "audio"
+    fileType: 'image' | 'video' | 'document' | 'audio'
   ) => {
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
@@ -344,7 +341,7 @@ export function TaskDialog({
                 [placeholder.index]: {
                   content:
                     (task.values[placeholder.index] as TaskValue)?.content ||
-                    "",
+                    '',
                   fileType,
                 },
               },
@@ -361,59 +358,59 @@ export function TaskDialog({
   };
 
   const renderPlaceholderInput = (task: Task, placeholder: Placeholder) => {
-    if (placeholder.type === "carousel") {
+    if (placeholder.type === 'carousel') {
       const templateContent = JSON.parse(template.content);
-      console.log("template content", templateContent);
+      console.log('template content', templateContent);
       const carouselElement = templateContent?.[0]?.content?.find(
         (item: any) =>
-          item.name === placeholder.name && item.type === "dynamicCarousel"
+          item.name === placeholder.name && item.type === 'dynamicCarousel'
       );
 
       if (!carouselElement) {
         console.error(
-          "Carousel element not found for placeholder:",
+          'Carousel element not found for placeholder:',
           placeholder.name
         );
         return;
       }
       const carouselProperties: CarouselContent = carouselElement?.content || {
-        slides: [{ type: "text", innerText: "" }],
+        slides: [{ type: 'text', innerText: '' }],
         keyboardNav: true,
         autoSlide: false,
         slideInterval: 5000,
       };
 
-      console.log("courseElement:", carouselElement);
+      console.log('courseElement:', carouselElement);
 
       const currentSlides =
         (task.values[placeholder.index] as CarouselContent)?.slides ||
         carouselProperties.slides.map(
           (slide: { type: string; src?: string; innerText?: string }) => ({
             ...slide,
-            innerText: slide.innerText || "",
-            src: slide.src || "",
+            innerText: slide.innerText || '',
+            src: slide.src || '',
           })
         );
 
-      console.log("currentSlides:", currentSlides);
+      console.log('currentSlides:', currentSlides);
 
       return (
-        <div className="border rounded p-4 space-y-4">
-          <h4 className="text-lg font-semibold">
+        <div className='border rounded p-4 space-y-4'>
+          <h4 className='text-lg font-semibold'>
             Carousel Content for {placeholder.name}
           </h4>
 
           {currentSlides.map((slide, index) => (
-            <div key={index} className="mb-4 p-2 border rounded">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
+            <div key={index} className='mb-4 p-2 border rounded'>
+              <div className='flex items-center justify-between mb-2'>
+                <label className='block text-sm font-medium text-gray-700'>
                   Slide {index + 1} ({slide.type})
                 </label>
               </div>
 
-              {slide.type === "text" && (
+              {slide.type === 'text' && (
                 <Input
-                  value={slide.innerText || ""}
+                  value={slide.innerText || ''}
                   onChange={(e) => {
                     setTasks((prevTasks) =>
                       prevTasks.map((t) =>
@@ -437,13 +434,13 @@ export function TaskDialog({
                     );
                   }}
                   placeholder={`Enter text for Slide ${index + 1}`}
-                  className="w-full"
+                  className='w-full'
                 />
               )}
 
-              {slide.type === "image" && (
+              {slide.type === 'image' && (
                 <Input
-                  value={slide.src || ""}
+                  value={slide.src || ''}
                   onChange={(e) => {
                     setTasks((prevTasks) =>
                       prevTasks.map((t) =>
@@ -467,13 +464,13 @@ export function TaskDialog({
                     );
                   }}
                   placeholder={`Enter image URL for Slide ${index + 1}`}
-                  className="w-full"
+                  className='w-full'
                 />
               )}
 
-              {slide.type === "video" && (
+              {slide.type === 'video' && (
                 <Input
-                  value={slide.src || ""}
+                  value={slide.src || ''}
                   onChange={(e) => {
                     setTasks((prevTasks) =>
                       prevTasks.map((t) =>
@@ -497,7 +494,7 @@ export function TaskDialog({
                     );
                   }}
                   placeholder={`Enter video URL for Slide ${index + 1}`}
-                  className="w-full"
+                  className='w-full'
                 />
               )}
             </div>
@@ -506,38 +503,38 @@ export function TaskDialog({
       );
     }
     // Existing input rendering logic for other placeholders
-    if (placeholder.type === "upload") {
+    if (placeholder.type === 'upload') {
       return (
-        <div className="space-y-2">
-          <div className="flex gap-2">
+        <div className='space-y-2'>
+          <div className='flex gap-2'>
             <Input
               id={`${task.id}-${placeholder.index}`}
               value={
-                (task.values[placeholder.index] as TaskValue)?.content || ""
+                (task.values[placeholder.index] as TaskValue)?.content || ''
               }
               onChange={(e) =>
                 handleInputChange(task.id, placeholder, e.target.value)
               }
               placeholder={`Enter file URL for ${placeholder.name}`}
-              className="flex-1"
+              className='flex-1'
             />
             <Select
               value={
                 (task.values[placeholder.index] as TaskValue)?.fileType ||
-                "document"
+                'document'
               }
               onValueChange={(
-                value: "image" | "video" | "document" | "audio"
+                value: 'image' | 'video' | 'document' | 'audio'
               ) => handleFileTypeChange(task.id, placeholder, value)}
             >
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="File Type" />
+              <SelectTrigger className='w-32'>
+                <SelectValue placeholder='File Type' />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="image">Image</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="document">Document</SelectItem>
-                <SelectItem value="audio">Audio</SelectItem>
+                <SelectItem value='image'>Image</SelectItem>
+                <SelectItem value='video'>Video</SelectItem>
+                <SelectItem value='document'>Document</SelectItem>
+                <SelectItem value='audio'>Audio</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -547,10 +544,10 @@ export function TaskDialog({
 
     // Default input rendering for other types
     return (
-      <div className="flex items-center space-x-4">
+      <div className='flex items-center space-x-4'>
         <Input
           id={`${task.id}-${placeholder.index}`}
-          value={(task.values[placeholder.index] as TaskValue)?.content || ""}
+          value={(task.values[placeholder.index] as TaskValue)?.content || ''}
           onChange={(e) =>
             handleInputChange(task.id, placeholder, e.target.value)
           }
@@ -563,7 +560,7 @@ export function TaskDialog({
             setIsGeneratingForAll(false);
             setIsAiModalOpen(true);
           }}
-          variant={"outline"}
+          variant={'outline'}
         >
           AI
         </Button>
@@ -643,11 +640,11 @@ export function TaskDialog({
       const fillContent = (item: any): any => {
         if (Array.isArray(item.content)) {
           return { ...item, content: item.content.map(fillContent) };
-        } else if (item.type && item.type.startsWith("dynamic")) {
+        } else if (item.type && item.type.startsWith('dynamic')) {
           const placeholder = placeholders.find((p) => p.name === item.name);
           if (placeholder) {
             // Handle carousel specifically
-            if (item.type === "dynamicCarousel") {
+            if (item.type === 'dynamicCarousel') {
               const carouselValue = values[
                 placeholder.index
               ] as CarouselContent;
@@ -661,7 +658,7 @@ export function TaskDialog({
             }
 
             // Existing logic for other dynamic types remains the same
-            if (item.type === "dynamicCarousel") {
+            if (item.type === 'dynamicCarousel') {
               const placeholder = placeholders.find(
                 (p) => p.name === item.name
               );
@@ -673,29 +670,29 @@ export function TaskDialog({
                 // Create slides with proper type mapping
                 const mappedSlides = carouselValue.slides.map((slide) => {
                   // If no type is specified, default to text
-                  const slideType = slide.type || "text";
+                  const slideType = slide.type || 'text';
 
                   // Map slides based on their type
                   switch (slideType) {
-                    case "image":
+                    case 'image':
                       return {
-                        type: "image",
+                        type: 'image',
                         src: slide.src || `{{${placeholder.type}_image}}`,
-                        innerText: slide.innerText || "",
+                        innerText: slide.innerText || '',
                       };
-                    case "video":
+                    case 'video':
                       return {
-                        type: "video",
+                        type: 'video',
                         src: slide.src || `{{${placeholder.type}_video}}`,
-                        innerText: slide.innerText || "",
+                        innerText: slide.innerText || '',
                       };
-                    case "text":
+                    case 'text':
                     default:
                       return {
-                        type: "text",
+                        type: 'text',
                         innerText:
                           slide.innerText || `{{${placeholder.type}_text}}`,
-                        src: slide.src || "",
+                        src: slide.src || '',
                       };
                   }
                 });
@@ -712,19 +709,19 @@ export function TaskDialog({
                   },
                 };
               }
-            } else if (item.type === "dynamicUpload") {
+            } else if (item.type === 'dynamicUpload') {
               const fileType =
                 (values[placeholder.index] as TaskValue)?.fileType ||
-                "document";
-              if (fileType === "document") {
+                'document';
+              if (fileType === 'document') {
                 const textContent =
                   (values[placeholder.index] as TaskValue)?.content ||
                   `{{${placeholder.type}}}`;
                 return {
                   ...item,
-                  type: "dynamicText",
+                  type: 'dynamicText',
                   content: {
-                    type: "any",
+                    type: 'any',
                     limit: 1,
                     src: textContent,
                     innerText: textContent,
@@ -744,7 +741,7 @@ export function TaskDialog({
                     `{{${placeholder.type}}}`,
                 },
               };
-            } else if (item.type === "dynamicText") {
+            } else if (item.type === 'dynamicText') {
               return {
                 ...item,
                 content: {
@@ -773,14 +770,14 @@ export function TaskDialog({
       content = content.map(fillContent);
       return JSON.stringify(content);
     } catch (error) {
-      console.error("Error rendering filled template:", error);
+      console.error('Error rendering filled template:', error);
       toast({
-        title: "Render Error",
+        title: 'Render Error',
         description:
-          "Failed to render filled template. Please check the input values.",
-        variant: "destructive",
+          'Failed to render filled template. Please check the input values.',
+        variant: 'destructive',
       });
-      return "";
+      return '';
     }
   };
 
@@ -793,10 +790,10 @@ export function TaskDialog({
 
           if (headers.length !== placeholders.length) {
             toast({
-              title: "CSV Error",
+              title: 'CSV Error',
               description:
-                "The number of columns in the CSV does not match the number of placeholders in the template.",
-              variant: "destructive",
+                'The number of columns in the CSV does not match the number of placeholders in the template.',
+              variant: 'destructive',
             });
             return;
           }
@@ -810,12 +807,12 @@ export function TaskDialog({
                   placeholders.map((placeholder, i) => [
                     placeholder.index,
                     {
-                      content: row[i] || "",
-                      fileType: "document" as
-                        | "image"
-                        | "video"
-                        | "document"
-                        | "audio", // Default file type for uploads
+                      content: row[i] || '',
+                      fileType: 'document' as
+                        | 'image'
+                        | 'video'
+                        | 'document'
+                        | 'audio', // Default file type for uploads
                     },
                   ])
                 ),
@@ -825,20 +822,20 @@ export function TaskDialog({
         },
         error: (error) => {
           toast({
-            title: "CSV Parsing Error",
+            title: 'CSV Parsing Error',
             description: error.message,
-            variant: "destructive",
+            variant: 'destructive',
           });
         },
       });
     }
   };
-
   const generateFilledTemplates = async () => {
     try {
       const filledTasks: FilledTask[] = [];
       const repeatTasks: RepeatTask[] = [];
       let repeatTaskCount;
+
       tasks.forEach((task) => {
         const filled = renderFilledTemplate(task.values);
 
@@ -849,20 +846,18 @@ export function TaskDialog({
             content: filled,
             timer: template.timer,
             annotator: null,
-            reviewer: "",
+            reviewer: '',
             template: template._id,
-            type: "test",
+            type: 'test',
           });
         } else {
           for (let i = 0; i < globalRepeat; i++) {
             filledTasks.push({
               project: project._id,
-              name: `${project.name} - ${template.name} - Task${task.id}.${
-                i + 1
-              }`,
+              name: `${project.name} - ${template.name} - Task${task.id}.${i + 1}`,
               content: filled,
               timer: template.timer,
-              reviewer: "",
+              reviewer: '',
               type: template.type,
               template: template._id,
             });
@@ -873,45 +868,24 @@ export function TaskDialog({
       const response = (await createTasks(
         filledTasks
       )) as unknown as CreateTasksResponse;
+
       if (assignToAllAnnotators) {
         const createRepeatResponse = await createRepeatTask(repeatTasks);
         repeatTaskCount = createRepeatResponse.createdTasks;
         if (!createRepeatResponse.success) {
-          throw new Error("Failed to save repeat tasks");
-        }
-      }
-
-      let repeatresponse: SaveTasksResponse | undefined;
-      if (assignToAllAnnotators) {
-        try {
-          repeatresponse = (await saveRepeatTasks(
-            repeatTasks
-          )) as unknown as SaveTasksResponse;
-          if (!repeatresponse?.success) {
-            throw new Error("Failed to save repeat tasks");
-          }
-        } catch (error) {
-          console.log(error);
-          toast({
-            variant: "destructive",
-            title: "Failed to save repeat tasks",
-            description:
-              (error as any).message ||
-              "An unknown error occurred while saving repeat tasks.",
-          });
-          return;
+          throw new Error('Failed to save repeat tasks');
         }
       }
 
       if (assignToAllAnnotators) {
         toast({
-          title: "Tasks created successfully",
+          title: 'Tasks created successfully',
           description: `Created ${repeatTaskCount} tasks and ${repeatTasks.length} repeat tasks successfully`,
         });
       } else {
         toast({
-          title: "Tasks created successfully",
-          description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
+          title: 'Tasks created successfully',
+          description: `Created ${filledTasks.length} tasks successfully`,
         });
       }
 
@@ -921,8 +895,8 @@ export function TaskDialog({
       setIsDialogOpen(false);
     } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
         description: error.message,
       });
     }
@@ -935,6 +909,7 @@ export function TaskDialog({
       return;
     }
 
+
     const response = await generateAiResponse(
       provider,
       selectedModel,
@@ -943,6 +918,8 @@ export function TaskDialog({
       quantity should be: ${numberOfTasks}`,
       projectId,
       apiKey
+
+
     );
     const parsedQuestions = response
       .split(/\d+\.\s*/)
@@ -993,16 +970,24 @@ export function TaskDialog({
   return (
     <div>
       <AIConfigModal
-        onConfigure={(provider, model, systemPrompt, apiKey) =>
-          handleConfigureAi(
-            provider,
-            model,
-            systemPrompt,
-            apiKey,
-            currentTask!,
-            currentPlaceholder!
-          )
-        }
+
+        onConfigure={async (provider, model, systemPrompt, apiKey) => {
+          if (isGeneratingForAll) {
+            handleConfigureAiForAll(provider, model, systemPrompt, apiKey);
+          } else {
+            if (currentTask && currentPlaceholder) {
+              handleConfigureAi(
+                provider,
+                model,
+                systemPrompt,
+                apiKey,
+                currentTask,
+                currentPlaceholder
+              );
+            }
+          }
+        }}
+
         isAIModalOpen={isAiModalOpen}
         setIsAIModalOpen={() => setIsAiModalOpen(false)}
         tasks={tasks}
@@ -1038,39 +1023,39 @@ export function TaskDialog({
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-fit">
-          <DialogHeader className="flex flex-col gap-4">
-            <div className="flex flex-row items-center justify-between pr-8">
-              <DialogTitle className="flex-1">Ingest Data</DialogTitle>
-              <div className="flex items-center gap-2 ml-4">
+        <DialogContent className='sm:max-w-[425px] md:max-w-fit'>
+          <DialogHeader className='flex flex-col gap-4'>
+            <div className='flex flex-row items-center justify-between pr-8'>
+              <DialogTitle className='flex-1'>Ingest Data</DialogTitle>
+              <div className='flex items-center gap-2 ml-4'>
                 <label
-                  htmlFor="global-repeat"
-                  className="text-sm font-medium text-gray-700"
+                  htmlFor='global-repeat'
+                  className='text-sm font-medium text-gray-700'
                 >
                   Repeat Each Task:
                 </label>
                 <Input
-                  id="global-repeat"
-                  type="number"
-                  min="1"
+                  id='global-repeat'
+                  type='number'
+                  min='1'
                   value={globalRepeat}
                   onChange={(e) =>
                     handleGlobalRepeatChange(parseInt(e.target.value, 10))
                   }
-                  className="w-20"
+                  className='w-20'
                   disabled={assignToAllAnnotators}
                 />
               </div>
             </div>
-            <div className="flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <div className='flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm'>
               {/* Left section - Switch for annotator assignment */}
-              <div className="flex items-center space-x-3">
+              <div className='flex items-center space-x-3'>
                 <Switch
                   checked={assignToAllAnnotators}
                   onCheckedChange={handleAnnotatorAssignmentToggle}
-                  className="transition duration-200 ease-in-out"
+                  className='transition duration-200 ease-in-out'
                 />
-                <label className="text-sm font-medium text-gray-700">
+                <label className='text-sm font-medium text-gray-700'>
                   Assign to all annotators ({annotators.length} annotators)
                 </label>
               </div>
@@ -1078,26 +1063,26 @@ export function TaskDialog({
               {/* Right section - AI model selector and settings icon */}
             </div>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto">
+          <div className='max-h-[60vh] overflow-y-auto'>
             {tasks.map((task) => (
-              <div key={task.id} className="mb-4 p-2 border rounded">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold">Task {task.id}</h3>
-                  <div className="flex items-center space-x-2">
+              <div key={task.id} className='mb-4 p-2 border rounded'>
+                <div className='flex justify-between items-center mb-2'>
+                  <h3 className='text-lg font-semibold'>Task {task.id}</h3>
+                  <div className='flex items-center space-x-2'>
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant='ghost'
+                      size='icon'
                       onClick={() => handleRemoveTask(task.id)}
                     >
-                      <Minus className="h-4 w-4" />
+                      <Minus className='h-4 w-4' />
                     </Button>
                   </div>
                 </div>
                 {placeholders.map((placeholder) => (
-                  <div key={placeholder.index} className="mb-2">
+                  <div key={placeholder.index} className='mb-2'>
                     <label
                       htmlFor={`${task.id}-${placeholder.index}`}
-                      className="block text-sm font-medium text-gray-700"
+                      className='block text-sm font-medium text-gray-700'
                     >
                       {placeholder.name} ({placeholder.type})
                     </label>
@@ -1107,19 +1092,19 @@ export function TaskDialog({
               </div>
             ))}
           </div>
-          <DialogFooter className="flex w-full">
-            <Button onClick={handleAddTask} className="mr-auto">
-              <Plus className="mr-2 h-4 w-4" /> Add More Task
+          <DialogFooter className='flex w-full'>
+            <Button onClick={handleAddTask} className='mr-auto'>
+              <Plus className='mr-2 h-4 w-4' /> Add More Task
             </Button>
-            <div className="flex gap-2">
+            <div className='flex gap-2'>
               <Button onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" /> Upload CSV
+                <Upload className='mr-2 h-4 w-4' /> Upload CSV
               </Button>
               <input
-                type="file"
+                type='file'
                 ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
+                className='hidden'
+                accept='.csv'
                 onChange={handleFileUpload}
               />
               <Button onClick={generateFilledTemplates}>
