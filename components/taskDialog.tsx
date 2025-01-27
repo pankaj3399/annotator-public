@@ -928,56 +928,68 @@ export function TaskDialog({
     }
   };
 
-  const handleGenerateAIForAllPlaceholders = async () => {
-    if (
-      !provider ||
-      !selectedModel ||
-      !systemPrompt ||
-      !apiKey ||
-      !selectedPlaceholder ||
-      !numberOfTasks
-    ) {
-      setIsGeneratingForAll(true);
-      setIsMultiAiModalOpen(true);
-      return;
-    }
+const handleGenerateAIForAllPlaceholders = async () => {
+  if (
+    !provider ||
+    !selectedModel ||
+    !systemPrompt ||
+    !apiKey ||
+    !selectedPlaceholder ||
+    !numberOfTasks
+  ) {
+    setIsGeneratingForAll(true);
+    setIsMultiAiModalOpen(true);
+    return;
+  }
 
-    const response = await generateAiResponse(
-      provider,
-      selectedModel,
-      `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
-      limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & the total response
-      quantity should be: ${numberOfTasks}`,
-      projectId,
-      apiKey
-    );
-    const parsedQuestions = response
-      .split(/\d+\.\s*/)
-      .filter((q: string) => q.trim() !== "");
+  const response = await generateAiResponse(
+    provider,
+    selectedModel,
+    `Generate exactly ${numberOfTasks} numbered tasks. Each task should start with a number followed by a period and a space (e.g., "1. Task"). The tasks should be about: ${systemPrompt}`,
+    projectId,
+    apiKey
+  );
 
-    if (numberOfTasks > tasks.length) {
-      console.log(numberOfTasks, tasks.length);
-      const additionalTasksCount = numberOfTasks - tasks.length;
-      console.log(additionalTasksCount);
-      for (let i = 0; i < additionalTasksCount; i++) {
-        handleAddTask();
-      }
+  // More precise regex to match numbered items
+  const parsedQuestions = response
+    .split(/^\d+\.\s*/m) // Split on numbers at start of line
+    .filter((q: string) => q.trim() !== "")
+    .slice(0, numberOfTasks); // Ensure we don't exceed numberOfTasks
+
+  // Log for debugging
+  console.log("Parsed questions:", parsedQuestions);
+  console.log("Number of tasks requested:", numberOfTasks);
+  console.log("Current tasks length:", tasks.length);
+
+  // First, ensure we have the correct number of task slots
+  if (numberOfTasks > tasks.length) {
+    const additionalTasksCount = numberOfTasks - tasks.length;
+    for (let i = 0; i < additionalTasksCount; i++) {
+      await handleAddTask(); // If handleAddTask is async
     }
-    // Use state update callback to ensure tasks are added first
-    setTasks((prevTasks) => {
-      const updatedTasks = [...prevTasks];
-      parsedQuestions.forEach((question: string, index: number) => {
+  } else if (numberOfTasks < tasks.length) {
+    // Optionally remove extra tasks if there are too many
+    setTasks((prevTasks) => prevTasks.slice(0, numberOfTasks));
+  }
+
+  // Update tasks with new content
+  setTasks((prevTasks) => {
+    const updatedTasks = [...prevTasks];
+    parsedQuestions.forEach((question: string, index: number) => {
+      if (index < numberOfTasks) {
+        // Additional safety check
         handleInputChange(
           updatedTasks[index].id,
           selectedPlaceholder as Placeholder,
-          question
+          question.trim()
         );
-      });
-      return updatedTasks;
+      }
     });
+    return updatedTasks;
+  });
 
-    setSystemPrompt("");
-  };
+  setSystemPrompt("");
+};
 
   useEffect(() => {
     if (
