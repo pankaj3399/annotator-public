@@ -929,7 +929,6 @@ export function TaskDialog({
   };
 
   const handleGenerateAIForAllPlaceholders = async () => {
-    // Add initial debug logging
     console.log("=== Starting Task Generation ===");
     console.log("Initial state:", {
       numberOfTasks,
@@ -957,76 +956,66 @@ export function TaskDialog({
         provider,
         selectedModel,
         `Generate EXACTLY ${numberOfTasks} tasks. No more, no less.
-       Format each task as a number followed by a period and a space.
-       Example format:
-       1. First task
-       2. Second task
-       Content: ${systemPrompt}`,
+         Format each task as a number followed by a period and a space.
+         Example format:
+         1. First task
+         2. Second task
+         Content: ${systemPrompt}`,
         projectId,
         apiKey
       );
 
-      // Log raw response
-      console.log("Raw AI Response:", response);
-
-      // Split and clean the response
       const allMatches = response.match(/^\d+\.\s*.+$/gm) || [];
-      console.log("Regex matches found:", allMatches);
-
       const parsedQuestions = allMatches
         .slice(0, numberOfTasks)
         .map((match: any) => match.replace(/^\d+\.\s*/, "").trim());
 
-      console.log("Parsed and sliced questions:", parsedQuestions);
-      console.log("Length of parsed questions:", parsedQuestions.length);
-
-      // Ensure task slots synchronously
-      let currentTasks = [...tasks];
-
-      if (parsedQuestions.length > currentTasks.length) {
-        const additionalNeeded = parsedQuestions.length - currentTasks.length;
-        console.log(`Adding ${additionalNeeded} new task slots`);
-
-        // Add tasks synchronously instead of async
-        for (let i = 0; i < additionalNeeded; i++) {
-          handleAddTask();
-        }
-      }
-
-      // Force wait for state update
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // Update tasks with strict control
-      setTasks((prevTasks) => {
-        const updatedTasks = [...prevTasks];
-        const finalTaskCount = Math.min(numberOfTasks, parsedQuestions.length);
-
-        console.log("Updating tasks:", {
-          requestedCount: numberOfTasks,
-          parsedCount: parsedQuestions.length,
-          finalCount: finalTaskCount,
-          currentTasksLength: updatedTasks.length,
+      // Create all necessary tasks first
+      const additionalNeeded = parsedQuestions.length - tasks.length;
+      if (additionalNeeded > 0) {
+        // Use state updater function to ensure we have the latest state
+        setTasks((prevTasks) => {
+          const newTasks = [...prevTasks];
+          for (let i = 0; i < additionalNeeded; i++) {
+            const newId = Math.max(...newTasks.map((t) => t.id), 0) + 1;
+            newTasks.push({
+              id: newId,
+              values: {},
+            });
+          }
+          return newTasks;
         });
 
-        for (let i = 0; i < finalTaskCount; i++) {
-          if (updatedTasks[i] && parsedQuestions[i]) {
-            handleInputChange(
-              updatedTasks[i].id,
-              selectedPlaceholder as Placeholder,
-              parsedQuestions[i]
-            );
-          }
-        }
+        // Wait for state update to complete
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
-        // Ensure we only return the number of tasks requested
-        return updatedTasks.slice(0, numberOfTasks);
-      });
-      console.log(tasks)
+      // Update tasks one at a time to avoid race conditions
+      for (let i = 0; i < parsedQuestions.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay between updates
+        setTasks((prevTasks) =>
+          prevTasks.map((task, index) =>
+            index === i
+              ? {
+                  ...task,
+                  values: {
+                    ...task.values,
+                    [selectedPlaceholder.index]: {
+                      content: parsedQuestions[i],
+                      fileType:
+                        (task.values[selectedPlaceholder.index] as TaskValue)
+                          ?.fileType || "document",
+                    },
+                  },
+                }
+              : task
+          )
+        );
+      }
+
+      setSystemPrompt("");
     } catch (error) {
       console.error("Error in task generation:", error);
-    } finally {
-      setSystemPrompt("");
-      console.log("=== Task Generation Complete ===");
     }
   };
 
