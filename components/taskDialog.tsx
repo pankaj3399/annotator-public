@@ -929,6 +929,15 @@ export function TaskDialog({
   };
 
   const handleGenerateAIForAllPlaceholders = async () => {
+    console.log("=== Starting Task Generation ===");
+    console.log("Initial state:", {
+      numberOfTasks,
+      currentTasksLength: tasks.length,
+      provider,
+      selectedModel,
+      hasPlaceholder: !!selectedPlaceholder,
+    });
+
     if (
       !provider ||
       !selectedModel ||
@@ -942,39 +951,72 @@ export function TaskDialog({
       return;
     }
 
-    const response = await generateAiResponse(
-      provider,
-      selectedModel,
-      `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
-      limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & the total response
-      quantity should be: ${numberOfTasks}`,
-      projectId,
-      apiKey
-    );
-    const parsedQuestions = response
-      .split(/\d+\.\s*/)
-      .filter((q: string) => q.trim() !== "");
+    try {
+      const response = await generateAiResponse(
+        provider,
+        selectedModel,
+        `Generate EXACTLY ${numberOfTasks} tasks. No more, no less.
+         Format each task as a number followed by a period and a space.
+         Example format:
+         1. First task
+         2. Second task
+         Content: ${systemPrompt}`,
+        projectId,
+        apiKey
+      );
 
-    if (parsedQuestions.length > tasks.length) {
-      const additionalTasksCount = parsedQuestions.length - tasks.length;
-      for (let i = 0; i < additionalTasksCount; i++) {
-        handleAddTask();
+      const allMatches = response.match(/^\d+\.\s*.+$/gm) || [];
+      const parsedQuestions = allMatches
+        .slice(0, numberOfTasks)
+        .map((match: any) => match.replace(/^\d+\.\s*/, "").trim());
+
+      // Create all necessary tasks first
+      const additionalNeeded = parsedQuestions.length - tasks.length;
+      if (additionalNeeded > 0) {
+        // Use state updater function to ensure we have the latest state
+        setTasks((prevTasks) => {
+          const newTasks = [...prevTasks];
+          for (let i = 0; i < additionalNeeded; i++) {
+            const newId = Math.max(...newTasks.map((t) => t.id), 0) + 1;
+            newTasks.push({
+              id: newId,
+              values: {},
+            });
+          }
+          return newTasks;
+        });
+
+        // Wait for state update to complete
+        await new Promise((resolve) => setTimeout(resolve, 100));
       }
-    }
-    // Use state update callback to ensure tasks are added first
-    setTasks((prevTasks) => {
-      const updatedTasks = [...prevTasks];
-      parsedQuestions.forEach((question: string, index: number) => {
-        handleInputChange(
-          updatedTasks[index].id,
-          selectedPlaceholder as Placeholder,
-          question
-        );
-      });
-      return updatedTasks;
-    });
 
-    setSystemPrompt("");
+      // Update tasks one at a time to avoid race conditions
+      for (let i = 0; i < parsedQuestions.length; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay between updates
+        setTasks((prevTasks) =>
+          prevTasks.map((task, index) =>
+            index === i
+              ? {
+                  ...task,
+                  values: {
+                    ...task.values,
+                    [selectedPlaceholder.index]: {
+                      content: parsedQuestions[i],
+                      fileType:
+                        (task.values[selectedPlaceholder.index] as TaskValue)
+                          ?.fileType || "document",
+                    },
+                  },
+                }
+              : task
+          )
+        );
+      }
+
+      setSystemPrompt("");
+    } catch (error) {
+      console.error("Error in task generation:", error);
+    }
   };
 
   useEffect(() => {
