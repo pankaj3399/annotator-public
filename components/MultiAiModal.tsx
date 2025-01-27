@@ -1,31 +1,31 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Bot, Brain, Upload, LucideIcon } from "lucide-react";
-import { Task } from "./taskDialog";
-import { Placeholder } from "./taskDialog";
-import { Badge } from "./ui/badge";
+} from '@/components/ui/select';
+import { Bot, Brain, Upload, LucideIcon } from 'lucide-react';
+import { Task } from './taskDialog';
+import { Placeholder } from './taskDialog';
+import { Badge } from './ui/badge';
 
-type Provider = "OpenAI" | "Anthropic" | "Gemini";
+type Provider = 'OpenAI' | 'Anthropic' | 'Gemini';
 
 interface FormValues {
   model: string;
-  provider: Provider | "";
+  provider: Provider | '';
   apiKey: string;
   systemPrompt: string;
 }
@@ -57,40 +57,40 @@ interface AIModalProps {
 }
 
 const providerModels: Record<Provider, string[]> = {
-  OpenAI: ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
+  OpenAI: ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'],
   Anthropic: [
-    "claude-3-5-sonnet-latest",
-    "claude-3-5-sonnet-20240620",
-    "claude-3-haiku-20240307",
-    "claude-3-opus-latest",
-    "claude-3-opus-20240229",
+    'claude-3-5-sonnet-latest',
+    'claude-3-5-sonnet-20240620',
+    'claude-3-haiku-20240307',
+    'claude-3-opus-latest',
+    'claude-3-opus-20240229',
   ],
   Gemini: [
-    "gemini-1.0-pro",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-pro",
+    'gemini-1.0-pro',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+    'gemini-pro',
   ],
 };
 
 const aiProviders: AIProvider[] = [
   {
-    name: "Anthropic",
+    name: 'Anthropic',
     icon: Bot,
-    description: "Advanced AI for complex tasks",
-    color: "bg-purple-500",
+    description: 'Advanced AI for complex tasks',
+    color: 'bg-purple-500',
   },
   {
-    name: "OpenAI",
+    name: 'OpenAI',
     icon: Brain,
-    description: "Versatile language models",
-    color: "bg-green-500",
+    description: 'Versatile language models',
+    color: 'bg-green-500',
   },
   {
-    name: "Gemini",
+    name: 'Gemini',
     icon: Upload,
-    description: "Multi-modal AI capabilities",
-    color: "bg-blue-500",
+    description: 'Multi-modal AI capabilities',
+    color: 'bg-blue-500',
   },
 ];
 
@@ -106,17 +106,18 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   setNumberOfTasks,
 }) => {
   const [formValues, setFormValues] = useState<FormValues>({
-    model: "",
-    provider: "",
-    apiKey: "",
-    systemPrompt: "",
+    model: '',
+    provider: '',
+    apiKey: '',
+    systemPrompt: '',
   });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleProviderChange = (value: string) => {
     setFormValues((prev) => ({
       ...prev,
       provider: value as Provider,
-      model: "",
+      model: '',
     }));
   };
 
@@ -144,13 +145,13 @@ const MultiAIModal: React.FC<AIModalProps> = ({
     let resolvedPrompt = formValues.systemPrompt;
 
     placeholders.forEach((placeholder) => {
-      const placeholderPattern = new RegExp(`{{${placeholder.name}}}`, "g");
-      let valuesString = "";
+      const placeholderPattern = new RegExp(`{{${placeholder.name}}}`, 'g');
+      let valuesString = '';
 
       tasks.forEach((task, index) => {
         const valueIndex = placeholder.index;
         // @ts-ignore
-        const valueContent = task.values[valueIndex]?.content || ""; // Default to empty string
+        const valueContent = task.values[valueIndex]?.content || ''; // Default to empty string
         valuesString += `\`${index + 1}. ${valueContent}\` `;
       });
 
@@ -183,10 +184,8 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   const resetAndClose = () => {
     // setIsAIModalOpen(false);
     setFormValues({
-      model: "",
-      provider: "",
-      apiKey: "",
-      systemPrompt: "",
+      ...formValues,
+      systemPrompt: '',
     });
     setSelectedPlaceholder({});
   };
@@ -194,7 +193,7 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   const isSubmitDisabled =
     !formValues.provider || !formValues.model || !formValues.apiKey;
 
-  const getAvailableModels = (provider: Provider | ""): string[] => {
+  const getAvailableModels = (provider: Provider | ''): string[] => {
     if (!provider || !(provider in providerModels)) return [];
     return providerModels[provider as Provider];
   };
@@ -324,7 +323,9 @@ const MultiAIModal: React.FC<AIModalProps> = ({
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={isSubmitDisabled}>
-            Configure {formValues.provider || "AI Model"}
+            {isGenerating
+              ? 'Generating...'
+              : `Configure ${formValues.provider || 'AI Model'}`}
           </Button>
         </DialogFooter>
       </DialogContent>
