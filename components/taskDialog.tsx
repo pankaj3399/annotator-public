@@ -1021,6 +1021,7 @@ export function TaskDialog({
         // Ensure we only return the number of tasks requested
         return updatedTasks.slice(0, numberOfTasks);
       });
+      console.log(tasks)
     } catch (error) {
       console.error("Error in task generation:", error);
     } finally {
