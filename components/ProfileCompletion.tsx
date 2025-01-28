@@ -174,7 +174,8 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
               Profile Completion
             </h2>
             <p className="text-sm text-[#6b7280]">
-              {calculateCompletion.totalFieldsFilled} of {calculateCompletion.totalFields} fields completed
+              {calculateCompletion.totalFieldsFilled} of{' '}
+              {calculateCompletion.totalFields} fields completed
             </p>
           </div>
         </div>
@@ -185,7 +186,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
 
       <div className="relative w-full h-2">
         <div className="absolute w-full h-full bg-[#E5E7EB] rounded-full" />
-        <div 
+        <div
           className="absolute h-full bg-[#22C55E] rounded-full transition-all duration-500 ease-in-out"
           style={{ width: `${calculateCompletion.percentage}%` }}
         />
@@ -198,10 +199,7 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
         {calculateCompletion.percentage < 100 && (
           <div className="space-y-1">
             {getMissingFieldsMessage().map((message, index) => (
-              <div 
-                key={index} 
-                className="flex items-start gap-2"
-              >
+              <div key={index} className="flex items-start gap-2">
                 <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#9ca3af]" />
                 <p className="text-sm text-[#6b7280]">{message}</p>
               </div>
