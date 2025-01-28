@@ -1,45 +1,45 @@
-"use client";
+'use client';
 
 import {
   createRepeatTask,
   createTasks,
   saveRepeatTasks,
-} from "@/app/actions/task";
-import { Project } from "@/app/(maneger)/page";
-import { template } from "@/app/template/page";
-import { Button } from "@/components/ui/button";
-import { getTemplate } from "@/app/actions/template";
-import { getAllAnnotators } from "@/app/actions/annotator";
+} from '@/app/actions/task';
+import { Project } from '@/app/(maneger)/page';
+import { template } from '@/app/template/page';
+import { Button } from '@/components/ui/button';
+import { getTemplate } from '@/app/actions/template';
+import { getAllAnnotators } from '@/app/actions/annotator';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { ArrowRight, Minus, Plus, Settings, Upload } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { updateTestTemplate } from "@/app/actions/template";
-import Papa from "papaparse";
-import { CarouselContent } from "./ui/carousel";
-import AIConfigModal from "./AiModal";
-import MultiAIModal from "./MultiAiModal";
-import { generateAiResponse } from "@/app/actions/aiModel";
-import { usePathname } from "next/navigation";
+} from '@/components/ui/select';
+import { toast } from '@/hooks/use-toast';
+import { ArrowRight, Minus, Plus, Settings, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { updateTestTemplate } from '@/app/actions/template';
+import Papa from 'papaparse';
+import { CarouselContent } from './ui/carousel';
+import AIConfigModal from './AiModal';
+import MultiAIModal from './MultiAiModal';
+import { generateAiResponse } from '@/app/actions/aiModel';
+import { usePathname } from 'next/navigation';
 
 interface TaskValue {
   content: string;
-  fileType?: "image" | "video" | "document" | "audio";
+  fileType?: 'image' | 'video' | 'document' | 'audio';
 }
 
 interface CarouselContent {
@@ -62,7 +62,7 @@ export interface Task {
 }
 
 export interface Placeholder {
-  type: "text" | "video" | "img" | "audio" | "upload" | "carousel";
+  type: 'text' | 'video' | 'img' | 'audio' | 'upload' | 'carousel';
   index: number;
   name: string;
 }
@@ -146,7 +146,7 @@ export function TaskDialog({
     ai: boolean
   ) => Promise<any>;
 }) {
-  const [provider, setProvider] = useState("");
+  const [provider, setProvider] = useState('');
   const [placeholders, setPlaceholders] = useState<Placeholder[]>([]);
   const [tasks, setTasks] = useState<Task[]>([{ id: 1, values: {} }]);
   const [globalRepeat, setGlobalRepeat] = useState(1);
@@ -154,10 +154,10 @@ export function TaskDialog({
     template.testTemplate || false
   );
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
-  const [systemPrompt, setSystemPrompt] = useState("");
-  const [apiKey, setApiKey] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [apiKey, setApiKey] = useState('');
   const [generateAi, setGenerateAi] = useState(false);
-  const [selectedModel, setSelectedModel] = useState("");
+  const [selectedModel, setSelectedModel] = useState('');
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [currentPlaceholder, setCurrentPlaceholder] =
     useState<Placeholder | null>(null);
@@ -168,6 +168,7 @@ export function TaskDialog({
   //for multi-ai-modal
   const [selectedPlaceholder, setSelectedPlaceholder] = useState<any>({});
   const [numberOfTasks, setNumberOfTasks] = useState(tasks.length);
+  const [aiResponse, setAiResponse] = useState<any>([]);
 
   useEffect(() => {
     if (isDialogOpen) {
@@ -177,7 +178,7 @@ export function TaskDialog({
   }, [isDialogOpen]);
 
   const pathName = usePathname();
-  const projectId = pathName.split("/")[2];
+  const projectId = pathName.split('/')[2];
   const fetchAnnotators = async () => {
     try {
       const annotatorsData = JSON.parse(
@@ -188,11 +189,11 @@ export function TaskDialog({
         setGlobalRepeat(annotatorsData.length);
       }
     } catch (error) {
-      console.error("Error fetching annotators:", error);
+      console.error('Error fetching annotators:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch annotators",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch annotators',
+        variant: 'destructive',
       });
     }
   };
@@ -209,11 +210,11 @@ export function TaskDialog({
         setGlobalRepeat(1);
       }
     } catch (error) {
-      console.error("Error fetching template state:", error);
+      console.error('Error fetching template state:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch template settings",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to fetch template settings',
+        variant: 'destructive',
       });
     }
   };
@@ -231,12 +232,12 @@ export function TaskDialog({
         setGlobalRepeat(1);
       }
     } catch (error) {
-      console.error("Error updating template:", error);
+      console.error('Error updating template:', error);
       setAssignToAllAnnotators(!checked);
       toast({
-        title: "Error",
-        description: "Failed to update template settings",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to update template settings',
+        variant: 'destructive',
       });
     }
   };
@@ -248,26 +249,26 @@ export function TaskDialog({
       const extractPlaceholders = (item: any) => {
         if (Array.isArray(item.content)) {
           item.content.forEach(extractPlaceholders);
-        } else if (item.type && item.type.startsWith("dynamic")) {
-          let type: "text" | "video" | "img" | "audio" | "upload" | "carousel";
+        } else if (item.type && item.type.startsWith('dynamic')) {
+          let type: 'text' | 'video' | 'img' | 'audio' | 'upload' | 'carousel';
           switch (item.type) {
-            case "dynamicText":
-              type = "text";
+            case 'dynamicText':
+              type = 'text';
               break;
-            case "dynamicVideo":
-              type = "video";
+            case 'dynamicVideo':
+              type = 'video';
               break;
-            case "dynamicImage":
-              type = "img";
+            case 'dynamicImage':
+              type = 'img';
               break;
-            case "dynamicAudio":
-              type = "audio";
+            case 'dynamicAudio':
+              type = 'audio';
               break;
-            case "dynamicUpload":
-              type = "upload";
+            case 'dynamicUpload':
+              type = 'upload';
               break;
-            case "dynamicCarousel":
-              type = "carousel";
+            case 'dynamicCarousel':
+              type = 'carousel';
               break;
             default:
               return;
@@ -283,12 +284,12 @@ export function TaskDialog({
       content.forEach(extractPlaceholders);
       setPlaceholders(extractedPlaceholders);
     } catch (error) {
-      console.error("Error parsing template content:", error);
+      console.error('Error parsing template content:', error);
       toast({
-        title: "Template Error",
+        title: 'Template Error',
         description:
-          "Failed to parse template content. Please check the template format.",
-        variant: "destructive",
+          'Failed to parse template content. Please check the template format.',
+        variant: 'destructive',
       });
     }
   }, [template]);
@@ -320,7 +321,7 @@ export function TaskDialog({
                   content: value,
                   fileType:
                     (task.values[placeholder.index] as TaskValue)?.fileType ||
-                    "document",
+                    'document',
                 },
               },
             }
@@ -332,7 +333,7 @@ export function TaskDialog({
   const handleFileTypeChange = (
     taskId: number,
     placeholder: Placeholder,
-    fileType: "image" | "video" | "document" | "audio"
+    fileType: 'image' | 'video' | 'document' | 'audio'
   ) => {
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
@@ -344,7 +345,7 @@ export function TaskDialog({
                 [placeholder.index]: {
                   content:
                     (task.values[placeholder.index] as TaskValue)?.content ||
-                    "",
+                    '',
                   fileType,
                 },
               },
@@ -361,41 +362,41 @@ export function TaskDialog({
   };
 
   const renderPlaceholderInput = (task: Task, placeholder: Placeholder) => {
-    if (placeholder.type === "carousel") {
+    if (placeholder.type === 'carousel') {
       const templateContent = JSON.parse(template.content);
-      console.log("template content", templateContent);
+      console.log('template content', templateContent);
       const carouselElement = templateContent?.[0]?.content?.find(
         (item: any) =>
-          item.name === placeholder.name && item.type === "dynamicCarousel"
+          item.name === placeholder.name && item.type === 'dynamicCarousel'
       );
 
       if (!carouselElement) {
         console.error(
-          "Carousel element not found for placeholder:",
+          'Carousel element not found for placeholder:',
           placeholder.name
         );
         return;
       }
       const carouselProperties: CarouselContent = carouselElement?.content || {
-        slides: [{ type: "text", innerText: "" }],
+        slides: [{ type: 'text', innerText: '' }],
         keyboardNav: true,
         autoSlide: false,
         slideInterval: 5000,
       };
 
-      console.log("courseElement:", carouselElement);
+      console.log('courseElement:', carouselElement);
 
       const currentSlides =
         (task.values[placeholder.index] as CarouselContent)?.slides ||
         carouselProperties.slides.map(
           (slide: { type: string; src?: string; innerText?: string }) => ({
             ...slide,
-            innerText: slide.innerText || "",
-            src: slide.src || "",
+            innerText: slide.innerText || '',
+            src: slide.src || '',
           })
         );
 
-      console.log("currentSlides:", currentSlides);
+      console.log('currentSlides:', currentSlides);
 
       return (
         <div className="border rounded p-4 space-y-4">
@@ -411,9 +412,9 @@ export function TaskDialog({
                 </label>
               </div>
 
-              {slide.type === "text" && (
+              {slide.type === 'text' && (
                 <Input
-                  value={slide.innerText || ""}
+                  value={slide.innerText || ''}
                   onChange={(e) => {
                     setTasks((prevTasks) =>
                       prevTasks.map((t) =>
@@ -441,9 +442,9 @@ export function TaskDialog({
                 />
               )}
 
-              {slide.type === "image" && (
+              {slide.type === 'image' && (
                 <Input
-                  value={slide.src || ""}
+                  value={slide.src || ''}
                   onChange={(e) => {
                     setTasks((prevTasks) =>
                       prevTasks.map((t) =>
@@ -471,9 +472,9 @@ export function TaskDialog({
                 />
               )}
 
-              {slide.type === "video" && (
+              {slide.type === 'video' && (
                 <Input
-                  value={slide.src || ""}
+                  value={slide.src || ''}
                   onChange={(e) => {
                     setTasks((prevTasks) =>
                       prevTasks.map((t) =>
@@ -506,14 +507,14 @@ export function TaskDialog({
       );
     }
     // Existing input rendering logic for other placeholders
-    if (placeholder.type === "upload") {
+    if (placeholder.type === 'upload') {
       return (
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
               id={`${task.id}-${placeholder.index}`}
               value={
-                (task.values[placeholder.index] as TaskValue)?.content || ""
+                (task.values[placeholder.index] as TaskValue)?.content || ''
               }
               onChange={(e) =>
                 handleInputChange(task.id, placeholder, e.target.value)
@@ -524,10 +525,10 @@ export function TaskDialog({
             <Select
               value={
                 (task.values[placeholder.index] as TaskValue)?.fileType ||
-                "document"
+                'document'
               }
               onValueChange={(
-                value: "image" | "video" | "document" | "audio"
+                value: 'image' | 'video' | 'document' | 'audio'
               ) => handleFileTypeChange(task.id, placeholder, value)}
             >
               <SelectTrigger className="w-32">
@@ -550,7 +551,7 @@ export function TaskDialog({
       <div className="flex items-center space-x-4">
         <Input
           id={`${task.id}-${placeholder.index}`}
-          value={(task.values[placeholder.index] as TaskValue)?.content || ""}
+          value={(task.values[placeholder.index] as TaskValue)?.content || ''}
           onChange={(e) =>
             handleInputChange(task.id, placeholder, e.target.value)
           }
@@ -563,7 +564,7 @@ export function TaskDialog({
             setIsGeneratingForAll(false);
             setIsAiModalOpen(true);
           }}
-          variant={"outline"}
+          variant={'outline'}
         >
           AI
         </Button>
@@ -643,11 +644,11 @@ export function TaskDialog({
       const fillContent = (item: any): any => {
         if (Array.isArray(item.content)) {
           return { ...item, content: item.content.map(fillContent) };
-        } else if (item.type && item.type.startsWith("dynamic")) {
+        } else if (item.type && item.type.startsWith('dynamic')) {
           const placeholder = placeholders.find((p) => p.name === item.name);
           if (placeholder) {
             // Handle carousel specifically
-            if (item.type === "dynamicCarousel") {
+            if (item.type === 'dynamicCarousel') {
               const carouselValue = values[
                 placeholder.index
               ] as CarouselContent;
@@ -661,7 +662,7 @@ export function TaskDialog({
             }
 
             // Existing logic for other dynamic types remains the same
-            if (item.type === "dynamicCarousel") {
+            if (item.type === 'dynamicCarousel') {
               const placeholder = placeholders.find(
                 (p) => p.name === item.name
               );
@@ -673,29 +674,29 @@ export function TaskDialog({
                 // Create slides with proper type mapping
                 const mappedSlides = carouselValue.slides.map((slide) => {
                   // If no type is specified, default to text
-                  const slideType = slide.type || "text";
+                  const slideType = slide.type || 'text';
 
                   // Map slides based on their type
                   switch (slideType) {
-                    case "image":
+                    case 'image':
                       return {
-                        type: "image",
+                        type: 'image',
                         src: slide.src || `{{${placeholder.type}_image}}`,
-                        innerText: slide.innerText || "",
+                        innerText: slide.innerText || '',
                       };
-                    case "video":
+                    case 'video':
                       return {
-                        type: "video",
+                        type: 'video',
                         src: slide.src || `{{${placeholder.type}_video}}`,
-                        innerText: slide.innerText || "",
+                        innerText: slide.innerText || '',
                       };
-                    case "text":
+                    case 'text':
                     default:
                       return {
-                        type: "text",
+                        type: 'text',
                         innerText:
                           slide.innerText || `{{${placeholder.type}_text}}`,
-                        src: slide.src || "",
+                        src: slide.src || '',
                       };
                   }
                 });
@@ -712,19 +713,19 @@ export function TaskDialog({
                   },
                 };
               }
-            } else if (item.type === "dynamicUpload") {
+            } else if (item.type === 'dynamicUpload') {
               const fileType =
                 (values[placeholder.index] as TaskValue)?.fileType ||
-                "document";
-              if (fileType === "document") {
+                'document';
+              if (fileType === 'document') {
                 const textContent =
                   (values[placeholder.index] as TaskValue)?.content ||
                   `{{${placeholder.type}}}`;
                 return {
                   ...item,
-                  type: "dynamicText",
+                  type: 'dynamicText',
                   content: {
-                    type: "any",
+                    type: 'any',
                     limit: 1,
                     src: textContent,
                     innerText: textContent,
@@ -744,7 +745,7 @@ export function TaskDialog({
                     `{{${placeholder.type}}}`,
                 },
               };
-            } else if (item.type === "dynamicText") {
+            } else if (item.type === 'dynamicText') {
               return {
                 ...item,
                 content: {
@@ -773,14 +774,14 @@ export function TaskDialog({
       content = content.map(fillContent);
       return JSON.stringify(content);
     } catch (error) {
-      console.error("Error rendering filled template:", error);
+      console.error('Error rendering filled template:', error);
       toast({
-        title: "Render Error",
+        title: 'Render Error',
         description:
-          "Failed to render filled template. Please check the input values.",
-        variant: "destructive",
+          'Failed to render filled template. Please check the input values.',
+        variant: 'destructive',
       });
-      return "";
+      return '';
     }
   };
 
@@ -793,10 +794,10 @@ export function TaskDialog({
 
           if (headers.length !== placeholders.length) {
             toast({
-              title: "CSV Error",
+              title: 'CSV Error',
               description:
-                "The number of columns in the CSV does not match the number of placeholders in the template.",
-              variant: "destructive",
+                'The number of columns in the CSV does not match the number of placeholders in the template.',
+              variant: 'destructive',
             });
             return;
           }
@@ -810,12 +811,12 @@ export function TaskDialog({
                   placeholders.map((placeholder, i) => [
                     placeholder.index,
                     {
-                      content: row[i] || "",
-                      fileType: "document" as
-                        | "image"
-                        | "video"
-                        | "document"
-                        | "audio", // Default file type for uploads
+                      content: row[i] || '',
+                      fileType: 'document' as
+                        | 'image'
+                        | 'video'
+                        | 'document'
+                        | 'audio', // Default file type for uploads
                     },
                   ])
                 ),
@@ -825,9 +826,9 @@ export function TaskDialog({
         },
         error: (error) => {
           toast({
-            title: "CSV Parsing Error",
+            title: 'CSV Parsing Error',
             description: error.message,
-            variant: "destructive",
+            variant: 'destructive',
           });
         },
       });
@@ -849,9 +850,9 @@ export function TaskDialog({
             content: filled,
             timer: template.timer,
             annotator: null,
-            reviewer: "",
+            reviewer: '',
             template: template._id,
-            type: "test",
+            type: 'test',
           });
         } else {
           for (let i = 0; i < globalRepeat; i++) {
@@ -862,7 +863,7 @@ export function TaskDialog({
               }`,
               content: filled,
               timer: template.timer,
-              reviewer: "",
+              reviewer: '',
               type: template.type,
               template: template._id,
             });
@@ -877,7 +878,7 @@ export function TaskDialog({
         const createRepeatResponse = await createRepeatTask(repeatTasks);
         repeatTaskCount = createRepeatResponse.createdTasks;
         if (!createRepeatResponse.success) {
-          throw new Error("Failed to save repeat tasks");
+          throw new Error('Failed to save repeat tasks');
         }
       }
 
@@ -888,16 +889,16 @@ export function TaskDialog({
             repeatTasks
           )) as unknown as SaveTasksResponse;
           if (!repeatresponse?.success) {
-            throw new Error("Failed to save repeat tasks");
+            throw new Error('Failed to save repeat tasks');
           }
         } catch (error) {
           console.log(error);
           toast({
-            variant: "destructive",
-            title: "Failed to save repeat tasks",
+            variant: 'destructive',
+            title: 'Failed to save repeat tasks',
             description:
               (error as any).message ||
-              "An unknown error occurred while saving repeat tasks.",
+              'An unknown error occurred while saving repeat tasks.',
           });
           return;
         }
@@ -905,12 +906,12 @@ export function TaskDialog({
 
       if (assignToAllAnnotators) {
         toast({
-          title: "Tasks created successfully",
+          title: 'Tasks created successfully',
           description: `Created ${repeatTaskCount} tasks and ${repeatTasks.length} repeat tasks successfully`,
         });
       } else {
         toast({
-          title: "Tasks created successfully",
+          title: 'Tasks created successfully',
           description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
         });
       }
@@ -921,21 +922,56 @@ export function TaskDialog({
       setIsDialogOpen(false);
     } catch (error: any) {
       toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
         description: error.message,
       });
     }
   };
 
+  const updateTaskHelper = (response: any) => {
+    console.log('init', response);
+    setTasks((prevTasks) => {
+      let updatedTasks = [...prevTasks];
+
+      // Process each AI response
+      // @ts-ignore
+      response.forEach((response, index) => {
+        // If we need more tasks, add them
+        if (index >= updatedTasks.length) {
+          updatedTasks.push({
+            id: updatedTasks.length + 1,
+            values: {},
+          });
+        }
+
+        // Update the task with AI response
+        updatedTasks[index] = {
+          ...updatedTasks[index],
+          values: {
+            ...updatedTasks[index].values,
+            [selectedPlaceholder.index]: {
+              content: response,
+              fileType: 'document',
+            },
+          },
+        };
+      });
+
+      setIsMultiAiModalOpen(false);
+      return updatedTasks;
+    });
+  };
+
   const handleGenerateAIForAllPlaceholders = async () => {
-    console.log("=== Starting Task Generation ===");
-    console.log("Initial state:", {
+    console.log('=== Starting Task Generation ===');
+    console.log('Initial state:', {
       numberOfTasks,
       currentTasksLength: tasks.length,
       provider,
       selectedModel,
       hasPlaceholder: !!selectedPlaceholder,
+      systemPrompt,
     });
 
     if (
@@ -952,15 +988,16 @@ export function TaskDialog({
     }
 
     try {
+      const modifiedPrompt = `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
+      limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & 
+      the total response quantity should be: ${numberOfTasks}`;
+
+      console.log('mod', modifiedPrompt);
+
       const response = await generateAiResponse(
         provider,
         selectedModel,
-        `Generate EXACTLY ${numberOfTasks} tasks. No more, no less.
-         Format each task as a number followed by a period and a space.
-         Example format:
-         1. First task
-         2. Second task
-         Content: ${systemPrompt}`,
+        modifiedPrompt,
         projectId,
         apiKey
       );
@@ -968,54 +1005,14 @@ export function TaskDialog({
       const allMatches = response.match(/^\d+\.\s*.+$/gm) || [];
       const parsedQuestions = allMatches
         .slice(0, numberOfTasks)
-        .map((match: any) => match.replace(/^\d+\.\s*/, "").trim());
+        .map((match: any) => match.replace(/^\d+\.\s*/, '').trim());
 
-      // Create all necessary tasks first
-      const additionalNeeded = parsedQuestions.length - tasks.length;
-      if (additionalNeeded > 0) {
-        // Use state updater function to ensure we have the latest state
-        setTasks((prevTasks) => {
-          const newTasks = [...prevTasks];
-          for (let i = 0; i < additionalNeeded; i++) {
-            const newId = Math.max(...newTasks.map((t) => t.id), 0) + 1;
-            newTasks.push({
-              id: newId,
-              values: {},
-            });
-          }
-          return newTasks;
-        });
+      setAiResponse(parsedQuestions);
+      updateTaskHelper(parsedQuestions);
 
-        // Wait for state update to complete
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      // Update tasks one at a time to avoid race conditions
-      for (let i = 0; i < parsedQuestions.length; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay between updates
-        setTasks((prevTasks) =>
-          prevTasks.map((task, index) =>
-            index === i
-              ? {
-                  ...task,
-                  values: {
-                    ...task.values,
-                    [selectedPlaceholder.index]: {
-                      content: parsedQuestions[i],
-                      fileType:
-                        (task.values[selectedPlaceholder.index] as TaskValue)
-                          ?.fileType || "document",
-                    },
-                  },
-                }
-              : task
-          )
-        );
-      }
-
-      setSystemPrompt("");
+      setSystemPrompt('');
     } catch (error) {
-      console.error("Error in task generation:", error);
+      console.error('Error in task generation:', error);
     }
   };
 
@@ -1180,7 +1177,7 @@ export function TaskDialog({
                   setIsMultiAiModalOpen(true);
                 }}
               >
-                Generate AI for All Placeholders
+                Bulk Data Generation with AI
               </Button>
             </div>
           </DialogFooter>
