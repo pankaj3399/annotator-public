@@ -161,47 +161,47 @@ const ProfileCompletion: React.FC<ProfileCompletionProps> = ({
   };
 
   return (
-    <div className="w-full space-y-4 mb-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className='w-full space-y-4 mb-8'>
+      <div className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4'>
+        <div className='flex items-center gap-3'>
           {calculateCompletion.percentage === 100 ? (
-            <CheckCircle className="w-5 h-5 text-[#22C55E]" />
+            <CheckCircle className='w-5 h-5 text-[#22C55E]' />
           ) : (
-            <AlertCircle className="w-5 h-5 text-[#FFA500]" />
+            <AlertCircle className='w-5 h-5 text-[#FFA500]' />
           )}
           <div>
-            <h2 className="text-lg font-semibold text-[#1a1a1a]">
+            <h2 className='text-lg font-semibold text-[#1a1a1a]'>
               Profile Completion
             </h2>
-            <p className="text-sm text-[#6b7280]">
+            <p className='text-sm text-[#6b7280]'>
               {calculateCompletion.totalFieldsFilled} of{' '}
               {calculateCompletion.totalFields} fields completed
             </p>
           </div>
         </div>
-        <div className="text-lg font-semibold text-[#1a1a1a]">
+        <div className='text-lg font-semibold text-[#1a1a1a]'>
           {calculateCompletion.percentage}%
         </div>
       </div>
 
-      <div className="relative w-full h-2">
-        <div className="absolute w-full h-full bg-[#E5E7EB] rounded-full" />
+      <div className='relative w-full h-2'>
+        <div className='absolute w-full h-full bg-[#E5E7EB] rounded-full' />
         <div
-          className="absolute h-full bg-[#22C55E] rounded-full transition-all duration-500 ease-in-out"
+          className='absolute h-full bg-[#22C55E] rounded-full transition-all duration-500 ease-in-out'
           style={{ width: `${calculateCompletion.percentage}%` }}
         />
       </div>
 
       <div>
-        <p className="text-[#4b5563] mb-2">
+        <p className='text-[#4b5563] mb-2'>
           {getCompletionMessage(calculateCompletion.percentage)}
         </p>
         {calculateCompletion.percentage < 100 && (
-          <div className="space-y-1">
+          <div className='space-y-1'>
             {getMissingFieldsMessage().map((message, index) => (
-              <div key={index} className="flex items-start gap-2">
-                <ChevronRight className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#9ca3af]" />
-                <p className="text-sm text-[#6b7280]">{message}</p>
+              <div key={index} className='flex items-start gap-2'>
+                <ChevronRight className='w-4 h-4 mt-0.5 flex-shrink-0 text-[#9ca3af]' />
+                <p className='text-sm text-[#6b7280]'>{message}</p>
               </div>
             ))}
           </div>

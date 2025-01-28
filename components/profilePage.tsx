@@ -224,62 +224,62 @@ const ProfilePage = () => {
 
   if (!userData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-lg text-gray-600">No user data available</p>
+      <div className='flex items-center justify-center min-h-screen'>
+        <p className='text-lg text-gray-600'>No user data available</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
+    <div className='min-h-screen p-6 bg-gray-50'>
+      <div className='max-w-4xl mx-auto'>
         <ProfileCompletion userData={userData} customFields={customFields} />
 
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
-          <div className="flex gap-4">
+        <div className='flex justify-between items-center mb-8'>
+          <h1 className='text-3xl font-bold text-gray-900'>Profile</h1>
+          <div className='flex gap-4'>
             {userData.role === 'system admin' && (
               <Button
                 onClick={() => router.push('/admin/custom-fields')}
-                variant="outline"
-                className="flex items-center gap-2"
+                variant='outline'
+                className='flex items-center gap-2'
               >
-                <Settings className="w-4 h-4" />
+                <Settings className='w-4 h-4' />
                 Manage Custom Fields
               </Button>
             )}
-            <Button onClick={handleSaveAll} className="flex items-center gap-2">
-              <Save className="w-4 h-4" />
+            <Button onClick={handleSaveAll} className='flex items-center gap-2'>
+              <Save className='w-4 h-4' />
               Save Changes
             </Button>
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className='space-y-6'>
           {/* Basic Information Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <UserIcon className="w-5 h-5" />
+              <CardTitle className='flex items-center gap-2'>
+                <UserIcon className='w-5 h-5' />
                 Basic Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className='space-y-4'>
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
                 <div>
                   <Label>Full Name</Label>
                   <Input
                     value={editedData.name || ''}
                     onChange={(e) => handleInputChange('name', e.target.value)}
-                    className="mt-1"
+                    className='mt-1'
                   />
                 </div>
 
                 <div>
                   <Label>Email</Label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <p className="text-gray-700">{userData.email}</p>
+                  <div className='flex items-center gap-2 mt-1'>
+                    <Mail className='w-4 h-4 text-gray-400' />
+                    <p className='text-gray-700'>{userData.email}</p>
                   </div>
                 </div>
 
@@ -288,8 +288,8 @@ const ProfilePage = () => {
                   <Input
                     value={editedData.phone || ''}
                     onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="mt-1"
-                    placeholder="Enter phone number"
+                    className='mt-1'
+                    placeholder='Enter phone number'
                   />
                 </div>
 
@@ -300,8 +300,8 @@ const ProfilePage = () => {
                     onChange={(e) =>
                       handleInputChange('location', e.target.value)
                     }
-                    className="mt-1"
-                    placeholder="Enter location"
+                    className='mt-1'
+                    placeholder='Enter location'
                   />
                 </div>
 
@@ -312,8 +312,8 @@ const ProfilePage = () => {
                     onChange={(e) =>
                       handleInputChange('linkedin', e.target.value)
                     }
-                    className="mt-1"
-                    placeholder="LinkedIn URL"
+                    className='mt-1'
+                    placeholder='LinkedIn URL'
                   />
                 </div>
 
@@ -327,8 +327,8 @@ const ProfilePage = () => {
                         e.target.value.split(',').map((item) => item.trim())
                       )
                     }
-                    className="mt-1"
-                    placeholder="Enter domains (comma-separated)"
+                    className='mt-1'
+                    placeholder='Enter domains (comma-separated)'
                   />
                 </div>
 
@@ -342,20 +342,20 @@ const ProfilePage = () => {
                         e.target.value.split(',').map((item) => item.trim())
                       )
                     }
-                    className="mt-1"
-                    placeholder="Enter languages (comma-separated)"
+                    className='mt-1'
+                    placeholder='Enter languages (comma-separated)'
                   />
                 </div>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className='mt-6 space-y-4'>
                 <div>
                   <Label>Resume</Label>
-                  <div className="mt-1">
+                  <div className='mt-1'>
                     <FileUpload
-                      uploadType="pdfUploader"
-                      label="Resume"
-                      accept=".pdf,.doc,.docx"
+                      uploadType='pdfUploader'
+                      label='Resume'
+                      accept='.pdf,.doc,.docx'
                       onUploadComplete={async (url) => {
                         try {
                           const response = await fetch(
@@ -393,20 +393,20 @@ const ProfilePage = () => {
                 </div>
 
                 <div>
-                  <Label className="flex items-center gap-2">
+                  <Label className='flex items-center gap-2'>
                     NDA Document
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-4 w-4"
+                            variant='ghost'
+                            size='icon'
+                            className='h-4 w-4'
                           >
-                            <HelpCircle className="h-4 w-4" />
+                            <HelpCircle className='h-4 w-4' />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent className="max-w-xs">
+                        <TooltipContent className='max-w-xs'>
                           <p>1. Download the NDA template</p>
                           <p>
                             2. Digitally sign the PDF using Adobe Acrobat or
@@ -417,7 +417,7 @@ const ProfilePage = () => {
                       </Tooltip>
                     </TooltipProvider>
                   </Label>
-                  <div className="flex items-center gap-4 mb-4 mt-1">
+                  <div className='flex items-center gap-4 mb-4 mt-1'>
                     <Button
                       onClick={async () => {
                         try {
@@ -441,18 +441,18 @@ const ProfilePage = () => {
                           toast.error('Failed to download NDA template');
                         }
                       }}
-                      variant="outline"
-                      className="flex items-center gap-2"
+                      variant='outline'
+                      className='flex items-center gap-2'
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className='w-4 h-4' />
                       Download NDA Template
                     </Button>
                   </div>
-                  <div className="mt-1">
+                  <div className='mt-1'>
                     <FileUpload
-                      uploadType="pdfUploader"
-                      label="NDA"
-                      accept=".pdf"
+                      uploadType='pdfUploader'
+                      label='NDA'
+                      accept='.pdf'
                       onUploadComplete={async (url) => {
                         try {
                           const response = await fetch(
@@ -495,30 +495,30 @@ const ProfilePage = () => {
           {/* Role & Permissions Card - Now Read Only */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5" />
+              <CardTitle className='flex items-center gap-2'>
+                <Shield className='w-5 h-5' />
                 Role & Permissions
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className='space-y-4'>
                 <div>
                   <Label>Role</Label>
-                  <div className="mt-1">
-                    <Badge variant="outline" className="text-base capitalize">
+                  <div className='mt-1'>
+                    <Badge variant='outline' className='text-base capitalize'>
                       {userData.role}
                     </Badge>
                   </div>
                 </div>
                 <div>
                   <Label>Permissions</Label>
-                  <div className="flex flex-wrap gap-2 mt-1">
+                  <div className='flex flex-wrap gap-2 mt-1'>
                     {userData.permission?.map((perm, index) => (
-                      <Badge key={index} variant="secondary">
+                      <Badge key={index} variant='secondary'>
                         {perm}
                       </Badge>
                     )) || (
-                      <span className="text-gray-500">
+                      <span className='text-gray-500'>
                         No permissions assigned
                       </span>
                     )}
@@ -531,22 +531,22 @@ const ProfilePage = () => {
           {/* Account Details Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
+              <CardTitle className='flex items-center gap-2'>
+                <Calendar className='w-5 h-5' />
                 Account Details
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
                 <div>
                   <Label>Last Login</Label>
-                  <p className="mt-1 text-gray-700">
+                  <p className='mt-1 text-gray-700'>
                     {format(new Date(userData.lastLogin), 'PPP')}
                   </p>
                 </div>
                 <div>
                   <Label>Account Created</Label>
-                  <p className="mt-1 text-gray-700">
+                  <p className='mt-1 text-gray-700'>
                     {format(new Date(userData.created_at), 'PPP')}
                   </p>
                 </div>
@@ -556,8 +556,8 @@ const ProfilePage = () => {
           {customFields.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="w-5 h-5" />
+                <CardTitle className='flex items-center gap-2'>
+                  <Globe className='w-5 h-5' />
                   Additional Information
                 </CardTitle>
               </CardHeader>
