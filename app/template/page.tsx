@@ -20,6 +20,7 @@ export type template = {
   type:string
   private: boolean
   groundTruthTask:string
+  labels?: string[] 
 }
 
 const Page = () => {

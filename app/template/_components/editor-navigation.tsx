@@ -1,17 +1,17 @@
-'use client'
-import { updateTimer, upsertTemplate } from '@/app/actions/template'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+'use client';
+import { updateTimer, upsertTemplate } from '@/app/actions/template';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from '@/components/ui/tooltip'
-import { DeviceTypes, useEditor } from '@/providers/editor/editor-provider'
-import clsx from 'clsx'
-import { Check, Pencil } from 'lucide-react'
+} from '@/components/ui/tooltip';
+import { DeviceTypes, useEditor } from '@/providers/editor/editor-provider';
+import clsx from 'clsx';
+import { Check, Pencil } from 'lucide-react';
 import {
   ArrowLeftCircle,
   EyeIcon,
@@ -21,46 +21,47 @@ import {
   Smartphone,
   Tablet,
   Undo2,
-} from 'lucide-react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
-import { toast } from 'sonner'
-import { template } from '../page'
-import { TimeSetterComponent } from '@/components/time-setter'
+} from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
+import { template } from '../page';
+import { TimeSetterComponent } from '@/components/time-setter';
+import LabelManager from '@/components/LabelManager';
 
 type Props = {
-  pageId: string
-  pageDetails: any
-  projectId: string
-}
+  pageId: string;
+  pageDetails: any;
+  projectId: string;
+};
 
 const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
-  const router = useRouter()
-  const { state, dispatch } = useEditor()
-  const [isMobileView, setIsMobileView] = useState(false)
-  const [title,setTitle]=useState(pageDetails.name)
-  const [isEditing,setIsEditing]=useState(false)
+  const router = useRouter();
+  const { state, dispatch } = useEditor();
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [title, setTitle] = useState(pageDetails.name);
+  const [isEditing, setIsEditing] = useState(false);
 
-  const handlePencilClick = ()=>{
-    setIsEditing((prev)=>!prev);
-  }
+  const handlePencilClick = () => {
+    setIsEditing((prev) => !prev);
+  };
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobileView(window.innerWidth < 768)
-    }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+      setIsMobileView(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     dispatch({
       type: 'SET_PAGE_ID',
       payload: { pageId: pageDetails.id },
-    })
-  }, [pageDetails, dispatch])
+    });
+  }, [pageDetails, dispatch]);
 
   const handleOnBlur = async () => {
     if (title.trim() === pageDetails.name) {
@@ -82,42 +83,44 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
         toast('Success', { description: 'Saved Page title' });
         router.refresh();
       } catch (error) {
-        console.error("Error saving title:", error);
-        toast('Error', { description: 'Failed to save the title. Please try again.' });
+        console.error('Error saving title:', error);
+        toast('Error', {
+          description: 'Failed to save the title. Please try again.',
+        });
       }
     } else {
       toast('Oops!', { description: 'You need to have a title!' });
       setTitle(pageDetails.name);
     }
-    setIsEditing(false); 
+    setIsEditing(false);
   };
 
   const handlePreviewClick = () => {
-    dispatch({ type: 'TOGGLE_PREVIEW_MODE' })
-    dispatch({ type: 'TOGGLE_LIVE_MODE' })
-  }
+    dispatch({ type: 'TOGGLE_PREVIEW_MODE' });
+    dispatch({ type: 'TOGGLE_LIVE_MODE' });
+  };
 
-  const handleUndo = () => dispatch({ type: 'UNDO' })
-  const handleRedo = () => dispatch({ type: 'REDO' })
+  const handleUndo = () => dispatch({ type: 'UNDO' });
+  const handleRedo = () => dispatch({ type: 'REDO' });
 
   const handleOnSave = async () => {
-    const content = JSON.stringify(state.editor.elements)
+    const content = JSON.stringify(state.editor.elements);
     try {
       await upsertTemplate(
         projectId,
         {
           ...pageDetails,
-          name:title,
+          name: title,
           content,
-          timer: undefined
+          timer: undefined,
         },
         pageId
-      )
-      toast('Success', { description: 'Saved Editor' })
+      );
+      toast('Success', { description: 'Saved Editor' });
     } catch (error) {
-      toast('Oops!', { description: 'Could not save editor' })
+      toast('Oops!', { description: 'Could not save editor' });
     }
-  }
+  };
 
   return (
     <TooltipProvider>
@@ -134,39 +137,35 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
             <ArrowLeftCircle className="h-5 w-5" />
           </Link>
           <div className="flex items-center w-full max-w-xs md:max-w-sm space-x-4">
-      {isEditing ? (
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onBlur={handleOnBlur}
-          className="w-full h-8 border-none p-0 text-base md:text-lg truncate focus:outline-none focus:ring focus:ring-blue-500"
-          placeholder="Enter page title"
-          aria-label="Page Title"
-        />
-      ) : (
-        <span
-          className="truncate text-base md:text-lg w-full cursor-pointer"
-          title={title} 
-          onClick={handlePencilClick}  
-        >
-          {title || "Untitled Page"}
-        </span>
-      )}
+            {isEditing ? (
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onBlur={handleOnBlur}
+                className="w-full h-8 border-none p-0 text-base md:text-lg truncate focus:outline-none focus:ring focus:ring-blue-500"
+                placeholder="Enter page title"
+                aria-label="Page Title"
+              />
+            ) : (
+              <span
+                className="truncate text-base md:text-lg w-full cursor-pointer"
+                title={title}
+                onClick={handlePencilClick}
+              >
+                {title || 'Untitled Page'}
+              </span>
+            )}
 
-      <Button
-        className="p-2 h-8 w-8 flex items-center justify-center rounded-md"
-        variant="outline"
-        aria-label={isEditing ? "Save Title" : "Edit Title"}
-        onClick={handlePencilClick}
-      >
-        {isEditing ? (
-        <Check size={20} />
-        ):(
-          <Pencil size={20}/>
-        )}
+            <Button
+              className="p-2 h-8 w-8 flex items-center justify-center rounded-md"
+              variant="outline"
+              aria-label={isEditing ? 'Save Title' : 'Edit Title'}
+              onClick={handlePencilClick}
+            >
+              {isEditing ? <Check size={20} /> : <Pencil size={20} />}
+            </Button>
+          </div>
 
-      </Button>
-    </div>
         </aside>
 
         <aside className="hidden md:block flex-shrink-0">
@@ -178,7 +177,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
               dispatch({
                 type: 'CHANGE_DEVICE',
                 payload: { device: value as DeviceTypes },
-              })
+              });
             }}
           >
             <TabsList className="grid w-full grid-cols-3 bg-transparent h-fit">
@@ -207,7 +206,15 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           </Tabs>
         </aside>
 
-        <aside className="flex items-center gap-2 flex-shrink-0">
+        <aside className="flex items-center gap-4 flex-shrink-0">
+          <div className="hidden sm:block "   onClick={(e) => e.stopPropagation()} 
+    onClickCapture={(e) => e.stopPropagation()}>
+            <LabelManager
+              pageDetails={pageDetails}
+              projectId={projectId}
+              pageId={pageId}
+            />
+          </div>
           <div className="hidden sm:block">
             <TimeSetterComponent templateId={pageId} />
           </div>
@@ -230,7 +237,9 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
               <Undo2 className="h-4 w-4" />
             </Button>
             <Button
-              disabled={!(state.history.currentIndex < state.history.history.length - 1)}
+              disabled={
+                !(state.history.currentIndex < state.history.history.length - 1)
+              }
               onClick={handleRedo}
               variant="ghost"
               size="icon"
@@ -255,7 +264,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
         </aside>
       </nav>
     </TooltipProvider>
-  )
-}
+  );
+};
 
-export default EditorNavigation
+export default EditorNavigation;
