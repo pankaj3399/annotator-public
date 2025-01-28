@@ -165,7 +165,6 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
               {isEditing ? <Check size={20} /> : <Pencil size={20} />}
             </Button>
           </div>
-
         </aside>
 
         <aside className="hidden md:block flex-shrink-0">
@@ -207,8 +206,11 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
         </aside>
 
         <aside className="flex items-center gap-4 flex-shrink-0">
-          <div className="hidden sm:block "   onClick={(e) => e.stopPropagation()} 
-    onClickCapture={(e) => e.stopPropagation()}>
+          <div
+            className="hidden sm:block "
+            onClick={(e) => e.stopPropagation()}
+            onClickCapture={(e) => e.stopPropagation()}
+          >
             <LabelManager
               pageDetails={pageDetails}
               projectId={projectId}

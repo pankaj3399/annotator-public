@@ -13,15 +13,20 @@ import { upsertTemplate } from '@/app/actions/template';
 import { template } from '@/app/template/page';
 
 // Define label type
-type LabelType = 'LLM BENCHMARK' | 'MULTIMODALITY' | 'TRANSLATION' | 'ACCENTS' | 'ENGLISH';
+type LabelType =
+  | 'LLM BENCHMARK'
+  | 'MULTIMODALITY'
+  | 'TRANSLATION'
+  | 'ACCENTS'
+  | 'ENGLISH';
 
 // Define label colors
 const labelStyles: Record<LabelType, string> = {
   'LLM BENCHMARK': 'bg-yellow-200 text-yellow-800',
-  'MULTIMODALITY': 'bg-orange-200 text-orange-800',
-  'TRANSLATION': 'bg-cyan-200 text-cyan-800',
-  'ACCENTS': 'bg-pink-200 text-pink-800',
-  'ENGLISH': 'bg-gray-200 text-gray-800'
+  MULTIMODALITY: 'bg-orange-200 text-orange-800',
+  TRANSLATION: 'bg-cyan-200 text-cyan-800',
+  ACCENTS: 'bg-pink-200 text-pink-800',
+  ENGLISH: 'bg-gray-200 text-gray-800',
 };
 
 const predefinedLabels = Object.keys(labelStyles) as LabelType[];
@@ -32,7 +37,11 @@ interface LabelManagerProps {
   pageId: string;
 }
 
-const LabelManager = ({ pageDetails, projectId, pageId }: LabelManagerProps) => {
+const LabelManager = ({
+  pageDetails,
+  projectId,
+  pageId,
+}: LabelManagerProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLabels, setSelectedLabels] = useState<LabelType[]>(() => {
     return (pageDetails?.labels || []) as LabelType[];
@@ -45,7 +54,7 @@ const LabelManager = ({ pageDetails, projectId, pageId }: LabelManagerProps) => 
     }
 
     const newLabels = [...selectedLabels, label];
-    
+
     upsertTemplate(
       projectId,
       {
@@ -61,16 +70,16 @@ const LabelManager = ({ pageDetails, projectId, pageId }: LabelManagerProps) => 
       .catch(() => {
         toast('Error', { description: 'Failed to add label' });
       });
-    
+
     setIsOpen(false);
   };
 
   const handleLabelRemove = (labelToRemove: LabelType, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    
-    const newLabels = selectedLabels.filter(label => label !== labelToRemove);
-    
+
+    const newLabels = selectedLabels.filter((label) => label !== labelToRemove);
+
     upsertTemplate(
       projectId,
       {
@@ -106,11 +115,11 @@ const LabelManager = ({ pageDetails, projectId, pageId }: LabelManagerProps) => 
           </div>
         ))}
       </div>
-      
+
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             className="h-8 w-8 hover:bg-slate-800"
           >
