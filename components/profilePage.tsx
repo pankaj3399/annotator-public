@@ -33,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { FileUpload } from '@/components/FileUpload';
 import CustomFields from '@/components/admin-panel/CustomFields';
+import ProfileCompletion from '@/components/ProfileCompletion';
 
 interface CustomField {
   _id: string;
@@ -232,6 +233,8 @@ const ProfilePage = () => {
   return (
     <div className='min-h-screen p-6 bg-gray-50'>
       <div className='max-w-4xl mx-auto'>
+        <ProfileCompletion userData={userData} customFields={customFields} />
+
         <div className='flex justify-between items-center mb-8'>
           <h1 className='text-3xl font-bold text-gray-900'>Profile</h1>
           <div className='flex gap-4'>
