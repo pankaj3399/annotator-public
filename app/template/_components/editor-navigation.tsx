@@ -208,8 +208,6 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
         <aside className="flex items-center gap-4 flex-shrink-0">
           <div
             className="hidden sm:block "
-            onClick={(e) => e.stopPropagation()}
-            onClickCapture={(e) => e.stopPropagation()}
           >
             <LabelManager
               pageDetails={pageDetails}
