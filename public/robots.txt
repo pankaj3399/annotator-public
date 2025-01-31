@@ -1,0 +1,12 @@
+# *
+User-agent: *
+Allow: /
+Allow: blogs
+Allow: blogs/*
+Disallow: *
+
+# Host
+Host: http://localhost:3000
+
+# Sitemaps
+Sitemap: http://localhost:3000/sitemap.xml

@@ -17,7 +17,6 @@ import { generateAiResponse } from "@/app/actions/aiModel";
 import { useParams } from "next/navigation";
 import { createJobPost } from "@/app/actions/job";
 import { toast } from "sonner";
-import { string } from "zod";
 
 interface JobFormData {
   projectTitle: string;
@@ -30,6 +29,7 @@ interface JobFormData {
   aiProvider: string;
   aiModel: string;
   apikey: string;
+  location:string;
 }
 
 type Provider = "OpenAI" | "Anthropic" | "Gemini";
@@ -67,6 +67,7 @@ const JobPostingForm = () => {
     aiProvider: "OpenAI",
     aiModel: "gpt-4-turbo-preview",
     apikey: "",
+    location:""
   });
   const { projectId } = useParams();
 
@@ -204,23 +205,23 @@ Don't include any extra fields outside of mentioned above`;
         endDate: new Date(formData.endDate),
         compensation: formData.payRange,
         status: "published",
-        projectId: Array.isArray(projectId) ? projectId[0] : projectId
+        projectId: Array.isArray(projectId) ? projectId[0] : projectId,
+        location: formData.location
       });
-
+  
       if (response.success) {
-        // Show success message or redirect
-        toast.success("Job post published successfully!")
+        toast.success(" Job post published successfully!");
         console.log("Job post published successfully!");
       } else {
-        // Handle error
-        toast.error("Failed to publish job post:");
+        toast.error(` Failed to publish job post: ${response.error || "Unknown error"}`);
         console.error("Failed to publish job post:", response.error);
       }
-    } catch (error) {
-      toast.error("Error publishing job post:");
-      console.error("Error publishing job post:", error);
+    } catch (e) {
+      toast.error("Please verify your job listing.");
+      console.error("Error publishing job post:", e);
     }
   };
+  
 
   return (
     <div className="max-w-4xl mx-auto p-4">
@@ -389,6 +390,7 @@ Don't include any extra fields outside of mentioned above`;
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium">Pay Range</label>
               <input
@@ -400,6 +402,19 @@ Don't include any extra fields outside of mentioned above`;
                 placeholder="e.g., $80,000 - $100,000"
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium">Location</label>
+              <input
+                type="text"
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                className="w-full p-2 border rounded-md"
+                placeholder="e.g., Sydney,Australia"
+                required
+              />
+            </div>
             </div>
 
             <div className="space-y-2">
