@@ -17,13 +17,13 @@ export async function updateTestTemplate(_id: string, value: boolean) {
         const updatedTemplate = await Template.findOneAndUpdate(
             { _id },
             { $set: { testTemplate: value } },
-            { new: true }   
+            { new: true }
         );
-        
+
         if (!updatedTemplate) {
             throw new Error('Template not found');
         }
-        
+
         return JSON.stringify(updatedTemplate);
     } catch (error) {
         console.error('Error updating testTemplate:', error);
@@ -35,29 +35,30 @@ export async function updateTestTemplate(_id: string, value: boolean) {
 
 export async function upsertTemplate(projectid: string, template: template, _id: string | undefined, add = false) {
     await connectToDatabase();
-  
+
     const res = await Template.findOneAndUpdate(
-      { _id: _id == undefined ? new mongoose.Types.ObjectId() : _id },
-      {
-        ...template,
-        content: template.content ? template.content : defaultContent,
-        project: projectid,
-        type:template.type
-      },
-      {
-        upsert: true,
-        new: true
-      }
+        { _id: _id == undefined ? new mongoose.Types.ObjectId() : _id },
+        {
+            ...template,
+            content: template.content ? template.content : defaultContent,
+            project: projectid,
+            type: template.type,
+            labels: template.labels || [],
+        },
+        {
+            upsert: true,
+            new: true
+        }
     );
-  
+
     if (add) {
-      await Project.findByIdAndUpdate(projectid, {
-        $push: { templates: res._id }
-      });
+        await Project.findByIdAndUpdate(projectid, {
+            $push: { templates: res._id }
+        });
     }
     return JSON.stringify(res);
-  }
-  
+}
+
 
 export async function updateTimer(_id: string, timer: number) {
     await connectToDatabase();
@@ -67,11 +68,11 @@ export async function updateTimer(_id: string, timer: number) {
             { $set: { timer: timer } },
             { new: true }  // This ensures we get the updated document back
         );
-        
+
         if (!updatedTemplate) {
             throw new Error('Template not found');
         }
-        
+
         return JSON.stringify(updatedTemplate);
     } catch (error) {
         console.error('Error updating timer:', error);
