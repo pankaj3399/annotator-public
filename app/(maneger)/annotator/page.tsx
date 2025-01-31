@@ -520,7 +520,7 @@ export default function AnnotatorsPage() {
         )}
       </main>
 
-      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+      {/* <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Export Experts</DialogTitle>
@@ -535,7 +535,7 @@ export default function AnnotatorsPage() {
             <Button onClick={() => handleExport('json')}>Export as JSON</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
     </div>
   );
 }
