@@ -426,6 +426,30 @@ export async function getAllTasks(projectid: string) {
   return JSON.stringify(res);
 }
 
+
+export async function getAllUnassignedTasks(projectid:string){
+
+  await connectToDatabase();
+
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    throw new Error('Unauthorized');
+  }
+
+  try {
+    const tasks = await Task.find({
+      project: projectid,
+      reviewer:null // This ensures annotator is not null
+    });
+
+    return JSON.stringify(tasks); // Return the tasks with assigned annotators
+  } catch (e) {
+    console.error(e);
+    throw new Error('Error fetching tasks: ' + e); // Return a detailed error message
+  }
+
+}
+
 export async function getPaginatedTasks(
   projectid: string,
   page: number,
