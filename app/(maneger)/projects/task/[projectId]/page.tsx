@@ -56,6 +56,7 @@ import {
   CommandItem,
 } from '@/components/ui/command';
 import { Search } from 'lucide-react';
+import ReviewerDialogComponent from './reviewer-dialog';
 export interface Task {
   _id: string;
   name: string;
@@ -113,6 +114,7 @@ export default function Component() {
   const [totalItems, setTotalItems] = useState(0);
   const [expertSearch, setExpertSearch] = useState('');
   const [reviewerSearch, setReviewerSearch] = useState('');
+  const [isReviewerDialogOpen,setIsReviewerDialogOpen]=useState(false);
   const { toast } = useToast();
   const [selectedTask, setSelectedTask] = useState<Task[]>([]);
   const fetchJudges = async () => {
@@ -811,7 +813,7 @@ export default function Component() {
                   </Button>
 
                   <Button
-                    onClick={handleBulkAssignReviewers}
+                    onClick={()=>{setIsReviewerDialogOpen(true)}}
                     variant='outline'
                     size='sm'
                   >
@@ -917,6 +919,7 @@ export default function Component() {
       </Dialog>
 
       <div>
+        <ReviewerDialogComponent isOpen={isReviewerDialogOpen} onClose={()=>setIsReviewerDialogOpen(false)} reviewers={filteredReviewers} tasks={tasks} setTasks={setTasks} selectedTasks={selectedTask} ></ReviewerDialogComponent>
         <MailDialogComponent
           isMailDialogOpen={isMailDialogOpen}
           setIsMailDialogOpen={setIsMailDialogOpen}
