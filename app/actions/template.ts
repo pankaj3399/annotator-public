@@ -43,7 +43,7 @@ export async function upsertTemplate(projectid: string, template: template, _id:
             content: template.content ? template.content : defaultContent,
             project: projectid,
             type: template.type,
-            labels: template.labels || [],
+            labels: template.labels || [], 
         },
         {
             upsert: true,
@@ -58,7 +58,6 @@ export async function upsertTemplate(projectid: string, template: template, _id:
     }
     return JSON.stringify(res);
 }
-
 
 export async function updateTimer(_id: string, timer: number) {
     await connectToDatabase();
