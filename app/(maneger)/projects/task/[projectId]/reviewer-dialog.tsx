@@ -1,3 +1,4 @@
+'use client'
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePathname } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
-import { AlertCircle, CheckCircle2, Minus, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Minus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Task, Annotator } from "./page";
 import { changeAnnotator, getAllUnassignedTasks } from "@/app/actions/task";
 
@@ -61,11 +62,29 @@ export default function ReviewerDialog({
   const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [validationError, setValidationError] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const reviewersPerPage = 5;
+
   const pathname = usePathname();
   const projectId = pathname.split('/')[3];
 
-  const allReviewersSelected = reviewers.length > 0 && selectedReviewers.length === reviewers.length;
-  const someReviewersSelected = selectedReviewers.length > 0 && selectedReviewers.length < reviewers.length;
+  const filteredReviewers = reviewers.filter(reviewer => 
+    reviewer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    reviewer.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const paginatedReviewers = filteredReviewers.slice(
+    (currentPage - 1) * reviewersPerPage, 
+    currentPage * reviewersPerPage
+  );
+
+  const totalPages = Math.ceil(filteredReviewers.length / reviewersPerPage);
+
+  const allReviewersSelected = paginatedReviewers.length > 0 && 
+    paginatedReviewers.every(r => selectedReviewers.includes(r._id));
+  const someReviewersSelected = paginatedReviewers.some(r => selectedReviewers.includes(r._id)) && 
+    !allReviewersSelected;
 
   const resetState = () => {
     setSelectedReviewers([]);
@@ -73,6 +92,8 @@ export default function ReviewerDialog({
     setReviewerPercentages({});
     setReviewerFixedCounts({});
     setValidationError("");
+    setSearchTerm("");
+    setCurrentPage(1);
   };
 
   useEffect(() => {
@@ -136,26 +157,32 @@ export default function ReviewerDialog({
 
   const handleSelectAllChange = (checked: boolean) => {
     if (checked) {
-      setSelectedReviewers(reviewers.map(r => r._id));
+      const currentPageReviewerIds = paginatedReviewers.map(r => r._id);
+      setSelectedReviewers(prev => {
+        const newSelected = new Set([...prev, ...currentPageReviewerIds]);
+        return Array.from(newSelected);
+      });
+
       if (assignmentMode === "percentage") {
-        const defaultPercentage = Math.floor(100 / reviewers.length);
-        const remainder = 100 - (defaultPercentage * reviewers.length);
+        const defaultPercentage = Math.floor(100 / paginatedReviewers.length);
+        const remainder = 100 - (defaultPercentage * paginatedReviewers.length);
         const newPercentages: Record<string, number> = {};
-        reviewers.forEach((r, index) => {
+        paginatedReviewers.forEach((r, index) => {
           newPercentages[r._id] = defaultPercentage + (index === 0 ? remainder : 0);
         });
-        setReviewerPercentages(newPercentages);
+        setReviewerPercentages(prev => ({ ...prev, ...newPercentages }));
       } else if (assignmentMode === "fixed") {
-        const defaultCount = Math.floor(totalTasks / reviewers.length);
-        const remainder = totalTasks - (defaultCount * reviewers.length);
+        const defaultCount = Math.floor(totalTasks / paginatedReviewers.length);
+        const remainder = totalTasks - (defaultCount * paginatedReviewers.length);
         const newCounts: Record<string, number> = {};
-        reviewers.forEach((r, index) => {
+        paginatedReviewers.forEach((r, index) => {
           newCounts[r._id] = defaultCount + (index === 0 ? remainder : 0);
         });
-        setReviewerFixedCounts(newCounts);
+        setReviewerFixedCounts(prev => ({ ...prev, ...newCounts }));
       }
     } else {
-      setSelectedReviewers([]);
+      const currentPageReviewerIds = paginatedReviewers.map(r => r._id);
+      setSelectedReviewers(prev => prev.filter(id => !currentPageReviewerIds.includes(id)));
     }
   };
 
@@ -263,86 +290,121 @@ export default function ReviewerDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Assignment Mode</label>
-            <Select 
-              onValueChange={(value) => {
-                setAssignmentMode(value as any);
-                setValidationError("");
-              }} 
-              value={assignmentMode}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select mode" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="random">Random Distribution</SelectItem>
-                <SelectItem value="percentage">Percentage-based</SelectItem>
-                <SelectItem value="fixed">Fixed Count</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="space-y-4">
+          <Input 
+            placeholder="Search reviewers by name or email" 
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full"
+          />
 
-          {validationError && (
-            <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{validationError}</AlertDescription>
-            </Alert>
-          )}
-
-          <div className="space-y-2">
-            <div className="grid grid-cols-[auto,1fr,auto] gap-4 px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-t-lg items-center">
-              <div className="w-12 flex justify-center">
-                <IndeterminateCheckbox
-                  checked={allReviewersSelected}
-                  indeterminate={someReviewersSelected && !allReviewersSelected}
-                  onChange={handleSelectAllChange}
-                />
-              </div>
-              <div className="font-medium text-sm">Reviewer</div>
-              {assignmentMode !== "random" && (
-                <div className="w-24 text-center font-medium text-sm">
-                  {assignmentMode === "percentage" ? "Percentage" : "Tasks"}
-                </div>
-              )}
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Assignment Mode</label>
+              <Select 
+                onValueChange={(value) => {
+                  setAssignmentMode(value as any);
+                  setValidationError("");
+                }} 
+                value={assignmentMode}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="random">Random Distribution</SelectItem>
+                  <SelectItem value="percentage">Percentage-based</SelectItem>
+                  <SelectItem value="fixed">Fixed Count</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="divide-y divide-gray-200 dark:divide-zinc-700">
-              {reviewers.map((reviewer) => (
-                <div key={reviewer._id} className="grid grid-cols-[auto,1fr,auto] gap-4 px-4 py-3 items-center hover:bg-gray-50 dark:hover:bg-zinc-800/50">
-                  <div className="w-12 flex justify-center">
-                    <Checkbox
-                      checked={selectedReviewers.includes(reviewer._id)}
-                      onCheckedChange={() => toggleReviewerSelection(reviewer._id)}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-gray-100">{reviewer.name}</p>
-                    <p className="text-sm text-gray-500">{reviewer.email}</p>
-                  </div>
-                  {assignmentMode === "percentage" && (
-                    <Input
-                      type="number"
-                      className="w-24"
-                      value={reviewerPercentages[reviewer._id] || ""}
-                      onChange={(e) => handlePercentageChange(reviewer._id, e.target.value)}
-                      placeholder="%"
-                      disabled={!selectedReviewers.includes(reviewer._id)}
-                    />
-                  )}
-                  {assignmentMode === "fixed" && (
-                    <Input
-                      type="number"
-                      className="w-24"
-                      value={reviewerFixedCounts[reviewer._id] || ""}
-                      onChange={(e) => handleFixedCountChange(reviewer._id, e.target.value)}
-                      placeholder="Tasks"
-                      disabled={!selectedReviewers.includes(reviewer._id)}
-                    />
-                  )}
+            {validationError && (
+              <Alert variant="destructive" className="bg-red-50 dark:bg-red-900/20">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{validationError}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-2">
+              <div className="grid grid-cols-[auto,1fr,auto] gap-4 px-4 py-2 bg-gray-100 dark:bg-zinc-800 rounded-t-lg items-center">
+                <div className="w-12 flex justify-center">
+                  <IndeterminateCheckbox
+                    checked={allReviewersSelected}
+                    indeterminate={someReviewersSelected}
+                    onChange={handleSelectAllChange}
+                  />
                 </div>
-              ))}
+                <div className="font-medium text-sm">Reviewer</div>
+                {assignmentMode !== "random" && (
+                  <div className="w-24 text-center font-medium text-sm">
+                    {assignmentMode === "percentage" ? "Percentage" : "Tasks"}
+                  </div>
+                )}
+              </div>
+
+              <div className="divide-y divide-gray-200 dark:divide-zinc-700">
+                {paginatedReviewers.map((reviewer) => (
+                  <div key={reviewer._id} className="grid grid-cols-[auto,1fr,auto] gap-4 px-4 py-3 items-center hover:bg-gray-50 dark:hover:bg-zinc-800/50">
+                    <div className="w-12 flex justify-center">
+                      <Checkbox
+                        checked={selectedReviewers.includes(reviewer._id)}
+                        onCheckedChange={() => toggleReviewerSelection(reviewer._id)}
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100">{reviewer.name}</p>
+                      <p className="text-sm text-gray-500">{reviewer.email}</p>
+                    </div>
+                    {assignmentMode === "percentage" && (
+                      <Input
+                        type="number"
+                        className="w-24"
+                        value={reviewerPercentages[reviewer._id] || ""}
+                        onChange={(e) => handlePercentageChange(reviewer._id, e.target.value)}
+                        placeholder="%"
+                        disabled={!selectedReviewers.includes(reviewer._id)}
+                      />
+                    )}
+{assignmentMode === "fixed" && (
+                      <Input
+                        type="number"
+                        className="w-24"
+                        value={reviewerFixedCounts[reviewer._id] || ""}
+                        onChange={(e) => handleFixedCountChange(reviewer._id, e.target.value)}
+                        placeholder="Tasks"
+                        disabled={!selectedReviewers.includes(reviewer._id)}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              <div className="flex justify-center items-center space-x-2 mt-4">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
