@@ -80,6 +80,91 @@ export async function getGlobalDashboard() {
 }
 
 
+
+export async function getProjectNameAndId(): Promise<string> {
+  try {
+    await connectToDatabase();
+
+    const projects = await Project.find({}, "name _id");
+
+    // Return a stringified object with project IDs and names
+    const response = projects.map((project) => ({
+      id: project._id,
+      name: project.name
+    }));
+
+    return JSON.stringify(response);
+  } catch (e) {
+    console.error("Error fetching names of projects!", e);
+    return JSON.stringify([]);
+  }
+}
+
+export async function getSelectedProjectsDashboard(selectedProjects: string[]) {
+  try {
+    await connectToDatabase();
+    const session = await getServerSession(authOptions);
+    const managerId = session?.user.id;
+
+    if (!managerId) {
+      return { error: 'User is not authenticated' };
+    }
+
+    // Aggregating data for the selected projects
+    const result = await Task.aggregate([
+      {
+        $match: {
+          project: { $in: selectedProjects },
+          project_Manager: new mongoose.Types.ObjectId(managerId),
+          timeTaken: { $gt: 0 } // Only include tasks with time > 0
+        }
+      },
+      {
+        $group: {
+          _id: "$project",
+          totalTasks: { $sum: 1 },
+          averageTime: { $avg: "$timeTaken" },
+          submittedTasks: { $sum: { $cond: [{ $eq: ["$submitted", true] }, 1, 0] } },
+          statuses: { $push: "$status" }
+        }
+      }
+    ]);
+
+    // Fetch project count and template count for the selected projects
+    const projectsCount = await Project.countDocuments({
+      _id: { $in: selectedProjects },
+      project_Manager: new mongoose.Types.ObjectId(managerId)
+    });
+
+    const templatesCount = await Template.countDocuments({
+      project: { $in: selectedProjects }
+    });
+
+    // Count annotators
+    const annotatorsCount = await User.countDocuments({ role: 'annotator' });
+
+    // Count zero time tasks for the selected projects
+    const zeroTimeTasks = await Task.countDocuments({
+      project: { $in: selectedProjects },
+      project_Manager: new mongoose.Types.ObjectId(managerId),
+      timeTaken: 0
+    });
+
+    return JSON.stringify({
+      tasksData: result.length ? result : [],
+      projects: projectsCount,
+      templates: templatesCount,
+      annotators: annotatorsCount,
+      zeroTimeTasks
+    });
+
+  } catch (error) {
+    console.error('Error fetching selected projects dashboard data:', error);
+    return { error: 'Error occurred while fetching dashboard data for selected projects' };
+  }
+}
+
+
 export async function getProjectDashboard(id: string) {
   try {
     await connectToDatabase();
