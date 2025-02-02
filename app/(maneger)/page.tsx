@@ -184,7 +184,7 @@ export default function ProjectDashboard() {
         } else {
           const data = await res.json();
           setProjects([...projects, data.project]);
-          setFilteredProjects(data.projects);
+          setFilteredProjects([...projects,data.project]);
           setNewProjectName('');
         }
       })

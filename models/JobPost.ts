@@ -34,6 +34,18 @@ const JobPostSchema = new Schema({
       required: true,
     },
   },
+  location:{
+    type:String,
+    required:true
+  },
+  lat:{
+    type:String,
+    required:false
+  },
+  lng:{
+    type:String,
+    required:false
+  },
   compensation: {
     type: String,
     required: true,

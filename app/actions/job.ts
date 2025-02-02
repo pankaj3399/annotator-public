@@ -10,7 +10,6 @@ import JobApplication from "@/models/JobApplication";
 import { authOptions } from "@/auth";
 
 const turndownService = new TurndownService();
-
 export async function createJobPost(data: {
   title: string;
   content: string; // HTML content from ReactQuill
@@ -19,6 +18,9 @@ export async function createJobPost(data: {
   compensation: string;
   status?: "draft" | "published";
   projectId: string;
+  location: string;
+  lat: number;
+  lng: number;
 }) {
   try {
     await connectToDatabase();
@@ -36,9 +38,11 @@ export async function createJobPost(data: {
       compensation: data.compensation,
       status: data.status || "draft",
       projectId: data.projectId,
+      location: data.location,
+      lat:data.lat,
+      lng:data.lng
     });
 
-    revalidatePath("/jobs"); // Revalidate the jobs listing page
     return { success: true, data: jobPost };
   } catch (error) {
     console.error("Error creating job post:", error);
@@ -72,7 +76,7 @@ export async function getJobPosts(options: {
       JobPost.countDocuments(query),
     ]);
 
-    return {
+    const response = {
       success: true,
       data: {
         posts,
@@ -84,11 +88,15 @@ export async function getJobPosts(options: {
         },
       },
     };
+
+    return JSON.stringify(response); // Stringify the response before returning
   } catch (error) {
     console.error("Error fetching job posts:", error);
-    return { success: false, error: "Failed to fetch job posts" };
+    const errorResponse = { success: false, error: "Failed to fetch job posts" };
+    return JSON.stringify(errorResponse); // Stringify error response
   }
 }
+
 
 export async function updateJobPost(
   id: string,
