@@ -1,44 +1,55 @@
-'use client'
+'use client';
 
-import { Button } from "@/components/ui/button"
-import { CardContent } from "@/components/ui/card"
-import useStatus from '@/hooks/use-status'
-import useTimer from '@/hooks/use-timer'
-import { EditorBtns } from '@/lib/constants'
-import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
-import { useUploadThing } from '@/utils/uploadthing'
-import clsx from 'clsx'
-import { Mic, RotateCcw, Send, Square, Trash } from 'lucide-react'
-import { useSession } from 'next-auth/react'
-import React, { useEffect, useRef } from 'react'
-import AudioPlayer from 'react-h5-audio-player'
-import 'react-h5-audio-player/lib/styles.css'
-import { useReactMediaRecorder } from "react-media-recorder"
-import { toast } from "sonner"
+import AudioEnhancement from '@/components/AudioEnhancement';
+import { Button } from '@/components/ui/button';
+import { CardContent } from '@/components/ui/card';
+import useStatus from '@/hooks/use-status';
+import useTimer from '@/hooks/use-timer';
+import { EditorBtns } from '@/lib/constants';
+import { EditorElement, useEditor } from '@/providers/editor/editor-provider';
+import { useUploadThing } from '@/utils/uploadthing';
+import clsx from 'clsx';
+import { Mic, RotateCcw, Send, Square, Trash, Wand2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import React, { useEffect, useRef } from 'react';
+import AudioPlayer from 'react-h5-audio-player';
+import 'react-h5-audio-player/lib/styles.css';
+import { useReactMediaRecorder } from 'react-media-recorder';
+import { toast } from 'sonner';
 
-type Props = {
-  element: EditorElement
+interface AudioContent {
+  src?: string;
 }
 
+type Props = {
+  element: EditorElement & {
+    content: AudioContent;
+  };
+};
+
 const InputRecordAudioComponent = (props: Props) => {
-  const { dispatch, state } = useEditor()
-  const [elementContent, setElementContent] = React.useState({
-    src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
-  })
-  const [duration, setDuration] = React.useState(0)
-  const [loading, setLoading] = React.useState(false)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  
-  const { status, startRecording, stopRecording, mediaBlobUrl } = useReactMediaRecorder({ audio: true })
-  const { setRunning } = useTimer()
-  const { status: STATUS, submitted } = useStatus()
-  const session = useSession()
+  const { dispatch, state } = useEditor();
+  const [elementContent, setElementContent] = React.useState<AudioContent>({
+    src: props.element.content?.src || '',
+  });
+  const [duration, setDuration] = React.useState(0);
+  const [loading, setLoading] = React.useState(false);
+  const [enhancing, setEnhancing] = React.useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [showEnhancement, setShowEnhancement] = React.useState(false);
+  const [audioBlob, setAudioBlob] = React.useState<Blob | null>(null);
+
+  const { status, startRecording, stopRecording, mediaBlobUrl } =
+    useReactMediaRecorder({ audio: true });
+  const { setRunning } = useTimer();
+  const { status: STATUS, submitted } = useStatus();
+  const session = useSession();
 
   useEffect(() => {
-    const validContent = !Array.isArray(props.element.content) && !(STATUS === 'reassigned' && submitted === false)
+    const validContent = !(STATUS === 'reassigned' && submitted === false);
     setElementContent({
-      src: validContent ? props.element.content?.src || '' : ''
-    })
+      src: validContent ? props.element.content?.src || '' : '',
+    });
 
     if (!validContent && elementContent.src !== '' && !loading) {
       dispatch({
@@ -47,110 +58,148 @@ const InputRecordAudioComponent = (props: Props) => {
           elementDetails: {
             ...props.element,
             content: {
-              ...props.element.content,
               src: '',
             },
           },
         },
-      })
+      });
     }
-  }, [props.element, STATUS, submitted, loading])
+  }, [props.element, STATUS, submitted, loading]);
 
   useEffect(() => {
     if (status === 'recording') {
       timerRef.current = setInterval(() => {
-        setDuration((prev) => prev + 1)
-      }, 1000)
+        setDuration((prev) => prev + 1);
+      }, 1000);
     } else if (status === 'stopped') {
       if (timerRef.current) {
-        clearInterval(timerRef.current)
+        clearInterval(timerRef.current);
       }
     }
 
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current)
+        clearInterval(timerRef.current);
       }
-    }
-  }, [status])
+    };
+  }, [status]);
 
   const handleDragStart = (e: React.DragEvent, type: EditorBtns) => {
-    if (type === null) return
-    e.dataTransfer.setData('componentType', type)
-  }
+    if (type === null) return;
+    e.dataTransfer.setData('componentType', type);
+  };
 
   const handleOnClickBody = (e: React.MouseEvent) => {
-    e.stopPropagation()
+    e.stopPropagation();
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
       payload: {
         elementDetails: props.element,
       },
-    })
-  }
+    });
+  };
 
   const handleDeleteElement = () => {
     dispatch({
       type: 'DELETE_ELEMENT',
       payload: { elementDetails: props.element },
-    })
-  }
+    });
+  };
 
   const reRecord = () => {
-    setDuration(0)
-    startRecording()
-  }
+    setDuration(0);
+    setShowEnhancement(false);
+    setAudioBlob(null);
+    startRecording();
+  };
 
-  const { startUpload } = useUploadThing("audioUploader", {
+  const { startUpload } = useUploadThing('audioUploader', {
     onClientUploadComplete: async (data) => {
-      toast('Recording uploaded successfully')
-      if (!Array.isArray(props.element.content)) {
-        dispatch({
-          type: 'UPDATE_ELEMENT',
-          payload: {
-            elementDetails: {
-              ...props.element,
-              content: {
-                ...props.element.content,
-                src: data[0].url,
-              },
+      toast.success('Recording uploaded successfully');
+      dispatch({
+        type: 'UPDATE_ELEMENT',
+        payload: {
+          elementDetails: {
+            ...props.element,
+            content: {
+              src: data[0].url,
             },
           },
-        })
-      }
+        },
+      });
 
-      setDuration(0)
-      setElementContent(prev => ({ ...prev, src: data[0].url }))
-      setRunning(true)
-      setLoading(false)
+      setDuration(0);
+      setElementContent({ src: data[0].url });
+      setRunning(true);
+      setLoading(false);
+      setEnhancing(false);
+      setShowEnhancement(false);
     },
     onUploadError: () => {
-      toast.error("Error occurred while uploading")
-      setLoading(false)
-      setRunning(true)
+      toast.error('Error occurred while uploading');
+      setLoading(false);
+      setEnhancing(false);
+      setRunning(true);
     },
     onUploadBegin: () => {
-      setRunning(false)
+      setRunning(false);
     },
-  })
+  });
+
+  const handleEnhancementComplete = async (enhancedBlob: Blob) => {
+    setEnhancing(true);
+    setLoading(true);
+    try {
+      const audioFile = new File([enhancedBlob], 'enhanced-voice.wav', {
+        type: 'audio/wav',
+      });
+      startUpload([audioFile]);
+    } catch (error) {
+      console.error('Error handling enhanced audio:', error);
+      toast.error('Failed to process enhanced audio');
+      setEnhancing(false);
+      setLoading(false);
+    }
+  };
 
   const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   async function submitRecording() {
     if (mediaBlobUrl) {
-      setLoading(true)
-      const audioBlob = await fetch(mediaBlobUrl).then((r) => r.blob())
-      const audioFile = new File([audioBlob], 'voice.wav', { type: 'audio/wav' })
-      startUpload([audioFile])
+      try {
+        const blob = await fetch(mediaBlobUrl).then((r) => r.blob());
+        setAudioBlob(blob);
+        setShowEnhancement(true);
+      } catch (error) {
+        console.error('Error preparing audio:', error);
+        toast.error('Failed to prepare audio');
+      }
     }
   }
 
-  const isSelected = state.editor.selectedElement.id === props.element.id
-  const isLiveMode = state.editor.liveMode
+  async function saveRecording() {
+    if (mediaBlobUrl) {
+      setLoading(true);
+      try {
+        const audioBlob = await fetch(mediaBlobUrl).then((r) => r.blob());
+        const audioFile = new File([audioBlob], 'voice.wav', {
+          type: 'audio/wav',
+        });
+        startUpload([audioFile]);
+      } catch (error) {
+        console.error('Error saving recording:', error);
+        toast.error('Failed to save recording');
+        setLoading(false);
+      }
+    }
+  }
+
+  const isSelected = state.editor.selectedElement.id === props.element.id;
+  const isLiveMode = state.editor.liveMode;
 
   return (
     <div
@@ -168,10 +217,10 @@ const InputRecordAudioComponent = (props: Props) => {
       )}
     >
       {isSelected && !isLiveMode && (
-        <div className="absolute -top-[25px] right-[0px]">
-          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
+        <div className='absolute -top-[25px] right-[0px]'>
+          <div className='bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white'>
             <Trash
-              className="cursor-pointer"
+              className='cursor-pointer'
               size={16}
               onClick={handleDeleteElement}
             />
@@ -180,55 +229,75 @@ const InputRecordAudioComponent = (props: Props) => {
       )}
 
       {elementContent.src === '' ? (
-        <div className="w-full">
-          <CardContent className="p-6">
-            <div className="text-center mb-4">
-              <span className="text-3xl font-bold text-primary">{formatDuration(duration)}</span>
+        <div className='w-full'>
+          <CardContent className='p-6'>
+            <div className='text-center mb-4'>
+              <span className='text-3xl font-bold text-primary'>
+                {formatDuration(duration)}
+              </span>
             </div>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className='flex flex-wrap justify-center gap-4'>
               {status !== 'recording' && !mediaBlobUrl && (
-                <Button 
-                  onClick={startRecording} 
+                <Button
+                  onClick={startRecording}
                   disabled={session.data?.user.role === 'project manager'}
                 >
-                  <Mic className="mr-2 h-4 w-4" /> Start Recording
+                  <Mic className='mr-2 h-4 w-4' /> Start Recording
                 </Button>
               )}
               {status === 'recording' && (
-                <Button onClick={stopRecording} variant="outline">
-                  <Square className="mr-2 h-4 w-4" /> Stop
+                <Button onClick={stopRecording} variant='outline'>
+                  <Square className='mr-2 h-4 w-4' /> Stop
                 </Button>
               )}
-              {status !== 'recording' && mediaBlobUrl && (
+              {status !== 'recording' && mediaBlobUrl && !showEnhancement && (
                 <>
-                  <Button 
-                    onClick={reRecord} 
-                    variant="outline" 
-                    className="border-primary text-primary hover:bg-primary/10"
+                  <Button
+                    onClick={reRecord}
+                    variant='outline'
+                    className='border-primary text-primary hover:bg-primary/10'
                   >
-                    <RotateCcw className="mr-2 h-4 w-4" /> Re-record
+                    <RotateCcw className='mr-2 h-4 w-4' /> Re-record
                   </Button>
-                  <Button onClick={submitRecording} disabled={loading}>
-                    <Send className="mr-2 h-4 w-4" /> {loading ? 'Saving...' : 'Save'}
+                  <Button
+                    onClick={submitRecording}
+                    variant='outline'
+                    disabled={loading || enhancing}
+                  >
+                    <Wand2 className='mr-2 h-4 w-4' /> Enhance
+                  </Button>
+                  <Button
+                    onClick={saveRecording}
+                    disabled={loading || enhancing}
+                  >
+                    <Send className='mr-2 h-4 w-4' />{' '}
+                    {loading ? 'Saving...' : 'Save'}
                   </Button>
                   <AudioPlayer autoPlay src={mediaBlobUrl} />
                 </>
               )}
+              {showEnhancement && (
+                <AudioEnhancement
+                  audioBlob={audioBlob}
+                  onEnhancementComplete={handleEnhancementComplete}
+                  onCancel={() => setShowEnhancement(false)}
+                />
+              )}
             </div>
             {!isLiveMode && (
-              <div className="flex mb-0 mt-2 justify-center">
+              <div className='flex mb-0 mt-2 justify-center'>
                 Annotator Input
               </div>
             )}
           </CardContent>
         </div>
       ) : (
-        <div className="w-full">
+        <div className='w-full'>
           <AudioPlayer autoPlay src={elementContent.src} />
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default InputRecordAudioComponent
+export default InputRecordAudioComponent;
