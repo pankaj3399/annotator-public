@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -17,7 +17,7 @@ import { generateAiResponse } from "@/app/actions/aiModel";
 import { useParams } from "next/navigation";
 import { createJobPost } from "@/app/actions/job";
 import { toast } from "sonner";
-
+import {GoogleMap,Marker,useLoadScript} from '@react-google-maps/api'
 interface JobFormData {
   projectTitle: string;
   projectDescription: string;
@@ -30,6 +30,8 @@ interface JobFormData {
   aiModel: string;
   apikey: string;
   location:string;
+  lat:number ;
+  lng:number;
 }
 
 type Provider = "OpenAI" | "Anthropic" | "Gemini";
@@ -67,12 +69,19 @@ const JobPostingForm = () => {
     aiProvider: "OpenAI",
     aiModel: "gpt-4-turbo-preview",
     apikey: "",
-    location:""
+    location:"",
+    lat:0,
+    lng:0
   });
   const { projectId } = useParams();
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+  const [inputValue, setInputValue] = useState(""); 
 
-  console.log("projectId:", projectId);
 
+  const { isLoaded } = useLoadScript({
+    googleMapsApiKey: `${process.env.NEXT_PUBLIC_GOOGLE_MAP_API}`,
+    libraries: ["places"], // Use 'places' library for autocomplete
+  });
   // Quill module configurations
   const modules = {
     toolbar: [
@@ -124,6 +133,37 @@ const JobPostingForm = () => {
     );
   };
 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && isLoaded && !autocomplete) {
+      const input = document.getElementById("location-input") as HTMLInputElement;
+      if (input) {
+        const autoCompleteInstance = new google.maps.places.Autocomplete(input);
+        autoCompleteInstance.setFields(["formatted_address", "geometry"]);
+        autoCompleteInstance.addListener("place_changed", () => {
+          const place = autoCompleteInstance.getPlace();
+          handlePlaceSelect(place);
+        });
+        setAutocomplete(autoCompleteInstance);
+      }
+    }
+  }, [isLoaded]);
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    if (place.geometry && place.formatted_address) {
+      const location = place.geometry.location;
+      const lat = location?.lat() || 0;
+      const lng = location?.lng() || 0;
+      
+      // Update both the form data and input value
+      setFormData(prev => ({
+        ...prev,
+        location: place.formatted_address || inputValue || '',
+        lat,
+        lng
+      }));
+      setInputValue(place.formatted_address);
+    }
+  };
+
   const generatePrompt = (data: JobFormData) => {
     return `Create a professional job listing based on the following information. Use appropriate formatting with headers in markdown style (# for main headers) and bullet points (* for lists):
 
@@ -153,6 +193,17 @@ Don't include any extra fields outside of mentioned above`;
       [name]: value,
     }));
   };
+  const handleLocationInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    // Only update formData.location if user is typing (not when selecting from dropdown)
+    if (!autocomplete?.getPlace()) {
+      setFormData(prev => ({
+        ...prev,
+        location: value
+      }));
+    }
+  };
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({
@@ -166,6 +217,7 @@ Don't include any extra fields outside of mentioned above`;
     setIsLoading(true);
 
     try {
+      console.log(formData)
       const prompt = generatePrompt(formData);
       if (prompt) {
         setIsAiModalOpen(true);
@@ -206,7 +258,9 @@ Don't include any extra fields outside of mentioned above`;
         compensation: formData.payRange,
         status: "published",
         projectId: Array.isArray(projectId) ? projectId[0] : projectId,
-        location: formData.location
+        location: formData.location,
+        lat:formData.lat,
+        lng:formData.lng
       });
   
       if (response.success) {
@@ -404,17 +458,19 @@ Don't include any extra fields outside of mentioned above`;
               />
             </div>
             <div className="space-y-2">
-              <label className="block text-sm font-medium">Location</label>
-              <input
-                type="text"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                className="w-full p-2 border rounded-md"
-                placeholder="e.g., Sydney,Australia"
-                required
-              />
-            </div>
+    <label className="block text-sm font-medium">Location</label>
+    <input
+      id="location-input"
+      type="text"
+      name="location"
+      value={inputValue}
+      onChange={handleLocationInputChange}
+      className="w-full p-2 border rounded-md"
+      placeholder="e.g., Sydney, Australia"
+      required
+    />
+  </div>
+
             </div>
 
             <div className="space-y-2">

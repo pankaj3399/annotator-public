@@ -7,15 +7,15 @@ interface JobPost {
     _id: string;
     title: string;
     content: string;
-    coordinates: string[];
     compensation: string;
-    location:string;
-
+    location: string;
+    lat: string; // Latitude as a string
+    lng: string; // Longitude as a string
 }
 
 interface MarkerData {
     id: string;
-    coordinates: [number, number];
+    coordinates: [number, number]; // [latitude, longitude]
 }
 
 interface MapComponentProps {
@@ -57,11 +57,14 @@ const MapComponent: React.FC<MapComponentProps> = ({ markers, posts }) => {
         });
     };
 
-    const filteredJobs = posts.filter(post => 
-        post.coordinates.length === 2 &&
-        parseFloat(post.coordinates[0]) === markers.find(m => m.id === selectedMarker)?.coordinates[0] &&
-        parseFloat(post.coordinates[1]) === markers.find(m => m.id === selectedMarker)?.coordinates[1]
-    );
+    // Filter the jobs based on the selected marker's coordinates
+    const filteredJobs = posts.filter(post => {
+        const postLat = parseFloat(post.lat); // Convert lat from string to number
+        const postLng = parseFloat(post.lng); // Convert lng from string to number
+        
+        return postLat === markers.find(m => m.id === selectedMarker)?.coordinates[0] &&
+               postLng === markers.find(m => m.id === selectedMarker)?.coordinates[1];
+    });
 
     return (
         <div className="relative" ref={mapContainerRef}>
@@ -105,7 +108,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ markers, posts }) => {
                     }}
                 >
                     <div className="bg-gradient-to-r from-gray-50 to-white px-6 py-3 border-b border-gray-100">
-                        <h3 className="text-sm font-semibold text-gray-800">Available Positions({posts[0].location})</h3>
+                        <h3 className="text-sm font-semibold text-gray-800">Available Positions ({posts[0].location})</h3>
                     </div>
                     
                     {filteredJobs.length > 0 ? (

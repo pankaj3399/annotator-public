@@ -6,10 +6,11 @@ import MapComponent from "../JobMap";
 interface JobPost {
     _id: string;
     title: string;
-    content:string;
-    coordinates: string[]; // Stored as ['latitude', 'longitude']
-    compensation:string;
-    location:string;
+    content: string;
+    lat: string; // Latitude as a string
+    lng: string; // Longitude as a string
+    compensation: string;
+    location: string;
 }
 
 interface MarkerData {
@@ -47,17 +48,14 @@ export default function JobPostsGrid() {
     if (error) return <div className="text-center text-red-600">{error}</div>;
     if (posts.length === 0) return <div>No job posts available</div>;
 
-    // Convert posts to markers
+    // Convert posts to markers using lat and lng as separate values
     const markers: MarkerData[] = posts
         .map(post => {
-            if (post.coordinates?.length === 2) {
-                const [latStr, lngStr] = post.coordinates;
-                const lat = parseFloat(latStr);
-                const lng = parseFloat(lngStr);
+            const lat = parseFloat(post.lat); // Convert lat from string to number
+            const lng = parseFloat(post.lng); // Convert lng from string to number
 
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    return { id: post._id, coordinates: [lat, lng] };
-                }
+            if (!isNaN(lat) && !isNaN(lng)) {
+                return { id: post._id, coordinates: [lat, lng] };
             }
             return null;
         })
