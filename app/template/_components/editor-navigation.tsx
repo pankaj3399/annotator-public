@@ -36,12 +36,7 @@ type Props = {
   projectId: string;
 };
 
-type LabelType =
-  | 'LLM BENCHMARK'
-  | 'MULTIMODALITY'
-  | 'TRANSLATION'
-  | 'ACCENTS'
-  | 'ENGLISH';
+
 
 const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
   const router = useRouter();
@@ -49,8 +44,8 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
   const [isMobileView, setIsMobileView] = useState(false);
   const [title, setTitle] = useState(pageDetails.name);
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedLabels, setSelectedLabels] = useState<LabelType[]>(() => {
-    return (pageDetails?.labels || []) as LabelType[];
+  const [selectedLabels, setSelectedLabels] = useState<string[]>(() => {
+    return (pageDetails?.labels || []) as string[];
   });
   const handlePencilClick = () => {
     setIsEditing((prev) => !prev);
