@@ -35,7 +35,7 @@ export async function updateTestTemplate(_id: string, value: boolean) {
 
 export async function upsertTemplate(projectid: string, template: template, _id: string | undefined, add = false) {
     await connectToDatabase();
-
+    
     const res = await Template.findOneAndUpdate(
         { _id: _id == undefined ? new mongoose.Types.ObjectId() : _id },
         {
@@ -43,7 +43,7 @@ export async function upsertTemplate(projectid: string, template: template, _id:
             content: template.content ? template.content : defaultContent,
             project: projectid,
             type: template.type,
-            labels: template.labels || [],
+            labels: template.labels || [], 
         },
         {
             upsert: true,
@@ -58,7 +58,6 @@ export async function upsertTemplate(projectid: string, template: template, _id:
     }
     return JSON.stringify(res);
 }
-
 
 export async function updateTimer(_id: string, timer: number) {
     await connectToDatabase();
@@ -85,6 +84,15 @@ export async function getTemplate(pageId: string) {
     const res = await Template.findById(pageId);
     return JSON.stringify(res)
 }
+
+
+
+export async function getTemplateLabel(templateId: string) {
+    await connectToDatabase();
+    const res = await Template.findById(templateId) // Select only labels
+    return JSON.stringify(res?.labels || []);
+}
+
 
 export async function getATemplate(projectid: string) {
     await connectToDatabase();
