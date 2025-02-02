@@ -35,17 +35,19 @@ interface LabelManagerProps {
   pageDetails: template;
   projectId: string;
   pageId: string;
+  selectedLabels:LabelType[];
+  setSelectedLabels:(selectedLabels:LabelType[])=>void;
 }
 
 const LabelManager = ({
   pageDetails,
   projectId,
   pageId,
+  selectedLabels,
+  setSelectedLabels
 }: LabelManagerProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedLabels, setSelectedLabels] = useState<LabelType[]>(() => {
-    return (pageDetails?.labels || []) as LabelType[];
-  });
+
 
   const handleLabelSelect = async (label: LabelType) => {
     if (selectedLabels.includes(label)) {
@@ -61,7 +63,6 @@ const LabelManager = ({
         { ...pageDetails, labels: newLabels },
         pageId
       );
-  
       setSelectedLabels(newLabels);
       toast.success( 'Label added successfully' );
     } catch (error) {
@@ -88,7 +89,9 @@ const LabelManager = ({
         pageId
       );
   
-      setSelectedLabels((prev) => prev.filter((label) => label !== labelToRemove)); // Ensure latest state
+      setSelectedLabels(selectedLabels.filter((label) => label !== labelToRemove));
+
+
       toast('Success', { description: 'Label removed successfully' });
     } catch (error) {
       toast('Error', { description: 'Failed to remove label' });
