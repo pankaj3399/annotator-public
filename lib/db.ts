@@ -1,24 +1,21 @@
 import mongoose from 'mongoose';
-import {Project} from '@/models/Project';
-import Task from "@/models/Task";
-import { Template } from '@/models/Template';
-import { TaskRepeat } from '@/models/TaskRepeat';
-// Import all other models here
 
 const { MONGODB_URI } = process.env;
 
-export const connectToDatabase = async () => {
-  try {
-    // Initialize all models to ensure they are registered
-    if (!Project || !Task || !Template || !TaskRepeat) {
-      throw new Error("Models not initialized properly.");
-    }
+let isConnected: boolean = false; // Track connection status
 
-    const { connection } = await mongoose.connect(MONGODB_URI as string);
-    if (connection.readyState === 1) {
-      console.log('Database connection established.');
-      return Promise.resolve(true);
-    }
+export const connectToDatabase = async () => {
+  if (isConnected) {
+    console.log('Already connected to the database.');
+    return Promise.resolve(true);
+  }
+
+  try {
+    // Connect to the database
+    await mongoose.connect(MONGODB_URI as string);
+    isConnected = true; // Update connection status
+    console.log('Database connection established.');
+    return Promise.resolve(true);
   } catch (error) {
     console.error('Error connecting to the database:', error);
     return Promise.reject(error);
