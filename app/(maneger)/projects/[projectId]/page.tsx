@@ -59,6 +59,12 @@ interface Model {
   enabled: boolean;
   model: string;
 }
+type CreateTemplateInput = {
+  name: string;
+  project: string;
+  type: 'test' | 'training' | 'core';
+  labels: string[];
+};
 
 export default function ProjectDashboard() {
   const [templates, setTemplates] = useState<template[]>([]);
@@ -202,10 +208,11 @@ export default function ProjectDashboard() {
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const defaultTemplate = {
+    const defaultTemplate: CreateTemplateInput = {
       name: newTemplateName.trim(),
       project: projectId,
-      type: newTemplateType.trim(),
+      type: newTemplateType.trim() as 'test' | 'training' | 'core',
+      labels: [],
     };
 
     const template: template = JSON.parse(
@@ -216,8 +223,9 @@ export default function ProjectDashboard() {
         true
       )
     );
+    
     router.push(`/template?Id=${template._id}`);
-  };
+};
 
   const handleEditTemplate = (e: React.MouseEvent, _id: string) => {
     e.stopPropagation();

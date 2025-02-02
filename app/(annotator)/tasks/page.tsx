@@ -23,17 +23,20 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, PlusCircle, Trash2Icon } from 'lucide-react';
+import { CalendarIcon, Filter, PlusCircle, Trash2Icon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { ClipboardList } from 'lucide-react';
+import { getTemplateLabel } from '@/app/actions/template';
 
 export interface Project {
   _id: string;
   name: string;
   created_at: string;
+  templates:string[];
+  labels:string[]
 }
 interface TestTask {
   project: string;
@@ -64,6 +67,7 @@ interface TakeTestResponse {
   tasks?: TestTaskResponse[];
 }
 
+type LabelType = 'LLM BENCHMARK' | 'MULTIMODALITY' | 'TRANSLATION' | 'ACCENTS' | 'ENGLISH';
 export default function ProjectDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
@@ -71,9 +75,18 @@ export default function ProjectDashboard() {
   const router = useRouter();
   const { data: session } = useSession();
   const [assignedTestProjects, setAssignedTestProjects] = useState<Set<string>>(new Set());
+  const [selectedLabels,setSelectedLabels]=useState<LabelType[]>([])
   const [projectsWithTests, setProjectsWithTests] = useState<Set<string>>(
     new Set()
   );
+  const labelStyles: Record<LabelType, string> = {
+    'LLM BENCHMARK': 'bg-yellow-200 text-yellow-800',
+    MULTIMODALITY: 'bg-orange-200 text-orange-800',
+    TRANSLATION: 'bg-cyan-200 text-cyan-800',
+    ACCENTS: 'bg-pink-200 text-pink-800',
+    ENGLISH: 'bg-gray-200 text-gray-800',
+  };
+  
 
   useEffect(() => {
     const jobId = localStorage.getItem('pendingJobApplication');
@@ -117,8 +130,21 @@ export default function ProjectDashboard() {
           }
         });
 
-        setProjects(allProjects);
-        setFilteredProjects(allProjects);
+        const projectsWithLabels = await Promise.all(
+          allProjects.map(async (project) => {
+            const labels = await Promise.all(
+              project.templates.map((templateId:string) => getTemplateLabel(templateId))
+            );
+  
+            return {
+              ...project,
+              labels:labels // Flatten and remove duplicates
+            };
+          })
+        );
+
+        setProjects(projectsWithLabels);
+        setFilteredProjects(projectsWithLabels);
       } catch (error) {
         console.error('Error loading projects:', error);
         toast.error('Failed to load projects');
@@ -148,6 +174,48 @@ export default function ProjectDashboard() {
       fetchAssignedTests();
     }
   }, [session?.user?.id]);
+  
+  const handleLabelClick = (label: LabelType) => {
+    const newSelectedLabels = selectedLabels.includes(label)
+      ? selectedLabels.filter((l) => l !== label)
+      : [...selectedLabels, label];
+  
+    setSelectedLabels(newSelectedLabels);
+  
+    // Apply both search and label filters
+    let filtered = projects;
+  
+    if (searchQuery) {
+      filtered = filtered.filter((project) =>
+        project.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+  
+    if (newSelectedLabels.length > 0) {
+      filtered = filtered.filter((project) => {
+        try {
+          // Ensure all selected labels exist somewhere in the project's labels array
+          return newSelectedLabels.every((label) =>
+            project.labels.some((labelString) => {
+              try {
+                const projectLabels = JSON.parse(labelString);
+                return projectLabels.includes(label);
+              } catch (e) {
+                console.error('Error parsing labels:', e);
+                return false;
+              }
+            })
+          );
+        } catch (e) {
+          console.error('Error processing labels:', e);
+          return false;
+        }
+      });
+    }
+  
+    setFilteredProjects(filtered);
+  };
+  
 
   const handleTakeTestClick = async (projectId: string) => {
     try {
@@ -176,10 +244,19 @@ export default function ProjectDashboard() {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
 
-    const filtered = projects.filter((project) =>
+    let filtered = projects.filter((project) =>
       project.name.toLowerCase().includes(query)
     );
-    setFilteredProjects(filtered); // Update the filtered list of projects
+    
+
+    // Apply label filters if any are selected
+    if (selectedLabels.length > 0) {
+      filtered = filtered.filter((project:Project) =>
+        selectedLabels.every((label) => project.labels.includes(label))
+      );
+    }
+
+    setFilteredProjects(filtered);
   };
 
   if (!session) {
@@ -202,19 +279,40 @@ export default function ProjectDashboard() {
       </header>
       <main className='max-w-7xl mx-auto  sm:px-6 lg:px-8'>
         <form onSubmit={(e) => e.preventDefault()} className='mb-8'>
-          <div className='flex gap-4'>
+          <div className='flex gap-4 mb-6'>
             <Input
               type='text'
               placeholder='Search projects'
-              required
               value={searchQuery}
               onChange={handleSearchChange}
               className='flex-grow'
             />
+            
             {/* <Button type="submit">
               <PlusCircle className="mr-2 h-4 w-4" /> Create Project
             </Button> */}
           </div>
+
+          <div className="flex flex-wrap gap-3 mb-6">
+          {(Object.keys(labelStyles) as LabelType[]).map((label) => (
+            <button
+              key={label}
+              onClick={() => handleLabelClick(label)}
+              className={`
+                px-4 py-2 rounded-md transition-all duration-200
+                ${labelStyles[label]}
+                ${selectedLabels.includes(label)
+                  ? 'ring-2 ring-offset-2 ring-opacity-60 ring-current shadow-md scale-105'
+                  : 'hover:scale-105 active:scale-95'
+                }
+                font-medium text-sm
+                transform hover:shadow-md
+              `}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         </form>
         {filteredProjects.length === 0 ? (
           <div className='text-center py-10'>
@@ -227,54 +325,54 @@ export default function ProjectDashboard() {
           </div>
         ) : (
           <div className='bg-white shadow-sm rounded-lg overflow-h_idden'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project Name</TableHead>
-                  <TableHead className='text-right'>Created Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProjects.map((project) => (
-                  <TableRow
-                    key={project._id}
-                    onClick={() => handleProjectClick(project._id)}
-                    className='cursor-pointer hover:bg-gray-50'
-                  >
-                    <TableCell className='font-medium'>
-                      {project.name}
-                    </TableCell>
-                    <TableCell>
-      {(() => {
-        const projectId = project._id.trim();
-        const hasTests = projectsWithTests.has(projectId);
-        const isAssigned = assignedTestProjects.has(projectId);
+<Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Project Name</TableHead>
+      <TableHead>Actions</TableHead>
+      <TableHead className="text-right">Created Date</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {filteredProjects.map((project) => (
+      <TableRow
+        key={project._id}
+        onClick={() => handleProjectClick(project._id)}
+        className="cursor-pointer hover:bg-gray-50"
+      >
+        <TableCell className="font-medium">{project.name}</TableCell>
 
-        return hasTests && !isAssigned ? (
-          <Button
-            variant='outline'
-            size='sm'
-            onClick={(e) => {
-              e.stopPropagation();
-              handleTakeTestClick(projectId);
-            }}
-          >
-            <ClipboardList className='mr-2 h-4 w-4' />
-            Take Test
-          </Button>
-        ) : null;
-      })()}
-    </TableCell>
-                    <TableCell className='text-right'>
-                      <div className='flex justify-end items-center text-sm text-gray-500'>
-                        <CalendarIcon className='mr-2 h-4 w-4' />
-                        {format(parseISO(project?.created_at), 'PPP')}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <TableCell className="text-center">
+          {(() => {
+            const projectId = project._id.trim();
+            const hasTests = projectsWithTests.has(projectId);
+            const isAssigned = assignedTestProjects.has(projectId);
+
+            return hasTests && !isAssigned ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTakeTestClick(projectId);
+                }}
+              >
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Take Test
+              </Button>
+            ) : null;
+          })()}
+        </TableCell>
+
+        <TableCell className="text-right text-sm text-gray-500">
+          <CalendarIcon className="inline-block mr-2 h-4 w-4" />
+          {format(parseISO(project?.created_at), 'PPP')}
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+
           </div>
         )}
       </main>
