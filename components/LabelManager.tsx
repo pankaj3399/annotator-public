@@ -47,55 +47,55 @@ const LabelManager = ({
     return (pageDetails?.labels || []) as LabelType[];
   });
 
-  const handleLabelSelect = (label: LabelType) => {
+  const handleLabelSelect = async (label: LabelType) => {
     if (selectedLabels.includes(label)) {
       setIsOpen(false);
       return;
     }
-
+  
     const newLabels = [...selectedLabels, label];
-
-    upsertTemplate(
-      projectId,
-      {
-        ...pageDetails,
-        labels: newLabels,
-      },
-      pageId
-    )
-      .then(() => {
-        setSelectedLabels(newLabels);
-        toast('Success', { description: 'Label added successfully' });
-      })
-      .catch(() => {
-        toast('Error', { description: 'Failed to add label' });
-      });
-
-    setIsOpen(false);
+  
+    try {
+      const res = await upsertTemplate(
+        projectId,
+        { ...pageDetails, labels: newLabels },
+        pageId
+      );
+  
+      setSelectedLabels(newLabels);
+      toast.success( 'Label added successfully' );
+    } catch (error) {
+      toast.error( 'Failed to add label');
+      console.error(error);
+    } finally {
+      setIsOpen(false);
+    }
   };
-
-  const handleLabelRemove = (labelToRemove: LabelType, e: React.MouseEvent) => {
+  
+  const handleLabelRemove = async (
+    labelToRemove: LabelType,
+    e: React.MouseEvent
+  ) => {
     e.stopPropagation();
     e.preventDefault();
-
+  
     const newLabels = selectedLabels.filter((label) => label !== labelToRemove);
-
-    upsertTemplate(
-      projectId,
-      {
-        ...pageDetails,
-        labels: newLabels,
-      },
-      pageId
-    )
-      .then(() => {
-        setSelectedLabels(newLabels);
-        toast('Success', { description: 'Label removed successfully' });
-      })
-      .catch(() => {
-        toast('Error', { description: 'Failed to remove label' });
-      });
+  
+    try {
+      await upsertTemplate(
+        projectId,
+        { ...pageDetails, labels: newLabels },
+        pageId
+      );
+  
+      setSelectedLabels((prev) => prev.filter((label) => label !== labelToRemove)); // Ensure latest state
+      toast('Success', { description: 'Label removed successfully' });
+    } catch (error) {
+      toast('Error', { description: 'Failed to remove label' });
+      console.error(error);
+    }
   };
+  
 
   return (
     <div className="flex items-center gap-2">
