@@ -1,10 +1,15 @@
 import { MongoClient } from 'mongodb';
 
-const uri = process.env.MONGODB_URI as string; // your mongodb connection string
+const uri = process.env.MONGODB_URI as string; // MongoDB connection string
+
+const minimumConnections = parseInt(process.env.MIN_CONNECTION_MONGO || "5", 10);
+const maximumConnections = parseInt(process.env.MAX_CONNECTION_MONGO || "70", 10);
+
 const options = {
-  useUnifiedTopology: true,
-  minPoolSize: 5,  // Minimum number of connections in the pool
-  maxPoolSize: 70, // Maximum number of connections in the pool
+  minPoolSize: minimumConnections, // Minimum number of connections to maintain
+  maxPoolSize: maximumConnections, // Maximum number of connections allowed
+  serverSelectionTimeoutMS: 5000, // Timeout for selecting a server
+  socketTimeoutMS: 45000, // Timeout for idle connections
 };
 
 declare global {
@@ -20,8 +25,6 @@ class Singleton {
     this._client = new MongoClient(uri, options);
     this._clientPromise = this._client.connect();
     if (process.env.NODE_ENV === 'development') {
-      // In development mode, use a global variable so that the value
-      // is preserved across module reloads caused by HMR (Hot Module Replacement).
       global._mongoClientPromise = this._clientPromise;
     }
   }
@@ -52,15 +55,4 @@ const singleton = Singleton.instance;
 export async function connectToDatabase() {
   await singleton.clientPromise;
   return { client: singleton.client, db: singleton.db };
-}
-
-export async function disconnectFromDatabase() {
-  /*if (cachedClient && !isConnecting) {
-    await cachedClient.close();
-    console.log('MongoDB connection closed');
-    cachedClient = null;
-    cachedDb = null;
-  } else {
-    console.log('No active MongoDB connection to close or connection is in the process of connecting');
-  }*/
 }
