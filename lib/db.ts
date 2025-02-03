@@ -2,9 +2,12 @@ import { MongoClient } from 'mongodb';
 
 const uri = process.env.MONGODB_URI as string; // MongoDB connection string
 
+const minimumConnections = parseInt(process.env.MIN_CONNECTION_MONGO || "5", 10);
+const maximumConnections = parseInt(process.env.MAX_CONNECTION_MONGO || "70", 10);
+
 const options = {
-  minPoolSize: 5, // Minimum number of connections to maintain
-  maxPoolSize: 70, // Maximum number of connections allowed
+  minPoolSize: minimumConnections, // Minimum number of connections to maintain
+  maxPoolSize: maximumConnections, // Maximum number of connections allowed
   serverSelectionTimeoutMS: 5000, // Timeout for selecting a server
   socketTimeoutMS: 45000, // Timeout for idle connections
 };
