@@ -1,58 +1,54 @@
-import { MongoClient } from 'mongodb';
+import mongoose from "mongoose";
 
-const uri = process.env.MONGODB_URI as string; // MongoDB connection string
+const uri = process.env.MONGODB_URI;
 
-const minimumConnections = parseInt(process.env.MIN_CONNECTION_MONGO || "5", 10);
-const maximumConnections = parseInt(process.env.MAX_CONNECTION_MONGO || "70", 10);
-
-const options = {
-  minPoolSize: minimumConnections, // Minimum number of connections to maintain
-  maxPoolSize: maximumConnections, // Maximum number of connections allowed
-  serverSelectionTimeoutMS: 5000, // Timeout for selecting a server
-  socketTimeoutMS: 45000, // Timeout for idle connections
-};
+if (!uri) throw new Error("MONGODB_URI is not defined in environment variables.");
 
 declare global {
-  var _mongoClientPromise: Promise<MongoClient>;
+  var _mongoosePromise: Promise<typeof mongoose> | undefined;
 }
 
-class Singleton {
-  private static _instance: Singleton;
-  private _client: MongoClient;
-  private _clientPromise: Promise<MongoClient>;
+// Connection function
+const connectToDatabase = async () => {
+  if (global._mongoosePromise) return global._mongoosePromise;
 
-  private constructor() {
-    this._client = new MongoClient(uri, options);
-    this._clientPromise = this._client.connect();
-    if (process.env.NODE_ENV === 'development') {
-      global._mongoClientPromise = this._clientPromise;
-    }
-  }
+  global._mongoosePromise = mongoose
+    .connect(uri, {
+      minPoolSize: parseInt(process.env.MIN_CONNECTION_MONGO || "5", 10),
+      maxPoolSize: parseInt(process.env.MAX_CONNECTION_MONGO || "70", 10),
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    })
+    .then((m) => {
+      console.log("✅ MongoDB connected successfully");
+      return m;
+    })
+    .catch((err) => {
+      console.error("❌ MongoDB Connection Error:", err);
+      throw err;
+    });
 
-  public static get instance() {
-    if (!this._instance) {
-      this._instance = new Singleton();
-    }
-    return this._instance;
-  }
+  return global._mongoosePromise;
+};
 
-  public get clientPromise() {
-    return this._clientPromise;
-  }
+// Handle connection events
+mongoose.connection.on("connected", () => {
+  console.log("🟢 Mongoose connected to DB");
+});
 
-  public get client() {
-    return this._client;
-  }
+mongoose.connection.on("disconnected", () => {
+  console.log("🟡 Mongoose disconnected");
+});
 
-  public get db() {
-    return this._client.db(process.env.MONGODB_DB as string);
-  }
-}
+mongoose.connection.on("error", (err) => {
+  console.error("🔴 Mongoose connection error:", err);
+});
 
-const singleton = Singleton.instance;
+// Gracefully close connection on process termination
+process.on("SIGINT", async () => {
+  await mongoose.connection.close();
+  console.log("🔴 MongoDB connection closed due to app termination");
+  process.exit(0);
+});
 
-// The connectToDatabase function
-export async function connectToDatabase() {
-  await singleton.clientPromise;
-  return { client: singleton.client, db: singleton.db };
-}
+export { connectToDatabase };
