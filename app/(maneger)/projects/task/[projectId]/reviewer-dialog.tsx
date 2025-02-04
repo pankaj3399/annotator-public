@@ -258,8 +258,6 @@ export default function ReviewerDialog({
           );
         }
       }
-
-      setTasks(updatedTasks);
       toast({
         title: "Success",
         description: `${totalTasks} tasks have been assigned to reviewers.`,

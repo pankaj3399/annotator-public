@@ -22,13 +22,11 @@ interface CleanvoiceConfig {
 interface EnhancementOptions {
   removeFillers: boolean;
   removePauses: boolean;
-  removeBreath: boolean;
   removeNoise: boolean;
 }
 
 interface UploadResponse {
   signedUrl: string;
-  fileUrl?: string;
 }
 
 export class CleanvoiceService {
@@ -53,7 +51,7 @@ export class CleanvoiceService {
     }
   }
 
-  private async getSignedUrl(filename: string): Promise<UploadResponse> {
+  private async getSignedUrl(filename: string): Promise<string> {
     this.log('Getting signed URL for file:', filename);
 
     try {
@@ -73,11 +71,8 @@ export class CleanvoiceService {
         throw new Error('Failed to obtain upload URL');
       }
 
-      // Extract the base URL (without query parameters)
-      const fileUrl = response.data.fileUrl || response.data.signedUrl.split('?')[0];
-
-      this.log('Upload response:', { signedUrl: response.data.signedUrl, fileUrl });
-      return { signedUrl: response.data.signedUrl, fileUrl };
+      this.log('Upload response:', response.data);
+      return response.data.signedUrl;
     } catch (error) {
       this.logError('Failed to get signed URL:', error);
       throw error;
@@ -104,9 +99,6 @@ export class CleanvoiceService {
       });
 
       this.log('Upload completed successfully');
-
-      // Add a small delay after upload to ensure file processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
     } catch (error) {
       this.logError('Upload failed:', error);
       throw error;
@@ -117,14 +109,22 @@ export class CleanvoiceService {
     this.log('Creating edit with config:', { fileUrl, config });
 
     try {
+      // Remove any query parameters from the URL
+      const cleanUrl = fileUrl.split('?')[0];
+      this.log('Using clean URL for edit:', cleanUrl);
+
+      // Add a delay after upload to ensure file processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
       const response = await axios.post(
         `${this.BASE_URL}/edits`,
         {
           input: {
-            files: [fileUrl],
+            files: [cleanUrl],
             config: {
               ...config,
-              video: false
+              video: false,
+              export_format: 'wav'
             }
           }
         },
@@ -203,20 +203,17 @@ export class CleanvoiceService {
     this.log('Starting audio enhancement process');
 
     try {
-      // Get signed URL and upload file
-      onProgress?.('Preparing upload...');
+      // Get signed URL and upload the file
       const filename = `recording-${Date.now()}.${config.export_format || 'wav'}`;
-      const { signedUrl, fileUrl } = await this.getSignedUrl(filename);
-
-      // Extract the base URL without query parameters if fileUrl is not provided
-      const uploadUrl = fileUrl || signedUrl.split('?')[0];
-
+      const signedUrl = await this.getSignedUrl(filename);
+      
       onProgress?.('Uploading audio...');
       await this.uploadToSignedUrl(signedUrl, audioBlob);
 
-      // Create and monitor edit using the file URL
+      // Create and monitor the edit
       onProgress?.('Initializing audio processing...');
-      const editId = await this.createEdit(uploadUrl, config);
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for file processing
+      const editId = await this.createEdit(signedUrl, config);
 
       let attempts = 0;
       const maxAttempts = 30;
@@ -247,10 +244,8 @@ export class CleanvoiceService {
   }
 }
 
-// Export singleton instance
 export const cleanvoiceService = new CleanvoiceService();
 
-// Helper function for processing audio with common options
 export async function processWithCleanvoice(
   audioBlob: Blob,
   options: EnhancementOptions,
@@ -268,7 +263,6 @@ export async function processWithCleanvoice(
       {
         fillers: options.removeFillers,
         long_silences: options.removePauses,
-        breath: options.removeBreath,
         remove_noise: options.removeNoise,
         normalize: true,
         sound_studio: true,
