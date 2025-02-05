@@ -1200,7 +1200,6 @@ export async function handleTakeTest(projectId: string, userId: string) {
 
     // 1. Get repeat tasks for the project and populate project_Manager
     const repeatTasks = await TaskRepeat.find({ project: projectId });
-
     if (!repeatTasks || repeatTasks.length === 0) {
       return {
         success: false,
