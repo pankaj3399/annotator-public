@@ -16,6 +16,7 @@ import { EditorBtns } from "@/lib/constants";
 
 import { Button } from "@/components/ui/button";
 import { Plus, Minus } from "lucide-react";
+import { Checkbox } from "@radix-ui/react-checkbox";
 
 type ElementContent = {
   href?: string;
@@ -57,8 +58,42 @@ const PropertyPanel = () => {
   }, [element]);
 
   const handlePropertyChange = (property: string, value: any) => {
+    // Check if the property starts with 'content.'
+    if (property.startsWith('content.')) {
+      // Extract the key after 'content.'
+      const contentKey = property.split('.')[1]
+  
+      setElementProperties((prev) => ({
+        ...prev,
+        content: Array.isArray(prev.content) 
+          ? prev.content.map((item) => ({
+              ...item,
+              [contentKey]: value
+            }))
+          : { ...prev.content, [contentKey]: value }
+      }))
+  
+      // Dispatch update for content changes
+      dispatch({
+        type: "UPDATE_ELEMENT",
+        payload: {
+          elementDetails: {
+            ...element,
+            content: Array.isArray(element.content)
+              ? element.content.map((item) => ({
+                  ...item,
+                  [contentKey]: value
+                }))
+              : { ...element.content, [contentKey]: value }
+          },
+        },
+      })
+      return
+    }
+  
+    // Original implementation for other properties
     setElementProperties((prev) => ({ ...prev, [property]: value }));
-
+  
     if (property === "name") {
       dispatch({
         type: "UPDATE_ELEMENT",
@@ -71,43 +106,7 @@ const PropertyPanel = () => {
       });
       return;
     }
-
-    if (element.type === "dynamicCarousel") {
-      const currentContent = !Array.isArray(element.content)
-        ? element.content
-        : {};
-      const updatedContent = {
-        ...currentContent,
-        [property]: value,
-      };
-
-      dispatch({
-        type: "UPDATE_ELEMENT",
-        payload: {
-          elementDetails: {
-            ...element,
-            content: updatedContent,
-          },
-        },
-      });
-      return;
-    }
-
-    dispatch({
-      type: "UPDATE_ELEMENT",
-      payload: {
-        elementDetails: {
-          ...element,
-          content: Array.isArray(element.content)
-            ? element.content
-            : {
-                ...element.content,
-                [property]: value,
-              },
-        },
-      },
-    });
-  };
+  }
 
   if (!element || !element.id || element.type === "__body") {
     return null;
@@ -408,36 +407,116 @@ const PropertyPanel = () => {
         );
 
       case "recordAudio":
-      case "inputRecordAudio":
-        return (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                value={elementProperties.name}
-                onChange={(e) => handlePropertyChange("name", e.target.value)}
-                placeholder="Element name"
-              />
-            </div>
+        case "inputRecordAudio":
+          return (
+            <div className="space-y-4">
+              {/* Name Input */}
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  value={elementProperties.name}
+                  onChange={(e) => handlePropertyChange("name", e.target.value)}
+                  placeholder="Element name"
+                />
+              </div>
+        
+              {/* Time Limit Input */}
+              <div className="space-y-2">
+                <Label>Time Limit (seconds)</Label>
+                <Input
+                  type="number"
+                  value={
+                    !Array.isArray(elementProperties.content)
+                      ? elementProperties.content.limit
+                      : ""
+                  }
+                  onChange={(e) =>
+                    handlePropertyChange("content.limit", parseInt(e.target.value))
+                  }
+                  placeholder="Enter time limit"
+                />
+              </div>
+        
+              {/* Clean Voice Options */}
+              <div className="flex flex-col gap-3 p-4 border rounded-lg shadow-md bg-white text-black max-w-sm">
+  <h3 className="text-lg font-semibold">Clean Voice Options</h3>
 
-            <div className="space-y-2">
-              <Label>Time Limit (seconds)</Label>
-              <Input
-                type="number"
-                value={
-                  !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.limit
-                    : ""
-                }
-                onChange={(e) =>
-                  handlePropertyChange("limit", parseInt(e.target.value))
-                }
-                placeholder="Enter time limit"
-              />
-            </div>
-          </div>
-        );
+  {/* Background Noise Checkbox */}
+  <div className="flex items-center gap-2">
+    <Checkbox
+      id="background-noise"
+      checked={elementProperties.content.backgroundNoise}
+      onCheckedChange={(checked) =>
+        handlePropertyChange("content.backgroundNoise", checked)
+      }
+      className={`transition-colors duration-200 ${
+        elementProperties.content.backgroundNoise
+          ? "bg-blue-500 border-blue-500"
+          : "bg-gray-200 border-gray-400"
+      } border-2 rounded-md p-1`} // Add color change on check
+    />
+    <Label
+      htmlFor="background-noise"
+      className={`${
+        elementProperties.content.backgroundNoise ? "font-bold" : "font-normal"
+      }`} // Bold text when checked
+    >
+      Background Noise
+    </Label>
+  </div>
 
+  {/* Silence Removal Checkbox */}
+  <div className="flex items-center gap-2">
+    <Checkbox
+      id="silence-removal"
+      checked={elementProperties.content.silenceRemoval}
+      onCheckedChange={(checked) =>
+        handlePropertyChange("content.silenceRemoval", checked)
+      }
+      className={`transition-colors duration-200 ${
+        elementProperties.content.silenceRemoval
+          ? "bg-blue-500 border-blue-500"
+          : "bg-gray-200 border-gray-400"
+      } border-2 rounded-md p-1`}
+    />
+    <Label
+      htmlFor="silence-removal"
+      className={`${
+        elementProperties.content.silenceRemoval ? "font-bold" : "font-normal"
+      }`}
+    >
+      Silence Removal
+    </Label>
+  </div>
+
+  {/* Filler Word Removal Checkbox */}
+  <div className="flex items-center gap-2">
+    <Checkbox
+      id="filler-word-removal"
+      checked={elementProperties.content.fillerWordRemoval}
+      onCheckedChange={(checked) =>
+        handlePropertyChange("content.fillerWordRemoval", checked)
+      }
+      className={`transition-colors duration-200 ${
+        elementProperties.content.fillerWordRemoval
+          ? "bg-blue-500 border-blue-500"
+          : "bg-gray-200 border-gray-400"
+      } border-2 rounded-md p-1`}
+    />
+    <Label
+      htmlFor="filler-word-removal"
+      className={`${
+        elementProperties.content.fillerWordRemoval ? "font-bold" : "font-normal"
+      }`}
+    >
+      Filler Word Removal
+    </Label>
+  </div>
+</div>
+
+            </div>
+          );
+        
       case "dynamicCarousel": {
         const content = !Array.isArray(elementProperties.content)
           ? (elementProperties.content as ElementContent)
