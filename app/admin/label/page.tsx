@@ -47,8 +47,7 @@ export default function LabelsPage() {
     setIsLoading(true)
     try {
       const fetchedLabels = await getLabels()
-      const parsedLabels = JSON.parse(fetchedLabels);
-      setLabels(parsedLabels || [])
+      setLabels(fetchedLabels || [])
     } catch (error) {
         console.error(error)
       setError('Failed to fetch labels. Please try again later.')

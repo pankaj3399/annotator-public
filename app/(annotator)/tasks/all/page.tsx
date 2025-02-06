@@ -153,6 +153,17 @@ export default function ProjectDashboard() {
     ),
   };
 
+  // Check if benchmark button should be shown
+  const showBenchmarkButton = tasks.some((task) =>
+    task.template?.labels?.some((label) => {
+      try {
+        return JSON.parse(label) === 'LLM BENCHMARK';
+      } catch {
+        return label === 'LLM BENCHMARK';
+      }
+    })
+  );
+
   // Loading states
   if (!session) return <Loader />;
   if (isLoading) {

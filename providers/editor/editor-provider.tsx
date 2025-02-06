@@ -34,6 +34,9 @@ export type EditorElement = {
     slideInterval?: number
     slides?: CarouselSlide[]
     currentSlideIndex?: number
+    backgroundNoise:boolean;
+    fillerRemoval:boolean;
+    silenceRemoval:boolean;
   }
 }
 export type Editor = {

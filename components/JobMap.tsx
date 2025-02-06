@@ -71,13 +71,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ markers, posts }) => {
             {/* Zoom Buttons */}
             <div className="absolute top-4 left-2 z-10 flex flex-col gap-3 bg-white p-2 rounded-lg shadow-lg">
                 <button
-                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-400"
+                    className="p-2 bg-white text-black hover:bg-blue-100"
                     onClick={() => setZoom(zoom + 1)}
                 >
                     <ZoomIn size={20} />
                 </button>
                 <button
-                    className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-400"
+                    className="p-2 bg-white text-black hover:bg-blue-100"
                     onClick={() => setZoom(zoom - 1)}
                 >
                     <ZoomOut size={20} />
