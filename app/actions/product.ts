@@ -313,7 +313,7 @@ export async function getPaidWishlistProducts(): Promise<any> {
       },
     ]);
 
-    return paidProducts; // Return the list of paid products
+    return JSON.parse(JSON.stringify(paidProducts)); // Return the list of paid products
   } catch (error) {
     console.error("Error fetching paid wishlist products:", error);
     throw new Error("Failed to retrieve paid products"); // Handle any errors during the database query

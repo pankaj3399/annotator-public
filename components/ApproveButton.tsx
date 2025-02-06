@@ -22,7 +22,7 @@ export default function ApproveButton({
   const [paymentHandled, setPaymentHandled] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-
+  
   useEffect(() => {
     // Check if payment is already handled in sessionStorage
     const status = searchParams.get("payment");
