@@ -113,7 +113,7 @@ export async function addToWishlist({
     return {
       success: true,
       wishlist: {
-        id: wishlist._id,
+        id: (wishlist._id).toString(),
         itemsCount: wishlist.items.length,
       },
     };

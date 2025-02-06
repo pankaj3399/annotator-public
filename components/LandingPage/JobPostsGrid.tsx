@@ -187,7 +187,7 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
           </div>
         </div>
 
-        <Link href={`/job/${jobPost._id}`} className="block">
+        <Link href={`/jobs/${jobPost._id}`} className="block">
           <Button 
             variant="default" 
             className="w-full bg-white hover:bg-white/90 text-black font-medium"
