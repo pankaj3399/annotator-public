@@ -73,7 +73,6 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
     // Handle the event
     switch (event.type) {
       case "checkout.session.completed": {
@@ -172,4 +171,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
