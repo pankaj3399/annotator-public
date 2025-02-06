@@ -127,88 +127,81 @@ export default function ProjectDashboard() {
       handlePendingJobApplication();
     }
   }, []);
-
   useEffect(() => {
-    const loadProjects = async () => {
+    const fetchData = async () => {
       try {
-        const assignedProjects = await getDistinctProjectsByAnnotator();
-        const projectsWithRepeatTasks = await getProjectsWithRepeatTasks();
-
-        const assignedProjectsList = JSON.parse(assignedProjects);
-        const projectsWithTestsList = JSON.parse(projectsWithRepeatTasks);
-
+        setIsLoading(true);
+  
+        // Fetch projects
+        const [assignedProjects, projectsWithRepeatTasks, fetchedLabels] = await Promise.all([
+          getDistinctProjectsByAnnotator(),
+          getProjectsWithRepeatTasks(),
+          getLabels(),
+        ]);
+  
+        const assignedProjectsList = assignedProjects;
+        const projectsWithTestsList =projectsWithRepeatTasks;
+        const parsedLabels =fetchedLabels || [];
+  
+        setCustomLabels(parsedLabels);
+  
         const testProjectIds = new Set<string>(
           projectsWithTestsList.map((p: Project) => p._id)
         );
         setProjectsWithTests(testProjectIds);
-
+  
         const allProjects = [...assignedProjectsList];
         projectsWithTestsList.forEach((project: Project) => {
           if (!allProjects.some((p) => p._id === project._id)) {
             allProjects.push(project);
           }
         });
-
+  
         const projectsWithLabels = await Promise.all(
           allProjects.map(async (project) => {
             const labels = await Promise.all(
               project.templates.map((templateId: string) => getTemplateLabel(templateId))
             );
-
+  
             return {
               ...project,
-              labels: labels
+              labels,
             };
           })
         );
-
+  
         setProjects(projectsWithLabels);
         setFilteredProjects(projectsWithLabels);
       } catch (error) {
-        console.error('Error loading projects:', error);
-        toast.error('Failed to load projects');
+        console.error('Error loading data:', error);
+        toast.error('Failed to load data');
       } finally {
         setIsLoading(false);
       }
     };
-
-    loadProjects();
+  
+    fetchData();
   }, []);
-
+  
   useEffect(() => {
     const fetchAssignedTests = async () => {
       try {
-        const testTasksResponse = await getTasksOfAnnotator('test');
-        const testTasks = JSON.parse(testTasksResponse) as TestTaskResponse[];
-        const assignedProjects = new Set<string>(
-          testTasks.map((task) => task.project)
-        );
-        setAssignedTestProjects(assignedProjects);
+        if (session?.user?.id) {
+          const testTasksResponse = await getTasksOfAnnotator('test');
+          const testTasks = JSON.parse(testTasksResponse) as TestTaskResponse[];
+          const assignedProjects = new Set<string>(
+            testTasks.map((task) => task.project)
+          );
+          setAssignedTestProjects(assignedProjects);
+        }
       } catch (error) {
         console.error('Error fetching assigned tests:', error);
       }
     };
-
-    if (session?.user?.id) {
-      fetchAssignedTests();
-    }
+  
+    fetchAssignedTests();
   }, [session?.user?.id]);
-
-  useEffect(() => {
-    const fetchCustomLabels = async () => {
-      try {
-        const fetchedLabels = await getLabels();
-        const parsedLabels = JSON.parse(fetchedLabels)
-        setCustomLabels(parsedLabels || []);
-      } catch (error) {
-        console.error('Error fetching custom labels:', error);
-        toast.error('Failed to load custom labels');
-      }
-    };
-
-    fetchCustomLabels();
-  }, []);
-
+  
   const handleLabelClick = (label: LabelType) => {
     const newSelectedLabels = selectedLabels.includes(label)
       ? selectedLabels.filter((l) => l !== label)

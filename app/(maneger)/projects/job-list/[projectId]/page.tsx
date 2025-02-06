@@ -18,6 +18,7 @@ import { useParams } from "next/navigation";
 import { createJobPost } from "@/app/actions/job";
 import { toast } from "sonner";
 import {GoogleMap,Marker,useLoadScript} from '@react-google-maps/api'
+import { S3Upload } from "@/components/S3Upload";
 interface JobFormData {
   projectTitle: string;
   projectDescription: string;
@@ -32,6 +33,7 @@ interface JobFormData {
   location:string;
   lat:number ;
   lng:number;
+  image:string;
 }
 
 type Provider = "OpenAI" | "Anthropic" | "Gemini";
@@ -71,7 +73,8 @@ const JobPostingForm = () => {
     apikey: "",
     location:"",
     lat:0,
-    lng:0
+    lng:0,
+    image:""
   });
   const { projectId } = useParams();
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
@@ -212,6 +215,13 @@ Don't include any extra fields outside of mentioned above`;
     }));
   };
 
+
+
+  const handleUploadComplete = (uploadedFile: string) => {
+    console.log("File changed");
+    setFormData({ ...formData, image: uploadedFile });
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -260,7 +270,8 @@ Don't include any extra fields outside of mentioned above`;
         projectId: Array.isArray(projectId) ? projectId[0] : projectId,
         location: formData.location,
         lat:formData.lat,
-        lng:formData.lng
+        lng:formData.lng,
+        image:formData.image
       });
   
       if (response.success) {
@@ -390,6 +401,7 @@ Don't include any extra fields outside of mentioned above`;
               />
             </div>
 
+
             <div className="space-y-2">
               <label className="block text-sm font-medium">
                 Project Description
@@ -401,6 +413,18 @@ Don't include any extra fields outside of mentioned above`;
                 className="w-full p-2 border rounded-md h-32"
                 required
               />
+            </div>
+
+            <div className="space-y-4">
+              <label >Enter Job Image:</label>
+              <S3Upload
+                      onUploadComplete={handleUploadComplete}
+                      currentFile={formData.image}
+                      accept="image/*"
+                      uploadType="imageUploader"
+                      label="Job Image"
+
+                                    ></S3Upload>
             </div>
 
             <div className="space-y-2">

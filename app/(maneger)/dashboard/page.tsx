@@ -1,7 +1,7 @@
 'use client';
 import { getGlobalDashboard, getProjectNameAndId, getSelectedProjectsDashboard } from '@/app/actions/dashboard';
 import { SheetMenu } from '@/components/admin-panel/sheet-menu';
-import Loader from '@/components/ui/Loader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -61,10 +61,13 @@ export default function ProjectDashboard() {
   useEffect(() => {
     if (selectedProjects.length > 0) {
       fetchSelectedProjectsDashboard();
+    } else {
+      init(); // Reset to global data when no projects are selected
     }
   }, [selectedProjects]);
 
   async function init() {
+    setIsLoading(true); // Show loader when fetching data
     try {
       const res = await getGlobalDashboard();
       if (typeof res === 'string') {
@@ -78,29 +81,28 @@ export default function ProjectDashboard() {
     } catch (error) {
       console.error('Error in init function:', error);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Hide loader once data is fetched
     }
   }
 
   async function fetchProjects() {
+    setIsLoading(true); // Show loader when fetching project names
     try {
       const projectNamesString = await getProjectNameAndId();
-      
-      // Parse the stringified response into an array of objects
       const projectNames = JSON.parse(projectNamesString);
-      
-      // Set the project names and ids
       setProjectNames(projectNames);
     } catch (error) {
       console.error("Error fetching project names:", error);
       setProjectNames([]);
+    } finally {
+      setIsLoading(false); // Hide loader once project names are fetched
     }
   }
 
   async function fetchSelectedProjectsDashboard() {
+    setIsLoading(true); // Show loader when fetching selected projects data
     try {
       const res = await getSelectedProjectsDashboard(selectedProjects);
-
       if (typeof res === 'string') {
         const dashboardData: DashboardData = JSON.parse(res);
         setData(dashboardData);
@@ -111,6 +113,8 @@ export default function ProjectDashboard() {
       }
     } catch (error) {
       console.error('Error fetching selected projects dashboard data:', error);
+    } finally {
+      setIsLoading(false); // Hide loader once selected projects data is fetched
     }
   }
 

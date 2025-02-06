@@ -18,8 +18,7 @@ export async function GET(){
 
     try{
         const result = await getDistinctProjectsByAnnotator();
-        const projects = JSON.parse(result);
-        return NextResponse.json({data:projects},{status:200})
+        return NextResponse.json({data:result},{status:200})
     }
     catch(e){
         console.error('Error while fetching projects by annotator',e);

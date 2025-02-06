@@ -8,6 +8,8 @@ import TurndownService from "turndown";
 import { getServerSession } from "next-auth";
 import JobApplication from "@/models/JobApplication";
 import { authOptions } from "@/auth";
+import { getProjectDetailsByManager } from "./dashboard";
+import { getLabels, getProjectLabels } from "./label";
 
 const turndownService = new TurndownService();
 export async function createJobPost(data: {
@@ -21,12 +23,21 @@ export async function createJobPost(data: {
   location: string;
   lat: number;
   lng: number;
+  image:string;
 }) {
   try {
     await connectToDatabase();
 
     // Convert HTML to Markdown
     const markdownContent = turndownService.turndown(data.content);
+
+    console.log(data);
+
+    if(data.image == ''){
+      data.image = "https://annotator-public.s3.ap-south-1.amazonaws.com/images/Person+Typing+on+Laptop.jpeg"
+    }
+
+    const labels = await getProjectLabels(data.projectId);
 
     const jobPost = await JobPost.create({
       title: data.title,
@@ -40,7 +51,9 @@ export async function createJobPost(data: {
       projectId: data.projectId,
       location: data.location,
       lat:data.lat,
-      lng:data.lng
+      lng:data.lng,
+      image:data.image,
+      label:labels
     });
 
     return { success: true, data: jobPost };

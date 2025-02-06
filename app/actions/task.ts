@@ -978,7 +978,7 @@ export async function getDistinctProjectsByAnnotator() {
     ]);
     const pro = uniqueProjects.map((project) => project.project);
 
-    return JSON.stringify(pro);
+    return JSON.parse(JSON.stringify(pro));
   } catch (error) {
     console.error("Error fetching distinct projects by annotator:", error);
     throw error;
@@ -1259,7 +1259,7 @@ export async function getProjectsWithRepeatTasks() {
       { $project: { _id: 0, project: "$projectDetails" } },
     ]);
 
-    return JSON.stringify(uniqueProjects.map(project => project.project));
+    return JSON.parse(JSON.stringify(uniqueProjects.map(project => project.project)));
   } catch (error) {
     console.error("Error fetching projects with repeat tasks:", error);
     throw error;

@@ -22,7 +22,7 @@ const Landingpage = () => {
         <Pricing />
         <Newsletter />
         <IndexPage />
-        <JobPostsGrid />
+        {/* <JobPostsGrid /> */}
         <FAQSection />
         {/* <OurTeam /> */}
       </div>
