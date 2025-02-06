@@ -60,10 +60,6 @@ const JobPostSchema = new Schema({
     enum: ["draft", "published"],
     default: "draft",
   },
-  image:{
-    type:String,
-    required:false,
-  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -72,10 +68,6 @@ const JobPostSchema = new Schema({
     type: Date,
     default: Date.now,
   },
-  label:{
-    type:[String],
-    required:false
-  }
 });
 
 export default mongoose.models.JobPost ||

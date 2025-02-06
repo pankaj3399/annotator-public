@@ -91,7 +91,6 @@ export default function ApproveButton({
       </Badge>
     );
   }
-
   return (
     <Button size="sm" onClick={handlePayment} disabled={isLoading}>
       {isLoading ? "Redirecting..." : "Pay now"}

@@ -401,7 +401,6 @@ Don't include any extra fields outside of mentioned above`;
               />
             </div>
 
-
             <div className="space-y-2">
               <label className="block text-sm font-medium">
                 Project Description

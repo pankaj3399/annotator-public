@@ -15,7 +15,6 @@ import {
   SelectValue,
   SelectItem,
 } from '@/components/ui/select';
-import { BenchmarkProposalForm } from '@/components/BenchmarkProposal';
 import { toast } from 'sonner';
 
 export interface Task {
@@ -181,7 +180,6 @@ export default function ProjectDashboard() {
         <div className='max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center'>
           <h1 className='text-3xl font-bold text-gray-900'>Tasks</h1>
           <div className='flex gap-4 items-center'>
-            {showBenchmarkButton && <BenchmarkProposalForm tasks={tasks} />}
             <Select
               value={taskType}
               onValueChange={(value) => setTaskType(value as TaskType)}
