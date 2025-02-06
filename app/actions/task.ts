@@ -68,7 +68,7 @@ export async function updateTask(
       timeTaken: time,
     }
   );
-  const response = await compareWithGroundTruth(_id,false)
+  const response = await compareWithGroundTruth(_id, false)
   console.log(response)
   return JSON.stringify(res);
 }
@@ -164,7 +164,7 @@ export async function compareWithGroundTruth(taskId: string, throwError: boolean
       const groundTruthCheckboxArray = groundTruthContent.checkboxes[i].sort();
 
       if (userCheckboxArray.length === groundTruthCheckboxArray.length &&
-          userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
+        userCheckboxArray.every((value, index) => value === groundTruthCheckboxArray[index])) {
         pointsEarned++;
         comparisonResult = true;
       }
@@ -355,11 +355,12 @@ export async function createTasks(
   }));
 
   const createdTasks = await Task.insertMany(taskData);
-  
+
   return JSON.stringify({
     success: true,
     tasks: createdTasks
-  });}
+  });
+}
 
 
 
@@ -427,7 +428,7 @@ export async function getAllTasks(projectid: string) {
 }
 
 
-export async function getAllUnassignedTasks(projectid:string){
+export async function getAllUnassignedTasks(projectid: string) {
 
   await connectToDatabase();
 
@@ -439,7 +440,7 @@ export async function getAllUnassignedTasks(projectid:string){
   try {
     const tasks = await Task.find({
       project: projectid,
-      reviewer:null // This ensures annotator is not null
+      reviewer: null // This ensures annotator is not null
     });
 
     return JSON.stringify(tasks); // Return the tasks with assigned annotators
@@ -455,7 +456,7 @@ export async function getPaginatedTasks(
   page: number,
   activeTab: string,
   type: "test" | "training" | "core" | "" = "",
-  pageSize: number = 10 
+  pageSize: number = 10
 ) {
   await connectToDatabase();
   const skip = (page - 1) * pageSize;
@@ -634,11 +635,29 @@ export async function getTasksByProject(id: string) {
 export async function getTasksOfAnnotator(taskType: 'core' | 'training' | 'test') {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
-  const annotatorId = session?.user.id;
+  const annotatorId = session?.user?.id;
 
-  const res = await Task.find({ annotator: annotatorId, type: taskType });
-  return JSON.stringify(res);
+  try {
+    const tasks = await Task.find({
+      annotator: annotatorId,
+      type: taskType
+    })
+      .populate({
+        path: 'template',
+        select: 'labels name', // Add any other needed fields
+        options: { lean: true }
+      })
+      .lean();
+
+    console.log('Tasks with templates:', tasks); // Add this for debugging
+
+    return JSON.stringify(tasks);
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    return JSON.stringify([]);
+  }
 }
+
 
 export async function getTask(_id: string) {
   await connectToDatabase();
@@ -1181,7 +1200,6 @@ export async function handleTakeTest(projectId: string, userId: string) {
 
     // 1. Get repeat tasks for the project and populate project_Manager
     const repeatTasks = await TaskRepeat.find({ project: projectId });
-    
     if (!repeatTasks || repeatTasks.length === 0) {
       return {
         success: false,
