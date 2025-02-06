@@ -34,17 +34,17 @@ const JobPostSchema = new Schema({
       required: true,
     },
   },
-  location:{
-    type:String,
-    required:true
+  location: {
+    type: String,
+    required: true
   },
-  lat:{
-    type:String,
-    required:false
+  lat: {
+    type: String,
+    required: false
   },
-  lng:{
-    type:String,
-    required:false
+  lng: {
+    type: String,
+    required: false
   },
   compensation: {
     type: String,
@@ -59,6 +59,9 @@ const JobPostSchema = new Schema({
     type: String,
     enum: ["draft", "published"],
     default: "draft",
+  }, image: {
+    type: String,
+    required: false,
   },
   createdAt: {
     type: Date,
@@ -67,7 +70,10 @@ const JobPostSchema = new Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
-  },
+  }, label: {
+    type: [String],
+    required: false
+  }
 });
 
 export default mongoose.models.JobPost ||

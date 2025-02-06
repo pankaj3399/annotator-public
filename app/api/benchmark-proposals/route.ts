@@ -13,7 +13,6 @@ interface SessionUser {
     role: string;
 }
 
-// app/api/benchmark-proposals/route.ts
 export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
