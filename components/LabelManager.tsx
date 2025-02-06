@@ -52,8 +52,7 @@ const LabelManager = ({
     // Fetch custom labels when the component mounts
     const fetchLabels = async () => {
       try {
-        const res = await getLabels();
-        const parsedLabel = JSON.parse(res);
+        const parsedLabel = await getLabels();
         setCustomLabels(parsedLabel); // Update state with custom labels
       } catch (error) {
         toast.error('Failed to fetch custom labels');

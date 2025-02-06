@@ -13,7 +13,6 @@ import { Mic, Pause, Play, RotateCcw, Send, Square, Trash, Sparkles, Volume2 } f
 import { useSession } from 'next-auth/react'
 import { useReactMediaRecorder } from "react-media-recorder"
 import { toast } from "sonner"
-import { cleanVoice } from "@/app/actions/cleanVoice"
 import { Checkbox } from '@/components/ui/checkbox'
 import axios from 'axios'
 
@@ -291,6 +290,11 @@ const InputRecordAudioComponent: React.FC<Props> = (props) => {
     },
   })
 
+  const handleStopRrecording= ()=>{
+    toast.success("Please click on process recording to process further")
+    stopRecording()
+
+  }
   useEffect(() => {
     const validContent = !Array.isArray(props.element.content) && !(STATUS === 'reassigned' && submitted === false)
     setElementContent({
@@ -341,7 +345,7 @@ const InputRecordAudioComponent: React.FC<Props> = (props) => {
     try {
       const response = await fetch(blobUrl)
       const webmBlob = await response.blob()
-      
+
       const mp3File = await convertWebMToMP3(webmBlob)
       await startUpload([mp3File])
     } catch (error) {
@@ -527,7 +531,7 @@ const InputRecordAudioComponent: React.FC<Props> = (props) => {
               )}
               {status === 'recording' && (
                 <Button 
-                  onClick={stopRecording} 
+                  onClick={handleStopRrecording} 
                   variant="outline"
                   className="border-primary text-primary hover:bg-primary/10"
                 >
@@ -550,7 +554,7 @@ const InputRecordAudioComponent: React.FC<Props> = (props) => {
                       className="bg-primary hover:bg-primary/90"
                     >
                       <Send className="mr-2 h-4 w-4" /> 
-                      {loading || cleanVoiceLoading ? 'Processing...' : 'Save Recording'}
+                      {loading || cleanVoiceLoading ? 'Processing...' : ' Process Recording'}
                     </Button>
                   </div>
                   <div className="w-full">

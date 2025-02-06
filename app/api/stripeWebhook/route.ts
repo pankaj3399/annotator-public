@@ -73,18 +73,29 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
     // Handle the event
     switch (event.type) {
       case "checkout.session.completed": {
         const successSession = event.data.object as Stripe.Checkout.Session;
+
+        console.log(successSession);
         const type = successSession.metadata?.type;
-        const userId = successSession.metadata?.userEmail; //typo here userEmail gives userId
+        const userId = successSession.metadata?.userId; //typo here userEmail gives userId
         const price = successSession.amount_total;
         const payment_intent = successSession.payment_intent as string;
         
-
         if (!userId) {
+          console.error("User ID missing in session metadata");
           throw new Error("Missing required user data");
+        }
+
+        if (price == null || price <= 0) {
+          throw new Error("Invalid price data");
+        }
+
+        if (!payment_intent) {
+          throw new Error("Payment Intent is missing");
         }
 
         console.log({ type, userId, payment_intent, price });
@@ -94,6 +105,7 @@ export async function POST(req: NextRequest) {
             if (type === "course") {
               const courseId = successSession.metadata?.courseId;
               if (!courseId) {
+                console.error("Course ID missing in session metadata");
                 throw new Error("Missing course ID");
               }
               const status = await enrollCourse({
@@ -107,7 +119,6 @@ export async function POST(req: NextRequest) {
             }
             // Add future handling for product type here
             else if (type === "product") {
-              // Placeholder for product-specific logic
               const status = await updatePaymentStatus(
                 successSession.metadata?.wishlistId as string,
                 successSession.metadata?.itemId as string,
@@ -120,14 +131,18 @@ export async function POST(req: NextRequest) {
               );
 
               // Send email notification to admin
-              await sendEmail({
-                paymentIntentId: payment_intent,
-                date: new Date(),
-                amount: (price ?? 0) / 100,
-                productName: successSession.metadata?.name as string,
-                projectManager: userId,
-              });
-              console.log("Email sent to admin");
+              try {
+                await sendEmail({
+                  paymentIntentId: payment_intent,
+                  date: new Date(),
+                  amount: (price ?? 0) / 100,
+                  productName: successSession.metadata?.name as string,
+                  projectManager: userId,
+                });
+                console.log("Email sent to admin");
+              } catch (emailError) {
+                console.error("Failed to send email:", emailError);
+              }
 
               console.log("Product payment status:", status);
               return NextResponse.json({
@@ -145,8 +160,9 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
-      // ... rest of the existing webhook handlers remain the same
+      // ... other event handlers
     }
+
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("Webhook handler error:", error);
@@ -156,3 +172,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
