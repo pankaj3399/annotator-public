@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { BenchmarkProposal } from '@/models/BenchmarkProposal';
 import { connectToDatabase } from '@/lib/db';
 import { authOptions } from '@/auth';
-import Task from '@/annotator-public/models/Task';
+import Task from '@/models/Task';
 
 interface SessionUser {
     id: string;
