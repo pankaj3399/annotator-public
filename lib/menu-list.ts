@@ -116,6 +116,7 @@ export function getMenuList(pathname: string): Group[] {
             active: pathname.includes("/tasks/review"),
             icon: SquarePen,
           },
+    
         ],
       },
       {
@@ -288,6 +289,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "Job Applicants",
           active: pathname.includes("/job-applications"),
           icon: Dock,
+        },
+        {
+          href: `/projects/benchmark-proposals/${projectId}`,
+          label: "Benchmark Proposals",
+          active: pathname.includes("/benchmark-proposals"),
+          icon: List,
         },
       ],
     },
