@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { approveWishlistItem } from "@/app/actions/product";
 import { toast } from "sonner";
@@ -18,32 +18,46 @@ export default function ApproveButton({
   item,
 }: ApproveButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [paymentHandled, setPaymentHandled] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const paymentStatus = searchParams.get("payment");
-  if (paymentStatus === "cancelled") {
-    toast.error("Payment was cancelled. Please try again.");
-  } else if (paymentStatus === "success") {
-    toast.success("Payment was successful.");
-  }
+  useEffect(() => {
+    // Check if payment is already handled in sessionStorage
+    const status = searchParams.get("payment");
+    const isPaymentProcessed = sessionStorage.getItem("paymentProcessed");
 
-  console.log("approveButton", item);
+    if (isPaymentProcessed === "true") {
+      return; // Don't process payment if it's already handled
+    }
 
-  // const handleApprove = async () => {
-  //   try {
-  //     setIsLoading(true);
-  //     await approveWishlistItem(wishlistId, itemId);
-  //     // Optionally refresh the page or update the UI
-  //     toast.success("Wishlist item approved successfully");
-  //     // window.location.reload();
-  //   } catch (error) {
-  //     console.error("Error approving wishlist item:", error);
-  //     // You might want to show an error toast here
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
+    if (status === "cancelled" && !paymentHandled) {
+      toast.error("Payment was cancelled. Please try again.");
+      setPaymentHandled(true);
+      sessionStorage.setItem("paymentProcessed", "true"); // Mark payment as processed
+    } else if (status === "success" && !paymentHandled) {
+      toast.success("Payment was successful.");
+      handleApprove(); // Handle approval after successful payment
+      setPaymentStatus(status);
+      setPaymentHandled(true);
+      sessionStorage.setItem("paymentProcessed", "true"); // Mark payment as processed
+    }
+  }, [searchParams, paymentHandled]);
+
+  const handleApprove = async () => {
+    try {
+      const itemId = item._id;
+      setIsLoading(true);
+      await approveWishlistItem(wishlistId, itemId);
+      toast.success("Wishlist item approved successfully");
+    } catch (error) {
+      console.error("Error approving wishlist item:", error);
+      toast.error("Error approving wishlist item. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePayment = async () => {
     try {
@@ -55,18 +69,18 @@ export default function ApproveButton({
         price: parseFloat(item.catalog_details.price),
         type: "product",
       };
-      console.log(stripeData);
-      //@ts-ignore
-      const { url, session } = await stripe(stripeData);
+      const { url } = await stripe(stripeData);
       if (url) {
-        router.push(url);
+        router.push(url);  // Redirect to Stripe checkout URL
       }
     } catch (error) {
       setIsLoading(false);
       console.error("Payment error:", error);
+      toast.error("Error processing payment. Please try again.");
     }
   };
 
+  console.log(item);
   if (item.payment_data?.stripe_payment_intent) {
     return (
       <Badge
@@ -77,6 +91,7 @@ export default function ApproveButton({
       </Badge>
     );
   }
+
   return (
     <Button size="sm" onClick={handlePayment} disabled={isLoading}>
       {isLoading ? "Redirecting..." : "Pay now"}

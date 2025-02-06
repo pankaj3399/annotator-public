@@ -1,5 +1,7 @@
 "use server";
 import { authOptions } from "@/auth";
+import { connectToDatabase } from "@/lib/db";
+import { Wishlist } from "@/models/Wishlist";
 import { getServerSession } from "next-auth";
 import Stripe from "stripe";
 
@@ -81,4 +83,23 @@ export async function stripe(data: any) {
     sessionId: session.id,
     success: true,
   };
+}
+
+
+
+export async function getWishlists() {
+  try {
+    await connectToDatabase();
+
+    // Populate expert field and return the data
+    const wishlists = await Wishlist.find().populate({
+      path: "expert",
+      select: "name email", // Only select needed fields
+    });
+
+    return JSON.parse(JSON.stringify(wishlists)); // Return the populated wishlists directly
+  } catch (e) {
+    console.error(e);
+    throw new Error("Failed to fetch wishlists"); // Throw error for better error handling
+  }
 }

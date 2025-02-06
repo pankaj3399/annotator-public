@@ -1,9 +1,7 @@
-import { Suspense } from "react";
+'use client'
+import { useState, useEffect } from "react";
 import { getServerSession } from "next-auth/next";
 import { redirect } from "next/navigation";
-import { approveWishlistItem } from "@/app/actions/product";
-import { Wishlist } from "@/models/Wishlist";
-import { connectToDatabase } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -14,31 +12,48 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { authOptions } from "@/auth";
 import ApproveButton from "@/components/ApproveButton";
+import { getWishlists } from "@/app/actions/stripe";
 
-export default async function PMWishlistsPage() {
-  const session = await getServerSession(authOptions);
-  
-  if (!session || session.user.role !== "project manager") {
-    redirect("/");
+export default function PMWishlistsPage() {
+  const [wishlists, setWishlists] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Handle session check here
+  useEffect(() => {
+    const fetchWishlists = async () => {
+      try {
+        // Fetch wishlists data
+        const response = await getWishlists();
+        setWishlists(response); // Set fetched wishlists
+      } catch (error) {
+        setError("Failed to fetch wishlists.");
+      } finally {
+        setIsLoading(false); // Set loading to false after data is fetched
+      }
+    };
+
+    fetchWishlists();
+  }, []); // Empty dependency array ensures this runs only once on component mount
+
+  // If the data is loading, show a loading indicator
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
 
-  await connectToDatabase();
-
-  // Only populate the expert (user) field since catalog_details and request_details are embedded
-  const wishlists = await Wishlist.find().populate({
-    path: "expert",
-    select: "name email", // Only select needed fields
-  });
+  // If there's an error fetching the data, show the error message
+  if (error) {
+    return <div>{error}</div>;
+  }
 
   // Flatten the wishlist items with proper typing
-  const flattenedItems = wishlists.flatMap((wishlist) =>
+  const flattenedItems = wishlists.flatMap((wishlist: any) =>
     wishlist.items.map((item: any) => ({
-      ...item.toObject(),
-      expertName: wishlist.expert.name,
-      expertEmail: wishlist.expert.email,
-      wishlistId: wishlist._id,
+      ...item, // This includes the item details
+      expertName: wishlist.expert.name, // Adding expert name
+      expertEmail: wishlist.expert.email, // Adding expert email
+      wishlistId: wishlist._id, // Adding the wishlist ID
     }))
   );
 

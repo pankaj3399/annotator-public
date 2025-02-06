@@ -245,24 +245,23 @@ export async function updatePaymentStatus(
 
 export async function getPaidWishlistProducts(): Promise<any> {
   try {
+    // Ensure the database is connected before running the query
     await connectToDatabase();
 
-    const paidProduct = await Wishlist.findById("678c077ab48ef8621f709214");
-
-    console.log(paidProduct.items);
-
+    // Aggregation pipeline to get the paid wishlist products
     const paidProducts = await Wishlist.aggregate([
-      { $match: {} },
-      { $unwind: "$items" },
-      {
+      { 
+        $unwind: "$items" // Unwind the "items" array to process individual item documents
+      },
+      { 
         $match: {
-          "items.payment_data.payment_status": "succeeded",
-          "items.is_external_request": false,
-        },
+          "items.payment_data.payment_status": "succeeded",  // Only include items with a successful payment
+          "items.is_external_request": false, // Only include non-external request items
+        }
       },
       {
         $lookup: {
-          from: "users",
+          from: "users",  // Lookup user details for the expert
           localField: "expert",
           foreignField: "_id",
           as: "user_details",
@@ -270,7 +269,7 @@ export async function getPaidWishlistProducts(): Promise<any> {
       },
       {
         $lookup: {
-          from: "users",
+          from: "users", // Lookup who paid for the item
           localField: "items.payment_data.paid_by",
           foreignField: "_id",
           as: "paid_by_details",
@@ -279,17 +278,17 @@ export async function getPaidWishlistProducts(): Promise<any> {
       {
         $unwind: {
           path: "$user_details",
-          preserveNullAndEmptyArrays: true,
+          preserveNullAndEmptyArrays: true, // Allow user_details to be empty if no match found
         },
       },
       {
         $unwind: {
           path: "$paid_by_details",
-          preserveNullAndEmptyArrays: true,
+          preserveNullAndEmptyArrays: true, // Allow paid_by_details to be empty if no match found
         },
       },
       {
-        $project: {
+        $project: { // Select the necessary fields for the response
           product_id: "$items.catalog_details.product_id",
           stripe_payment_intent: "$items.payment_data.stripe_payment_intent",
           name: "$items.catalog_details.name",
@@ -314,9 +313,9 @@ export async function getPaidWishlistProducts(): Promise<any> {
       },
     ]);
 
-    return paidProducts;
+    return paidProducts; // Return the list of paid products
   } catch (error) {
     console.error("Error fetching paid wishlist products:", error);
-    throw new Error("Failed to retrieve paid products");
+    throw new Error("Failed to retrieve paid products"); // Handle any errors during the database query
   }
 }
