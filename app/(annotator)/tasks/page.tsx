@@ -1,5 +1,5 @@
 'use client';
-
+import React from 'react';
 import { applyForJob } from '@/app/actions/job';
 import {
   assignUserToTask,
@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { getTemplateLabel } from '@/app/actions/template';
+import { BenchmarkProposalForm } from '@/components/BenchmarkProposal';
 
 export interface Project {
   _id: string;
@@ -75,15 +76,25 @@ interface CustomLabel {
   color?: string;
 }
 
-type LabelType = 'LLM BENCHMARK' | 'MULTIMODALITY' | 'TRANSLATION' | 'ACCENTS' | 'ENGLISH' | string;
+type LabelType =
+  | 'LLM BENCHMARK'
+  | 'MULTIMODALITY'
+  | 'TRANSLATION'
+  | 'ACCENTS'
+  | 'ENGLISH'
+  | string;
 
 export default function ProjectDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [assignedTestProjects, setAssignedTestProjects] = useState<Set<string>>(new Set());
+  const [assignedTestProjects, setAssignedTestProjects] = useState<Set<string>>(
+    new Set()
+  );
   const [selectedLabels, setSelectedLabels] = useState<LabelType[]>([]);
-  const [projectsWithTests, setProjectsWithTests] = useState<Set<string>>(new Set());
+  const [projectsWithTests, setProjectsWithTests] = useState<Set<string>>(
+    new Set()
+  );
   const [customLabels, setCustomLabels] = useState<CustomLabel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -92,21 +103,20 @@ export default function ProjectDashboard() {
 
   const labelStyles: Record<string, string> = {
     'LLM BENCHMARK': 'bg-yellow-200 text-yellow-800',
-    'MULTIMODALITY': 'bg-orange-200 text-orange-800',
-    'TRANSLATION': 'bg-cyan-200 text-cyan-800',
-    'ACCENTS': 'bg-pink-200 text-pink-800',
-    'ENGLISH': 'bg-gray-200 text-gray-800',
+    MULTIMODALITY: 'bg-orange-200 text-orange-800',
+    TRANSLATION: 'bg-cyan-200 text-cyan-800',
+    ACCENTS: 'bg-pink-200 text-pink-800',
+    ENGLISH: 'bg-gray-200 text-gray-800',
   };
 
   const getLabelStyle = (label: string) => {
     if (labelStyles[label]) {
-      return labelStyles[label];  // For predefined labels, use the predefined color styles
+      return labelStyles[label]; // For predefined labels, use the predefined color styles
     }
-  
+
     // For custom labels, set default background and text colors
     return 'bg-gray-200 text-gray-800';
   };
-  
 
   useEffect(() => {
     const jobId = localStorage.getItem('pendingJobApplication');
@@ -127,81 +137,104 @@ export default function ProjectDashboard() {
       handlePendingJobApplication();
     }
   }, []);
+
   useEffect(() => {
-    const fetchData = async () => {
+    const loadProjects = async () => {
       try {
-        setIsLoading(true);
-  
-        // Fetch projects
-        const [assignedProjects, projectsWithRepeatTasks, fetchedLabels] = await Promise.all([
-          getDistinctProjectsByAnnotator(),
-          getProjectsWithRepeatTasks(),
-          getLabels(),
-        ]);
-  
-        const assignedProjectsList = assignedProjects;
-        const projectsWithTestsList =projectsWithRepeatTasks;
-        const parsedLabels =fetchedLabels || [];
-  
-        setCustomLabels(parsedLabels);
-  
-        const testProjectIds = new Set<string>(
-          projectsWithTestsList.map((p: Project) => p._id)
-        );
-        setProjectsWithTests(testProjectIds);
-  
+        const assignedProjects = await getDistinctProjectsByAnnotator();
+
+        const projectsWithRepeatTasks = await getProjectsWithRepeatTasks();
+
+        const assignedProjectsList = JSON.parse(assignedProjects);
+        const projectsWithTestsList = JSON.parse(projectsWithRepeatTasks);
+
         const allProjects = [...assignedProjectsList];
         projectsWithTestsList.forEach((project: Project) => {
           if (!allProjects.some((p) => p._id === project._id)) {
             allProjects.push(project);
           }
         });
-  
+
         const projectsWithLabels = await Promise.all(
           allProjects.map(async (project) => {
-            const labels = await Promise.all(
-              project.templates.map((templateId: string) => getTemplateLabel(templateId))
+            const templateResponses = await Promise.all(
+              project.templates.map(async (templateId: string) => {
+                const labels = await getTemplateLabel(templateId);
+
+                try {
+                  return JSON.parse(labels);
+                } catch {
+                  return labels;
+                }
+              })
             );
-  
+
+            // Flatten and ensure we have simple strings
+            const labels = templateResponses
+              .flat()
+              .map((label) => {
+                if (typeof label === 'string') {
+                  try {
+                    const parsed = JSON.parse(label);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                  } catch {
+                    return label;
+                  }
+                }
+                return label;
+              })
+              .flat();
+
             return {
               ...project,
-              labels,
+              labels: labels,
             };
           })
         );
-  
+
         setProjects(projectsWithLabels);
         setFilteredProjects(projectsWithLabels);
       } catch (error) {
-        console.error('Error loading data:', error);
-        toast.error('Failed to load data');
+        toast.error('Failed to load projects');
       } finally {
         setIsLoading(false);
       }
     };
-  
-    fetchData();
+
+    loadProjects();
   }, []);
-  
+
   useEffect(() => {
     const fetchAssignedTests = async () => {
       try {
-        if (session?.user?.id) {
-          const testTasksResponse = await getTasksOfAnnotator('test');
-          const testTasks = JSON.parse(testTasksResponse) as TestTaskResponse[];
-          const assignedProjects = new Set<string>(
-            testTasks.map((task) => task.project)
-          );
-          setAssignedTestProjects(assignedProjects);
-        }
+        const testTasksResponse = await getTasksOfAnnotator('test');
+        const testTasks = JSON.parse(testTasksResponse) as TestTaskResponse[];
+        const assignedProjects = new Set<string>(
+          testTasks.map((task) => task.project)
+        );
+        setAssignedTestProjects(assignedProjects);
+      } catch (error) {}
+    };
+
+    if (session?.user?.id) {
+      fetchAssignedTests();
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const fetchCustomLabels = async () => {
+      try {
+        const fetchedLabels = await getLabels();
+        const parsedLabels = JSON.parse(fetchedLabels);
+        setCustomLabels(parsedLabels || []);
       } catch (error) {
-        console.error('Error fetching assigned tests:', error);
+        toast.error('Failed to load custom labels');
       }
     };
-  
-    fetchAssignedTests();
-  }, [session?.user?.id]);
-  
+
+    fetchCustomLabels();
+  }, []);
+
   const handleLabelClick = (label: LabelType) => {
     const newSelectedLabels = selectedLabels.includes(label)
       ? selectedLabels.filter((l) => l !== label)
@@ -219,7 +252,7 @@ export default function ProjectDashboard() {
 
     if (newSelectedLabels.length > 0) {
       filtered = filtered.filter((project) => {
-        const projectLabels = project.labels.flatMap(labelString => {
+        const projectLabels = project.labels.flatMap((labelString) => {
           try {
             return JSON.parse(labelString);
           } catch (e) {
@@ -227,9 +260,9 @@ export default function ProjectDashboard() {
           }
         });
 
-        return newSelectedLabels.every(label =>
-          projectLabels.includes(label) ||
-          project.labels.includes(label)
+        return newSelectedLabels.every(
+          (label) =>
+            projectLabels.includes(label) || project.labels.includes(label)
         );
       });
     }
@@ -244,17 +277,21 @@ export default function ProjectDashboard() {
         return;
       }
 
-      const response = await handleTakeTest(projectId, session.user.id) as TakeTestResponse;
+      const response = (await handleTakeTest(
+        projectId,
+        session.user.id
+      )) as TakeTestResponse;
 
       if (response.success) {
         toast.success('Test tasks assigned successfully');
-        setAssignedTestProjects(prev => new Set<string>([...prev, projectId]));
+        setAssignedTestProjects(
+          (prev) => new Set<string>([...prev, projectId])
+        );
         router.push(`/tasks/${projectId}`);
       } else {
         toast.error(response.message || 'Failed to assign test tasks');
       }
     } catch (error) {
-      console.error('Error taking test:', error);
       toast.error('Failed to assign test tasks');
     }
   };
@@ -269,7 +306,7 @@ export default function ProjectDashboard() {
 
     if (selectedLabels.length > 0) {
       filtered = filtered.filter((project) => {
-        const projectLabels = project.labels.flatMap(labelString => {
+        const projectLabels = project.labels.flatMap((labelString) => {
           try {
             return JSON.parse(labelString);
           } catch (e) {
@@ -277,9 +314,9 @@ export default function ProjectDashboard() {
           }
         });
 
-        return selectedLabels.every(label =>
-          projectLabels.includes(label) ||
-          project.labels.includes(label)
+        return selectedLabels.every(
+          (label) =>
+            projectLabels.includes(label) || project.labels.includes(label)
         );
       });
     }
@@ -297,7 +334,7 @@ export default function ProjectDashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className='flex items-center justify-center min-h-screen'>
         <Loader />
       </div>
     );
@@ -325,27 +362,30 @@ export default function ProjectDashboard() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-3 mb-6">
-  {[...Object.keys(labelStyles), ...customLabels.map(label => label.name)].map((label) => (
-    <button
-      key={label}
-      onClick={() => handleLabelClick(label)}
-      className={`
+          <div className='flex flex-wrap gap-3 mb-6'>
+            {[
+              ...Object.keys(labelStyles),
+              ...customLabels.map((label) => label.name),
+            ].map((label) => (
+              <button
+                key={label}
+                onClick={() => handleLabelClick(label)}
+                className={`
         px-4 py-2 rounded-md transition-all duration-200
         ${getLabelStyle(label)}
-        ${selectedLabels.includes(label)
-          ? 'ring-2 ring-offset-2 ring-opacity-60 ring-current shadow-md scale-105'
-          : 'hover:scale-105 active:scale-95'
+        ${
+          selectedLabels.includes(label)
+            ? 'ring-2 ring-offset-2 ring-opacity-60 ring-current shadow-md scale-105'
+            : 'hover:scale-105 active:scale-95'
         }
         font-medium text-sm
         transform hover:shadow-md
       `}
-    >
-      {label}
-    </button>
-  ))}
-</div>
-
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </form>
 
         {filteredProjects.length === 0 ? (
@@ -364,7 +404,7 @@ export default function ProjectDashboard() {
                 <TableRow>
                   <TableHead>Project Name</TableHead>
                   <TableHead>Actions</TableHead>
-                  <TableHead className="text-right">Created Date</TableHead>
+                  <TableHead className='text-right'>Created Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -372,32 +412,84 @@ export default function ProjectDashboard() {
                   <TableRow
                     key={project._id}
                     onClick={() => handleProjectClick(project._id)}
-                    className="cursor-pointer hover:bg-gray-50"
+                    className='cursor-pointer hover:bg-gray-50'
                   >
-                    <TableCell className="font-medium">{project.name}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className='font-medium'>
+                      {project.name}
+                    </TableCell>
+                    <TableCell
+                      onClick={(e) => {
+                        e.stopPropagation(); // Stop event from bubbling up to TableRow
+                      }}
+                      className='flex items-center gap-2 min-w-[200px]'
+                    >
                       {(() => {
                         const projectId = project._id.trim();
                         const hasTests = projectsWithTests.has(projectId);
                         const isAssigned = assignedTestProjects.has(projectId);
 
-                        return hasTests && !isAssigned ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTakeTestClick(projectId);
-                            }}
-                          >
-                            <ClipboardList className="mr-2 h-4 w-4" />
-                            Take Test
-                          </Button>
-                        ) : null;
+                        // Check if any template has LLM BENCHMARK label
+                        const hasLLMBenchmark = project.labels.some((label) => {
+                          try {
+                            // First parse the string into an array
+                            const parsedArray = JSON.parse(label);
+
+                            // If it's an array, check each element
+                            if (Array.isArray(parsedArray)) {
+                              return parsedArray.some(
+                                (item) => item === 'LLM BENCHMARK'
+                              );
+                            }
+
+                            // If it's not an array, check the value directly
+                            return parsedArray === 'LLM BENCHMARK';
+                          } catch (e) {
+                            return label === 'LLM BENCHMARK';
+                          }
+                        });
+
+                        return (
+                          <>
+                            {hasTests && !isAssigned && (
+                              <Button
+                                variant='outline'
+                                size='sm'
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleTakeTestClick(projectId);
+                                }}
+                              >
+                                <ClipboardList className='mr-2 h-4 w-4' />
+                                Take Test
+                              </Button>
+                            )}
+
+                            {hasLLMBenchmark && (
+                              <BenchmarkProposalForm
+                                tasks={[
+                                  {
+                                    _id: project._id,
+                                    name: project.name,
+                                    project: project._id,
+                                    content: '',
+                                    created_at: project.created_at,
+                                    status: '',
+                                    submitted: false,
+                                    feedback: '',
+                                    template: {
+                                      _id: project.templates[0],
+                                      labels: project.labels,
+                                    },
+                                  },
+                                ]}
+                              />
+                            )}
+                          </>
+                        );
                       })()}
                     </TableCell>
-                    <TableCell className="text-right text-sm text-gray-500">
-                      <CalendarIcon className="inline-block mr-2 h-4 w-4" />
+                    <TableCell className='text-right text-sm text-gray-500'>
+                      <CalendarIcon className='inline-block mr-2 h-4 w-4' />
                       {format(parseISO(project?.created_at), 'PPP')}
                     </TableCell>
                   </TableRow>

@@ -18,6 +18,7 @@ interface IBenchmarkProposal extends Document {
     intendedPurpose: string;
     status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected';
     reviewNotes?: string;
+    reviewedBy?: Schema.Types.ObjectId;  // Added reviewer field
     created_at: Date;
     updated_at: Date;
     submitted_at?: Date;
@@ -97,6 +98,10 @@ const benchmarkProposalSchema = new Schema<IBenchmarkProposal>({
         type: String,
         default: ''
     },
+    reviewedBy: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+    },
     created_at: {
         type: Date,
         default: Date.now
@@ -113,6 +118,9 @@ benchmarkProposalSchema.pre('save', function (this: IBenchmarkProposal, next) {
     this.updated_at = new Date();
     if (this.status === 'submitted' && !this.submitted_at) {
         this.submitted_at = new Date();
+    }
+    if ((this.status === 'approved' || this.status === 'rejected') && !this.reviewed_at) {
+        this.reviewed_at = new Date();
     }
     next();
 });

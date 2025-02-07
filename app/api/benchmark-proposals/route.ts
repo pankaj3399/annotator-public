@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { BenchmarkProposal } from '@/models/BenchmarkProposal';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
 import { connectToDatabase } from '@/lib/db';
 import { authOptions } from '@/auth';
-import { mkdir } from 'fs/promises';
+import Task from '@/models/Task';
+import { mkdir, writeFile } from 'fs/promises';
+import { join } from 'path';
 
-// Define types for the proposal data
+type UserRole = 'project manager' | 'system admin' | 'reviewer' | 'user';
+
+interface SessionUser {
+    id: string;
+    name: string;
+    email: string;
+    role: UserRole;
+}
+
 interface ProposalData {
     name: string;
     description: string;
@@ -30,7 +38,9 @@ export async function POST(req: Request) {
     try {
         // Check authentication
         const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const user = session?.user as SessionUser | undefined;
+
+        if (!user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -46,7 +56,7 @@ export async function POST(req: Request) {
             evaluationMethodology: formData.get('evaluationMethodology') as string,
             intendedPurpose: formData.get('intendedPurpose') as string,
             project: formData.get('project') as string,
-            user: session.user.id
+            user: user.id
         };
 
         // Add optional fields if they exist
@@ -132,53 +142,162 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
     try {
-        // Check authentication
         const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const user = session?.user as SessionUser | undefined;
+
+        if (!user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         await connectToDatabase();
 
-        // Get project ID from query params
-        const { searchParams } = new URL(req.url);
-        const projectId = searchParams.get('projectId');
+        // Get all unique projects where the user is a reviewer
+        const reviewerProjects = await Task.distinct('project', {
+            reviewer: user.id
+        });
 
-        // Build query based on projectId
-        const query = projectId
-            ? { project: projectId }
-            : { user: session.user.id };
+        // Base query for finding proposals
+        const query = {
+            $or: [
+                // User is project manager or admin
+                {
+                    $expr: {
+                        $in: [user.role, ['project manager', 'system admin']]
+                    }
+                },
+                // User is a reviewer for the project
+                {
+                    project: { $in: reviewerProjects }
+                }
+            ]
+        };
 
-        // Fetch proposals with populated project data
         const proposals = await BenchmarkProposal.find(query)
-            .populate('project', 'name')
-            .populate('user', 'name email')
+            .populate({
+                path: 'user',
+                select: 'name email'
+            })
+            .populate({
+                path: 'project',
+                select: 'name'
+            })
+            .populate({
+                path: 'reviewedBy',
+                select: 'name email'
+            })
             .sort({ created_at: -1 })
             .lean();
 
         return NextResponse.json({
             success: true,
-            proposals
+            proposals,
+            debug: {
+                reviewerProjects,
+                userRole: user.role,
+                sessionUserId: user.id
+            }
         });
 
     } catch (error) {
-        console.error('Error fetching benchmark proposals:', error);
+        console.error('Error in GET route:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch benchmark proposals' },
+            {
+                error: 'Failed to fetch benchmark proposals',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            },
             { status: 500 }
         );
     }
 }
 
-// Add a type guard for error handling
-function isError(error: unknown): error is Error {
-    return error instanceof Error;
+async function canReview(projectId: string, userId: string): Promise<boolean> {
+    try {
+        const session = await getServerSession(authOptions);
+        const user = session?.user as SessionUser | undefined;
+
+        if (!user) {
+            return false;
+        }
+
+        // If user is admin or project manager, they can always review
+        if (user.role === 'project manager' || user.role === 'system admin') {
+            return true;
+        }
+
+        // Check if user is a reviewer for any task in this project
+        const isReviewer = await Task.exists({
+            project: projectId,
+            reviewer: userId
+        });
+
+        return !!isReviewer;
+    } catch (error) {
+        console.error('Error checking review permissions:', error);
+        return false;
+    }
 }
 
-// Helper function to get error message
-function getErrorMessage(error: unknown): string {
-    if (isError(error)) {
-        return error.message;
+export async function PUT(req: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        const user = session?.user as SessionUser | undefined;
+
+        if (!user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const data = await req.json();
+        const { proposalId, status, reviewNotes } = data;
+
+        // Get the proposal to check project
+        const proposal = await BenchmarkProposal.findById(proposalId);
+        if (!proposal) {
+            return NextResponse.json({ error: 'Proposal not found' }, { status: 404 });
+        }
+
+        // Check if user can review this proposal
+        const canReviewProposal = await canReview(proposal.project.toString(), user.id);
+        if (!canReviewProposal) {
+            return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
+        }
+
+        const updatedProposal = await BenchmarkProposal.findByIdAndUpdate(
+            proposalId,
+            {
+                status,
+                reviewNotes,
+                reviewedBy: user.id,
+                reviewed_at: new Date()
+            },
+            { new: true }
+        ).populate([
+            {
+                path: 'user',
+                select: 'name email'
+            },
+            {
+                path: 'project',
+                select: 'name'
+            },
+            {
+                path: 'reviewedBy',
+                select: 'name email'
+            }
+        ]);
+
+        return NextResponse.json({
+            success: true,
+            proposal: updatedProposal
+        });
+
+    } catch (error) {
+        console.error('Error in PUT route:', error);
+        return NextResponse.json(
+            {
+                error: 'Failed to update benchmark proposal',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            },
+            { status: 500 }
+        );
     }
-    return String(error);
 }
