@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         // Check authentication
         const session = await getServerSession(authOptions);
         const user = session?.user as SessionUser | undefined;
-        
+
         if (!user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -144,7 +144,7 @@ export async function GET(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         const user = session?.user as SessionUser | undefined;
-        
+
         if (!user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -214,7 +214,7 @@ async function canReview(projectId: string, userId: string): Promise<boolean> {
     try {
         const session = await getServerSession(authOptions);
         const user = session?.user as SessionUser | undefined;
-        
+
         if (!user) {
             return false;
         }
@@ -241,7 +241,7 @@ export async function PUT(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         const user = session?.user as SessionUser | undefined;
-        
+
         if (!user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

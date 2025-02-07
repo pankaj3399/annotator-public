@@ -189,7 +189,7 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
   const onSubmit = async (data: BenchmarkFormData) => {
     try {
       setIsSubmitting(true);
-  
+
       const llmBenchmarkTask = tasks.find((task) =>
         task.template?.labels?.some((label) => {
           try {
@@ -201,44 +201,47 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
           }
         })
       );
-  
+
       if (!llmBenchmarkTask) {
         toast.error('No LLM BENCHMARK task found');
         return;
       }
-  
+
       // Create FormData object
       const formData = new FormData();
       formData.append('name', data.name || '');
       formData.append('description', data.description || '');
       formData.append('domain', data.domain || '');
       formData.append('project', llmBenchmarkTask.project);
-      formData.append('evaluationMethodology', data.evaluationMethodology || '');
+      formData.append(
+        'evaluationMethodology',
+        data.evaluationMethodology || ''
+      );
       formData.append('intendedPurpose', data.intendedPurpose || '');
-  
+
       if (data.customDomain) {
         formData.append('customDomain', data.customDomain);
       }
-  
+
       if (data.datasetUrl) {
         formData.append('datasetUrl', data.datasetUrl);
       }
-  
+
       // Append file if selected
       if (selectedFile) {
         formData.append('datasetFile', selectedFile);
       }
-  
+
       const response = await fetch('/api/benchmark-proposals', {
         method: 'POST',
-        body: formData  // Send as FormData
+        body: formData, // Send as FormData
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to submit proposal');
       }
-  
+
       toast.success('Benchmark proposal submitted successfully');
       form.reset();
       setSelectedFile(null);
