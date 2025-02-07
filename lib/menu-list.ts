@@ -17,7 +17,6 @@ import {
   List,
   Dock,
 } from "lucide-react";
-import bookIcon from "@/public/static/book.png";
 import { BookIcon } from "@/components/BookIcon";
 
 type Submenu = {
@@ -288,6 +287,11 @@ export function getMenuList(pathname: string): Group[] {
           label: "Job Applicants",
           active: pathname.includes("/job-applications"),
           icon: Dock,
+        }, {
+          href: `/projects/benchmark-proposals/${projectId}`,
+          label: "Benchmark Proposals",
+          active: pathname.includes("/benchmark-proposals"),
+          icon: List,
         },
       ],
     },

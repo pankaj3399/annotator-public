@@ -66,7 +66,6 @@ interface BenchmarkFormData {
   intendedPurpose?: string;
 }
 
-// Validation Schema - All fields optional for testing
 const benchmarkFormSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
@@ -93,6 +92,7 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const hasLLMBenchmarkLabel = tasks.some((task) =>
     task.template?.labels?.some((label) => {
@@ -118,7 +118,6 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
       intendedPurpose: '',
     },
   });
-
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -130,10 +129,67 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
     }
   };
 
+  const uploadFile = async (file: File): Promise<string> => {
+    try {
+      // Get upload URL using the new file route
+      const urlResponse = await fetch('/api/s3/file', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+        }),
+      });
+
+      if (!urlResponse.ok) {
+        const errorData = await urlResponse.json();
+        throw new Error(errorData.message || 'Failed to get upload URL');
+      }
+
+      const { url: uploadUrl, s3Path } = await urlResponse.json();
+
+      // Upload the file with progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed: ${xhr.statusText}`));
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+
+        xhr.open('PUT', uploadUrl);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.send(file);
+      });
+
+      // Return the full S3 URL for the file
+      return `${process.env.NEXT_PUBLIC_S3_BASE_URL}/${s3Path}`;
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  };
+
   const onSubmit = async (data: BenchmarkFormData) => {
     try {
       setIsSubmitting(true);
-
+  
       const llmBenchmarkTask = tasks.find((task) =>
         task.template?.labels?.some((label) => {
           try {
@@ -145,45 +201,54 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
           }
         })
       );
-
+  
       if (!llmBenchmarkTask) {
         toast.error('No LLM BENCHMARK task found');
         return;
       }
-
+  
+      // Create FormData object
       const formData = new FormData();
-
-      // Append all non-empty fields
-      Object.entries(data).forEach(([key, value]) => {
-        if (value) formData.append(key, value);
-      });
-
-      // Add project ID if available
-      if (llmBenchmarkTask.project) {
-        formData.append('project', llmBenchmarkTask.project);
+      formData.append('name', data.name || '');
+      formData.append('description', data.description || '');
+      formData.append('domain', data.domain || '');
+      formData.append('project', llmBenchmarkTask.project);
+      formData.append('evaluationMethodology', data.evaluationMethodology || '');
+      formData.append('intendedPurpose', data.intendedPurpose || '');
+  
+      if (data.customDomain) {
+        formData.append('customDomain', data.customDomain);
       }
-
-      // Handle file upload if selected
+  
+      if (data.datasetUrl) {
+        formData.append('datasetUrl', data.datasetUrl);
+      }
+  
+      // Append file if selected
       if (selectedFile) {
         formData.append('datasetFile', selectedFile);
       }
-
+  
       const response = await fetch('/api/benchmark-proposals', {
         method: 'POST',
-        body: formData,
+        body: formData  // Send as FormData
       });
-
+  
       if (!response.ok) {
-        throw new Error('Failed to submit proposal');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit proposal');
       }
-
+  
       toast.success('Benchmark proposal submitted successfully');
       form.reset();
       setSelectedFile(null);
+      setUploadProgress(0);
       setIsOpen(false);
     } catch (error) {
-      console.error('Error submitting proposal:', error);
-      toast.error('Failed to submit proposal');
+      console.error('Submission error:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to submit proposal'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -212,6 +277,7 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
         <div className='max-h-[70vh] overflow-y-auto pr-4'>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className='space-y-6'>
+              {/* Existing form fields remain the same */}
               <FormField
                 control={form.control}
                 name='name'
@@ -296,6 +362,14 @@ export const BenchmarkProposalForm: React.FC<BenchmarkProposalFormProps> = ({
                   onChange={handleFileChange}
                   className='cursor-pointer'
                 />
+                {uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className='w-full bg-gray-200 rounded-full h-2.5'>
+                    <div
+                      className='bg-blue-600 h-2.5 rounded-full'
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                )}
                 <p className='text-sm text-gray-500'>
                   Upload CSV, JSON, or ZIP (max 100MB)
                 </p>
