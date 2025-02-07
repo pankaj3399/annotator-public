@@ -13,7 +13,6 @@ export async function GET() {
             status: 403
         });
     }
-    console.log(session.user)
 
     try {
         await connectToDatabase();

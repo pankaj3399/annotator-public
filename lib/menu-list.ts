@@ -16,6 +16,7 @@ import {
   Heart,
   List,
   Dock,
+  TrendingUp,
 } from "lucide-react";
 import { BookIcon } from "@/components/BookIcon";
 
@@ -100,7 +101,8 @@ export function getMenuList(pathname: string): Group[] {
               pathname.includes("/tasks") &&
               !pathname.includes("/tasks/all") &&
               !pathname.includes("/viewCourses") &&
-              !pathname.includes("/annotatorDashboard"),
+              !pathname.includes("/annotatorDashboard")&&
+              !pathname.includes("/tasks/benchmark-arena"),
             icon: Folder,
           },
           {
@@ -115,6 +117,12 @@ export function getMenuList(pathname: string): Group[] {
             active: pathname.includes("/tasks/review"),
             icon: SquarePen,
           },
+          {
+            href: "/tasks/benchmark-arena",
+            label: "Benchmark Arena",
+            icon: TrendingUp,
+            active: pathname.includes("/tasks/benchmark-arena")
+          }
         ],
       },
       {

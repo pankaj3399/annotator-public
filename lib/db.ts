@@ -1,18 +1,17 @@
 import mongoose from "mongoose";
 
 const uri = process.env.MONGODB_URI;
-
 if (!uri) throw new Error("MONGODB_URI is not defined in environment variables.");
 
 declare global {
-  var _mongoosePromise: Promise<typeof mongoose> | undefined;
+  var _mongoose: typeof mongoose | undefined;
 }
 
 // Connection function
 const connectToDatabase = async () => {
-  if (global._mongoosePromise) return global._mongoosePromise;
+  if (global._mongoose) return global._mongoose; // Return existing connection
 
-  global._mongoosePromise = mongoose
+  global._mongoose = await mongoose
     .connect(uri, {
       minPoolSize: parseInt(process.env.MIN_CONNECTION_MONGO || "5", 10),
       maxPoolSize: parseInt(process.env.MAX_CONNECTION_MONGO || "70", 10),
@@ -28,7 +27,7 @@ const connectToDatabase = async () => {
       throw err;
     });
 
-  return global._mongoosePromise;
+  return global._mongoose;
 };
 
 // Handle connection events
