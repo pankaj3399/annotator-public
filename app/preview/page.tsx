@@ -1,6 +1,6 @@
 'use client'
 import { StatusType } from '@/components/review-dock'
-import Loader from '@/components/ui/Loader/Loader'
+import Loader from '@/components/ui/NewLoader/Loader';
 import { toast } from '@/hooks/use-toast'
 import EditorProvider from '@/providers/editor/editor-provider'
 import { useSession } from 'next-auth/react'

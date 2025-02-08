@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SheetMenu } from "@/components/admin-panel/sheet-menu";
-import Loader from "@/components/ui/Loader/Loader";
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";

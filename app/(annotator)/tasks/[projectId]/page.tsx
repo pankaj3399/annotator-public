@@ -1,7 +1,7 @@
 'use client'
 import { getAssignedTaskByProject, getTasksByProject } from "@/app/actions/task"
 import { SheetMenu } from "@/components/admin-panel/sheet-menu"
-import Loader from '@/components/ui/Loader/Loader'
+import Loader from '@/components/ui/NewLoader/Loader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSession } from 'next-auth/react'
 import { usePathname } from 'next/navigation'

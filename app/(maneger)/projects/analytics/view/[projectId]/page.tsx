@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { useToast } from "@/hooks/use-toast";
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Loader from '@/components/ui/Loader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader';
 import ProjectAnalytics from '@/components/ProjectAnalytics';
 import { Button } from "@/components/ui/button";
 import { FileDown } from "lucide-react";

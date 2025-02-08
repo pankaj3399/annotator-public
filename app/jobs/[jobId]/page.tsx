@@ -4,7 +4,7 @@ import { notFound, useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import { applyForJob, getJobPost } from "@/app/actions/job";
-import Loader from "@/components/ui/Loader/Loader";
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 

@@ -31,7 +31,7 @@ import {
   Search,
   PlusCircle,
 } from 'lucide-react';
-import Loader from '@/components/ui/Loader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader';
 import { SheetMenu } from '@/components/admin-panel/sheet-menu';
 import { Input } from '@/components/ui/input';
 import {

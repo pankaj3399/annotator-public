@@ -17,7 +17,7 @@ import {
   Sparkles,
   GraduationCap,
 } from "lucide-react";
-import Loader from "@/components/ui/Loader/Loader";
+import Loader from '@/components/ui/NewLoader/Loader';
 import { toast } from "sonner";
 
 interface EnrolledCourse {

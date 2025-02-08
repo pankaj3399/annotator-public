@@ -29,7 +29,7 @@ export default function MultiSelect({ selectedMembers, setSelectedMembers }: Mem
       const projectNamesString = await getProjectNameAndId()
       const projectNames = JSON.parse(projectNamesString)
       setProjects(projectNames)
-    }, 1500)
+    }, 2500)
 
     return () => {
       if (debounceTimerRef.current) {
@@ -59,7 +59,7 @@ export default function MultiSelect({ selectedMembers, setSelectedMembers }: Mem
           className="w-full justify-between"
         >
           {selectedMembers.length === 0
-            ? "Select projects..."
+            ? "Filter projects..."
             : `${selectedMembers.length} project${selectedMembers.length > 1 ? 's' : ''} selected`}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

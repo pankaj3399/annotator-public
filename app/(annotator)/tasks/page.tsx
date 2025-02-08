@@ -11,7 +11,7 @@ import { getLabels } from "@/app/actions/label"
 import { SheetMenu } from "@/components/admin-panel/sheet-menu"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import Loader from "@/components/ui/Loader/Loader"
+import Loader from '@/components/ui/NewLoader/Loader';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { format, parseISO } from "date-fns"
 import { CalendarIcon, ClipboardList } from "lucide-react"
