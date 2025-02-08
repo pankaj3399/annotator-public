@@ -155,13 +155,12 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
   return (
     <div className="group relative h-[28rem] w-full overflow-hidden rounded-xl">
       <div className="absolute inset-0 h-full w-full">
-        <Image 
-          src={jobPost.image || `${process.env.NEXT_PUBLIC_S3_BASE_URL}/images/defaultJobThumbnail.jpg`} 
-          alt={jobPost.title} 
-          layout="fill" 
-          objectFit="cover"
-          className="transition-transform duration-300 group-hover:scale-105"
-        />
+      <img 
+  src={jobPost.image || `${process.env.NEXT_PUBLIC_S3_BASE_URL}/images/defaultJobThumbnail.jpg`} 
+  alt={jobPost.title} 
+  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+/>
+
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
       </div>
       
