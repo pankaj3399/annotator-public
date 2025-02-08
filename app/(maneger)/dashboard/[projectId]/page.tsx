@@ -1,7 +1,7 @@
 'use client'
 import { getProjectDashboard } from '@/app/actions/dashboard'
 import { SheetMenu } from '@/components/admin-panel/sheet-menu'
-import Loader from '@/components/ui/Loader/Loader'
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useSession } from 'next-auth/react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'

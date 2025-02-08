@@ -13,7 +13,7 @@ import { SheetMenu } from '@/components/admin-panel/sheet-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Filter, Loader2 } from 'lucide-react';
-import Loader from '@/components/ui/Loader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader';
 import {
   Dialog,
   DialogContent,

@@ -12,7 +12,7 @@ import { TemplateCopier } from '@/components/template-copier';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import Loader from '@/components/ui/Loader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader';
 import {
   Table,
   TableBody,

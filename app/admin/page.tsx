@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { PlusCircle, Save, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Loader from "@/components/ui/Loader/Loader";
+import Loader from '@/components/ui/NewLoader/Loader';
 import AddProductForm from "@/components/AddProduct";
 import Link from "next/link";
 

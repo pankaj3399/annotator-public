@@ -7,7 +7,7 @@ import {
 } from "@/app/actions/annonatorDashboard";
 import { getAnnotatorTasks } from "@/app/actions/annotatorTask";
 import { getAnnotatorEarnings } from "@/app/actions/annotatorTask"; 
-import Loader from "@/components/ui/Loader/Loader";
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

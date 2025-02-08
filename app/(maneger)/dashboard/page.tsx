@@ -10,6 +10,7 @@ import ChartComponent from './[projectId]/_components/chart';
 import DashboardOverviewCardComponent from './[projectId]/_components/dashboard-overview-card';
 import TaskSubmissionChartComponent from './[projectId]/_components/task-submission-chart';
 import MultiSelect from './MultiSelect';
+import {toast} from 'sonner'
 
 interface DashboardData {
   tasksData: {
@@ -91,8 +92,10 @@ export default function ProjectDashboard() {
       const projectNamesString = await getProjectNameAndId();
       const projectNames = JSON.parse(projectNamesString);
       setProjectNames(projectNames);
+      toast.success("Currently showing all project's data")
     } catch (error) {
       console.error("Error fetching project names:", error);
+      toast.error("Failed to fetch data");
       setProjectNames([]);
     } finally {
       setIsLoading(false); // Hide loader once project names are fetched

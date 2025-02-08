@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useSession } from 'next-auth/react';
-import Loader from '@/components/ui/Loader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { FileUpload } from '@/components/FileUpload';

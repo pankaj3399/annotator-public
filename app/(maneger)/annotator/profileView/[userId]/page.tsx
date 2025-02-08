@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { UserIcon, Mail, Phone, MapPin, Globe, Shield, Calendar, Linkedin, FileText, Settings, Briefcase, Languages, ArrowLeft } from 'lucide-react';
 import { format } from "date-fns";
 import { useSession } from "next-auth/react";
-import Loader from "@/components/ui/Loader/Loader";
+import Loader from '@/components/ui/NewLoader/Loader';
 import { useParams, useRouter } from "next/navigation";
 
 interface UserData {
