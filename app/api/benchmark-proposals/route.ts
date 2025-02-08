@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         await connectToDatabase();
 
         const formData = await req.formData();
-
+        console.log(formData)
         // Extract basic form fields
         const proposalData: Partial<ProposalData> = {
             name: formData.get('name') as string,
