@@ -34,7 +34,7 @@ export async function createJobPost(data: {
     console.log(data);
 
     if(data.image == ''){
-      data.image = "https://annotator-public.s3.ap-south-1.amazonaws.com/images/Person+Typing+on+Laptop.jpeg"
+      data.image = "/DefaultJobThumbnail.jpeg"
     }
 
     const labels = await getProjectLabels(data.projectId);
