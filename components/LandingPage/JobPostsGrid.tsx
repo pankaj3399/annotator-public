@@ -156,7 +156,7 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
     <div className="group relative h-[28rem] w-full overflow-hidden rounded-xl">
       <div className="absolute inset-0 h-full w-full">
         <Image 
-          src={jobPost.image || "/DefaultJobThumbnail.jpeg"} 
+          src={jobPost.image || `${process.env.NEXT_PUBLIC_S3_BASE_URL}/images/defaultJobThumbnail.jpg`} 
           alt={jobPost.title} 
           layout="fill" 
           objectFit="cover"

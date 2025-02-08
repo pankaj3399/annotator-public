@@ -34,7 +34,7 @@ export async function createJobPost(data: {
     console.log(data);
 
     if(data.image == ''){
-      data.image = "/DefaultJobThumbnail.jpeg"
+      data.image = `https://${process.env.AWS_BUCKET_NAME}.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
 
     const labels = await getProjectLabels(data.projectId);
