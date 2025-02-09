@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef } from "react"
 import { Map, Marker } from "pigeon-maps"
 import { ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 
@@ -22,6 +22,7 @@ interface MarkerData {
 interface MapComponentProps {
   markers: MarkerData[]
   posts: JobPost[]
+  center: [number, number]
 }
 
 interface MarkerClickEvent {
@@ -30,33 +31,11 @@ interface MarkerClickEvent {
   payload: any
 }
 
-const MapComponent: React.FC<MapComponentProps> = ({ markers, posts }) => {
+const MapComponent: React.FC<MapComponentProps> = ({ markers, posts, center }) => {
   const [selectedMarker, setSelectedMarker] = useState<string | null>(null)
   const [dockPosition, setDockPosition] = useState<{ x: number; y: number; position: 'top' | 'bottom' | 'left' | 'right' } | null>(null)
   const [zoom, setZoom] = useState(11)
   const mapContainerRef = useRef<HTMLDivElement>(null)
-
-  // Calculate the default center based on the location with the most jobs
-  const defaultCenter = useMemo(() => {
-    const jobCounts = posts.reduce(
-      (acc, post) => {
-        const key = `${post.lat},${post.lng}`
-        acc[key] = (acc[key] || 0) + 1
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-
-    const maxLocation = Object.entries(jobCounts).reduce(
-      (max, [coords, count]) => {
-        return count > max.count ? { coords, count } : max
-      },
-      { coords: "", count: 0 },
-    )
-
-    const [lat, lng] = maxLocation.coords.split(",").map(Number)
-    return [lat, lng] as [number, number]
-  }, [posts])
 
   const handleMarkerClick = (markerId: string, { event }: MarkerClickEvent) => {
     if (selectedMarker === markerId) {
@@ -120,7 +99,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ markers, posts }) => {
         </button>
       </div>
 
-      <Map height={600} width={1200} defaultCenter={defaultCenter} zoom={zoom}>
+      <Map height={600} width={1200} center={center} zoom={zoom}>
         {markers.map((marker) => (
           <Marker
             key={marker.id}

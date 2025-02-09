@@ -25,7 +25,7 @@ const DownloadSection: React.FC = () => {
         </Button>
         </a>
       </div>
-    </div>
+  </div>
   );
 };
 

@@ -5,7 +5,7 @@ import image from "@/public/static/image.png";
 const Footer = () => {
   return (
     <>
-      <footer className="py-12">
+      <footer className="py-24">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between px-4 md:px-6">
             <div className="flex items-center space-x-2 mb-6 md:mb-0">
             <Image 
@@ -43,18 +43,6 @@ const Footer = () => {
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-50">Products</h4>
               <nav className="flex flex-col space-y-1">
-                <a
-                  className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50 transition-colors"
-                  href="#"
-                >
-                  Features
-                </a>
-                <a
-                  className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50 transition-colors"
-                  href="#"
-                >
-                  Pricing
-                </a>
                 <a
                   className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50 transition-colors"
                   href="#"

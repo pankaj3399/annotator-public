@@ -88,7 +88,7 @@ const JobApplicationsTable = () => {
                 <TableHead>Applied Date</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
+          <TableBody>
               {applications.map((application: any) => (
                 <TableRow key={application._id}>
                   <TableCell className="font-medium">

@@ -557,12 +557,6 @@ const InputRecordAudioComponent: React.FC<Props> = (props) => {
                       {loading || cleanVoiceLoading ? 'Processing...' : ' Process Recording'}
                     </Button>
                   </div>
-                  <div className="w-full">
-                    <CustomAudioPlayer 
-                      src={mediaBlobUrl}
-                      onEnded={() => console.log('Recording playback ended')}
-                    />
-                  </div>
                 </div>
               )}
             </div>

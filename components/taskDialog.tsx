@@ -882,28 +882,6 @@ export function TaskDialog({
         }
       }
 
-      let repeatresponse: SaveTasksResponse | undefined;
-      if (assignToAllAnnotators) {
-        try {
-          repeatresponse = (await saveRepeatTasks(
-            repeatTasks
-          )) as unknown as SaveTasksResponse;
-          if (!repeatresponse?.success) {
-            throw new Error('Failed to save repeat tasks');
-          }
-        } catch (error) {
-          console.log(error);
-          toast({
-            variant: 'destructive',
-            title: 'Failed to save repeat tasks',
-            description:
-              (error as any).message ||
-              'An unknown error occurred while saving repeat tasks.',
-          });
-          return;
-        }
-      }
-
       if (assignToAllAnnotators) {
         toast({
           title: 'Tasks created successfully',
