@@ -375,6 +375,7 @@ export async function saveRepeatTasks(
     reviewer: string;
   }[]
 ) {
+  console.log("Tasks recieved:", repeatTasks);
   const documents = await TaskRepeat.find({});
   console.log("Documents in collection:", documents);
 

@@ -57,30 +57,16 @@ const Header = () => {
       <Button
         className="text-base dark:text-[#ECECEC] p-0"
         variant="link"
-        onClick={() => handleScroll("features")}
-      >
-        Features
-      </Button>
-      <Button
-        className="text-base dark:text-[#ECECEC] p-0"
-        variant="link"
-        onClick={() => handleScroll("pricing")}
-      >
-        Pricing
-      </Button>
-      <Button
-        className="text-base dark:text-[#ECECEC] p-0"
-        variant="link"
-        onClick={() => handleScroll("faq")}
-      >
-        FAQ
-      </Button>
-      <Button
-        className="text-base dark:text-[#ECECEC] p-0"
-        variant="link"
         onClick={handleBlogClick}
       >
         Blogs
+      </Button>
+      <Button
+        className="text-base dark:text-[#ECECEC] p-0"
+        variant="link"
+        onClick={() => router.push('/benchmark-arena')}
+      >
+        Benchmarks
       </Button>
     </>
   );

@@ -285,6 +285,17 @@ export function getMenuList(pathname: string): Group[] {
           icon: ClipboardList,
         },
         {
+          href: `/projects/benchmark-proposals/${projectId}`,
+          label: "Benchmark Proposals",
+          active: pathname.includes("/benchmark-proposals"),
+          icon: List,
+        },
+      ],
+    },
+    {
+      groupLabel: "Sourcing",
+      menus: [
+        {
           href: `/projects/job-list/${projectId}`,
           label: "Job List",
           active: pathname.includes("/job-list"),
@@ -295,11 +306,6 @@ export function getMenuList(pathname: string): Group[] {
           label: "Job Applicants",
           active: pathname.includes("/job-applications"),
           icon: Dock,
-        }, {
-          href: `/projects/benchmark-proposals/${projectId}`,
-          label: "Benchmark Proposals",
-          active: pathname.includes("/benchmark-proposals"),
-          icon: List,
         },
       ],
     },

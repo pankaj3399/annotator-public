@@ -36,6 +36,7 @@ export default function InteractiveMap() {
     const [isSearchMode, setIsSearchMode] = useState(false);
     const [searchValue, setSearchValue] = useState('');
     const [activeCategory, setActiveCategory] = useState('');
+    const [mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]);
 
     useEffect(() => {
         const fetchPosts = async () => {
@@ -48,6 +49,28 @@ export default function InteractiveMap() {
                 } else {
                     setPosts(parsedResponse.data.posts);
                     setFilteredPosts(parsedResponse.data.posts);
+                    
+                    // Calculate new center after posts are loaded
+                    const jobCounts = parsedResponse.data.posts.reduce(
+                        (acc: Record<string, number>, post: JobPost) => {
+                            const key = `${post.lat},${post.lng}`;
+                            acc[key] = (acc[key] || 0) + 1;
+                            return acc;
+                        },
+                        {}
+                    );
+
+                    const maxLocation = Object.entries(jobCounts).reduce(
+                        (max, [coords, count]) => {
+                            return count > max.count ? { coords, count } : max;
+                        },
+                        { coords: "", count: 0 }
+                    );
+
+                    if (maxLocation.coords) {
+                        const [lat, lng] = maxLocation.coords.split(",").map(Number);
+                        setMapCenter([lat, lng]);
+                    }
                 }
             } catch (err) {
                 setError("Failed to load job posts");
@@ -101,10 +124,7 @@ export default function InteractiveMap() {
         }
     };
 
-    if (loading) return <div className="text-center">Loading job posts...</div>;
     if (error) return <div className="text-center text-red-600">{error}</div>;
-    if (posts.length === 0) return <div>No job posts available</div>;
-
     // Convert filtered posts to markers
     const markers: MarkerData[] = filteredPosts
         .map(post => {
@@ -119,7 +139,7 @@ export default function InteractiveMap() {
         .filter((marker): marker is MarkerData => marker !== null);
 
     return (
-        <main className="container mx-auto max-w-5xl p-8">
+        <main className="container mx-auto max-w-5xl py-24 p-8">
             {/* Search Bar */}
             <div className="mb-8 w-full max-w-4xl mx-auto">
                 <div className={`
@@ -169,14 +189,18 @@ export default function InteractiveMap() {
                                 : 'bg-black text-white hover:bg-gray-800'}
                         `}
                     >
-                        {isSearchMode ? <X size={20} /> : <Search size={20} />}
+                        {isSearchMode ? <X size={20} color="#ff395c" /> : <Search size={20} color="#ff395c" />}
                     </button>
                 </div>
             </div>
 
             {/* Map Component */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                <MapComponent posts={filteredPosts} markers={markers} />
+                <MapComponent 
+                    posts={filteredPosts} 
+                    markers={markers} 
+                    center={mapCenter}
+                />
             </div>
         </main>
     );

@@ -16,6 +16,9 @@ export async function createJobPost(data: {
   title: string;
   content: string; // HTML content from ReactQuill
   startDate: Date;
+  projectDescription:string;
+  taskDescription:string;
+  skills:string;
   endDate: Date;
   compensation: string;
   status?: "draft" | "published";
@@ -38,7 +41,6 @@ export async function createJobPost(data: {
     }
 
     const labels = await getProjectLabels(data.projectId);
-
     const jobPost = await JobPost.create({
       title: data.title,
       content: markdownContent,
@@ -46,6 +48,9 @@ export async function createJobPost(data: {
         startDate: data.startDate,
         endDate: data.endDate,
       },
+      projectDescription:data.projectDescription,
+      taskDescription:data.taskDescription,
+      skills:data.skills,
       compensation: data.compensation,
       status: data.status || "draft",
       projectId: data.projectId,
@@ -55,6 +60,7 @@ export async function createJobPost(data: {
       image:data.image,
       label:labels
     });
+    
 
     return { success: true, data: jobPost };
   } catch (error) {
@@ -63,31 +69,95 @@ export async function createJobPost(data: {
   }
 }
 
-export async function getJobPosts(options: {
+
+
+export async function editJobPost(jobId:string,data: {
+  title: string;
+  content: string; // HTML content from ReactQuill
+  startDate: Date;
+  projectDescription:string;
+  taskDescription:string;
+  skills:string;
+  endDate: Date;
+  compensation: string;
   status?: "draft" | "published";
-  page?: number;
-  limit?: 10 | 20 | 50 | 100;
+  projectId: string;
+  location: string;
+  lat: number;
+  lng: number;
+  image:string;
 }) {
   try {
     await connectToDatabase();
-    let limit = options.limit || 10;
 
-    if (![10, 20, 50, 100].includes(limit)) {
-      limit = 10; 
+    // Convert HTML to Markdown
+    const markdownContent = turndownService.turndown(data.content);
+
+    console.log(data);
+
+    if(data.image == ''){
+      data.image = `https://${process.env.AWS_BUCKET_NAME}.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
-    const { status, page = 1} = options;
-    const skip = (page - 1) * limit;
 
-    const query = status ? { status } : {};
+    const labels = await getProjectLabels(data.projectId);
+const jobPost = await JobPost.updateOne(
+  { _id:jobId }, // Filter to find the job post by ID
+  { 
+    $set: {
+      title: data.title,
+      content: markdownContent,
+      projectDuration: {
+        startDate: data.startDate,
+        endDate: data.endDate,
+      },
+      projectDescription: data.projectDescription,
+      taskDescription: data.taskDescription,
+      skills: data.skills,
+      compensation: data.compensation,
+      status: data.status || "draft",
+      projectId: data.projectId,
+      location: data.location,
+      lat: data.lat,
+      lng: data.lng,
+      image: data.image,
+      label: labels,
+    },
+  }
+);
+
+    
+
+    return { success: true, data: jobPost };
+  } catch (error) {
+    console.error("Error creating job post:", error);
+    return { success: false, error: "Failed to create job post" };
+  }
+}
+
+
+
+
+export async function getJobPosts(options: {
+  status?: "draft" | "published"
+  page?: number
+  limit?: number
+}) {
+  try {
+    await connectToDatabase()
+    let limit = options.limit || 10
+
+    if (![10, 20, 50, 90].includes(limit)) {
+      limit = 10
+    }
+    const { status, page = 1 } = options
+    const skip = (page - 1) * limit
+
+    const query = status ? { status } : {}
 
     const [posts, total] = await Promise.all([
-      JobPost.find(query)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
+      JobPost.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
       JobPost.countDocuments(query),
-    ]);
+    ])
 
     const response = {
       success: true,
@@ -100,15 +170,16 @@ export async function getJobPosts(options: {
           totalPages: Math.ceil(total / limit),
         },
       },
-    };
+    }
 
-    return JSON.stringify(response); // Stringify the response before returning
+    return JSON.stringify(response)
   } catch (error) {
-    console.error("Error fetching job posts:", error);
-    const errorResponse = { success: false, error: "Failed to fetch job posts" };
-    return JSON.stringify(errorResponse); // Stringify error response
+    console.error("Error fetching job posts:", error)
+    const errorResponse = { success: false, error: "Failed to fetch job posts" }
+    return JSON.stringify(errorResponse)
   }
 }
+
 
 
 export async function updateJobPost(
@@ -257,3 +328,30 @@ export const getAllJobApplications = async() => {
     return { success: false, error: "Failed to fetch job applications" };
   }
 };
+
+export async function getAllJobs(projectId: string) {
+  try {
+    await connectToDatabase();
+    
+    const jobs = await JobPost.find({ projectId })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return JSON.parse(JSON.stringify(jobs));
+  } catch (error) {
+    console.error("Error fetching jobs:", error);
+    return { success: false, error: "Failed to fetch jobs" };
+  }
+}
+
+export async function getJobById(jobId: string) {
+  try {
+    await connectToDatabase();
+    const job = await JobPost.findById(jobId);
+    return JSON.parse(JSON.stringify(job));
+  } catch (error) {
+    console.error("Error fetching job:", error);
+    throw error;
+  }
+}
+

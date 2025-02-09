@@ -42,10 +42,8 @@ function ThemedLayout({
       </div>
 
       <Header />
-
       <main className="relative z-10">{children}</main>
-
-      <Footer />
+ 
     </div>
   );
 }
