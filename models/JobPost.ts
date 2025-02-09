@@ -20,6 +20,21 @@ const JobPostSchema = new Schema({
     required: true,
     trim: true,
   },
+  projectDescription:{
+    type:String,
+    required:false,
+    default:""
+  },
+  taskDescription:{
+    type:String,
+    required:false,
+    default:""
+  },
+  skills:{
+    type:String,
+    required:false,
+    default:""
+  },
   content: {
     type: String,
     required: true,

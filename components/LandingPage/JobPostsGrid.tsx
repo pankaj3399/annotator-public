@@ -93,7 +93,7 @@ const JobPostsGrid = () => {
   }
 
   return (
-    <div className="w-full ">
+    <div className="w-full mt-24 ">
       <div className="container mx-auto px-4">
         {/* Search Bar */}
         <div className="mb-8 w-full max-w-4xl mx-auto">
