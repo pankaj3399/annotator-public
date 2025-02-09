@@ -65,7 +65,6 @@ const benchmarkProposalSchema = new Schema<IBenchmarkProposal>({
   description: {
     type: String,
     required: true,
-    minlength: 50,
     maxlength: 2500,
   },
   domain: {
@@ -100,13 +99,11 @@ const benchmarkProposalSchema = new Schema<IBenchmarkProposal>({
   evaluationMethodology: {
     type: String,
     required: true,
-    minlength: 50,
     maxlength: 1500,
   },
   intendedPurpose: {
     type: String,
     required: true,
-    minlength: 50,
     maxlength: 750,
   },
   status: {
