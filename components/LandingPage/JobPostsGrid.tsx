@@ -17,7 +17,7 @@ const JobPostsGrid = () => {
   const [activeCategory, setActiveCategory] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [limit] = useState(90)
+  const [limit] = useState(30)
   const [hasMore, setHasMore] = useState(true)
   const [totalPages, setTotalPages] = useState(1)
 

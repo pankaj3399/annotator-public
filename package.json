@@ -8,6 +8,7 @@
     "migrate:repeat": "node scripts/repeatTypeMigration.mjs && node scripts/repeatTypeMigrationForTemplate.mjs",
     "migrate:deleteNonSubmitted": "node scripts/deleteNonSubmittedTasks.js",
     "migrate:jobsLocation": "node scripts/jobMigration.mjs",
+    "migrate:deleteJobAndApplications":"node scripts/jobDeletion.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
