@@ -64,7 +64,7 @@ export default function BenchmarkProposalDetail() {
 
   const handleVote = async (type: "up" | "down") => {
     if (!session?.user?.id) {
-      router.push(`/auth/login?benchmarkId=${benchmarkId}`);
+      router.push(`/auth/login/${benchmarkId}`);
       return;
     }
 

@@ -9,7 +9,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function AuthPageComponent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,7 +18,7 @@ export default function AuthPageComponent() {
     setMounted(true);
   }, []);
 
-  const benchmarkId = searchParams.get("benchmarkId"); // Get benchmarkId from URL
+  const benchmarkId = usePathname().split("/").pop()
   let callbackUrl = "/";
   if (benchmarkId) {
     callbackUrl = benchmarkId === "1" ? "/benchmark-arena" : `/benchmark-arena/${benchmarkId}`;
