@@ -2,40 +2,44 @@
 
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
+import { List, Map } from 'lucide-react';
 import InteractiveMap from './Jobs';
 import JobPostsGrid from './JobPostsGrid';
-import { List, Map } from 'lucide-react';
 
 const Hero = () => {
   const [isGridVisible, setIsGridVisible] = useState(false);
-
+  
   const toggleView = () => setIsGridVisible(prev => !prev);
-
+  
   return (
-    <div className="container mx-auto px-4 md:px-6 lg:px-8 " id="home">
-      <div className="relative flex flex-col w-full items-center">
-        {/* Content Toggle */}
-        <div className="w-full overflow-hidden rounded-xl">
-          {isGridVisible ? <JobPostsGrid /> : <InteractiveMap />}
-        </div>
+    <div className="relative min-h-screen">
+      {/* Main Content */}
+      <div className="h-full">
+        {isGridVisible ? (
+          <JobPostsGrid />
+        ) : (
+          <InteractiveMap />
+        )}
+      </div>
 
-        {/* Floating Toggle Button */}
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2">
-          <Button
-            onClick={toggleView}
-            className="px-6 py-3 text-lg bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
-          >
-            {isGridVisible ? (
-              <>
-                Show Map <Map className="ml-2 h-5 w-5" />
-              </>
-            ) : (
-              <>
-                Show List <List className="ml-2 h-5 w-5" />
-              </>
-            )}
-          </Button>
-        </div>
+      {/* Centered Toggle Button */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-10">
+        <Button 
+          onClick={toggleView}
+          className="flex items-center gap-2 px-4 py-2 shadow-lg"
+        >
+          {isGridVisible ? (
+            <>
+              <Map className="w-4 h-4" />
+              <span>Show Map</span>
+            </>
+          ) : (
+            <>
+              <List className="w-4 h-4" />
+              <span>Show List</span>
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );

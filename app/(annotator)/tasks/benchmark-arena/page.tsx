@@ -155,7 +155,6 @@ export default function BenchmarkArena() {
                 key={proposal._id}
                 proposal={proposal}
                 onVote={handleVote}
-                onShare={handleShare}
                 onPostClick={handlePostClick}
                 votedPosts={votes}
               />

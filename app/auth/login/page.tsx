@@ -5,19 +5,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function AuthPageComponent() {
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mounted, setMounted] = useState(false);
 
-  // Handle hydration mismatch by waiting for client-side mount
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const benchmarkId = searchParams.get("benchmarkId"); // Get benchmarkId from URL
+  let callbackUrl = "/";
+  if (benchmarkId) {
+    callbackUrl = benchmarkId === "1" ? "/benchmark-arena" : `/benchmark-arena/${benchmarkId}`;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,11 +31,10 @@ export default function AuthPageComponent() {
       redirect: false,
       email,
       password,
-      callbackUrl: "/",
+      callbackUrl,
     });
-
     if (res?.ok) {
-      router.push("/");
+      router.push(callbackUrl);
     } else {
       toast({
         title: "Invalid login credentials",
@@ -37,6 +42,7 @@ export default function AuthPageComponent() {
         variant: "destructive",
       });
     }
+    
   };
 
   const handleGoogleSignIn = async () => {

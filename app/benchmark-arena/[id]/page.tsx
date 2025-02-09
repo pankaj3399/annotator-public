@@ -7,35 +7,48 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { format } from "date-fns";
 import { ArrowBigUp, ArrowBigDown, MessageSquare, Share2 } from "lucide-react";
-import { OwnerCard } from "@/app/(annotator)/tasks/benchmark-arena/[id]/owner-card";
 import { CommentSection } from "@/app/(annotator)/tasks/benchmark-arena/[id]/comment-section";
+import { OwnerCard } from "@/app/(annotator)/tasks/benchmark-arena/[id]/owner-card";
 import { getBenchmarkProposalDetails, updateVoteBenchmarkProposal } from "@/app/actions/benchmarkProposals";
-import { usePathname, useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import Loader from "@/components/ui/NewLoader/Loader";
-import Link from "next/link";
+import { toast } from "sonner";
+import ShareDialog from "@/components/ShareDialog";
+interface VoteStore {
+  votes: Record<string, number>;
+  setVote: (benchmarkId: string, vote: number) => void;
+}
+
+const useVoteStore = create<VoteStore>((set) => ({
+  votes: {},
+  setVote: (benchmarkId, vote) =>
+    set((state) => ({ votes: { ...state.votes, [benchmarkId]: vote } })),
+}));
 
 export default function BenchmarkProposalDetail() {
   const [proposal, setProposal] = useState<any>();
   const [user, setUser] = useState<any>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const pathName = usePathname();
-  const benchmarkId = pathName.split("/")[2];
+  const { id } = useParams();
+  const benchmarkId = id as string;
   const { data: session } = useSession();
+  const { votes, setVote } = useVoteStore();
   const router = useRouter();
+  const [shareDialogOpen,setShareDialogOpen]=useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        
         const fetchedProposal = await getBenchmarkProposalDetails(benchmarkId);
         setProposal(fetchedProposal);
         const userResponse = await axios.get(`/api/users/profile/${fetchedProposal.user}`);
-
         setUser(userResponse.data);
-
+        
+        const userVote = fetchedProposal.votes.find((v: any) => v.userId === session?.user?.id)?.vote || 0;
+        setVote(benchmarkId, userVote);
       } catch (err) {
         setError("Failed to load proposal details");
       } finally {
@@ -43,9 +56,71 @@ export default function BenchmarkProposalDetail() {
       }
     };
     fetchData();
-  }, [benchmarkId]);
+  }, [benchmarkId, session, setVote]);
 
-  if (loading) return <Loader></Loader>;
+  const handleShare = () => {
+    setShareDialogOpen(true);
+  };
+
+  const handleVote = async (type: "up" | "down") => {
+    if (!session?.user?.id) {
+      router.push(`/auth/login?benchmarkId=${benchmarkId}`);
+      return;
+    }
+
+    const userId = session.user.id;
+    const currentVote = votes[benchmarkId] || 0;
+    let newVote = 0;
+
+    if (type === "up") {
+      newVote = currentVote === 1 ? 0 : 1;
+    } else {
+      newVote = currentVote === -1 ? 0 : -1;
+    }
+
+    // Optimistically update local state
+    setVote(benchmarkId, newVote);
+    setProposal((prev: any) => {
+      if (!prev) return prev;
+
+      // Remove previous vote if it exists
+      const updatedVotes = prev.votes.filter((v: any) => v.userId !== userId);
+      
+      // Add new vote if it's not 0
+      if (newVote !== 0) {
+        updatedVotes.push({ userId, vote: newVote });
+      }
+
+      return {
+        ...prev,
+        votes: updatedVotes
+      };
+    });
+
+    try {
+      await updateVoteBenchmarkProposal(benchmarkId, userId, newVote);
+    } catch (error) {
+      console.error("Failed to update vote in database", error);
+      
+      // Revert optimistic updates on error
+      setVote(benchmarkId, currentVote);
+      setProposal((prev: any) => {
+        if (!prev) return prev;
+
+        const revertedVotes = prev.votes.filter((v: any) => v.userId !== userId);
+        if (currentVote !== 0) {
+          revertedVotes.push({ userId, vote: currentVote });
+        }
+
+        return {
+          ...prev,
+          votes: revertedVotes
+        };
+      });
+    }
+  };
+
+  if (loading) return <Loader />;
   if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
   if (!proposal || !user) return null;
 
@@ -56,34 +131,14 @@ export default function BenchmarkProposalDetail() {
           <Card className="p-4 sm:p-6">
             <div className="flex items-start space-x-3 sm:space-x-4">
               <div className="flex flex-col items-center space-y-1 w-10 sm:w-12 flex-shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-0 h-auto"
-                  onClick={() => {
-                    if (!session?.user) {
-                      router.push('/auth/login');
-                      return;
-                    }
-                  }}
-                >
-                  <ArrowBigUp className="h-6 w-6 text-gray-500 hover:text-gray-700" />
+                <Button variant="ghost" size="sm" className="p-1" onClick={() => handleVote("up")}> 
+                  <ArrowBigUp className={`h-5 w-5 ${votes[benchmarkId] === 1 ? "text-blue-500" : "text-gray-500"}`} />
                 </Button>
                 <span className="text-xs font-medium text-gray-600">
                   {proposal.votes.reduce((acc: number, v: any) => acc + v.vote, 0)}
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-0 h-auto"
-                  onClick={() => {
-                    if (!session?.user) {
-                      router.push('/auth/login');
-                      return;
-                    }
-                  }}
-                >
-                  <ArrowBigDown className="h-6 w-6 text-gray-500 hover:text-gray-700" />
+                <Button variant="ghost" size="sm" className="p-1" onClick={() => handleVote("down")}> 
+                  <ArrowBigDown className={`h-5 w-5 ${votes[benchmarkId] === -1 ? "text-red-500" : "text-gray-500"}`} />
                 </Button>
               </div>
               <div className="flex-1 min-w-0 overflow-hidden">
@@ -120,7 +175,15 @@ export default function BenchmarkProposalDetail() {
                     <MessageSquare className="h-4 w-4" />
                     <span className="hidden sm:inline">Comments ({proposal.comments.length})</span>
                   </Button>
-                  <Button variant="ghost" size="sm" className="gap-2">
+                  <Button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShare();
+                    }} 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-2"
+                  >
                     <Share2 className="h-4 w-4" />
                     <span className="hidden sm:inline">Share</span>
                   </Button>
@@ -128,20 +191,17 @@ export default function BenchmarkProposalDetail() {
               </div>
             </div>
           </Card>
-          {session?.user ? (
-            <CommentSection proposalId={proposal._id} ownerId={proposal.user} initialComments={proposal.comments} />
-          ) : (
-            <Card className="p-4">
-              <p className="text-center text-gray-600">
-                Please <Link href="/auth/login" className="text-blue-500 hover:underline">login</Link> to comment
-              </p>
-            </Card>
-          )}
+          <CommentSection proposalId={proposal._id} ownerId={proposal.user} initialComments={proposal.comments} />
         </div>
         <div className="lg:sticky lg:top-6">
           <OwnerCard owner={user} />
         </div>
       </div>
+      <ShareDialog 
+        open={shareDialogOpen}
+        onOpenChange={setShareDialogOpen}
+        url={`${window.location.origin}/benchmark/${benchmarkId}`}
+      />
     </div>
   );
 }

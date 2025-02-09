@@ -14,7 +14,7 @@ import Footer from '@/components/LandingPage/Footer';
 const Landingpage = () => {
   return (
     <div className="w-full min-h-screen flex items-center justify-center overflow-hidden">
-      <div className="relative z-10 w-full max-w-7xl">
+      <div className="relative z-10 w-full px-4">
         <Hero />
         {/* <DownloadSection /> */}
         {/* <Brands /> */}

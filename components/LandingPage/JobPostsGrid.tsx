@@ -17,7 +17,7 @@ const JobPostsGrid = () => {
   const [activeCategory, setActiveCategory] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const [limit] = useState(30)
+  const [limit] = useState(20)
   const [hasMore, setHasMore] = useState(true)
   const [totalPages, setTotalPages] = useState(1)
 
@@ -33,6 +33,7 @@ const JobPostsGrid = () => {
     try {
       setIsLoading(true)
       const data = await getJobPosts({ limit, page: pageNumber })
+      console.log(data)
       const parsedResponse = JSON.parse(data)
       if (parsedResponse.success) {
         if (pageNumber === 1) {
@@ -96,7 +97,7 @@ const JobPostsGrid = () => {
     <div className="w-full mt-24 ">
       <div className="container mx-auto px-4">
         {/* Search Bar */}
-        <div className="mb-8 w-full max-w-4xl mx-auto">
+        <div className="mb-8 w-full max-w-3xl mx-auto">
           <div
             className={`
             relative flex items-center rounded-full border border-gray-200 
@@ -145,10 +146,10 @@ const JobPostsGrid = () => {
               onClick={handleSearchToggle}
               className={`
                 p-3 rounded-full transition-all duration-200
-                ${isSearchMode ? "hover:bg-gray-100" : "bg-black text-white hover:bg-gray-800"}
+                ${isSearchMode ? "hover:bg-gray-100" : "bg-[#ff395c] text-white hover:bg-gray-700"}
               `}
             >
-              {isSearchMode ? <X size={20} color="#ff395c" /> : <Search size={20} color="#ff395c" />}
+              {isSearchMode ? <X size={20} /> : <Search size={20} />}
             </button>
           </div>
         </div>
@@ -203,17 +204,11 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
       <div className="group bg-white overflow-hidden cursor-pointer hover:shadow-xl rounded-2xl transition-all duration-300 border border-gray-100">
         {/* Image Container */}
         <div className="relative h-56 w-full overflow-hidden">
-          {jobPost.image === '' ? (
-                      <img
-                      src={jobPost.image}
-                      alt={jobPost.title}
-                      className="w-full h-full object-cover transition-transform duration-300 rounded-2xl group-hover:scale-105"
-                    />
-          ):(         <img
-            src={`${process.env.NEXT_PUBLIC_S3_BASE_URL}/images/defaultJobThumbnail.jpg`}
+        <img
+            src={jobPost.image}
             alt={jobPost.title}
             className="w-full h-full object-cover transition-transform duration-300 rounded-2xl group-hover:scale-105"
-          />)}
+          />
           {/* Location Overlay */}
           {jobPost.location && (
             <div className="absolute top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-full flex items-center text-sm font-medium backdrop-blur-sm">
