@@ -10,6 +10,7 @@ import { Search, TrendingUp } from "lucide-react"
 import { ProposalCard } from "./Proposal-card"
 import { create } from "zustand"
 import { useSession } from "next-auth/react"
+import Loader from "@/components/ui/NewLoader/Loader"
 
 interface BenchmarkProposalData {
   _id: string
@@ -142,9 +143,7 @@ export default function BenchmarkArena() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
-          </div>
+            <Loader></Loader>
         ) : filteredProposals.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-lg shadow">
             <p className="text-gray-500">No benchmark proposals found.</p>

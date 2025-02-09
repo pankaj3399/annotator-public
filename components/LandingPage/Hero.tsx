@@ -13,7 +13,7 @@ const Hero = () => {
   };
 
   return (
-    <div className="pt-32 container px-5 md:px-7" id="home">
+    <div className="pt-8 container px-5 md:px-7" id="home">
       <div className="flex flex-col w-full justify-center items-center">
         {/* Conditionally render Map or Job Grid */}
         {isMapVisible ? (

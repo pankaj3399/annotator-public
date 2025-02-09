@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import Image from "next/image"
 import { getJobPosts } from "@/app/actions/job"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -53,8 +52,7 @@ const JobPostsGrid = () => {
       const searchLower = searchValue.toLowerCase()
       filtered = filtered.filter(post =>
         post.title.toLowerCase().includes(searchLower) ||
-        post.location.toLowerCase().includes(searchLower) ||
-        post.description?.toLowerCase().includes(searchLower)
+        post.location.toLowerCase().includes(searchLower)
       )
     }
 
@@ -77,14 +75,14 @@ const JobPostsGrid = () => {
   }
 
   return (
-    <div className="w-full py-16">
+    <div className="w-full py-24">
       <div className="container mx-auto px-4">
         {/* Search Bar */}
-        <div className="mb-12 w-full max-w-4xl mx-auto">
+        <div className="mb-12 w-full max-w-5xl mx-auto">
           <div className={`
-            relative flex items-center rounded-full border border-gray-200 
+            relative flex items-center rounded-full border border-gray-300 
             transition-all duration-300 ease-in-out overflow-hidden
-            ${isSearchMode ? 'bg-white shadow-lg' : 'bg-transparent'}
+            ${isSearchMode ? 'bg-white shadow-xl' : 'bg-transparent'}
           `}>
             <div className={`
               flex-1 flex items-center gap-2 px-4 h-12
@@ -135,13 +133,13 @@ const JobPostsGrid = () => {
 
         {/* No Results Message */}
         {filteredPosts.length === 0 && (
-          <div className="text-center text-gray-500 py-12">
+          <div className="text-center text-gray-500 py-16 text-lg">
             No jobs found matching your criteria
           </div>
         )}
 
         {/* Job Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           {filteredPosts.map((jobPost) => (
             <JobCard key={jobPost._id} jobPost={jobPost} />
           ))}
@@ -152,50 +150,61 @@ const JobPostsGrid = () => {
 }
 
 const JobCard = ({ jobPost }: { jobPost: any }) => {
-  return (
-    <div className="group relative h-[28rem] w-full overflow-hidden rounded-xl">
-      <div className="absolute inset-0 h-full w-full">
-      <img 
-  src={jobPost.image || `${process.env.NEXT_PUBLIC_S3_BASE_URL}/images/defaultJobThumbnail.jpg`} 
-  alt={jobPost.title} 
-  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-/>
+  // Format date range
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      year: 'numeric'
+    });
+  }
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-      </div>
-      
-      <div className="absolute bottom-0 w-full p-6 space-y-4">
-        <h3 className="font-bold text-2xl text-white line-clamp-2">
-          {jobPost.title}
-        </h3>
+  const dateRange = jobPost.projectDuration ? 
+    `${formatDate(jobPost.projectDuration.startDate)} - ${formatDate(jobPost.projectDuration.endDate)}` : 
+    null;
+
+  return (
+    <Link href={`/jobs/${jobPost._id}`}>
+      <div className="group bg-white overflow-hidden cursor-pointer hover:shadow-xl rounded-2xl transition-all duration-300 border border-gray-100">
+        {/* Image Container */}
+        <div className="relative h-56 w-full overflow-hidden">
+          <img 
+            src={jobPost.image || `${process.env.NEXT_PUBLIC_S3_BASE_URL}/images/defaultJobThumbnail.jpg`} 
+            alt={jobPost.title} 
+            className="w-full h-full object-cover transition-transform duration-300 rounded-2xl group-hover:scale-105"
+          />
+          {/* Location Overlay */}
+          {jobPost.location && (
+            <div className="absolute top-4 left-4 bg-black/80 text-white px-4 py-2 rounded-full flex items-center text-sm font-medium backdrop-blur-sm">
+              <MapPinIcon className="h-4 w-4 mr-2" />
+              <span>{jobPost.location}</span>
+            </div>
+          )}
+        </div>
         
-        <div className="space-y-2">
-          <div className="flex items-center text-gray-200">
-            <MapPinIcon className="h-5 w-5 mr-2" />
-            <span className="text-sm">{jobPost.location}</span>
-          </div>
-          <div className="flex items-center text-gray-200">
-            <DollarSignIcon className="h-5 w-5 mr-2" />
-            <span className="text-sm font-semibold">${jobPost.compensation}</span>
-          </div>
-          <div className="flex items-center text-gray-200">
-            <CalendarIcon className="h-5 w-5 mr-2" />
-            <span className="text-sm">
-              {`${new Date(jobPost.projectDuration.startDate).toLocaleDateString()} - ${new Date(jobPost.projectDuration.endDate).toLocaleDateString()}`}
-            </span>
+        {/* Content Container */}
+        <div className="p-6 space-y-4">
+          <h3 className="font-bold text-xl text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200">
+            {jobPost.title}
+          </h3>
+          
+          <div className="space-y-3">
+            {jobPost.compensation && (
+              <div className="flex items-center text-gray-700">
+                <DollarSignIcon className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">{jobPost.compensation}</span>
+              </div>
+            )}
+            
+            {dateRange && (
+              <div className="flex items-center text-gray-700">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                <span className="text-sm font-medium">{dateRange}</span>
+              </div>
+            )}
           </div>
         </div>
-
-        <Link href={`/jobs/${jobPost._id}`} className="block">
-          <Button 
-            variant="default" 
-            className="w-full bg-white hover:bg-white/90 text-black font-medium"
-          >
-            View Details
-          </Button>
-        </Link>
       </div>
-    </div>
+    </Link>
   )
 }
 
