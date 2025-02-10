@@ -10,6 +10,8 @@ import { format } from "date-fns";
 import { useSession } from "next-auth/react";
 import { updateBenchmarkProposalDetails } from "@/app/actions/benchmarkProposals";
 import mongoose from "mongoose";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export interface Comment {
   _id: string;
@@ -27,6 +29,11 @@ interface CommentSectionProps {
   ownerId: string;
   initialComments?: Comment[];
 }
+  const handleShare = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(`${window.location.origin}/benchmark/${id}`)
+    toast.success("Link copied to clipboard")
+  }
 
 export function CommentSection({ proposalId, ownerId, initialComments = [] }: CommentSectionProps) {
   const [comments, setComments] = useState<Comment[]>(initialComments);
@@ -35,7 +42,7 @@ export function CommentSection({ proposalId, ownerId, initialComments = [] }: Co
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const { data: session } = useSession();
-
+  const router = useRouter();
   const updateProposal = async (updatedComments: Comment[]) => {
     try {
       await updateBenchmarkProposalDetails(proposalId, { comments: updatedComments });
@@ -45,6 +52,12 @@ export function CommentSection({ proposalId, ownerId, initialComments = [] }: Co
   };
 
   const handleSubmitComment = async () => {
+    if( !session||!session.user){
+      router.push("/auth/login");
+      return;
+    }
+
+
     if (!newComment.trim() || !session?.user) return;
     const comment: Comment = {
       _id: new mongoose.Types.ObjectId().toHexString(),
@@ -91,7 +104,7 @@ export function CommentSection({ proposalId, ownerId, initialComments = [] }: Co
     <Card className="p-4">
       <div className="mb-6">
         <Textarea
-          placeholder="What are your thoughts?"
+          placeholder={session?.user ? "" : ""}
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           className="mb-2"

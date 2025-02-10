@@ -11,6 +11,7 @@ import { ProposalCard } from "../(annotator)/tasks/benchmark-arena/Proposal-card
 import { create } from "zustand"
 import { useSession } from "next-auth/react"
 import Loader from "@/components/ui/NewLoader/Loader"
+import Header from "@/components/LandingPage/Header"
 
 interface BenchmarkProposalData {
   _id: string
@@ -42,6 +43,7 @@ export default function BenchmarkArena() {
   const [searchQuery, setSearchQuery] = useState("")
   const { votes, setVote } = useVoteStore()
 
+
   useEffect(() => {
     async function fetchProposals() {
       try {
@@ -72,7 +74,7 @@ export default function BenchmarkArena() {
   const handleVote = async (e: React.MouseEvent, id: string, vote: number) => {
     e.stopPropagation()
     if (!session?.user?.id) {
-      router.push('/auth/login')
+      router.push(`/auth/login?benchmarkId=1`)
       return
     }
 
@@ -108,12 +110,6 @@ export default function BenchmarkArena() {
     }
   }
 
-  const handleShare = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    navigator.clipboard.writeText(`${window.location.origin}/benchmark/${id}`)
-    toast.success("Link copied to clipboard")
-  }
-
   const handlePostClick = (id: string) => {
     router.push(`/benchmark-arena/${id}`)
   }
@@ -126,7 +122,8 @@ export default function BenchmarkArena() {
 
   return (
     <div className="flex-1 min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <Header></Header>
+      <div className="max-w-7xl mt-12 mx-auto px-4 py-6">
         <div className="sticky top-0 bg-gray-50 pt-4 pb-2 z-10">
           <div className="flex items-center gap-4 mb-6">
             <TrendingUp className="h-8 w-8 text-orange-500" />
@@ -156,7 +153,6 @@ export default function BenchmarkArena() {
                 key={proposal._id}
                 proposal={proposal}
                 onVote={handleVote}
-                onShare={handleShare}
                 onPostClick={handlePostClick}
                 votedPosts={votes}
               />
@@ -164,6 +160,7 @@ export default function BenchmarkArena() {
           </div>
         )}
       </div>
+
     </div>
   )
 }

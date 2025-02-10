@@ -41,7 +41,7 @@ export default function InteractiveMap() {
     useEffect(() => {
         const fetchPosts = async () => {
             try {
-                const response = await getJobPosts({ limit: 10 });
+                const response = await getJobPosts({ limit: 200 });
                 const parsedResponse = JSON.parse(response);
 
                 if (!parsedResponse.success || !parsedResponse.data) {
@@ -73,6 +73,7 @@ export default function InteractiveMap() {
                     }
                 }
             } catch (err) {
+                console.log(err)
                 setError("Failed to load job posts");
             } finally {
                 setLoading(false);
@@ -89,14 +90,12 @@ export default function InteractiveMap() {
     const filterPosts = () => {
         let filtered = [...posts];
 
-        // Filter by category if selected
         if (activeCategory) {
             filtered = filtered.filter(post => 
                 post.category?.toLowerCase() === activeCategory.toLowerCase()
             );
         }
 
-        // Filter by search term if in search mode
         if (isSearchMode && searchValue) {
             const searchLower = searchValue.toLowerCase();
             filtered = filtered.filter(post =>
@@ -125,7 +124,7 @@ export default function InteractiveMap() {
     };
 
     if (error) return <div className="text-center text-red-600">{error}</div>;
-    // Convert filtered posts to markers
+    
     const markers: MarkerData[] = filteredPosts
         .map(post => {
             const lat = parseFloat(post.lat);
@@ -139,69 +138,74 @@ export default function InteractiveMap() {
         .filter((marker): marker is MarkerData => marker !== null);
 
     return (
-        <main className="container mx-auto max-w-5xl py-24 p-8">
-            {/* Search Bar */}
-            <div className="mb-8 w-full max-w-4xl mx-auto">
-                <div className={`
-                    relative flex items-center rounded-full border border-gray-200 
-                    transition-all duration-300 ease-in-out overflow-hidden
-                    ${isSearchMode ? 'bg-white shadow-lg' : 'bg-transparent'}
-                `}>
-                    <div className={`
-                        flex-1 flex items-center gap-2 px-4 h-12
-                        transition-all duration-300 ease-in-out
-                        ${isSearchMode ? 'w-full' : 'w-auto'}
-                    `}>
-                        {!isSearchMode ? (
-                            categories.map((category) => (
-                                <button
-                                    key={category}
-                                    onClick={() => handleCategoryClick(category)}
-                                    className={`
-                                        px-4 py-1 rounded-full text-sm font-medium 
-                                        transition-all duration-200 whitespace-nowrap
-                                        ${activeCategory === category 
-                                            ? 'bg-black text-white' 
-                                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}
-                                    `}
-                                >
-                                    {category}
-                                </button>
-                            ))
-                        ) : (
-                            <input
-                                type="text"
-                                value={searchValue}
-                                onChange={(e) => setSearchValue(e.target.value)}
-                                placeholder="Search jobs..."
-                                className="w-full bg-transparent outline-none text-gray-700"
-                                autoFocus
-                            />
-                        )}
-                    </div>
-                    
-                    <button
-                        onClick={handleSearchToggle}
-                        className={`
-                            p-3 rounded-full transition-all duration-200
-                            ${isSearchMode 
-                                ? 'hover:bg-gray-100' 
-                                : 'bg-black text-white hover:bg-gray-800'}
-                        `}
-                    >
-                        {isSearchMode ? <X size={20} color="#ff395c" /> : <Search size={20} color="#ff395c" />}
-                    </button>
-                </div>
+        <div className="w-full mt-24 ">
+      <div className="container mx-auto px-4">
+                {/* Search Bar */}
+        <div className="mb-8 w-full max-w-3xl mx-auto">
+          <div
+            className={`
+            relative flex items-center rounded-full border border-gray-200 
+            transition-all duration-300 ease-in-out overflow-hidden
+            ${isSearchMode ? "bg-white shadow-lg" : "bg-transparent"}
+          `}
+          >
+            <div
+              className={`
+              flex-1 flex items-center gap-2 px-4 h-12
+              transition-all duration-300 ease-in-out
+              ${isSearchMode ? "w-full" : "w-auto"}
+            `}
+            >
+              {!isSearchMode ? (
+                categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => handleCategoryClick(category)}
+                    className={`
+                      px-4 py-1 rounded-full text-sm font-medium 
+                      transition-all duration-200 whitespace-nowrap
+                      ${
+                        activeCategory === category
+                          ? "bg-black text-white"
+                          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                      }
+                    `}
+                  >
+                    {category}
+                  </button>
+                ))
+              ) : (
+                <input
+                  type="text"
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  placeholder="Search jobs..."
+                  className="w-full bg-transparent outline-none text-gray-700"
+                  autoFocus
+                />
+              )}
             </div>
 
-            {/* Map Component */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <button
+              onClick={handleSearchToggle}
+              className={`
+                p-3 rounded-full transition-all duration-200
+                ${isSearchMode ? "hover:bg-gray-100" : "bg-[#ff395c] text-white hover:bg-gray-700"}
+              `}
+            >
+              {isSearchMode ? <X size={20} /> : <Search size={20} />}
+            </button>
+          </div>
+        </div>
+            </div>
+
+            <div className="w-full flex-1">
                 <MapComponent 
                     posts={filteredPosts} 
                     markers={markers} 
                     center={mapCenter}
                 />
             </div>
-        </main>
+        </div>
     );
 }

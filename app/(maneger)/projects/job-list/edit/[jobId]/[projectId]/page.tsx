@@ -76,12 +76,12 @@ const JobPostingForm = () => {
     lng:0,
     image:""
   });
-  const { projectId } = useParams();
+  const  params  = useParams();
+  const projectId = params.projectId;
+  const jobId:string = params.jobId as string
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [inputValue, setInputValue] = useState(""); 
 
-  const pathName=usePathname();
-  const jobId = pathName.split("/")[5];
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: `${process.env.NEXT_PUBLIC_GOOGLE_MAP_API}`,
     libraries: ["places"], // Use 'places' library for autocomplete
@@ -166,7 +166,9 @@ const JobPostingForm = () => {
             startDate:response.projectDuration.startDate,
             endDate:response.projectDuration.endDate,
             payRange:response.compensation,
-            image:response.image
+            image:response.image,
+            lat:response.lat,
+            lng:response.lng
         })
         setInputValue(response.location)
     }

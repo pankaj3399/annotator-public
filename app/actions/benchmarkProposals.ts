@@ -102,7 +102,7 @@ interface UpdateProposalData {
       }
   
       await proposal.save();
-      return proposal;
+      return JSON.parse(JSON.stringify(proposal));
     } catch (e) {
       console.error("Error updating vote:", e);
       throw new Error("Error updating votes");

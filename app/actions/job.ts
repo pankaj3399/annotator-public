@@ -96,7 +96,7 @@ export async function editJobPost(jobId:string,data: {
     console.log(data);
 
     if(data.image == ''){
-      data.image = `https://${process.env.AWS_BUCKET_NAME}.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
+      data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
 
     const labels = await getProjectLabels(data.projectId);
@@ -146,7 +146,7 @@ export async function getJobPosts(options: {
     await connectToDatabase()
     let limit = options.limit || 10
 
-    if (![10, 20, 50, 90].includes(limit)) {
+    if (![10, 20, 50, 90,200].includes(limit)) {
       limit = 10
     }
     const { status, page = 1 } = options
@@ -332,7 +332,7 @@ export const getAllJobApplications = async() => {
 export async function getAllJobs(projectId: string) {
   try {
     await connectToDatabase();
-    
+
     const jobs = await JobPost.find({ projectId })
       .sort({ createdAt: -1 })
       .lean();

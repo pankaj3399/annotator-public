@@ -75,7 +75,7 @@ const JobListingPage = () => {
             Manage and create job postings for your project
           </p>
         </div>
-        <Link href={`/projects/job-list/${projectId}/create`}>
+        <Link href={`/projects/job-list/create/${projectId}`}>
           <Button size="sm" className="hover:shadow-md transition-all">
             <PlusCircle className="mr-2 h-4 w-4" />
             Create New Job
@@ -125,7 +125,7 @@ const JobListingPage = () => {
                         {formatDate(job.createdAt)}
                       </TableCell>
                       <TableCell>
-                        <Link href={`/projects/job-list/${projectId}/edit/${job._id}`}>
+                        <Link href={`/projects/job-list/edit/${job._id}/${projectId}`}>
                           <Button 
                             variant="ghost" 
                             size="sm"
