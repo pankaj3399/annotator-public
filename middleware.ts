@@ -16,7 +16,8 @@ export async function middleware(req: NextRequest) {
     publicRoutes.includes(pathname) ||
     pathname.startsWith("/blogs/") ||
     pathname.startsWith("/jobs/") ||
-    pathname.startsWith("/benchmark-arena")
+    pathname.startsWith("/benchmark-arena") ||
+    pathname.startsWith("/auth")
 
   if (!token && !isPublicRoute) {
     return NextResponse.redirect(new URL("/landing", req.url));

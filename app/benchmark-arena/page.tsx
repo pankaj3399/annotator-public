@@ -74,7 +74,7 @@ export default function BenchmarkArena() {
   const handleVote = async (e: React.MouseEvent, id: string, vote: number) => {
     e.stopPropagation()
     if (!session?.user?.id) {
-      router.push(`/auth/login/1`)
+      router.push(`/auth/login?benchmarkId=1`)
       return
     }
 

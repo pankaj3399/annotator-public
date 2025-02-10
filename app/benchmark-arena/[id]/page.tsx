@@ -64,7 +64,7 @@ export default function BenchmarkProposalDetail() {
 
   const handleVote = async (type: "up" | "down") => {
     if (!session?.user?.id) {
-      router.push(`/auth/login/${benchmarkId}`);
+      router.push(`/auth/login?benchmarkId=${benchmarkId}`);
       return;
     }
 
@@ -126,8 +126,8 @@ export default function BenchmarkProposalDetail() {
 
   return (
     <div className="p-4 w-full max-w-full overflow-hidden">
-      <div className="grid grid-cols-1 lg:grid-cols-[3fr_1fr] gap-6">
-        <div className="space-y-6 min-w-0">
+      <div className="flex gap-6">
+        <div className="space-y-6 min-w-0 w-3/4">
           <Card className="p-4 sm:p-6">
             <div className="flex items-start space-x-3 sm:space-x-4">
               <div className="flex flex-col items-center space-y-1 w-10 sm:w-12 flex-shrink-0">
@@ -193,7 +193,7 @@ export default function BenchmarkProposalDetail() {
           </Card>
           <CommentSection proposalId={proposal._id} ownerId={proposal.user} initialComments={proposal.comments} />
         </div>
-        <div className="lg:sticky lg:top-6">
+        <div className="lg:sticky w-1/4 lg:top-6">
           <OwnerCard owner={user} />
         </div>
       </div>
