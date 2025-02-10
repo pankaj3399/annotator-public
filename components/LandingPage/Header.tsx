@@ -50,7 +50,7 @@ const Header = () => {
       <Button
         className="text-base dark:text-[#ECECEC] p-0"
         variant="link"
-        onClick={() => handleScroll("home")}
+        onClick={() => router.push('/landing')}
       >
         Home
       </Button>
