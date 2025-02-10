@@ -167,11 +167,12 @@ const JobPostsGrid = () => {
             )}
 
             {/* Job Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredPosts.map((jobPost) => (
-                <JobCard key={jobPost._id} jobPost={jobPost} />
-              ))}
-            </div>
+ {/* Job Grid */}
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+  {filteredPosts.map((jobPost) => (
+    <JobCard key={jobPost._id} jobPost={jobPost} />
+  ))}
+</div>
             {!isLoading && hasMore && (
               <div className="flex justify-center mt-8">
                 <Button onClick={handleLoadMore} className="bg-black text-white hover:bg-gray-800">
@@ -201,13 +202,13 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
 
   return (
     <Link href={`/jobs/${jobPost._id}`}>
-      <div className="group bg-white overflow-hidden cursor-pointer hover:shadow-xl rounded-2xl transition-all duration-300 border border-gray-100">
+      <div className="group bg-white overflow-hidden cursor-pointer hover:shadow-xl rounded-2xl transition-all duration-300 border border-gray-100 flex flex-col h-full">
         {/* Image Container */}
-        <div className="relative h-56 w-full overflow-hidden">
-        <img
+        <div className="relative h-48 w-full overflow-hidden">
+          <img
             src={jobPost.image}
             alt={jobPost.title}
-            className="w-full h-full object-cover transition-transform duration-300 rounded-2xl group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
           {/* Location Overlay */}
           {jobPost.location && (
@@ -219,7 +220,7 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
         </div>
 
         {/* Content Container */}
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-4 flex-grow">
           <h3 className="font-bold text-xl text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200">
             {jobPost.title}
           </h3>
