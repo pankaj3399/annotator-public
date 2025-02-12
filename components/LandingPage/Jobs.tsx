@@ -13,6 +13,7 @@ interface JobPost {
     compensation: string;
     location: string;
     category?: string;
+    label:string[]
 }
 
 interface MarkerData {
@@ -89,24 +90,42 @@ export default function InteractiveMap() {
 
     const filterPosts = () => {
         let filtered = [...posts];
-
+      
+        // Ensure labels are properly parsed
+        filtered = filtered.map((post) => {
+          if (Array.isArray(post.label)) {
+            return {
+              ...post,
+              label: post.label
+                .map((labelString:string) => {
+                  try {
+                    return JSON.parse(labelString); // Convert stringified arrays into real arrays
+                  } catch {
+                    return []; // If JSON parsing fails, return an empty array
+                  }
+                })
+                .flat() // Flatten the nested arrays
+                .filter((label:string) => label && label.trim() !== ''), // Remove empty labels
+            };
+          }
+          return post;
+        });
+      
+        // Filter by category if activeCategory is set
         if (activeCategory) {
-            filtered = filtered.filter(post => 
-                post.category?.toLowerCase() === activeCategory.toLowerCase()
-            );
+          filtered = filtered.filter((post) => post.label.some((label:string) => label.toLowerCase() === activeCategory.toLowerCase()));
         }
-
+      
+        // Filter by search term if in search mode
         if (isSearchMode && searchValue) {
-            const searchLower = searchValue.toLowerCase();
-            filtered = filtered.filter(post =>
-                post.title.toLowerCase().includes(searchLower) ||
-                post.location.toLowerCase().includes(searchLower) ||
-                post.content?.toLowerCase().includes(searchLower)
-            );
+          const searchLower = searchValue.toLowerCase();
+          filtered = filtered.filter(
+            (post) => post.title.toLowerCase().includes(searchLower) || post.location.toLowerCase().includes(searchLower)
+          );
         }
-
+      
         setFilteredPosts(filtered);
-    };
+      };
 
     const handleCategoryClick = (category: string) => {
         if (activeCategory === category) {

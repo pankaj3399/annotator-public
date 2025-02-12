@@ -149,7 +149,7 @@ const JobListingPage = () => {
                           <p className="text-sm text-muted-foreground">
                             Get started by creating your first job posting
                           </p>
-                          <Link href={`/projects/job-list/${projectId}/create`}>
+                          <Link href={`/projects/job-list/create/${projectId}`}>
                             <Button 
                               variant="outline" 
                               size="sm" 

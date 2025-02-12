@@ -34,10 +34,9 @@ export async function createJobPost(data: {
     // Convert HTML to Markdown
     const markdownContent = turndownService.turndown(data.content);
 
-    console.log(data);
 
     if(data.image == ''){
-      data.image = `https://${process.env.AWS_BUCKET_NAME}.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
+      data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
 
     const labels = await getProjectLabels(data.projectId);
@@ -93,7 +92,6 @@ export async function editJobPost(jobId:string,data: {
     // Convert HTML to Markdown
     const markdownContent = turndownService.turndown(data.content);
 
-    console.log(data);
 
     if(data.image == ''){
       data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
