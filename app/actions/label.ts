@@ -17,35 +17,33 @@ export async function getLabels() {
 }
 
 
-export async function getProjectLabels(projectId: string) {
+export async function getProjectLabels(projectId: string): Promise<string[]> {
   try {
     await connectToDatabase();
     const project = await Project.findById(projectId).select('templates');
 
     if (!project || !project.templates) {
-      return JSON.stringify([]); // Return an empty array in string format
+      return []; // Return an empty array directly
     }
 
-    const labelSet = new Set<string>();
+    // Fetch all template labels concurrently
+    const labelArrays = await Promise.all(
+      project.templates.map((template:any) => getTemplateLabel(template))
+    );
 
-    for (const template of project.templates) {
-      const labels = await getTemplateLabel(template); // Assuming this returns an array of strings
+    // Flatten the array, filter out empty values, and store in a Set to ensure uniqueness
+    const labelSet = new Set(
+      labelArrays.flat().filter((label) => label && label.trim() !== '')
+    );
 
-      if (Array.isArray(labels)) {
-        labels.forEach((label) => {
-          if (label && label.trim() !== '') {
-            labelSet.add(label);
-          }
-        });
-      }
-    }
 
-    return JSON.stringify(Array.from(labelSet)); // Stringified array of unique labels
+    return Array.from(labelSet); // Return array instead of stringified JSON
   } catch (e) {
     console.error(e);
     throw new Error('Error fetching labels');
   }
 }
+
 
 
 // Action to create a new label
