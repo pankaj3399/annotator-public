@@ -108,67 +108,6 @@ export default function ProjectDashboard() {
     }
   }, [session]);
 
-  const addLabelToProject = async (label: string) => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/labels`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          labels: [...(project?.labels || []), label],
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to add label');
-
-      const updatedProject = await res.json();
-      setProject((prev) =>
-        prev ? { ...prev, labels: updatedProject.labels } : prev
-      );
-      setNewLabel('');
-      toast({
-        title: 'Success',
-        description: 'Label added to project',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to add label',
-        description: error.message,
-      });
-    }
-  };
-
-  const removeLabel = async (labelToRemove: string) => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/labels`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          labels:
-            project?.labels?.filter((label) => label !== labelToRemove) || [],
-        }),
-      });
-
-      if (!res.ok) throw new Error('Failed to remove label');
-
-      const updatedProject = await res.json();
-      setProject((prev) =>
-        prev ? { ...prev, labels: updatedProject.labels } : prev
-      );
-
-      toast({
-        title: 'Success',
-        description: 'Label removed from project',
-      });
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to remove label',
-        description: error.message,
-      });
-    }
-  };
-
   async function handleAssignUser(
     annotatorId: string,
     taskId: string,
