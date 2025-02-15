@@ -1,66 +1,105 @@
 "use server"
 import { connectToDatabase } from '@/lib/db';
-import Label from '@/models/Label';
 import { Project } from '@/models/Project';
-import { getTemplateLabel } from './template';
 
-// Action to fetch all labels from the database
+// Action to fetch all labels across all projects
 export async function getLabels() {
   try {
     await connectToDatabase();
-    const labels = await Label.find({});  // Fetch all labels
-    return JSON.parse(JSON.stringify(labels));
+    // Fetch all projects and select only the labels field
+    const projects = await Project.find({}).select('labels');
+
+    // Combine all labels from all projects and remove duplicates
+    const allLabels = new Set(projects.flatMap(project => project.labels));
+
+    return Array.from(allLabels);
   } catch (error) {
     console.log(error)
     throw new Error('Error fetching labels');
   }
 }
 
-
+// Action to fetch labels for a specific project
 export async function getProjectLabels(projectId: string): Promise<string[]> {
   try {
     await connectToDatabase();
-    const project = await Project.findById(projectId).select('templates');
+    const project = await Project.findById(projectId).select('labels');
 
-    if (!project || !project.templates) {
-      return []; // Return an empty array directly
+    if (!project) {
+      return []; // Return empty array if project not found
     }
 
-    // Fetch all template labels concurrently
-    const labelArrays = await Promise.all(
-      project.templates.map((template:any) => getTemplateLabel(template))
-    );
-
-    // Flatten the array, filter out empty values, and store in a Set to ensure uniqueness
-    const labelSet = new Set(
-      labelArrays.flat().filter((label) => label && label.trim() !== '')
-    );
-
-
-    return Array.from(labelSet); // Return array instead of stringified JSON
+    return project.labels || []; // Return project labels or empty array if labels is undefined
   } catch (e) {
     console.error(e);
-    throw new Error('Error fetching labels');
+    throw new Error('Error fetching project labels');
   }
 }
 
-
-
-// Action to create a new label
-export async function createCustomLabel(name: string) {
+// Action to create a new label for a specific project
+export async function createCustomLabel(name: string, projectId: string) {
   try {
     await connectToDatabase();
-    // Check if label with the same name already exists
-    const existingLabel = await Label.findOne({ name });
-    if (existingLabel) {
-      throw new Error('Label with this name already exists');
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      throw new Error('Project not found');
     }
 
-    const newLabel = new Label({ name });
-    await newLabel.save();
+    // Check if label already exists in this project
+    if (project.labels.includes(name)) {
+      throw new Error('Label already exists in this project');
+    }
 
-    return JSON.stringify(newLabel);
+    // Add the new label to the project's labels array
+    const updatedProject = await Project.findByIdAndUpdate(
+      projectId,
+      { $addToSet: { labels: name } },
+      { new: true }
+    );
+
+    return JSON.stringify(updatedProject.labels);
   } catch (error) {
     throw new Error('Error creating label: ' + error);
+  }
+}
+
+// Optional: Add a function to add multiple labels to a project
+export async function addLabelsToProject(projectId: string, labels: string[]) {
+  try {
+    await connectToDatabase();
+    const updatedProject = await Project.findByIdAndUpdate(
+      projectId,
+      { $addToSet: { labels: { $each: labels } } },
+      { new: true }
+    );
+
+    if (!updatedProject) {
+      throw new Error('Project not found');
+    }
+
+    return updatedProject.labels;
+  } catch (error) {
+    throw new Error('Error adding labels to project: ' + error);
+  }
+}
+
+// Optional: Add a function to remove a label from a project
+export async function removeProjectLabel(projectId: string, label: string) {
+  try {
+    await connectToDatabase();
+    const updatedProject = await Project.findByIdAndUpdate(
+      projectId,
+      { $pull: { labels: label } },
+      { new: true }
+    );
+
+    if (!updatedProject) {
+      throw new Error('Project not found');
+    }
+
+    return updatedProject.labels;
+  } catch (error) {
+    throw new Error('Error removing label from project: ' + error);
   }
 }

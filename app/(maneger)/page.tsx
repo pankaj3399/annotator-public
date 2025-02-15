@@ -40,6 +40,7 @@ export interface Project {
   _id: string;
   name: string;
   created_at: string;
+  labels: string[];
 }
 
 type ExportItem = {
@@ -184,7 +185,7 @@ export default function ProjectDashboard() {
         } else {
           const data = await res.json();
           setProjects([...projects, data.project]);
-          setFilteredProjects([...projects,data.project]);
+          setFilteredProjects([...projects, data.project]);
           setNewProjectName('');
         }
       })

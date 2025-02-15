@@ -10,6 +10,7 @@ const projectSchema = new Schema({
   created_at: { type: Date, default: Date.now },
   // updated_at: { type: Date, default: Date.now },
   templates: [{ type: Schema.Types.ObjectId, ref: 'Template' }],
+  labels: { type: [String], default: [] },
   earnings_per_task: { 
     type: Number, 
     default: 0,

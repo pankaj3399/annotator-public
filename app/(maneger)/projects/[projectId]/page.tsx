@@ -31,6 +31,7 @@ import {
   Eye,
   EyeOff,
   PlusCircle,
+  Tag,
   Trash2Icon,
   X,
 } from 'lucide-react';
@@ -48,6 +49,12 @@ import {
 } from '@/components/ui/select';
 import { getAIModels } from '@/app/actions/aiModel';
 import { Badge } from '@/components/ui/badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import ProjectLabelManager from '@/components/LabelManager';
 
 interface Model {
   _id: string;
@@ -63,7 +70,6 @@ type CreateTemplateInput = {
   name: string;
   project: string;
   type: 'test' | 'training' | 'core';
-  labels: string[];
 };
 
 export default function ProjectDashboard() {
@@ -77,9 +83,8 @@ export default function ProjectDashboard() {
   const [isDialogOpen2, setIsDialogOpen2] = useState(false);
   const [template, setTemplate] = useState<template>();
   const [annotators, setAnnotators] = useState<any[]>([]);
+  const [newLabel, setNewLabel] = useState('');
   const [models, setModels] = useState<Model[] | undefined>(undefined);
-  const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  const [allLabels, setAllLabels] = useState<string[]>([]);
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast();
@@ -102,28 +107,65 @@ export default function ProjectDashboard() {
       fetchAIModels(projectId);
     }
   }, [session]);
-  useEffect(() => {
-    if (templates.length > 0) {
-      const labels = new Set<string>();
-      templates.forEach((template) => {
-        template.labels?.forEach((label) => labels.add(label));
+
+  const addLabelToProject = async (label: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/labels`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labels: [...(project?.labels || []), label],
+        }),
       });
-      setAllLabels(Array.from(labels));
+
+      if (!res.ok) throw new Error('Failed to add label');
+
+      const updatedProject = await res.json();
+      setProject((prev) =>
+        prev ? { ...prev, labels: updatedProject.labels } : prev
+      );
+      setNewLabel('');
+      toast({
+        title: 'Success',
+        description: 'Label added to project',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to add label',
+        description: error.message,
+      });
     }
-  }, [templates]);
+  };
 
-  const filteredTemplates = templates.filter((template) => {
-    return (
-      selectedLabels.length === 0 ||
-      selectedLabels.every((label) => template.labels?.includes(label))
-    );
-  });
+  const removeLabel = async (labelToRemove: string) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/labels`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          labels:
+            project?.labels?.filter((label) => label !== labelToRemove) || [],
+        }),
+      });
 
-  const toggleLabel = (label: string) => {
-    if (selectedLabels.includes(label)) {
-      setSelectedLabels((prev) => prev.filter((l) => l !== label));
-    } else {
-      setSelectedLabels((prev) => [...prev, label]);
+      if (!res.ok) throw new Error('Failed to remove label');
+
+      const updatedProject = await res.json();
+      setProject((prev) =>
+        prev ? { ...prev, labels: updatedProject.labels } : prev
+      );
+
+      toast({
+        title: 'Success',
+        description: 'Label removed from project',
+      });
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to remove label',
+        description: error.message,
+      });
     }
   };
 
@@ -212,7 +254,6 @@ export default function ProjectDashboard() {
       name: newTemplateName.trim(),
       project: projectId,
       type: newTemplateType.trim() as 'test' | 'training' | 'core',
-      labels: [],
     };
 
     const template: template = JSON.parse(
@@ -223,9 +264,9 @@ export default function ProjectDashboard() {
         true
       )
     );
-    
+
     router.push(`/template?Id=${template._id}`);
-};
+  };
 
   const handleEditTemplate = (e: React.MouseEvent, _id: string) => {
     e.stopPropagation();
@@ -281,7 +322,16 @@ export default function ProjectDashboard() {
         <div className='max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center'>
           <h1 className='text-3xl font-bold text-gray-900 tracking-tight'>
             Project - {project?.name}
-          </h1>
+          </h1>{' '}
+          <div className='hidden sm:block'>
+            {project && ( // Only render when project exists
+              <ProjectLabelManager
+                projectId={projectId}
+                project={project}
+                setProject={setProject}
+              />
+            )}
+          </div>
           <SheetMenu />
         </div>
       </header>
@@ -319,38 +369,7 @@ export default function ProjectDashboard() {
             <PlusCircle className='mr-2 h-4 w-4' /> Create Template
           </Button>
         </form>
-        {allLabels.length > 0 && (
-          <div className='mb-6'>
-            <Select value='' onValueChange={toggleLabel}>
-              <SelectTrigger className='w-[200px]'>
-                <SelectValue placeholder='Filter by label' />
-              </SelectTrigger>
-              <SelectContent>
-                {allLabels.map((label) => (
-                  <SelectItem key={label} value={label}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
-            <div className='mt-2 flex flex-wrap gap-2'>
-              {selectedLabels.map((label) => (
-                <Badge
-                  key={label}
-                  variant='secondary'
-                  className='flex items-center gap-1'
-                >
-                  {label}
-                  <X
-                    className='h-3 w-3 cursor-pointer'
-                    onClick={() => toggleLabel(label)}
-                  />
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
         {/* Templates Table */}
         {templates.length === 0 ? (
           <div className='text-center py-10'>
@@ -370,12 +389,11 @@ export default function ProjectDashboard() {
                   <TableHead>Template Name</TableHead>
                   <TableHead>Created Date</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead>Labels</TableHead>
                   <TableHead className='text-right'>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTemplates.map((template) => (
+                {templates.map((template) => (
                   <TableRow
                     key={template._id}
                     onClick={() => handleTemplateClick(template)}
@@ -393,13 +411,7 @@ export default function ProjectDashboard() {
                     <TableCell className='font-medium'>
                       {template.type}
                     </TableCell>
-                    <TableCell>
-                      {template.labels?.map((label) => (
-                        <Badge key={label} variant='secondary' className='mr-1'>
-                          {label}
-                        </Badge>
-                      ))}
-                    </TableCell>
+
                     <TableCell className='text-right'>
                       <Button
                         variant='ghost'

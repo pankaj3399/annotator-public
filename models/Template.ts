@@ -10,7 +10,6 @@ const templateSchema = new Schema({
     testTemplate: { type: Boolean, default: false },
     type: { type: String, enum: ['test', 'training', 'core'], default: 'test' },
     groundTruthTask: { type: Schema.Types.ObjectId, ref: 'Task', required: false },
-    labels: { type: [String], default: [] },
 });
 
 export const Template = models?.Template || model('Template', templateSchema);
