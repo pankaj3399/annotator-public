@@ -238,7 +238,7 @@ export default function ProjectDashboard() {
     }
     if (newSelectedLabels.length > 0) {
       filtered = filtered.filter((project) => {
-        const projectLabels = project.labels.flatMap((labelString) => {
+        const projectLabels = (project.labels || []).flatMap((labelString) => {
           try {
             return JSON.parse(labelString);
           } catch (e) {
@@ -262,7 +262,7 @@ export default function ProjectDashboard() {
     );
     if (selectedLabels.length > 0) {
       filtered = filtered.filter((project) => {
-        const projectLabels = project.labels.flatMap((labelString) => {
+        const projectLabels = (project.labels || []).flatMap((labelString) => {
           try {
             return JSON.parse(labelString);
           } catch (e) {
@@ -271,7 +271,7 @@ export default function ProjectDashboard() {
         });
         return selectedLabels.every(
           (label) =>
-            projectLabels.includes(label) || project.labels.includes(label)
+            projectLabels.includes(label) || project.labels?.includes(label)
         );
       });
     }
@@ -382,7 +382,7 @@ export default function ProjectDashboard() {
 
                         // Determine if the project has a "LLM BENCHMARK" label
                         const hasLLMBenchmark =
-                          project.labels.includes('LLM BENCHMARK');
+                          project.labels?.includes('LLM BENCHMARK');
 
                         return (
                           <>
