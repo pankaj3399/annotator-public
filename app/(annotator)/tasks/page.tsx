@@ -238,16 +238,19 @@ export default function ProjectDashboard() {
     }
     if (newSelectedLabels.length > 0) {
       filtered = filtered.filter((project) => {
-        const projectLabels = (project.labels || []).flatMap((labelString) => {
+        if (!project.labels) return false;
+
+        const projectLabels = project.labels.flatMap((labelString) => {
           try {
-            return JSON.parse(labelString);
+            const parsed = JSON.parse(labelString);
+            return Array.isArray(parsed) ? parsed : [parsed];
           } catch (e) {
             return [labelString];
           }
         });
-        return newSelectedLabels.every(
-          (label) =>
-            projectLabels.includes(label) || project.labels.includes(label)
+
+        return newSelectedLabels.every((label) =>
+          projectLabels.includes(label)
         );
       });
     }
@@ -262,17 +265,18 @@ export default function ProjectDashboard() {
     );
     if (selectedLabels.length > 0) {
       filtered = filtered.filter((project) => {
-        const projectLabels = (project.labels || []).flatMap((labelString) => {
+        if (!project.labels) return false;
+
+        const projectLabels = project.labels.flatMap((labelString) => {
           try {
-            return JSON.parse(labelString);
+            const parsed = JSON.parse(labelString);
+            return Array.isArray(parsed) ? parsed : [parsed];
           } catch (e) {
             return [labelString];
           }
         });
-        return selectedLabels.every(
-          (label) =>
-            projectLabels.includes(label) || project.labels?.includes(label)
-        );
+
+        return selectedLabels.every((label) => projectLabels.includes(label));
       });
     }
     setFilteredProjects(filtered);
