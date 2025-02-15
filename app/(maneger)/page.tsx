@@ -101,23 +101,22 @@ export default function ProjectDashboard() {
 
   useEffect(() => {
     if (session) {
-      fetch('/api/projects?labels=true')
+      fetch('/api/projects')
         .then((res) => res.json())
         .then((data) => {
           if (data.success) {
-            // Create a map of project IDs to their labels
+            // Use project labels directly
             const labelMap: Record<string, string[]> = {};
             const allLabels = new Set<string>();
 
-            data.projects.forEach((project: ProjectWithLabels) => {
-              const projectLabels =
-                project.templates?.flatMap((t) => t.labels || []) || [];
-              labelMap[project._id] = [...new Set(projectLabels)];
-              projectLabels.forEach((label) => allLabels.add(label));
+            data.projects.forEach((project: Project) => {
+              labelMap[project._id] = project.labels || [];
+              project.labels?.forEach((label) => allLabels.add(label));
             });
 
             setProjectLabels(labelMap);
             setAvailableLabels(Array.from(allLabels));
+            setProjects(data.projects);
           }
         })
         .catch((error) =>
@@ -137,7 +136,7 @@ export default function ProjectDashboard() {
     if (selectedLabels.length === 0) return projects;
     return projects.filter((project) =>
       selectedLabels.every((selectedLabel) =>
-        projectLabels[project._id]?.includes(selectedLabel)
+        project.labels?.includes(selectedLabel)
       )
     );
   };
@@ -350,7 +349,7 @@ export default function ProjectDashboard() {
                       </TableCell>
                       <TableCell>
                         <div className='flex flex-wrap gap-2'>
-                          {projectLabels[project._id]?.map((label, idx) => (
+                          {project.labels?.map((label, idx) => (
                             <Badge
                               key={`${project._id}-${idx}`}
                               variant='secondary'
