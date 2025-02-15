@@ -28,15 +28,12 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { template } from '../page';
 import { TimeSetterComponent } from '@/components/time-setter';
-import LabelManager from '@/components/LabelManager';
 
 type Props = {
   pageId: string;
   pageDetails: any;
   projectId: string;
 };
-
-
 
 const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
   const router = useRouter();
@@ -81,7 +78,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
             ...pageDetails,
             _id: pageDetails._id,
             name: title.trim(),
-            labels:selectedLabels
+            labels: selectedLabels,
           } as template,
           pageId
         );
@@ -118,7 +115,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           name: title,
           content,
           timer: undefined,
-          labels:selectedLabels
+          labels: selectedLabels,
         },
         pageId
       );
@@ -138,23 +135,23 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           }
         )}
       >
-        <aside className="flex items-center gap-4 flex-shrink-0">
+        <aside className='flex items-center gap-4 flex-shrink-0'>
           <Link href={`/projects/${projectId}`}>
-            <ArrowLeftCircle className="h-5 w-5" />
+            <ArrowLeftCircle className='h-5 w-5' />
           </Link>
-          <div className="flex items-center w-full max-w-xs md:max-w-sm space-x-4">
+          <div className='flex items-center w-full max-w-xs md:max-w-sm space-x-4'>
             {isEditing ? (
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onBlur={handleOnBlur}
-                className="w-full h-8 border-none p-0 text-base md:text-lg truncate focus:outline-none focus:ring focus:ring-blue-500"
-                placeholder="Enter page title"
-                aria-label="Page Title"
+                className='w-full h-8 border-none p-0 text-base md:text-lg truncate focus:outline-none focus:ring focus:ring-blue-500'
+                placeholder='Enter page title'
+                aria-label='Page Title'
               />
             ) : (
               <span
-                className="truncate text-base md:text-lg w-full cursor-pointer"
+                className='truncate text-base md:text-lg w-full cursor-pointer'
                 title={title}
                 onClick={handlePencilClick}
               >
@@ -163,8 +160,8 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
             )}
 
             <Button
-              className="p-2 h-8 w-8 flex items-center justify-center rounded-md"
-              variant="outline"
+              className='p-2 h-8 w-8 flex items-center justify-center rounded-md'
+              variant='outline'
               aria-label={isEditing ? 'Save Title' : 'Edit Title'}
               onClick={handlePencilClick}
             >
@@ -173,10 +170,10 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           </div>
         </aside>
 
-        <aside className="hidden md:block flex-shrink-0">
+        <aside className='hidden md:block flex-shrink-0'>
           <Tabs
-            defaultValue="Desktop"
-            className="w-fit"
+            defaultValue='Desktop'
+            className='w-fit'
             value={state.editor.device}
             onValueChange={(value) => {
               dispatch({
@@ -185,20 +182,20 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
               });
             }}
           >
-            <TabsList className="grid w-full grid-cols-3 bg-transparent h-fit">
+            <TabsList className='grid w-full grid-cols-3 bg-transparent h-fit'>
               {['Desktop', 'Tablet', 'Mobile'].map((device) => (
                 <Tooltip key={device}>
                   <TooltipTrigger>
                     <TabsTrigger
                       value={device}
-                      className="data-[state=active]:bg-muted w-10 h-10 p-0"
+                      className='data-[state=active]:bg-muted w-10 h-10 p-0'
                     >
                       {device === 'Desktop' ? (
-                        <Laptop className="h-4 w-4" />
+                        <Laptop className='h-4 w-4' />
                       ) : device === 'Tablet' ? (
-                        <Tablet className="h-4 w-4" />
+                        <Tablet className='h-4 w-4' />
                       ) : (
-                        <Smartphone className="h-4 w-4" />
+                        <Smartphone className='h-4 w-4' />
                       )}
                     </TabsTrigger>
                   </TooltipTrigger>
@@ -211,62 +208,51 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           </Tabs>
         </aside>
 
-        <aside className="flex items-center gap-4 flex-shrink-0">
-          <div
-            className="hidden sm:block "
-          >
-            <LabelManager
-              selectedLabels={selectedLabels}
-              setSelectedLabels={setSelectedLabels}
-              pageDetails={pageDetails}
-              projectId={projectId}
-              pageId={pageId}
-            />
-          </div>
-          <div className="hidden sm:block">
+        <aside className='flex items-center gap-4 flex-shrink-0'>
+          <div className='hidden sm:block'>
             <TimeSetterComponent templateId={pageId} />
           </div>
           <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-slate-800"
+            variant='ghost'
+            size='icon'
+            className='hover:bg-slate-800'
             onClick={handlePreviewClick}
           >
-            <EyeIcon className="h-4 w-4" />
+            <EyeIcon className='h-4 w-4' />
           </Button>
-          <div className="hidden sm:flex items-center gap-2">
+          <div className='hidden sm:flex items-center gap-2'>
             <Button
               disabled={!(state.history.currentIndex > 0)}
               onClick={handleUndo}
-              variant="ghost"
-              size="icon"
-              className="hover:bg-slate-800"
+              variant='ghost'
+              size='icon'
+              className='hover:bg-slate-800'
             >
-              <Undo2 className="h-4 w-4" />
+              <Undo2 className='h-4 w-4' />
             </Button>
             <Button
               disabled={
                 !(state.history.currentIndex < state.history.history.length - 1)
               }
               onClick={handleRedo}
-              variant="ghost"
-              size="icon"
-              className="hover:bg-slate-800"
+              variant='ghost'
+              size='icon'
+              className='hover:bg-slate-800'
             >
-              <Redo2 className="h-4 w-4" />
+              <Redo2 className='h-4 w-4' />
             </Button>
           </div>
-          <Button onClick={handleOnSave} className="hidden sm:flex">
+          <Button onClick={handleOnSave} className='hidden sm:flex'>
             Save
           </Button>
           {isMobileView && (
             <Button
-              variant="ghost"
-              size="icon"
-              className="sm:hidden"
+              variant='ghost'
+              size='icon'
+              className='sm:hidden'
               onClick={() => dispatch({ type: 'TOGGLE_PREVIEW_MODE' })}
             >
-              <Menu className="h-4 w-4" />
+              <Menu className='h-4 w-4' />
             </Button>
           )}
         </aside>
