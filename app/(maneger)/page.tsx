@@ -134,11 +134,12 @@ export default function ProjectDashboard() {
   // Add this filtering function:
   const getFilteredProjects = () => {
     if (selectedLabels.length === 0) return projects;
-    return projects.filter((project) =>
-      selectedLabels.every((selectedLabel) =>
-        project.labels?.includes(selectedLabel)
-      )
-    );
+    return projects.filter((project) => {
+      if (!project.labels) return false;
+      return selectedLabels.every((selectedLabel) =>
+        project.labels.includes(selectedLabel)
+      );
+    });
   };
 
   // Add the toggle label handler:
