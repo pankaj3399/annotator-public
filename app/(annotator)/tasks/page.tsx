@@ -440,16 +440,15 @@ export default function ProjectDashboard() {
             {
               _id: benchmarkProposalProject._id,
               name: benchmarkProposalProject.name,
-              project: benchmarkProposalProject._id,
+              project: {
+                _id: benchmarkProposalProject._id,
+                labels: benchmarkProposalProject.labels,
+              },
               content: '',
               created_at: benchmarkProposalProject.created_at,
               status: '',
               submitted: false,
               feedback: '',
-              template: {
-                _id: benchmarkProposalProject.templates[0],
-                labels: benchmarkProposalProject.labels,
-              },
             },
           ]}
           open={isBenchmarkProposalOpen}
