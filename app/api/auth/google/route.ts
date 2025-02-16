@@ -2,32 +2,52 @@
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { NextResponse } from "next/server";
+import { OAuth2Client } from 'google-auth-library';
+
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
-    console.log("Database connected successfully");
 
-    const { name, email } = await req.json();
-    console.log("Received data:", { name, email });
+    const { token } = await req.json();
+    
+    // Verify the Google token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID
+    });
 
-    // Check if user already exists
+    const payload = ticket.getPayload();
+    if (!payload) {
+      return NextResponse.json(
+        { error: "Invalid token" },
+        { status: 401 }
+      );
+    }
+
+    const { name, email, sub: googleId } = payload;
+
+    // Check if user exists
     let user = await User.findOne({ email });
     
     if (user) {
       // Update last login for existing user
       user = await User.findByIdAndUpdate(
         user._id,
-        { lastLogin: new Date() },
+        { 
+          lastLogin: new Date(),
+          googleId // Store Google ID if not already stored
+        },
         { new: true }
       );
     } else {
-      // For Google auth users, set a placeholder password since it's required by schema
-      // You might want to update your User model to make password optional for OAuth users
+      // Create new user
       const userData = {
         name,
         email,
-        password: "GOOGLE_AUTH_" + Date.now(), // Placeholder password
+        googleId,
+        password: `GOOGLE_${googleId}`, // Placeholder for schema requirement
         role: "annotator",
         domain: [],
         lang: [],
@@ -40,30 +60,27 @@ export async function POST(req: Request) {
       await user.save();
     }
 
-    return NextResponse.json(
-      {
-        message: user ? "Login successful" : "User created successfully",
-        user: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          domain: user.domain,
-          lang: user.lang,
-          location: user.location,
-          permission: user.permission,
-          lastLogin: user.lastLogin,
-        },
-      },
-      { status: user ? 200 : 201 }
-    );
+    return NextResponse.json({
+      message: "Login successful",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        domain: user.domain,
+        lang: user.lang,
+        location: user.location,
+        permission: user.permission,
+        lastLogin: user.lastLogin
+      }
+    });
 
   } catch (error: any) {
     console.error("Google auth error:", error);
     return NextResponse.json(
       {
         error: "Server Error",
-        message: "Something went wrong during Google authentication",
+        message: "Token verification failed",
         details: error.message
       },
       { status: 500 }

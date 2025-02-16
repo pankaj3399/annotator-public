@@ -112,16 +112,57 @@
 					  "header": [],
 					  "body": {
 						"mode": "raw",
-						"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"johndoe@gmail.com\"\n}",
+						"raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}",
 						"options": {
 						  "raw": {
 							"language": "json"
 						  }
 						}
 					  },
+					  "description": "Authenticates a user using Google OAuth token. The token should be obtained from Google's OAuth 2.0 flow.\n\nThe endpoint:\n1. Verifies the Google ID token\n2. Extracts user information (name, email, Google ID)\n3. Creates a new user if they don't exist\n4. Updates existing user's last login if they do exist\n\nResponse includes user details and login confirmation.",
 					  "url": "{{baseurl}}/api/auth/google"
 					},
-					"response": []
+					"response": [
+					  {
+						"name": "Success Response",
+						"originalRequest": {
+						  "method": "POST",
+						  "body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}"
+						  }
+						},
+						"status": "200 OK",
+						"code": 200,
+						"body": "{\n    \"message\": \"Login successful\",\n    \"user\": {\n        \"_id\": \"user_id\",\n        \"name\": \"User Name\",\n        \"email\": \"user@example.com\",\n        \"role\": \"annotator\",\n        \"domain\": [],\n        \"lang\": [],\n        \"location\": null,\n        \"permission\": [],\n        \"lastLogin\": \"2024-02-16T12:00:00.000Z\"\n    }\n}"
+					  },
+					  {
+						"name": "Error Response - Invalid Token",
+						"originalRequest": {
+						  "method": "POST",
+						  "body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"INVALID_TOKEN\"\n}"
+						  }
+						},
+						"status": "401 Unauthorized",
+						"code": 401,
+						"body": "{\n    \"error\": \"Invalid token\"\n}"
+					  },
+					  {
+						"name": "Error Response - Server Error",
+						"originalRequest": {
+						  "method": "POST",
+						  "body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}"
+						  }
+						},
+						"status": "500 Internal Server Error",
+						"code": 500,
+						"body": "{\n    \"error\": \"Server Error\",\n    \"message\": \"Token verification failed\",\n    \"details\": \"Error details here\"\n}"
+					  }
+					]
 				  }
 			]
 		},
