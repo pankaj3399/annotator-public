@@ -123,19 +123,22 @@
 					  "url": "{{baseurl}}/api/auth/google"
 					},
 					"response": [
-					  {
-						"name": "Success Response",
-						"originalRequest": {
-						  "method": "POST",
-						  "body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}"
-						  }
+						{
+							"csrfToken": "CSRF_TOKEN_HERE",
+							"user": {
+								"value": {
+									"_id": "user_id",
+									"name": "User Name",
+									"email": "user@example.com",
+									"role": "annotator",
+									"domain": [],
+									"lang": [],
+									"location": null,
+									"permission": [],
+									"lastLogin": "2024-02-16T12:00:00.000Z"
+								}
+							}
 						},
-						"status": "200 OK",
-						"code": 200,
-						"body": "{\n    \"message\": \"Login successful\",\n    \"user\": {\n        \"_id\": \"user_id\",\n        \"name\": \"User Name\",\n        \"email\": \"user@example.com\",\n        \"role\": \"annotator\",\n        \"domain\": [],\n        \"lang\": [],\n        \"location\": null,\n        \"permission\": [],\n        \"lastLogin\": \"2024-02-16T12:00:00.000Z\"\n    }\n}"
-					  },
 					  {
 						"name": "Error Response - Invalid Token",
 						"originalRequest": {

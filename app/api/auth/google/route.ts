@@ -61,19 +61,21 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({
-      message: "Login successful",
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        domain: user.domain,
-        lang: user.lang,
-        location: user.location,
-        permission: user.permission,
-        lastLogin: user.lastLogin
-      }
-    });
+        csrfToken: "CSRF_TOKEN_HERE", // Added csrfToken field
+        user: {
+          value: { // Nested user object under value
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            domain: user.domain,
+            lang: user.lang,
+            location: user.location,
+            permission: user.permission,
+            lastLogin: user.lastLogin.toISOString()
+          }
+        }
+      });
 
   } catch (error: any) {
     console.error("Google auth error:", error);
