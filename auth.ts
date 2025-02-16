@@ -4,6 +4,9 @@ import GoogleProvider from "next-auth/providers/google";
 import { connectToDatabase } from "./lib/db";
 import { User } from "./models/User";
 import saltAndHashPassword from "./utils/password";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
 interface JWTToken {
   id?: string;
@@ -20,10 +23,66 @@ export const authOptions: AuthOptions = {
       credentials: {
         email: { label: "email", type: "text" },
         password: { label: "password", type: "text" },
+        token: { label: "token", type: "text" }, // For third-party token
       },
       async authorize(credentials) {
         await connectToDatabase();
 
+        // Handle third-party token
+        if (credentials?.token) {
+          try {
+            const ticket = await googleClient.verifyIdToken({
+              idToken: credentials.token,
+              audience: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+            });
+            const payload = ticket.getPayload();
+
+            if (!payload?.email) {
+              return null;
+            }
+
+            // Find or create user
+            let user = await User.findOne({ email: payload.email });
+
+            if (!user) {
+              const newUser = new User({
+                name: payload.name,
+                email: payload.email,
+                password: saltAndHashPassword("defaultGooglePassword"),
+                role: "annotator",
+                phone: null,
+                domain: [],
+                lang: [],
+                location: null,
+                linkedin: null,
+                resume: null,
+                nda: null,
+                permission: [],
+                lastLogin: new Date(),
+                invitation: null,
+              });
+              user = await newUser.save();
+            } else {
+              // Update last login timestamp
+              await User.updateOne(
+                { _id: user._id },
+                { lastLogin: new Date() }
+              );
+            }
+
+            return {
+              id: user._id.toString(),
+              name: user.name,
+              email: user.email,
+              role: user.role,
+            };
+          } catch (error) {
+            console.error('Token verification failed:', error);
+            return null;
+          }
+        }
+
+        // Regular email/password flow
         const pwHash = saltAndHashPassword(credentials?.password as string);
         const user = await User.findOne({
           email: credentials?.email,
@@ -31,10 +90,9 @@ export const authOptions: AuthOptions = {
         });
 
         if (!user) {
-          return null; // Return null if user not found
+          return null;
         }
 
-        // Update last login if user is an annotator
         if (user.role === "annotator") {
           await User.updateOne({ _id: user._id }, { lastLogin: new Date() });
         }
@@ -71,16 +129,14 @@ export const authOptions: AuthOptions = {
       if (account?.provider === "google") {
         await connectToDatabase();
 
-        // Check if the user already exists
         let existingUser = await User.findOne({ email: user.email });
 
         if (!existingUser) {
-          // Create new user if it doesn't exist
           const newUser = new User({
             name: user.name,
             email: user.email,
-            password: saltAndHashPassword("defaultGooglePassword"), // Create a dummy password
-            role: "annotator", // Default role
+            password: saltAndHashPassword("defaultGooglePassword"),
+            role: "annotator",
             phone: null,
             domain: [],
             lang: [],
@@ -94,19 +150,17 @@ export const authOptions: AuthOptions = {
           });
           existingUser = await newUser.save();
         } else {
-          // Update last login timestamp for existing user
           await User.updateOne(
             { _id: existingUser._id },
             { lastLogin: new Date() }
           );
         }
 
-        // Inject user data for the JWT token
         user.id = existingUser._id.toString();
         user.role = existingUser.role;
       }
 
-      return true; // Return true to proceed with login
+      return true;
     },
   },
   pages: {
