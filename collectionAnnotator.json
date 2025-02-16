@@ -105,9 +105,27 @@
 						"url": "{{baseurl}}/api/auth/signup"
 					},
 					"response": []
-				}
+				},{
+					"name": "Google Auth",
+					"request": {
+					  "method": "POST",
+					  "header": [],
+					  "body": {
+						"mode": "raw",
+						"raw": "{\n    \"name\": \"John Doe\",\n    \"email\": \"johndoe@gmail.com\"\n}",
+						"options": {
+						  "raw": {
+							"language": "json"
+						  }
+						}
+					  },
+					  "url": "{{baseurl}}/api/auth/google"
+					},
+					"response": []
+				  }
 			]
 		},
+		
 		{
 			"name": "Admin",
 			"item": [
