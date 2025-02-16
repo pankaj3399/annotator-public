@@ -225,60 +225,65 @@ export default function ProjectDashboard() {
     fetchAssignedTests();
   }, [session?.user?.id]);
 
-  const handleLabelClick = (label: LabelType) => {
+  const handleLabelClick = async (label: LabelType) => {
     const newSelectedLabels = selectedLabels.includes(label)
       ? selectedLabels.filter((l) => l !== label)
       : [...selectedLabels, label];
+
     setSelectedLabels(newSelectedLabels);
-    let filtered = projects;
-    if (searchQuery) {
-      filtered = filtered.filter((project) =>
-        project.name.toLowerCase().includes(searchQuery.toLowerCase())
+    setIsLoading(true);
+
+    try {
+      const [assignedProjects, projectsWithRepeatTasks, fetchedLabels] =
+        await Promise.all([
+          getDistinctProjectsByAnnotator(newSelectedLabels),
+          getProjectsWithRepeatTasks(newSelectedLabels),
+          getLabels(),
+        ]);
+
+      const assignedProjectsList = assignedProjects;
+      const projectsWithTestsList = projectsWithRepeatTasks;
+      const parsedLabels = fetchedLabels || [];
+      setCustomLabels(parsedLabels);
+
+      const testProjectIds = new Set<string>(
+        projectsWithTestsList.map((p: Project) => p._id)
       );
-    }
-    if (newSelectedLabels.length > 0) {
-      filtered = filtered.filter((project) => {
-        if (!project.labels) return false;
+      setProjectsWithTests(testProjectIds);
 
-        const projectLabels = project.labels.flatMap((labelString) => {
-          try {
-            const parsed = JSON.parse(labelString);
-            return Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            return [labelString];
-          }
-        });
-
-        return newSelectedLabels.every((label) =>
-          projectLabels.includes(label)
-        );
+      // Combine projects
+      const allProjects = [...assignedProjectsList];
+      projectsWithTestsList.forEach((project: Project) => {
+        if (!allProjects.some((p) => p._id === project._id)) {
+          allProjects.push(project);
+        }
       });
-    }
-    setFilteredProjects(filtered);
-  };
 
+      setProjects(allProjects);
+
+      // Apply search filter if exists
+      if (searchQuery) {
+        const filtered = allProjects.filter((project) =>
+          project.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setFilteredProjects(filtered);
+      } else {
+        setFilteredProjects(allProjects);
+      }
+    } catch (error) {
+      console.error('Error fetching filtered projects:', error);
+      toast.error('Failed to filter projects');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
-    let filtered = projects.filter((project) =>
+
+    const filtered = projects.filter((project) =>
       project.name.toLowerCase().includes(query)
     );
-    if (selectedLabels.length > 0) {
-      filtered = filtered.filter((project) => {
-        if (!project.labels) return false;
-
-        const projectLabels = project.labels.flatMap((labelString) => {
-          try {
-            const parsed = JSON.parse(labelString);
-            return Array.isArray(parsed) ? parsed : [parsed];
-          } catch (e) {
-            return [labelString];
-          }
-        });
-
-        return selectedLabels.every((label) => projectLabels.includes(label));
-      });
-    }
     setFilteredProjects(filtered);
   };
 
