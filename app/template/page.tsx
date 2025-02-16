@@ -20,7 +20,6 @@ export type template = {
   type: string;
   private: boolean;
   groundTruthTask: string;
-  labels?: string[];
 };
 
 const Page = () => {
@@ -69,7 +68,7 @@ const Page = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    <div className='fixed inset-0 bg-background overflow-hidden'>
       <EditorProvider
         subaccountId={template.project}
         funnelId={template._id}
@@ -80,9 +79,9 @@ const Page = () => {
           pageDetails={template}
           projectId={template.project}
         />
-        <main className="h-[calc(100vh-64px)] mt-24 relative">
+        <main className='h-[calc(100vh-64px)] mt-24 relative'>
           {/* Editor area */}
-          <div className="absolute inset-0 flex justify-center">
+          <div className='absolute inset-0 flex justify-center'>
             <div
               className={clsx('w-full h-full transition-all duration-300', {
                 'ml-[280px] mr-[320px]': !template.private,

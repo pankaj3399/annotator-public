@@ -50,12 +50,8 @@ type ExportItem = {
 interface Template {
   _id: string;
   name: string;
-  labels: string[];
 }
 
-interface ProjectWithLabels extends Project {
-  templates: Template[];
-}
 export default function ProjectDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProjectName, setNewProjectName] = useState('');

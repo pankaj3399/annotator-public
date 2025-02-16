@@ -26,7 +26,6 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { getTemplateLabel } from '@/app/actions/template';
 import { BenchmarkProposalForm } from '@/components/BenchmarkProposal';
 
 export interface Project {
