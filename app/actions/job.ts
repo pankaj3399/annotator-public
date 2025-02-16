@@ -8,17 +8,16 @@ import TurndownService from "turndown";
 import { getServerSession } from "next-auth";
 import JobApplication from "@/models/JobApplication";
 import { authOptions } from "@/auth";
-import { getProjectDetailsByManager } from "./dashboard";
-import { getLabels, getProjectLabels } from "./label";
+import { getProjectLabels } from "./label";
 
 const turndownService = new TurndownService();
 export async function createJobPost(data: {
   title: string;
   content: string; // HTML content from ReactQuill
   startDate: Date;
-  projectDescription:string;
-  taskDescription:string;
-  skills:string;
+  projectDescription: string;
+  taskDescription: string;
+  skills: string;
   endDate: Date;
   compensation: string;
   status?: "draft" | "published";
@@ -26,7 +25,7 @@ export async function createJobPost(data: {
   location: string;
   lat: number;
   lng: number;
-  image:string;
+  image: string;
 }) {
   try {
     await connectToDatabase();
@@ -35,73 +34,12 @@ export async function createJobPost(data: {
     const markdownContent = turndownService.turndown(data.content);
 
 
-    if(data.image == ''){
+    if (data.image == '') {
       data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
 
     const labels = await getProjectLabels(data.projectId);
     const jobPost = await JobPost.create({
-      title: data.title,
-      content: markdownContent,
-      projectDuration: {
-        startDate: data.startDate,
-        endDate: data.endDate,
-      },
-      projectDescription:data.projectDescription,
-      taskDescription:data.taskDescription,
-      skills:data.skills,
-      compensation: data.compensation,
-      status: data.status || "draft",
-      projectId: data.projectId,
-      location: data.location,
-      lat:data.lat,
-      lng:data.lng,
-      image:data.image,
-      label:labels
-    });
-    
-
-    return { success: true, data: jobPost };
-  } catch (error) {
-    console.error("Error creating job post:", error);
-    return { success: false, error: "Failed to create job post" };
-  }
-}
-
-
-
-export async function editJobPost(jobId:string,data: {
-  title: string;
-  content: string; // HTML content from ReactQuill
-  startDate: Date;
-  projectDescription:string;
-  taskDescription:string;
-  skills:string;
-  endDate: Date;
-  compensation: string;
-  status?: "draft" | "published";
-  projectId: string;
-  location: string;
-  lat: number;
-  lng: number;
-  image:string;
-}) {
-  try {
-    await connectToDatabase();
-
-    // Convert HTML to Markdown
-    const markdownContent = turndownService.turndown(data.content);
-
-
-    if(data.image == ''){
-      data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
-    }
-
-    const labels = await getProjectLabels(data.projectId);
-const jobPost = await JobPost.updateOne(
-  { _id:jobId }, // Filter to find the job post by ID
-  { 
-    $set: {
       title: data.title,
       content: markdownContent,
       projectDuration: {
@@ -118,12 +56,73 @@ const jobPost = await JobPost.updateOne(
       lat: data.lat,
       lng: data.lng,
       image: data.image,
-      label: labels,
-    },
-  }
-);
+      label: labels
+    });
 
-    
+
+    return { success: true, data: jobPost };
+  } catch (error) {
+    console.error("Error creating job post:", error);
+    return { success: false, error: "Failed to create job post" };
+  }
+}
+
+
+
+export async function editJobPost(jobId: string, data: {
+  title: string;
+  content: string; // HTML content from ReactQuill
+  startDate: Date;
+  projectDescription: string;
+  taskDescription: string;
+  skills: string;
+  endDate: Date;
+  compensation: string;
+  status?: "draft" | "published";
+  projectId: string;
+  location: string;
+  lat: number;
+  lng: number;
+  image: string;
+}) {
+  try {
+    await connectToDatabase();
+
+    // Convert HTML to Markdown
+    const markdownContent = turndownService.turndown(data.content);
+
+
+    if (data.image == '') {
+      data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
+    }
+
+    const labels = await getProjectLabels(data.projectId);
+    const jobPost = await JobPost.updateOne(
+      { _id: jobId }, // Filter to find the job post by ID
+      {
+        $set: {
+          title: data.title,
+          content: markdownContent,
+          projectDuration: {
+            startDate: data.startDate,
+            endDate: data.endDate,
+          },
+          projectDescription: data.projectDescription,
+          taskDescription: data.taskDescription,
+          skills: data.skills,
+          compensation: data.compensation,
+          status: data.status || "draft",
+          projectId: data.projectId,
+          location: data.location,
+          lat: data.lat,
+          lng: data.lng,
+          image: data.image,
+          label: labels,
+        },
+      }
+    );
+
+
 
     return { success: true, data: jobPost };
   } catch (error) {
@@ -144,7 +143,7 @@ export async function getJobPosts(options: {
     await connectToDatabase()
     let limit = options.limit || 10
 
-    if (![10, 20, 50, 90,200].includes(limit)) {
+    if (![10, 20, 50, 90, 200].includes(limit)) {
       limit = 10
     }
     const { status, page = 1 } = options
@@ -310,7 +309,7 @@ export async function getJobApplications(jobId: string) {
   }
 }
 
-export const getAllJobApplications = async() => {
+export const getAllJobApplications = async () => {
   try {
     await connectToDatabase();
 

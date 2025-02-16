@@ -41,9 +41,6 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
   const [isMobileView, setIsMobileView] = useState(false);
   const [title, setTitle] = useState(pageDetails.name);
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedLabels, setSelectedLabels] = useState<string[]>(() => {
-    return (pageDetails?.labels || []) as string[];
-  });
   const handlePencilClick = () => {
     setIsEditing((prev) => !prev);
   };
@@ -78,7 +75,6 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
             ...pageDetails,
             _id: pageDetails._id,
             name: title.trim(),
-            labels: selectedLabels,
           } as template,
           pageId
         );
@@ -115,7 +111,6 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           name: title,
           content,
           timer: undefined,
-          labels: selectedLabels,
         },
         pageId
       );

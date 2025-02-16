@@ -973,17 +973,16 @@ export async function getNotificationTemplatesByProject(projectId: string) {
     };
   }
 }
-
-
-
-export async function getDistinctProjectsByAnnotator() {
+export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = []) {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const annotatorId = session?.user.id;
 
   try {
+    let matchStage: any = { annotator: new mongoose.Types.ObjectId(annotatorId) };
+
     const uniqueProjects = await Task.aggregate([
-      { $match: { annotator: new mongoose.Types.ObjectId(annotatorId) } },
+      { $match: matchStage },
       { $group: { _id: "$project" } },
       {
         $lookup: {
@@ -994,11 +993,16 @@ export async function getDistinctProjectsByAnnotator() {
         },
       },
       { $unwind: "$projectDetails" },
+      // Add a filter for labels if they are provided
+      ...(selectedLabels.length > 0 ? [{
+        $match: {
+          "projectDetails.labels": { $all: selectedLabels }
+        }
+      }] : []),
       { $project: { _id: 0, project: "$projectDetails" } },
     ]);
-    const pro = uniqueProjects.map((project) => project.project);
 
-    return JSON.parse(JSON.stringify(pro));
+    return JSON.parse(JSON.stringify(uniqueProjects.map(p => p.project)));
   } catch (error) {
     console.error("Error fetching distinct projects by annotator:", error);
     throw error;
@@ -1260,10 +1264,10 @@ export async function assignUserToTask(taskId: string, annotatorId: string) {
     throw error;
   }
 }
-export async function getProjectsWithRepeatTasks() {
+export async function getProjectsWithRepeatTasks(selectedLabels: string[] = []) {
   await connectToDatabase();
   try {
-    // Get unique projects from TaskRepeat collection
+    // Get unique projects from TaskRepeat collection with label filtering
     const uniqueProjects = await TaskRepeat.aggregate([
       { $group: { _id: "$project" } },
       {
@@ -1275,6 +1279,12 @@ export async function getProjectsWithRepeatTasks() {
         },
       },
       { $unwind: "$projectDetails" },
+      // Add a filter for labels if they are provided
+      ...(selectedLabels.length > 0 ? [{
+        $match: {
+          "projectDetails.labels": { $all: selectedLabels }
+        }
+      }] : []),
       { $project: { _id: 0, project: "$projectDetails" } },
     ]);
 

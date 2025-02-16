@@ -6,41 +6,39 @@ import { getServerSession } from 'next-auth';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function GET(req: NextRequest) {
-  // Get the current session to identify the project manager
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   if (!session) {
     return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
   }
 
-  const searchParams = req.nextUrl.searchParams
-  const projectId = searchParams.get('projectId')
-  const getLabels = searchParams.get('labels')
-  if (getLabels === 'true') {
-    try {
-      const projects = await Project.find({ project_Manager: session.user.id })
-        .populate({
-          path: 'templates',
-          select: 'name labels'
-        });
-      return NextResponse.json({ success: true, projects }, { status: 200 });
-    } catch (error) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch project labels' }, { status: 400 });
+  const searchParams = req.nextUrl.searchParams;
+  const projectId = searchParams.get('projectId');
+  const selectedLabels = searchParams.get('labels')?.split(',').filter(Boolean);
+
+  try {
+    let query: any = { project_Manager: session.user.id };
+    
+    // Add labels filter if provided
+    if (selectedLabels && selectedLabels.length > 0) {
+      query.labels = { $all: selectedLabels }; // Ensures all selected labels are present
     }
-  }
-  if (projectId) {
-    try {
+
+    if (projectId) {
       const project = await Project.findById(projectId).populate('templates');
       return NextResponse.json({ success: true, project }, { status: 200 });
-    } catch (error) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch project' }, { status: 400 });
     }
-  }
-  try {
-    const projects = await Project.find({ project_Manager: session.user.id });
+
+    const projects = await Project.find(query)
+      .populate('templates')
+      .sort({ created_at: -1 });
+
     return NextResponse.json({ success: true, projects }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to fetch projects' }, { status: 400 });
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to fetch projects' 
+    }, { status: 400 });
   }
 }
 
