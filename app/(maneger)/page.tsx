@@ -142,11 +142,51 @@ export default function ProjectDashboard() {
     });
   };
 
-  // Add the toggle label handler:
+  const fetchProjects = async (labels: string[] = []) => {
+    try {
+      const queryParams = new URLSearchParams();
+
+      if (labels.length > 0) {
+        queryParams.append('labels', labels.join(','));
+      }
+
+      const res = await fetch(`/api/projects?${queryParams}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setProjects(data.projects);
+
+        // Collect all unique labels from projects
+        const allLabels = new Set<string>();
+        data.projects.forEach((project: Project) => {
+          project.labels?.forEach((label) => allLabels.add(label));
+        });
+        setAvailableLabels(Array.from(allLabels));
+      }
+    } catch (error: unknown) {
+      // Properly type the error and provide a fallback message
+      const errorMessage =
+        error instanceof Error ? error.message : 'An unknown error occurred';
+      toast({
+        variant: 'destructive',
+        title: 'Error loading projects',
+        description: errorMessage,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      fetchProjects();
+    }
+  }, [session]);
   const toggleLabel = (label: string) => {
-    setSelectedLabels((prev) =>
-      prev.includes(label) ? prev.filter((l) => l !== label) : [...prev, label]
-    );
+    const newLabels = selectedLabels.includes(label)
+      ? selectedLabels.filter((l) => l !== label)
+      : [...selectedLabels, label];
+
+    setSelectedLabels(newLabels);
+    fetchProjects(newLabels);
   };
 
   if (!session) {

@@ -231,7 +231,6 @@ export default function ProjectDashboard() {
       : [...selectedLabels, label];
 
     setSelectedLabels(newSelectedLabels);
-    setIsLoading(true);
 
     try {
       const [assignedProjects, projectsWithRepeatTasks, fetchedLabels] =
@@ -273,8 +272,6 @@ export default function ProjectDashboard() {
     } catch (error) {
       console.error('Error fetching filtered projects:', error);
       toast.error('Failed to filter projects');
-    } finally {
-      setIsLoading(false);
     }
   };
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
