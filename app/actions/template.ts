@@ -43,7 +43,6 @@ export async function upsertTemplate(projectid: string, template: template, _id:
             content: template.content ? template.content : defaultContent,
             project: projectid,
             type: template.type,
-            labels: template.labels || [], 
         },
         {
             upsert: true,

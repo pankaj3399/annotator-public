@@ -10,8 +10,7 @@ export async function getLabels() {
     const projects = await Project.find({}).select('labels');
 
     // Combine all labels from all projects and remove duplicates
-    const allLabels = new Set(projects.flatMap(project => project.labels));
-
+    const allLabels = new Set(projects.flatMap(project => project.labels || []));
     return Array.from(allLabels);
   } catch (error) {
     console.log(error)
@@ -47,6 +46,9 @@ export async function createCustomLabel(name: string, projectId: string) {
     }
 
     // Check if label already exists in this project
+    if (!project.labels) {
+      project.labels = [];
+    }
     if (project.labels.includes(name)) {
       throw new Error('Label already exists in this project');
     }
