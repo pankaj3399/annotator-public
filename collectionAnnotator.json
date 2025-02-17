@@ -124,47 +124,44 @@
 					},
 					"response": [
 						{
-							"csrfToken": "CSRF_TOKEN_HERE",
-							"user": {
-								"value": {
-									"_id": "user_id",
-									"name": "User Name",
-									"email": "user@example.com",
-									"role": "annotator",
-									"domain": [],
-									"lang": [],
-									"location": null,
-									"permission": [],
-									"lastLogin": "2024-02-16T12:00:00.000Z"
+							"name": "Success Response",
+							"status": "200 OK",
+							"code": 200,
+							"body": {
+								"csrfToken": "CSRF_TOKEN_HERE",
+								"user": {
+									"value": {
+										"_id": "user_id",
+										"name": "User Name",
+										"email": "user@example.com",
+										"role": "annotator",
+										"domain": [],
+										"lang": [],
+										"location": null,
+										"permission": [],
+										"lastLogin": "2024-02-16T12:00:00.000Z"
+									}
 								}
 							}
 						},
-					  {
-						"name": "Error Response - Invalid Token",
-						"originalRequest": {
-						  "method": "POST",
-						  "body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"INVALID_TOKEN\"\n}"
-						  }
+						{
+							"name": "Error Response - Invalid Token",
+							"status": "401 Unauthorized",
+							"code": 401,
+							"body": {
+								"error": "Invalid token"
+							}
 						},
-						"status": "401 Unauthorized",
-						"code": 401,
-						"body": "{\n    \"error\": \"Invalid token\"\n}"
-					  },
-					  {
-						"name": "Error Response - Server Error",
-						"originalRequest": {
-						  "method": "POST",
-						  "body": {
-							"mode": "raw",
-							"raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}"
-						  }
-						},
-						"status": "500 Internal Server Error",
-						"code": 500,
-						"body": "{\n    \"error\": \"Server Error\",\n    \"message\": \"Token verification failed\",\n    \"details\": \"Error details here\"\n}"
-					  }
+						{
+							"name": "Error Response - Server Error",
+							"status": "500 Internal Server Error",
+							"code": 500,
+							"body": {
+								"error": "Server Error",
+								"message": "Token verification failed",
+								"details": "Error details here"
+							}
+						}
 					]
 				  }
 			]
