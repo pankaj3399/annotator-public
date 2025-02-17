@@ -12,8 +12,8 @@ export async function POST(req: Request) {
 
     // Parse request body to match login API structure
     const body = await req.json();
-    const { 
-      email, 
+    const {
+      email,
       name,
       role = "annotator",
       phone = "",
@@ -54,12 +54,12 @@ export async function POST(req: Request) {
 
     // Check if user exists
     let user = await User.findOne({ email });
-    
+
     if (user) {
       // Update last login for existing user
       user = await User.findByIdAndUpdate(
         user._id,
-        { 
+        {
           lastLogin: new Date(),
           name,
           role,
@@ -101,21 +101,7 @@ export async function POST(req: Request) {
       csrfToken,
       url: redirect ? callbackUrl : null,
       user: {
-        value: {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          phone: user.phone,
-          domain: user.domain,
-          lang: user.lang,
-          location: user.location,
-          linkedIn: user.linkedIn,
-          resume: user.resume,
-          nda: user.nda,
-          permission: user.permission,
-          lastLogin: user.lastLogin.toISOString()
-        }
+        _id: user._id,
       }
     });
 

@@ -113,7 +113,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"anafariya@gmail.com\",\n    \"name\": \"Ana Fariya\",\n    \"role\": \"annotator\",\n    \"phone\": \"\",\n    \"domain\": [\"\"],\n    \"lang\": [\"\"],\n    \"location\": \"\",\n    \"linkedIn\": \"\",\n    \"resume\": \"\",\n    \"nda\": \"\",\n    \"csrfToken\": \"{{csrfToken}}\",\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\",\n    \"callbackUrl\": \"{{baseurl}}/\",\n    \"redirect\": false,\n    \"json\": true\n}",
+              "raw": "{\n    \"email\": \"anafariya@gmail.com\",\n    \"name\": \"Ana Fariya\",\n   \"csrfToken\": \"{{csrfToken}}\",\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\",\n    \"callbackUrl\": \"{{baseurl}}/\",\n }",
               "options": {
                 "raw": {
                   "language": "json"
@@ -133,21 +133,7 @@
                 "csrfToken": "{{csrfToken}}",
                 "url": null,
                 "user": {
-                  "value": {
-                    "_id": "user_id",
-                    "name": "Ana Fariya",
-                    "email": "anafariya@gmail.com",
-                    "role": "annotator",
-                    "phone": "",
-                    "domain": [""],
-                    "lang": [""],
-                    "location": "",
-                    "linkedIn": "",
-                    "resume": "",
-                    "nda": "",
-                    "permission": [],
-                    "lastLogin": "2024-02-16T12:00:00.000Z"
-                  }
+                  "_id": "user_id"
                 }
               }
             },
