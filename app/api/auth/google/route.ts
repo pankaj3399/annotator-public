@@ -10,9 +10,35 @@ export async function POST(req: Request) {
   try {
     await connectToDatabase();
 
-    const { token } = await req.json();
-    
-    // Verify the Google token
+    // Parse request body to match login API structure
+    const body = await req.json();
+    const { 
+      email, 
+      name,
+      role = "annotator",
+      phone = "",
+      domain = [""],
+      lang = [""],
+      location = "",
+      linkedIn = "",
+      resume = "",
+      nda = "",
+      csrfToken,
+      callbackUrl,
+      redirect = false,
+      json = true,
+      token // Google ID token
+    } = body;
+
+    // Verify the request has required fields
+    if (!email || !name || !csrfToken || !token) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    // Verify Google token
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -26,8 +52,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const { name, email, sub: googleId } = payload;
-
     // Check if user exists
     let user = await User.findOne({ email });
     
@@ -37,7 +61,15 @@ export async function POST(req: Request) {
         user._id,
         { 
           lastLogin: new Date(),
-          googleId // Store Google ID if not already stored
+          name,
+          role,
+          phone,
+          domain,
+          lang,
+          location,
+          linkedIn,
+          resume,
+          nda
         },
         { new: true }
       );
@@ -46,12 +78,15 @@ export async function POST(req: Request) {
       const userData = {
         name,
         email,
-        googleId,
-        password: `GOOGLE_${googleId}`, // Placeholder for schema requirement
-        role: "annotator",
-        domain: [],
-        lang: [],
-        location: null,
+        password: `GOOGLE_${Date.now()}`, // Placeholder password
+        role,
+        phone,
+        domain,
+        lang,
+        location,
+        linkedIn,
+        resume,
+        nda,
         permission: [],
         lastLogin: new Date(),
       };
@@ -60,30 +95,36 @@ export async function POST(req: Request) {
       await user.save();
     }
 
+    // Match login API response structure
     return NextResponse.json({
-        csrfToken: "CSRF_TOKEN_HERE", // Added csrfToken field
-        user: {
-          value: { // Nested user object under value
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            domain: user.domain,
-            lang: user.lang,
-            location: user.location,
-            permission: user.permission,
-            lastLogin: user.lastLogin.toISOString()
-          }
+      ok: true,
+      csrfToken,
+      url: redirect ? callbackUrl : null,
+      user: {
+        value: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          phone: user.phone,
+          domain: user.domain,
+          lang: user.lang,
+          location: user.location,
+          linkedIn: user.linkedIn,
+          resume: user.resume,
+          nda: user.nda,
+          permission: user.permission,
+          lastLogin: user.lastLogin.toISOString()
         }
-      });
+      }
+    });
 
   } catch (error: any) {
     console.error("Google auth error:", error);
     return NextResponse.json(
       {
         error: "Server Error",
-        message: "Token verification failed",
-        details: error.message
+        message: error.message
       },
       { status: 500 }
     );
