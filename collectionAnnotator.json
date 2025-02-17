@@ -113,7 +113,7 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"email\": \"anafariya@gmail.com\",\n    \"name\": \"Ana Fariya\",\n   \"csrfToken\": \"{{csrfToken}}\",\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\",\n    \"callbackUrl\": \"{{baseurl}}/\",\n }",
+              "raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\",\n  }",
               "options": {
                 "raw": {
                   "language": "json"
@@ -130,8 +130,6 @@
               "code": 200,
               "body": {
                 "ok": true,
-                "csrfToken": "{{csrfToken}}",
-                "url": null,
                 "user": {
                   "_id": "user_id"
                 }

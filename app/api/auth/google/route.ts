@@ -1,4 +1,3 @@
-// app/api/auth/google/route.ts
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { NextResponse } from "next/server";
@@ -10,11 +9,9 @@ export async function POST(req: Request) {
   try {
     await connectToDatabase();
 
-    // Parse request body to match login API structure
+    // Parse request body
     const body = await req.json();
     const {
-      email,
-      name,
       role = "annotator",
       phone = "",
       domain = [""],
@@ -23,17 +20,17 @@ export async function POST(req: Request) {
       linkedIn = "",
       resume = "",
       nda = "",
-      csrfToken,
-      callbackUrl,
       redirect = false,
       json = true,
       token // Google ID token
     } = body;
+    
+    const callbackUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
-    // Verify the request has required fields
-    if (!email || !name || !csrfToken || !token) {
+    // Verify token is present
+    if (!token) {
       return NextResponse.json(
-        { error: "Missing required fields" },
+        { error: "Missing Google ID token" },
         { status: 400 }
       );
     }
@@ -45,12 +42,21 @@ export async function POST(req: Request) {
     });
 
     const payload = ticket.getPayload();
-    if (!payload) {
+    if (!payload || !payload.email) {
       return NextResponse.json(
         { error: "Invalid token" },
         { status: 401 }
       );
     }
+
+    // Extract user info from token payload
+    const email = payload.email;
+    // Handle different name fields from Google payload
+    const name = payload.name || 
+                 (payload.given_name && payload.family_name ? 
+                  `${payload.given_name} ${payload.family_name}` : 
+                  payload.given_name || 
+                  email.split('@')[0]); // Fallback to email username if no name is provided
 
     // Check if user exists
     let user = await User.findOne({ email });
@@ -95,11 +101,9 @@ export async function POST(req: Request) {
       await user.save();
     }
 
-    // Match login API response structure
+    // Return response
     return NextResponse.json({
       ok: true,
-      csrfToken,
-      url: redirect ? callbackUrl : null,
       user: {
         _id: user._id,
       }
