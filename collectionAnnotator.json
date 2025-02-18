@@ -113,14 +113,14 @@
             "header": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\",\n  }",
+              "raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
                 }
               }
             },
-            "description": "Authenticates a user using Google OAuth token. Matches the login API structure for request and response.\n\nThe endpoint:\n1. Verifies the Google ID token\n2. Creates/updates user with provided profile information\n3. Returns response matching login API format",
+            "description": "Authenticates a user using Google OAuth token. Creates a new user if the email doesn't exist. Sets a next-auth session token cookie and returns user information.\n\nThe endpoint:\n1. Verifies the Google ID token\n2. Creates/updates user with Google profile information\n3. Sets next-auth session cookie\n4. Returns user details",
             "url": "{{baseurl}}/api/auth/google"
           },
           "response": [
@@ -128,10 +128,42 @@
               "name": "Success Response",
               "status": "200 OK",
               "code": 200,
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "text/html; charset=utf-8"
+                },
+                {
+                  "key": "cache-control",
+                  "value": "no-store, must-revalidate"
+                },
+                {
+                  "key": "x-powered-by",
+                  "value": "Next.js"
+                },
+                {
+                  "key": "vary",
+                  "value": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+                }
+              ],
+              "cookie": [
+                {
+                  "key": "next-auth.session-token",
+                  "value": "SESSION_TOKEN_VALUE",
+                  "httpOnly": true,
+                  "secure": true,
+                  "sameSite": "lax",
+                  "path": "/",
+                  "maxAge": 2592000
+                }
+              ],
               "body": {
                 "ok": true,
                 "user": {
-                  "_id": "user_id"
+                  "id": "user_id",
+                  "email": "user@example.com",
+                  "name": "User Name",
+                  "role": "annotator"
                 }
               }
             },
@@ -144,11 +176,11 @@
               }
             },
             {
-              "name": "Error Response - Missing Fields",
+              "name": "Error Response - Missing Token",
               "status": "400 Bad Request",
               "code": 400,
               "body": {
-                "error": "Missing required fields"
+                "error": "Missing Google ID token"
               }
             },
             {
