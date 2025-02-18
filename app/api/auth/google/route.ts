@@ -2,36 +2,28 @@ import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { NextResponse } from "next/server";
 import { OAuth2Client } from 'google-auth-library';
+import { encode } from 'next-auth/jwt';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export async function POST(req: Request) {
   try {
     await connectToDatabase();
-
-    // Parse request body
     const body = await req.json();
-    const {
-      role = "annotator",
-      phone = "",
-      domain = [""],
-      lang = [""],
-      location = "",
-      linkedIn = "",
-      resume = "",
-      nda = "",
-      redirect = false,
-      json = true,
-      token // Google ID token
-    } = body;
-    
-    const callbackUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const { token } = body;
 
     // Verify token is present
     if (!token) {
       return NextResponse.json(
         { error: "Missing Google ID token" },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-store, must-revalidate',
+            'X-Powered-By': 'Next.js'
+          }
+        }
       );
     }
 
@@ -49,65 +41,66 @@ export async function POST(req: Request) {
       );
     }
 
-    // Extract user info from token payload
     const email = payload.email;
-    // Handle different name fields from Google payload
-    const name = payload.name || 
-                 (payload.given_name && payload.family_name ? 
-                  `${payload.given_name} ${payload.family_name}` : 
-                  payload.given_name || 
-                  email.split('@')[0]); // Fallback to email username if no name is provided
+    const name = payload.name || email.split('@')[0];
 
     // Check if user exists
     let user = await User.findOne({ email });
-
-    if (user) {
-      // Update last login for existing user
-      user = await User.findByIdAndUpdate(
-        user._id,
-        {
-          lastLogin: new Date(),
-          name,
-          role,
-          phone,
-          domain,
-          lang,
-          location,
-          linkedIn,
-          resume,
-          nda
-        },
-        { new: true }
-      );
-    } else {
-      // Create new user
-      const userData = {
+    
+    if (!user) {
+      user = new User({
         name,
         email,
-        password: `GOOGLE_${Date.now()}`, // Placeholder password
-        role,
-        phone,
-        domain,
-        lang,
-        location,
-        linkedIn,
-        resume,
-        nda,
-        permission: [],
-        lastLogin: new Date(),
-      };
-
-      user = new User(userData);
+        password: `GOOGLE_${Date.now()}`,
+        role: "annotator",
+        lastLogin: new Date()
+      });
       await user.save();
     }
 
-    // Return response
-    return NextResponse.json({
-      ok: true,
-      user: {
-        _id: user._id,
-      }
+    // Create session token
+    const sessionToken = await encode({
+      token: {
+        email: user.email,
+        name: user.name,
+        sub: user._id.toString(),
+        role: user.role
+      },
+      secret: process.env.NEXTAUTH_SECRET!
     });
+
+    const response = NextResponse.json(
+      {
+        ok: true,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
+      },
+      {
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store, must-revalidate',
+          'x-powered-by': 'Next.js',
+          'vary': 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+        }
+      }
+    );
+
+    // Set session cookie
+    response.cookies.set({
+      name: 'next-auth.session-token',
+      value: sessionToken,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 30 * 24 * 60 * 60
+    });
+
+    return response;
 
   } catch (error: any) {
     console.error("Google auth error:", error);
@@ -116,7 +109,14 @@ export async function POST(req: Request) {
         error: "Server Error",
         message: error.message
       },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store, must-revalidate',
+          'X-Powered-By': 'Next.js'
+        }
+      }
     );
   }
 }
