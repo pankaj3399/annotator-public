@@ -1,825 +1,879 @@
 {
-	"info": {
-		"_postman_id": "e8674fef-e6dc-4685-9384-e68c0ec2e979",
-		"name": "API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
-		"_exporter_id": "34579024",
-		"_collection_link": "https://annotator-4761.postman.co/workspace/Annotator-Workspace~b5f6ef33-72e0-4363-a8b4-fb68175e2000/collection/34579024-e8674fef-e6dc-4685-9384-e68c0ec2e979?action=share&source=collection_link&creator=34579024"
-	},
-	"item": [
-		{
-			"name": "Auth",
-			"item": [
-				{
-					"name": "Login User",
-					"event": [
-						{
-							"listen": "prerequest",
-							"script": {
-								"exec": [
-									"const baseurl = pm.environment.get(\"baseurl\");",
-									"console.log(\"url is\", baseurl)",
-									"pm.sendRequest(`${baseurl}/api/auth/csrf`, function (err, response) {",
-									"    var jsonData = response.json();",
-									"    pm.environment.set(\"csrfToken\", jsonData.csrfToken);",
-									"});",
-									""
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"protocolProfileBehavior": {
-						"disabledSystemHeaders": {}
-					},
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "urlencoded",
-							"urlencoded": [
-								{
-									"key": "redirect",
-									"value": "false",
-									"type": "text"
-								},
-								{
-									"key": "email",
-									"value": "",
-									"type": "text"
-								},
-								{
-									"key": "password",
-									"value": "",
-									"type": "text"
-								},
-								{
-									"key": "totpCode",
-									"value": "",
-									"type": "text",
-									"disabled": true
-								},
-								{
-									"key": "callbackUrl",
-									"value": "{{baseurl}}/",
-									"type": "text"
-								},
-								{
-									"key": "csrfToken",
-									"value": "{{csrfToken}}",
-									"type": "text"
-								},
-								{
-									"key": "json",
-									"value": "true",
-									"type": "text"
-								}
-							]
-						},
-						"url": "{{baseurl}}/api/auth/callback/credentials"
-					},
-					"response": []
-				},
-				{
-					"name": "Signup User",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "",
-								"value": "",
-								"type": "text",
-								"disabled": true
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n    \"name\":\"testing\",\n    \"email\":\"testing@gmail.com\",\n    \"password\":\"123456\",\n    \"role\":\"annotator\",\n    \"phone\":\"\",\n    \"domain\":[\"\"],\n    \"lang\":[\"\"],\n    \"location\":\"\",\n    \"linkedIn\":\"\",  //Optional\n    \"resume\":\"\",     //Optional\n    \"nda\":\"\"        //Optional\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{baseurl}}/api/auth/signup"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Admin",
-			"item": [
-				{
-					"name": "Fetch Custom Fields",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
-					"request": {
-						"method": "GET",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{baseurl}}/api/admin/custom-fields"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "AIModel",
-			"item": [
-				{
-					"name": "Fetch Ai models for a project",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseurl}}/api/aiModel?projectId=<PROJECT_ID>",
-							"host": [
-								"{{baseurl}}"
-							],
-							"path": [
-								"api",
-								"aiModel"
-							],
-							"query": [
-								{
-									"key": "projectId",
-									"value": "<PROJECT_ID>"
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "annotator",
-			"item": [
-				{
-					"name": "task",
-					"item": [
-						{
-							"name": "getTask",
-							"request": {
-								"method": "GET",
-								"header": [
-									{
-										"key": "Cookie",
-										"value": "next-auth.session-token",
-										"type": "text"
-									}
-								],
-								"url": {
-									"raw": "{{baseurl}}/api/Task/:taskId/getTask",
-									"host": [
-										"{{baseurl}}"
-									],
-									"path": [
-										"api",
-										"Task",
-										":taskId",
-										"getTask"
-									],
-									"variable": [
-										{
-											"key": "taskId",
-											"value": "676532c97bb0937cf516710e"
-										}
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Sets the status of task",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Cookie",
-										"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..cG0SFKI9Beh27N0U.UzP_dwzur65gFWcm6TzR3bDKYp3c5vc4aexX8SZhuAxQUcZO0eyAly8Egxi0HvTVM8QoI9BHQ2TlW8_zBCB-2L0pSNTtSFzrwoMkrj0ZDK3mwbzeCDYNAyp_DEx5xQwxC836lbu-veWLDMQ0JPsrHMfCnPHM4w1gtLKcUui5Aldn4DitK-JRdMGch4whsAToS8ZrQ2Tpa5ay0IfxH4d4Eqjsrj9nesi061rGVwggv43f8tMuMwtpvm8ux_uD8VLna5R6x3D16y3wa3Q.8UWzptyS9xCcJgU5ZBlh8A",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n\n    \"_id\":\"676532c97bb0937cf516710e\",\n    \"status\":\"rejected\",\n    \"feedback\":\"Great\",\n    \"annotator\":\"\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": "{{baseurl}}/api/Task/setTaskStatus"
-							},
-							"response": []
-						},
-						{
-							"name": "Submit the status",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"template\": {\n    \"status\": \"pending\",\n    \"feedback\": \"\",\n    \"content\": \"[{\\\"type\\\":\\\"inputText\\\",\\\"content\\\":{\\\"innerText\\\":\\\"Sample Text\\\"}}]\"\n  },\n  \"_id\": \"676532c97bb0937cf516710f\",\n  \"projectid\": \"676532c97bb0937cf516710f\",\n  \"time\": 120\n}\n",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": "{{baseurl}}/api/Task/submitTask"
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "review",
-					"item": [
-						{
-							"name": "getAllAnnotator",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": "{{baseurl}}/api/Task/review/getAllAnnotators"
-							},
-							"response": []
-						},
-						{
-							"name": "Assign Reviewers",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"user_id\": \"<USER_ID>\",\n  \"permission\": \"canReview\" // Allowed values: \"noPermission\" or \"canReview\"\n}\n",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": "{{baseurl}}/api/annotator"
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "getAnnotatorDashboard",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Cookie",
-								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..MV5tRS9F3r1uwbgo.naBcUnh24HxCFssL1LCL0htSZARNEe787Yrtj6C91sHwKFdIs46tNgcIEb4J6E1_Oa_5i23eQ9YPKYnD0pwz7tc34SyN8mxcJhg2SDotHbumg8QePGZlCxfUTjVPI9H_ft-TKwv6U-ktQVCDWza4ObYmEGs6BHtcipJkU9ZPKgXhXTtQuFiXZeVdbYAcikqrCd6lqVkMv5HsM4N09PRZysCmR_uWQw2G-TeuvNDVw6qDzFkD3QgYhy50oZlbWdtLzmJ8PF7heyWTfzpG6rOm7p0.8FqH7UJ7jjG2lE3-eS63HQ",
-								"type": "text"
-							}
-						],
-						"url": "{{baseurl}}/api/getGlobalStats"
-					},
-					"response": []
-				},
-				{
-					"name": "getAnnotatorProjects",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Cookie",
-								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
-								"type": "text"
-							}
-						],
-						"url": "{{baseurl}}/api/getProjects"
-					},
-					"response": []
-				},
-				{
-					"name": "getAnnotatorTasks",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseurl}}/api/getAnnotatorTasks?taskType=",
-							"host": [
-								"{{baseurl}}"
-							],
-							"path": [
-								"api",
-								"getAnnotatorTasks"
-							],
-							"query": [
-								{
-									"key": "taskType",
-									"value": "",
-									"description": "could be: test/training/core"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "getAnnotatorReviewTask",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": "{{baseurl}}/api/getAnnotatorReviewTask"
-					},
-					"response": []
-				},
-				{
-					"name": "getAnnotatorTaskStats",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Cookie",
-								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
-								"type": "text"
-							}
-						],
-						"url": "{{baseurl}}/api/getAnnotatorTaskStats"
-					},
-					"response": []
-				},
-				{
-					"name": "getTaskByProjects",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Cookie",
-								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
-								"type": "text"
-							}
-						],
-						"url": {
-							"raw": "{{baseurl}}/api/getTasksByProject/{{projectId}}?filter=newTask",
-							"host": [
-								"{{baseurl}}"
-							],
-							"path": [
-								"api",
-								"getTasksByProject",
-								"{{projectId}}"
-							],
-							"query": [
-								{
-									"key": "filter",
-									"value": "newTask",
-									"description": "Can be either submitted,rejected,newTask(Leave blank for all the tasks)"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "updateWorkStatus",
-					"request": {
-						"method": "GET",
-						"header": []
-					},
-					"response": []
-				},
-				{
-					"name": "getUserInfo",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Cookie",
-								"value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..MV5tRS9F3r1uwbgo.naBcUnh24HxCFssL1LCL0htSZARNEe787Yrtj6C91sHwKFdIs46tNgcIEb4J6E1_Oa_5i23eQ9YPKYnD0pwz7tc34SyN8mxcJhg2SDotHbumg8QePGZlCxfUTjVPI9H_ft-TKwv6U-ktQVCDWza4ObYmEGs6BHtcipJkU9ZPKgXhXTtQuFiXZeVdbYAcikqrCd6lqVkMv5HsM4N09PRZysCmR_uWQw2G-TeuvNDVw6qDzFkD3QgYhy50oZlbWdtLzmJ8PF7heyWTfzpG6rOm7p0.8FqH7UJ7jjG2lE3-eS63HQ",
-								"type": "text"
-							}
-						],
-						"url": "{{baseurl}}/api/getUserInfo"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "template",
-			"item": [
-				{
-					"name": "Fetch Recent Templates",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": "{{baseurl}}/api/template/recent"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "users",
-			"item": [
-				{
-					"name": "Get User Details",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": "{{baseurl}}/api/users/profile/id"
-					},
-					"response": []
-				},
-				{
-					"name": "Update User Profile",
-					"request": {
-						"method": "PUT",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "  {\n    \"name\": \"Jane Doe\",\n    \"domain\": \"web development, design\",\n    \"customFields\": {\n      \"portfolio\": \"https://example.com\",\n      \"github\": \"jane-doe\"\n    }\n  }",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{baseurl}}/api/users/profile/id"
-					},
-					"response": []
-				}, {
-					"name": "Upload File",
-					"request": {
-					  "method": "POST",
-					  "header": [
-						{
-						  "key": "Cookie",
-						  "value": "next-auth.session-token={{sessionToken}}",
-						  "type": "text"
-						}
-					  ],
-					  "body": {
-						"mode": "formdata",
-						"formdata": [
-						  {
-							"key": "file",
-							"type": "file",
-							"src": []
-						  },
-						  {
-							"key": "type",
-							"value": "nda",
-							"description": "Allowed values: resume, nda",
-							"type": "text"
-						  }
-						]
-					  },
-					  "url": "{{baseurl}}/api/upload/{{userId}}"
-					},
-					"response": []
-				  }
-			]
-		},
-		{
-			"name": "projects",
-			"item": [
-				{
-					"name": "[projectId]",
-					"item": [
-						{
-							"name": "settings",
-							"item": [
-								{
-									"name": "Get Project Settings",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": "{{baseurl}}/api/projects/[projectId]/settings"
-									},
-									"response": []
-								},
-								{
-									"name": "Update project settings",
-									"request": {
-										"method": "PUT",
-										"header": [],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n  \"earnings_per_task\": 120\n}",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": "{{baseurl}}/api/projects/[projectId]/settings"
-									},
-									"response": []
-								}
-							]
-						},
-						{
-							"name": "notifications",
-							"item": [
-								{
-									"name": "[templateId]",
-									"item": [
-										{
-											"name": "Update Notification Template",
-											"request": {
-												"method": "PUT",
-												"header": [],
-												"body": {
-													"mode": "raw",
-													"raw": "{\n  \"_id\": \"templateId123\",\n  \"triggerName\": \"New Task Assigned - Updated\",\n  \"triggerBody\": \"A new task has been assigned to you. Please check.\",\n  \"active\": false\n}\n",
-													"options": {
-														"raw": {
-															"language": "json"
-														}
-													}
-												},
-												"url": "{{baseurl}}/api/projects/[projectId]/notifications/[templateId]"
-											},
-											"response": []
-										},
-										{
-											"name": "Delete notif template",
-											"request": {
-												"method": "DELETE",
-												"header": [],
-												"body": {
-													"mode": "raw",
-													"raw": "{\n  \"_id\": \"templateId123\"\n}",
-													"options": {
-														"raw": {
-															"language": "json"
-														}
-													}
-												},
-												"url": "{{baseurl}}/api/projects/[projectId]/notifications/[templateId]"
-											},
-											"response": []
-										}
-									]
-								},
-								{
-									"name": "Fetch Notif Templates of a project",
-									"request": {
-										"method": "GET",
-										"header": [],
-										"url": "{{baseurl}}/api/projects/[projectId]/notifications"
-									},
-									"response": []
-								},
-								{
-									"name": "Create new notif template",
-									"request": {
-										"method": "POST",
-										"header": [],
-										"body": {
-											"mode": "raw",
-											"raw": "{\n  \"triggerName\": \"New Task Assigned\",\n  \"triggerBody\": \"A new task has been assigned to you\",\n  \"project\": \"projectId123\",\n  \"active\": true\n}\n",
-											"options": {
-												"raw": {
-													"language": "json"
-												}
-											}
-										},
-										"url": "{{baseurl}}/api/projects/[projectId]/notifications"
-									},
-									"response": []
-								}
-							]
-						}
-					]
-				},
-				{
-					"name": "Fetches User Projects",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": "{{baseurl}}/api/projects"
-					},
-					"response": []
-				},
-				{
-					"name": "Create a new Project",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Project Name\",\n  \"earnings_per_task\": 100\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{baseurl}}/api/projects"
-					},
-					"response": []
-				},
-				{
-					"name": "Delete a project",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"_id\": \"PROJECT_ID\"\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": "{{baseurl}}/api/projects"
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Job",
-			"item": [
-				{
-					"name": "Fetch AI models for projectId",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{baseurl}}/api/annotator?projectId={projectId}",
-							"host": [
-								"{{baseurl}}"
-							],
-							"path": [
-								"api",
-								"annotator"
-							],
-							"query": [
-								{
-									"key": "projectId",
-									"value": "{projectId}"
-								}
-							]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Chat",
-			"item": [
-				{
-					"name": "CreateGroup",
-					"item": [
-						{
-							"name": "Create a group",
-							"request": {
-								"method": "POST",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"groupName\": \"AI Project Group\",\n  \"members\": [\"userId1\", \"userId2\", \"userId3\"]\n}\n",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": "{{baseurl}}/api/chat/createGroup"
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "editGroup",
-					"item": [
-						{
-							"name": "Edit a group",
-							"request": {
-								"method": "PUT",
-								"header": [],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"groupId\": \"group-id-here\",\n  \"name\": \"Updated Group Name\",\n  \"members\": [\"userId1\", \"userId2\", \"userId3\"]\n}\n",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": "{{baseurl}}/api/chat/editGroup"
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "getMessages",
-					"item": [
-						{
-							"name": "Fetch group messages",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{baseurl}}/api/chat/getMessages?groupId=group-id-here&limitBefore=10&limitAfter=20&messageId=message-id-here\n",
-									"host": [
-										"{{baseurl}}"
-									],
-									"path": [
-										"api",
-										"chat",
-										"getMessages"
-									],
-									"query": [
-										{
-											"key": "groupId",
-											"value": "group-id-here"
-										},
-										{
-											"key": "limitBefore",
-											"value": "10"
-										},
-										{
-											"key": "limitAfter",
-											"value": "20"
-										},
-										{
-											"key": "messageId",
-											"value": "message-id-here\n"
-										}
-									]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "userGroups",
-					"item": [
-						{
-							"name": "Fetch groups for a user",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": "{{baseurl}}/api/chat/userGroups"
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "SendMessage",
-					"item": [
-						{
-							"name": "Send the user's messages",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Cookie",
-										"value": "next-auth.session-token=",
-										"type": "text"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n    \"groupId\":\"6764d84e60ff4563f50481b6\",\n    \"message\":\"Hi there\"\n}",
-									"options": {
-										"raw": {
-											"language": "json"
-										}
-									}
-								},
-								"url": "{{baseurl}}/api/chat/sendMessage"
-							},
-							"response": []
-						}
-					]
-				}
-			]
-		}
-	],
-	"variable": [
-		{
-			"key": "baseurl",
-			"value": "http://localhost:3000",
-			"type": "default"
-		}
-	]
+  "info": {
+    "_postman_id": "e8674fef-e6dc-4685-9384-e68c0ec2e979",
+    "name": "API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+    "_exporter_id": "34579024",
+    "_collection_link": "https://annotator-4761.postman.co/workspace/Annotator-Workspace~b5f6ef33-72e0-4363-a8b4-fb68175e2000/collection/34579024-e8674fef-e6dc-4685-9384-e68c0ec2e979?action=share&source=collection_link&creator=34579024"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "const baseurl = pm.environment.get(\"baseurl\");",
+                  "console.log(\"url is\", baseurl)",
+                  "pm.sendRequest(`${baseurl}/api/auth/csrf`, function (err, response) {",
+                  "    var jsonData = response.json();",
+                  "    pm.environment.set(\"csrfToken\", jsonData.csrfToken);",
+                  "});",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {}
+              }
+            }
+          ],
+          "protocolProfileBehavior": {
+            "disabledSystemHeaders": {}
+          },
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "redirect",
+                  "value": "false",
+                  "type": "text"
+                },
+                {
+                  "key": "email",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "",
+                  "type": "text"
+                },
+                {
+                  "key": "totpCode",
+                  "value": "",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "callbackUrl",
+                  "value": "{{baseurl}}/",
+                  "type": "text"
+                },
+                {
+                  "key": "csrfToken",
+                  "value": "{{csrfToken}}",
+                  "type": "text"
+                },
+                {
+                  "key": "json",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseurl}}/api/auth/callback/credentials"
+          },
+          "response": []
+        },
+        {
+          "name": "Signup User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "",
+                "value": "",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\":\"testing\",\n    \"email\":\"testing@gmail.com\",\n    \"password\":\"123456\",\n    \"role\":\"annotator\",\n    \"phone\":\"\",\n    \"domain\":[\"\"],\n    \"lang\":[\"\"],\n    \"location\":\"\",\n    \"linkedIn\":\"\",  //Optional\n    \"resume\":\"\",     //Optional\n    \"nda\":\"\"        //Optional\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseurl}}/api/auth/signup"
+          },
+          "response": []
+        },
+        {
+          "name": "Google Auth",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"YOUR_GOOGLE_ID_TOKEN\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Authenticates a user using Google OAuth token. Creates a new user if the email doesn't exist. Sets a next-auth session token cookie and returns user information.\n\nThe endpoint:\n1. Verifies the Google ID token\n2. Creates/updates user with Google profile information\n3. Sets next-auth session cookie\n4. Returns user details",
+            "url": "{{baseurl}}/api/auth/google"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "status": "200 OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "content-type",
+                  "value": "text/html; charset=utf-8"
+                },
+                {
+                  "key": "cache-control",
+                  "value": "no-store, must-revalidate"
+                },
+                {
+                  "key": "x-powered-by",
+                  "value": "Next.js"
+                },
+                {
+                  "key": "vary",
+                  "value": "RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding"
+                }
+              ],
+              "cookie": [
+                {
+                  "key": "next-auth.session-token",
+                  "value": "SESSION_TOKEN_VALUE",
+                  "httpOnly": true,
+                  "path": "/",
+                  "maxAge": 2592000
+                }
+              ],
+              "body": {
+                "ok": true,
+                "user": {
+                  "id": "user_id",
+                  "email": "user@example.com",
+                  "name": "User Name",
+                  "role": "annotator"
+                }
+              }
+            },
+            {
+              "name": "Error Response -Invalid Token",
+              "status": "401 Unauthorized",
+              "code": 401,
+              "body": {
+                "error": "Invalid token"
+              }
+            },
+            {
+              "name": "Error Response - Missing Token",
+              "status": "400 Bad Request",
+              "code": 400,
+              "body": {
+                "error": "Missing Google ID token"
+              }
+            },
+            {
+              "name": "Error Response - Server Error",
+              "status": "500 Internal Server Error",
+              "code": 500,
+              "body": {
+                "error": "Server Error",
+                "message": "Error details here"
+              }
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Fetch Custom Fields",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseurl}}/api/admin/custom-fields"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AIModel",
+      "item": [
+        {
+          "name": "Fetch Ai models for a project",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseurl}}/api/aiModel?projectId=<PROJECT_ID>",
+              "host": ["{{baseurl}}"],
+              "path": ["api", "aiModel"],
+              "query": [
+                {
+                  "key": "projectId",
+                  "value": "<PROJECT_ID>"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "annotator",
+      "item": [
+        {
+          "name": "task",
+          "item": [
+            {
+              "name": "getTask",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "next-auth.session-token",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseurl}}/api/Task/:taskId/getTask",
+                  "host": ["{{baseurl}}"],
+                  "path": ["api", "Task", ":taskId", "getTask"],
+                  "variable": [
+                    {
+                      "key": "taskId",
+                      "value": "676532c97bb0937cf516710e"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Sets the status of task",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..cG0SFKI9Beh27N0U.UzP_dwzur65gFWcm6TzR3bDKYp3c5vc4aexX8SZhuAxQUcZO0eyAly8Egxi0HvTVM8QoI9BHQ2TlW8_zBCB-2L0pSNTtSFzrwoMkrj0ZDK3mwbzeCDYNAyp_DEx5xQwxC836lbu-veWLDMQ0JPsrHMfCnPHM4w1gtLKcUui5Aldn4DitK-JRdMGch4whsAToS8ZrQ2Tpa5ay0IfxH4d4Eqjsrj9nesi061rGVwggv43f8tMuMwtpvm8ux_uD8VLna5R6x3D16y3wa3Q.8UWzptyS9xCcJgU5ZBlh8A",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n\n    \"_id\":\"676532c97bb0937cf516710e\",\n    \"status\":\"rejected\",\n    \"feedback\":\"Great\",\n    \"annotator\":\"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseurl}}/api/Task/setTaskStatus"
+              },
+              "response": []
+            },
+            {
+              "name": "Submit the status",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"template\": {\n    \"status\": \"pending\",\n    \"feedback\": \"\",\n    \"content\": \"[{\\\"type\\\":\\\"inputText\\\",\\\"content\\\":{\\\"innerText\\\":\\\"Sample Text\\\"}}]\"\n  },\n  \"_id\": \"676532c97bb0937cf516710f\",\n  \"projectid\": \"676532c97bb0937cf516710f\",\n  \"time\": 120\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseurl}}/api/Task/submitTask"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "review",
+          "item": [
+            {
+              "name": "getAllAnnotator",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseurl}}/api/Task/review/getAllAnnotators"
+              },
+              "response": []
+            },
+            {
+              "name": "Assign Reviewers",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"user_id\": \"<USER_ID>\",\n  \"permission\": \"canReview\" // Allowed values: \"noPermission\" or \"canReview\"\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseurl}}/api/annotator"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "getAnnotatorDashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..MV5tRS9F3r1uwbgo.naBcUnh24HxCFssL1LCL0htSZARNEe787Yrtj6C91sHwKFdIs46tNgcIEb4J6E1_Oa_5i23eQ9YPKYnD0pwz7tc34SyN8mxcJhg2SDotHbumg8QePGZlCxfUTjVPI9H_ft-TKwv6U-ktQVCDWza4ObYmEGs6BHtcipJkU9ZPKgXhXTtQuFiXZeVdbYAcikqrCd6lqVkMv5HsM4N09PRZysCmR_uWQw2G-TeuvNDVw6qDzFkD3QgYhy50oZlbWdtLzmJ8PF7heyWTfzpG6rOm7p0.8FqH7UJ7jjG2lE3-eS63HQ",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseurl}}/api/getGlobalStats"
+          },
+          "response": []
+        },
+        {
+          "name": "getAnnotatorProjects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseurl}}/api/getProjects"
+          },
+          "response": []
+        },
+        {
+          "name": "getAnnotatorTasks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseurl}}/api/getAnnotatorTasks?taskType=",
+              "host": ["{{baseurl}}"],
+              "path": ["api", "getAnnotatorTasks"],
+              "query": [
+                {
+                  "key": "taskType",
+                  "value": "",
+                  "description": "could be: test/training/core"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "getAnnotatorReviewTask",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/api/getAnnotatorReviewTask"
+          },
+          "response": []
+        },
+        {
+          "name": "getAnnotatorTaskStats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseurl}}/api/getAnnotatorTaskStats"
+          },
+          "response": []
+        },
+        {
+          "name": "getTaskByProjects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0.._jpHNcnTlyWdzmYu.dId-tV61wbl3JyI8KD8xRhf35OMT4ZUw5PzmfQthJaJOXU75UHT0OGsMDaJAULNUupqTORWJzu03Rp8jlByTvR9jE-nxh2Y5xtWnpP6R6TSSeezCIBMHwvZVTPRwt7tuKU8DwepYOWkEwy8V0l_B5RaWKFmIblbpHdD3Xu7QaFAwYc-FM0mdAWYL9chzYJWQgHDyyb3KMT8QCrFjHQ4E-6V_kg0HMZ0s3Xo6IO-V7_4UB9LwxomYhewyuuGkcQ_C4BTAajIosCuHGFoei93SS_Y.ClSN-gcSx1MNs3pYE9EV4w",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseurl}}/api/getTasksByProject/{{projectId}}?filter=newTask",
+              "host": ["{{baseurl}}"],
+              "path": ["api", "getTasksByProject", "{{projectId}}"],
+              "query": [
+                {
+                  "key": "filter",
+                  "value": "newTask",
+                  "description": "Can be either submitted,rejected,newTask(Leave blank for all the tasks)"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "updateWorkStatus",
+          "request": {
+            "method": "GET",
+            "header": []
+          },
+          "response": []
+        },
+        {
+          "name": "getUserInfo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "next-auth.session-token=eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..MV5tRS9F3r1uwbgo.naBcUnh24HxCFssL1LCL0htSZARNEe787Yrtj6C91sHwKFdIs46tNgcIEb4J6E1_Oa_5i23eQ9YPKYnD0pwz7tc34SyN8mxcJhg2SDotHbumg8QePGZlCxfUTjVPI9H_ft-TKwv6U-ktQVCDWza4ObYmEGs6BHtcipJkU9ZPKgXhXTtQuFiXZeVdbYAcikqrCd6lqVkMv5HsM4N09PRZysCmR_uWQw2G-TeuvNDVw6qDzFkD3QgYhy50oZlbWdtLzmJ8PF7heyWTfzpG6rOm7p0.8FqH7UJ7jjG2lE3-eS63HQ",
+                "type": "text"
+              }
+            ],
+            "url": "{{baseurl}}/api/getUserInfo"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "template",
+      "item": [
+        {
+          "name": "Fetch Recent Templates",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/api/template/recent"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "users",
+      "item": [
+        {
+          "name": "Get User Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/api/users/profile/id"
+          },
+          "response": []
+        },
+        {
+          "name": "Update User Profile",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "  {\n    \"name\": \"Jane Doe\",\n    \"domain\": \"web development, design\",\n    \"customFields\": {\n      \"portfolio\": \"https://example.com\",\n      \"github\": \"jane-doe\"\n    }\n  }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseurl}}/api/users/profile/id"
+          },
+          "response": []
+        },
+        {
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "next-auth.session-token={{sessionToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "type",
+                  "value": "nda",
+                  "description": "Allowed values: resume, nda",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseurl}}/api/upload/{{userId}}"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "projects",
+      "item": [
+        {
+          "name": "[projectId]",
+          "item": [
+            {
+              "name": "settings",
+              "item": [
+                {
+                  "name": "Get Project Settings",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{baseurl}}/api/projects/[projectId]/settings"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update project settings",
+                  "request": {
+                    "method": "PUT",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"earnings_per_task\": 120\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": "{{baseurl}}/api/projects/[projectId]/settings"
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "notifications",
+              "item": [
+                {
+                  "name": "[templateId]",
+                  "item": [
+                    {
+                      "name": "Update Notification Template",
+                      "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"_id\": \"templateId123\",\n  \"triggerName\": \"New Task Assigned - Updated\",\n  \"triggerBody\": \"A new task has been assigned to you. Please check.\",\n  \"active\": false\n}\n",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": "{{baseurl}}/api/projects/[projectId]/notifications/[templateId]"
+                      },
+                      "response": []
+                    },
+                    {
+                      "name": "Delete notif template",
+                      "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "body": {
+                          "mode": "raw",
+                          "raw": "{\n  \"_id\": \"templateId123\"\n}",
+                          "options": {
+                            "raw": {
+                              "language": "json"
+                            }
+                          }
+                        },
+                        "url": "{{baseurl}}/api/projects/[projectId]/notifications/[templateId]"
+                      },
+                      "response": []
+                    }
+                  ]
+                },
+                {
+                  "name": "Fetch Notif Templates of a project",
+                  "request": {
+                    "method": "GET",
+                    "header": [],
+                    "url": "{{baseurl}}/api/projects/[projectId]/notifications"
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Create new notif template",
+                  "request": {
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"triggerName\": \"New Task Assigned\",\n  \"triggerBody\": \"A new task has been assigned to you\",\n  \"project\": \"projectId123\",\n  \"active\": true\n}\n",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": "{{baseurl}}/api/projects/[projectId]/notifications"
+                  },
+                  "response": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Fetches User Projects",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseurl}}/api/projects"
+          },
+          "response": []
+        },
+        {
+          "name": "Create a new Project",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Project Name\",\n  \"earnings_per_task\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseurl}}/api/projects"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete a project",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"_id\": \"PROJECT_ID\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseurl}}/api/projects"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Job",
+      "item": [
+        {
+          "name": "Fetch AI models for projectId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseurl}}/api/annotator?projectId={projectId}",
+              "host": ["{{baseurl}}"],
+              "path": ["api", "annotator"],
+              "query": [
+                {
+                  "key": "projectId",
+                  "value": "{projectId}"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "CreateGroup",
+          "item": [
+            {
+              "name": "Create a group",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"groupName\": \"AI Project Group\",\n  \"members\": [\"userId1\", \"userId2\", \"userId3\"]\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseurl}}/api/chat/createGroup"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "editGroup",
+          "item": [
+            {
+              "name": "Edit a group",
+              "request": {
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"groupId\": \"group-id-here\",\n  \"name\": \"Updated Group Name\",\n  \"members\": [\"userId1\", \"userId2\", \"userId3\"]\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseurl}}/api/chat/editGroup"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "getMessages",
+          "item": [
+            {
+              "name": "Fetch group messages",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseurl}}/api/chat/getMessages?groupId=group-id-here&limitBefore=10&limitAfter=20&messageId=message-id-here\n",
+                  "host": ["{{baseurl}}"],
+                  "path": ["api", "chat", "getMessages"],
+                  "query": [
+                    {
+                      "key": "groupId",
+                      "value": "group-id-here"
+                    },
+                    {
+                      "key": "limitBefore",
+                      "value": "10"
+                    },
+                    {
+                      "key": "limitAfter",
+                      "value": "20"
+                    },
+                    {
+                      "key": "messageId",
+                      "value": "message-id-here\n"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "userGroups",
+          "item": [
+            {
+              "name": "Fetch groups for a user",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseurl}}/api/chat/userGroups"
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "SendMessage",
+          "item": [
+            {
+              "name": "Send the user's messages",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "next-auth.session-token=",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"groupId\":\"6764d84e60ff4563f50481b6\",\n    \"message\":\"Hi there\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{baseurl}}/api/chat/sendMessage"
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseurl",
+      "value": "http://localhost:3000",
+      "type": "default"
+    }
+  ]
 }
