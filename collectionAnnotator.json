@@ -151,8 +151,6 @@
                   "key": "next-auth.session-token",
                   "value": "SESSION_TOKEN_VALUE",
                   "httpOnly": true,
-                  "secure": true,
-                  "sameSite": "lax",
                   "path": "/",
                   "maxAge": 2592000
                 }
