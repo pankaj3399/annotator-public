@@ -166,7 +166,7 @@
               }
             },
             {
-              "name": "Error Response - Invalid Token",
+              "name": "Error Response -Invalid Token",
               "status": "401 Unauthorized",
               "code": 401,
               "body": {

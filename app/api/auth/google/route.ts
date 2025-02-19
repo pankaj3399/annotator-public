@@ -3,7 +3,7 @@ import { User } from "@/models/User";
 import { NextResponse } from "next/server";
 import { OAuth2Client } from 'google-auth-library';
 import { encode } from 'next-auth/jwt';
-import { cookies } from 'next/headers';
+import { cookies } from 'next/headers'
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
