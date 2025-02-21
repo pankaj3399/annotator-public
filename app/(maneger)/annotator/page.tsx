@@ -20,6 +20,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  DollarSign,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MultiCombobox from '@/components/ui/multi-combobox';
@@ -42,6 +43,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { domains, languages, locations } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
+import { Transfer } from '@/components/transferDialog';
 interface User {
   _id: string;
   name: string;
@@ -90,6 +92,8 @@ const locationOptions: Option[] = locations.map((location) => ({
 
 export default function AnnotatorsPage() {
   const [annotators, setAnnotators] = useState<User[]>([]);
+  const [onOpen, setOnOpen] = useState(false);
+  const [id,setId]=useState('')
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string[]>([]);
@@ -298,6 +302,11 @@ export default function AnnotatorsPage() {
   const endIndex = startIndex + pageSize;
   const currentAnnotators = filteredAnnotators.slice(startIndex, endIndex);
 
+  function handleTransfer(id:string){
+    setId(id)
+    setOnOpen(v=>!v)
+  }
+
   return (
     <div className='min-h-screen'>
       <header className='bg-white'>
@@ -305,6 +314,7 @@ export default function AnnotatorsPage() {
           <h1 className='text-3xl font-bold text-gray-900 tracking-tight'>
             Experts
           </h1>
+          <Transfer onOpen={onOpen} setOnOpen={setOnOpen} id={id}/>
           <div className='flex gap-4'>
             <Button
               variant='outline'
@@ -441,6 +451,13 @@ export default function AnnotatorsPage() {
                         </div>
                       </TableCell>
                       <TableCell className='flex items-center space-x-4'>
+                        <button
+                          className='flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 rounded-full shadow-md hover:bg-gray-300 transition-colors'
+                          onClick={()=>handleTransfer(user._id)}
+                          aria-label='Save Permissions'
+                        >
+                          <DollarSign className='h-5 w-5' />
+                        </button>
                         <button
                           className='flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600 transition-colors'
                           onClick={() => savePermissions(user._id)}
