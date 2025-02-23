@@ -2,10 +2,13 @@ import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { NextResponse } from "next/server";
 import { OAuth2Client } from 'google-auth-library';
-import { encode } from 'next-auth/jwt';
-import { cookies } from 'next/headers'
+import { encode } from "next-auth/jwt";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET must be defined');
+}
 
 export async function POST(req: Request) {
   try {
@@ -20,6 +23,7 @@ export async function POST(req: Request) {
       );
     }
 
+    // Verify the Google ID token
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID
@@ -33,15 +37,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const email = payload.email;
-    const name = payload.name || email.split('@')[0];
-
-    let user = await User.findOne({ email });
-    
+    // Find or create user
+    let user = await User.findOne({ email: payload.email });
     if (!user) {
       user = new User({
-        name,
-        email,
+        name: payload.name || payload.email.split('@')[0],
+        email: payload.email,
         password: `GOOGLE_${Date.now()}`,
         role: "annotator",
         lastLogin: new Date()
@@ -49,20 +50,24 @@ export async function POST(req: Request) {
       await user.save();
     }
 
-    // Create session token
+    // Create NextAuth compatible token
     const sessionToken = await encode({
       token: {
-        email: user.email,
         name: user.name,
-        sub: user._id.toString(),
-        role: user.role
+        email: user.email,
+        picture: payload.picture,
+        id: user._id.toString(),
+        role: user.role,
+        sub: user._id.toString(), // Required for NextAuth
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60),
       },
-      secret: process.env.NEXTAUTH_SECRET!
+      secret: process.env.NEXTAUTH_SECRET as string
     });
 
-    // Create the response object
-    const response = new NextResponse(
-      JSON.stringify({
+    // Create the response with the session token cookie
+    const response = NextResponse.json(
+      {
         ok: true,
         user: {
           id: user._id,
@@ -70,25 +75,19 @@ export async function POST(req: Request) {
           name: user.name,
           role: user.role
         }
-      }),
-      {
-        status: 200,
-        headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store, must-revalidate',
-          'x-powered-by': 'Next.js',
-          'vary': 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
-        }
-      }
+      },
+      { status: 200 }
     );
 
-    // Set the cookie using proper cookie handling
-    cookies().set({
+    // Set the session token cookie
+    response.cookies.set({
       name: 'next-auth.session-token',
       value: sessionToken,
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
-      maxAge: 30 * 24 * 60 * 60 // 30 days
+      expires: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)) // 30 days
     });
 
     return response;
