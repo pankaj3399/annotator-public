@@ -17,6 +17,7 @@ import {
   List,
   Dock,
   TrendingUp,
+  Home,
 } from "lucide-react";
 import { BookIcon } from "@/components/BookIcon";
 
@@ -49,6 +50,13 @@ export function getMenuList(pathname: string): Group[] {
       {
         groupLabel: "",
         menus: [
+          {
+            href: "/landing",
+            label: "Home",
+            active: pathname.includes("/landing"),
+            icon: Home,
+            submenus: [],
+          },
           {
             href: "/tasks/annotatorDashboard",
             label: "Dashboard",
@@ -101,7 +109,7 @@ export function getMenuList(pathname: string): Group[] {
               pathname.includes("/tasks") &&
               !pathname.includes("/tasks/all") &&
               !pathname.includes("/viewCourses") &&
-              !pathname.includes("/annotatorDashboard")&&
+              !pathname.includes("/annotatorDashboard") &&
               !pathname.includes("/tasks/benchmark-arena"),
             icon: Folder,
           },
@@ -153,6 +161,13 @@ export function getMenuList(pathname: string): Group[] {
       {
         groupLabel: "",
         menus: [
+          {
+            href: "/landing",
+            label: "Home",
+            active: pathname.includes("/landing"),
+            icon: Home,
+            submenus: [],
+          },
           {
             href: "/dashboard",
             label: "Dashboard",
@@ -224,6 +239,13 @@ export function getMenuList(pathname: string): Group[] {
     {
       groupLabel: "",
       menus: [
+        {
+          href: "/landing",
+          label: "Home",
+          active: pathname.includes("/landing"),
+          icon: Home,
+          submenus: [],
+        },
         {
           href: `/dashboard/${projectId}`,
           label: "Dashboard",
