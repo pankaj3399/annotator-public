@@ -3,7 +3,8 @@ import { User } from "@/models/User";
 import { NextResponse } from "next/server";
 import { OAuth2Client } from 'google-auth-library';
 import { encode } from 'next-auth/jwt';
-import { cookies } from 'next/headers'
+import { cookies } from 'next/headers';
+import crypto from 'crypto';
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -49,13 +50,23 @@ export async function POST(req: Request) {
       await user.save();
     }
 
-    // Create session token
+    const now = Math.floor(Date.now() / 1000);
+    const expires = now + (30 * 24 * 60 * 60); // 30 days
+
+    // Create session token matching NextAuth's expected format
     const sessionToken = await encode({
       token: {
-        email: user.email,
         name: user.name,
+        email: user.email,
+        picture: payload.picture || null,
         sub: user._id.toString(),
-        role: user.role
+        role: user.role,
+        iat: now,
+        exp: expires,
+        jti: crypto.randomUUID(),
+        // Optional but recommended NextAuth fields
+        aud: process.env.NEXTAUTH_URL,
+        iss: process.env.NEXTAUTH_URL
       },
       secret: process.env.NEXTAUTH_SECRET!
     });
@@ -74,21 +85,20 @@ export async function POST(req: Request) {
       {
         status: 200,
         headers: {
-          'content-type': 'text/html; charset=utf-8',
-          'cache-control': 'no-store, must-revalidate',
-          'x-powered-by': 'Next.js',
-          'vary': 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+          'Content-Type': 'application/json',
         }
       }
     );
 
-    // Set the cookie using proper cookie handling
+    // Set the cookie exactly as NextAuth expects
     cookies().set({
       name: 'next-auth.session-token',
       value: sessionToken,
       httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       path: '/',
-      maxAge: 30 * 24 * 60 * 60 // 30 days
+      expires: new Date(expires * 1000)
     });
 
     return response;
