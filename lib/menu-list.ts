@@ -17,6 +17,7 @@ import {
   List,
   Dock,
   TrendingUp,
+  Landmark,
   Home,
 } from "lucide-react";
 import { BookIcon } from "@/components/BookIcon";
@@ -142,6 +143,12 @@ export function getMenuList(pathname: string): Group[] {
             active: false,
             icon: User,
           },
+          {
+            href: "/tasks/bank",
+            label: "Bank Settings",
+            active: false,
+            icon: Landmark,
+          },
         ],
       },
     ];
@@ -155,6 +162,7 @@ export function getMenuList(pathname: string): Group[] {
     projectId == "chat" ||
     projectId == "profile" ||
     projectId == "wishlist" ||
+    projectId == "bank" ||
     fpath == "courses"
   ) {
     return [
@@ -228,6 +236,12 @@ export function getMenuList(pathname: string): Group[] {
             label: "Profile",
             active: false,
             icon: User,
+          },
+          {
+            href: "/bank",
+            label: "Bank Settings",
+            active: false,
+            icon: Landmark,
           },
         ],
       },
@@ -379,6 +393,12 @@ export function getMenuList(pathname: string): Group[] {
           label: "Profile",
           active: false,
           icon: User,
+        },
+        {
+          href: "/bank",
+          label: "Bank Settings",
+          active: false,
+          icon: Landmark,
         },
       ],
     },
