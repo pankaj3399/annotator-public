@@ -558,11 +558,7 @@ export default function AuthPageComponent() {
                 ))}
               </SelectContent>
             </Select>
-            {formData.team_id && (
-              <p className="text-xs text-gray-500 mt-1">
-                {teams.find(t => t._id === formData.team_id)?.description || ''}
-              </p>
-            )}
+
           </div>
           
           {formData.role === "annotator" && (
