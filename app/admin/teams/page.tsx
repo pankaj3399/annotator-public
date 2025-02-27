@@ -6,15 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { signOut } from 'next-auth/react';
-import { LogOut, PlusCircle, Users, Trash2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { PlusCircle, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import Loader from '@/components/ui/NewLoader/Loader';
-import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 import { createTeam, getTeams } from '@/app/actions/team';
 
 interface Team {
@@ -40,8 +34,7 @@ const TeamsPage = () => {
     description: '',
   });
 
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { data: session } = useSession();
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -56,14 +49,8 @@ const TeamsPage = () => {
       }
     };
 
-    if (status === 'loading') return;
-    if (!session || session.user.role !== 'system admin') {
-      router.push('/');
-      return;
-    }
-
     fetchTeams();
-  }, [session, status, router]);
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -110,90 +97,60 @@ const TeamsPage = () => {
     }
   };
 
-  if (loading) return <Loader />;
-
   return (
-    <div className='min-h-screen p-6 bg-gray-50 relative'>
-      {/* Logout button */}
-      <div className='absolute top-6 right-6'>
-        <Button
-          onClick={() => signOut()}
-          variant='outline'
-          className='flex items-center gap-2'
-        >
-          <LogOut size={18} />
-          <span className={cn('whitespace-nowrap')}>Logout</span>
-        </Button>
+    <>
+      <div className='flex justify-between items-center mb-8'>
+        <h1 className='text-3xl font-bold text-gray-900'>Teams</h1>
+        <div className='flex gap-4'>
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            variant='outline'
+            className='flex items-center gap-2'
+          >
+            <PlusCircle className='w-4 h-4' />
+            Add Team
+          </Button>
+        </div>
       </div>
 
-      <div className='max-w-4xl mx-auto'>
-        <div className='flex justify-between items-center mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900'>Teams</h1>
-          <div className='flex gap-4'>
-            <Button>
-              <Link href={'/admin/custom-fields'}>Custom Fields</Link>
-            </Button>
-            <Button>
-              <Link href={'/admin/orders'}>View Orders</Link>
-            </Button>
-            <Button>
-              <Link href={'/admin/label'}>Add Label</Link>
-            </Button>
-            <Button
-              onClick={() => setIsModalOpen(true)}
-              variant='outline'
-              className='flex items-center gap-2'
-            >
-              <PlusCircle className='w-4 h-4' />
-              Add Team
-            </Button>
+      <div className='grid grid-cols-1 gap-6'>
+        {teams.length === 0 ? (
+          <div className='text-center py-8'>
+            <p className='text-gray-500'>
+              No teams found. Create your first team!
+            </p>
           </div>
-        </div>
-
-        <div className='grid grid-cols-1 gap-6'>
-          {teams.length === 0 ? (
-            <div className='text-center py-8'>
-              <p className='text-gray-500'>
-                No teams found. Create your first team!
-              </p>
-            </div>
-          ) : (
-            teams.map((team) => (
-              <Card key={team._id} className='overflow-hidden'>
-                <CardHeader className='bg-gray-50'>
-                  <CardTitle className='flex justify-between items-center'>
-                    <div className='flex items-center gap-2'>
-                      <Users className='h-5 w-5 text-blue-500' />
-                      <span>{team.name}</span>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className='pt-4'>
-                  <div className='space-y-4'>
-                    <div>
-                      <p className='text-sm text-gray-500'>Description</p>
-                      <p className='text-gray-700'>
-                        {team.description || 'No description'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className='text-sm text-gray-500'>Created By</p>
-                      <p className='text-gray-700'>
-                        {team.createdBy?.name || 'Unknown'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className='text-sm text-gray-500'>Members</p>
-                      <p className='text-gray-700'>
-                        {team.members?.length || 0} member(s)
-                      </p>
-                    </div>
+        ) : (
+          teams.map((team) => (
+            <Card key={team._id} className='overflow-hidden'>
+              <CardHeader className='bg-gray-50'>
+                <CardTitle className='flex justify-between items-center'>
+                  <div className='flex items-center gap-2'>
+                    <Users className='h-5 w-5 text-blue-500' />
+                    <span>{team.name}</span>
                   </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
-        </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className='pt-4'>
+                <div className='space-y-4'>
+                  <div>
+                    <p className='text-sm text-gray-500'>Description</p>
+                    <p className='text-gray-700'>
+                      {team.description || 'No description'}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className='text-sm text-gray-500'>Members</p>
+                    <p className='text-gray-700'>
+                      {team.members?.length || 0} member(s)
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Add Team Modal */}
@@ -242,7 +199,7 @@ const TeamsPage = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
