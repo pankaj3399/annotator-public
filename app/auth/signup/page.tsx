@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ import {
   Globe,
   MapPin,
   Mail,
+  Users,
 } from "lucide-react";
 import MultiCombobox from "@/components/ui/multi-combobox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -43,6 +44,12 @@ import { getTestTemplateTasks, createTestTasks } from "@/app/actions/task";
 interface Option {
   value: string;
   label: string;
+}
+
+interface Team {
+  _id: string;
+  name: string;
+  description: string | null;
 }
 
 type Step = "role" | "invitation" | "details";
@@ -55,6 +62,8 @@ export default function AuthPageComponent() {
     "enter"
   );
   const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -68,7 +77,30 @@ export default function AuthPageComponent() {
     linkedin: "",
     resume: "",
     nda: "",
-  });;
+    team_id: "", // Add team_id field
+  });
+
+  // Fetch teams when component mounts
+  useEffect(() => {
+    const fetchTeams = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/teams');
+        if (response.ok) {
+          const data = await response.json();
+          setTeams(data);
+        } else {
+          console.error('Failed to fetch teams');
+        }
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    fetchTeams();
+  }, []);
 
   const domainOptions: Option[] = domains.map((domain) => ({
     value: domain.toLowerCase(),
@@ -81,6 +113,12 @@ export default function AuthPageComponent() {
   const locationOptions: Option[] = locations.map((location) => ({
     value: location.toLowerCase(),
     label: location,
+  }));
+  
+  // Create team options for select dropdown
+  const teamOptions: Option[] = teams.map((team) => ({
+    value: team._id,
+    label: team.name,
   }));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,6 +255,8 @@ export default function AuthPageComponent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields
     if (formData.role === "annotator") {
       if (
         formData.domain.length === 0 ||
@@ -226,10 +266,20 @@ export default function AuthPageComponent() {
         toast({
           variant: "destructive",
           title: "Uh oh! Something went wrong.",
-          description: "Please fill in all the fields.",
+          description: "Please fill in all the required fields.",
         });
         return;
       }
+    }
+    
+    // Validate team selection
+    if (!formData.team_id) {
+      toast({
+        variant: "destructive",
+        title: "Team Selection Required",
+        description: "Please select a team to join.",
+      });
+      return;
     }
 
     try {
@@ -247,6 +297,7 @@ export default function AuthPageComponent() {
                 role: formData.role,
                 name: formData.name,
                 invitationCode: formData.invitationCode,
+                team_id: formData.team_id, // Include team_id for project managers
                 linkedin: "",
                 resume: "",
                 nda: "",
@@ -485,6 +536,35 @@ export default function AuthPageComponent() {
               required
             />
           </div>
+          
+          {/* Team Selection - Added for all users */}
+          <div className="space-y-2">
+            <Label htmlFor="team">Select Team</Label>
+            <Select
+              value={formData.team_id}
+              onValueChange={(value) => setFormData({ ...formData, team_id: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a team" />
+              </SelectTrigger>
+              <SelectContent>
+                {teams.map((team) => (
+                  <SelectItem key={team._id} value={team._id}>
+                    <div className="flex items-center">
+                      <Users className="mr-2 h-4 w-4" />
+                      {team.name}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {formData.team_id && (
+              <p className="text-xs text-gray-500 mt-1">
+                {teams.find(t => t._id === formData.team_id)?.description || ''}
+              </p>
+            )}
+          </div>
+          
           {formData.role === "annotator" && (
             <>
               <div className="space-y-2">

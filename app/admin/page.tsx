@@ -179,6 +179,9 @@ const CustomFieldsPage = () => {
             <Button>
               <Link href={"/admin/label"}>Add Label</Link>
             </Button>
+            <Button>
+  <Link href={"/admin/teams"}>Manage Teams</Link>
+</Button>
             <Button
               onClick={handleAddField}
               variant="outline"

@@ -1,7 +1,9 @@
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
+import { Team } from "@/models/Team"; // Import Team model
 import saltAndHashPassword from "@/utils/password";
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 
 export async function POST(req: Request) {
   try {
@@ -16,12 +18,11 @@ export async function POST(req: Request) {
       domain = [],
       lang = [],
       location = null,
-      linkedin,  // Add these optional fields
-      resume, // to capture them from the request
-      nda  // if they are provided
+      linkedin,
+      resume,
+      nda,
+      team_id = null // Add team_id field with null default
     } = await req.json();
-
-    // console.log("request body", await req.json());
 
     // Validate required fields
     if (!name || !email || !password || !role) {
@@ -57,10 +58,35 @@ export async function POST(req: Request) {
       );
     }
 
+    // If team_id is provided, verify team exists
+    if (team_id) {
+      // Check if team_id is a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(team_id)) {
+        return NextResponse.json(
+          {
+            error: "Invalid team ID",
+            message: "The provided team ID is not valid",
+          },
+          { status: 400 }
+        );
+      }
+
+      const team = await Team.findById(team_id);
+      if (!team) {
+        return NextResponse.json(
+          {
+            error: "Team not found",
+            message: "The selected team does not exist",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Hash password
     const hashedPassword = saltAndHashPassword(password);
 
-    // Define user data with all fields
+    // Define user data with all fields including team_id
     const userData = {
       name,
       email,
@@ -70,9 +96,10 @@ export async function POST(req: Request) {
       domain: Array.isArray(domain) ? domain : [],
       lang: Array.isArray(lang) ? lang : [],
       location,
-      linkedin, // Include these fields in userData
-      resume, // They will be null by default
-      nda, // if not provided in the request
+      linkedin,
+      resume,
+      nda,
+      team_id,
       permission: [],
       lastLogin: new Date(),
       invitation: null,
@@ -81,6 +108,14 @@ export async function POST(req: Request) {
     // Create new user using the model
     const newUser = new User(userData);
     await newUser.save();
+
+    // If team_id is provided, add user to team members
+    if (team_id) {
+      await Team.findByIdAndUpdate(
+        team_id,
+        { $addToSet: { members: newUser._id } }
+      );
+    }
 
     // Return success response without sensitive data
     return NextResponse.json(
@@ -99,6 +134,7 @@ export async function POST(req: Request) {
           linkedin: newUser.linkedin,
           resume: newUser.resume,
           nda: newUser.nda,
+          team_id: newUser.team_id, // Include team_id in response
           permission: newUser.permission,
           lastLogin: newUser.lastLogin,
           created_at: newUser.created_at,

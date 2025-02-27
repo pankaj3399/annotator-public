@@ -100,7 +100,52 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Team Schema Definition
+const teamSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    description: {
+      type: String,
+      default: null,
+    },
+    members: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      }
+    ],
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    created_at: {
+      type: Date,
+      default: Date.now,
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    timestamps: {
+      createdAt: "created_at",
+      updatedAt: "updated_at",
+    },
+  }
+);
+
 const User = mongoose.models.User || mongoose.model("User", userSchema);
+const Team = mongoose.models.Team || mongoose.model("Team", teamSchema);
 
 async function seed() {
   try {
@@ -141,6 +186,67 @@ async function seed() {
     createdUsers.forEach((user) => {
       console.log(`Created user: ${user.email} with role: ${user.role}`);
     });
+
+    // Get the admin user for creating teams
+    const admin = createdUsers[0];
+
+    // Create default teams
+    const defaultTeams = [
+      {
+        name: "Freelancers",
+        description: "Independent contractors working on various projects",
+        createdBy: admin._id,
+        members: [admin._id],
+      },
+      {
+        name: "Blomega Lab",
+        description: "Research and development team focused on innovation",
+        createdBy: admin._id,
+        members: [admin._id],
+      },
+      {
+        name: "Acolad",
+        description: "Translation and localization specialists",
+        createdBy: admin._id,
+        members: [admin._id],
+      },
+      {
+        name: "AWS",
+        description: "Amazon Web Services development team",
+        createdBy: admin._id,
+        members: [admin._id],
+      },
+      {
+        name: "Cloudera",
+        description: "Data platform specialists",
+        createdBy: admin._id,
+        members: [admin._id],
+      },
+      {
+        name: "G42",
+        description: "AI and cloud computing team",
+        createdBy: admin._id,
+        members: [admin._id],
+        isActive: true,
+      },
+    ];
+
+    console.log("Creating default teams...");
+    for (const teamData of defaultTeams) {
+      try {
+        // Check if team already exists
+        const existingTeam = await Team.findOne({ name: teamData.name });
+        if (!existingTeam) {
+          const team = await Team.create(teamData);
+          console.log(`Created team: ${team.name}`);
+        } else {
+          console.log(`Team ${teamData.name} already exists, skipping creation`);
+        }
+      } catch (error) {
+        console.error(`Error creating team ${teamData.name}:`, error);
+        // Continue with other teams if one fails
+      }
+    }
 
     console.log("Database seeded successfully!");
   } catch (error) {
