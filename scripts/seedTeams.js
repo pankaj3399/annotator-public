@@ -17,6 +17,113 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
+// User Schema Definition
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    domain: [
+      {
+        type: String,
+        default: [],
+      },
+    ],
+    location: {
+      type: String,
+      default: null,
+    },
+    phone: {
+      type: String,
+      default: null,
+    },
+    isReadyToWork: {
+      type: Boolean,
+      default: false,
+    },
+    lang: [
+      {
+        type: String,
+        default: [],
+      },
+    ],
+    role: {
+      type: String,
+      enum: ["project manager", "annotator", "system admin"],
+      required: true,
+    },
+    invitation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Invitation",
+      default: null,
+    },
+    enrolledCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "EnrolledCourse",
+      },
+    ],
+    linkedin: {
+      type: String,
+      default: null,
+    },
+    resume: {
+      type: String,
+      default: null,
+    },
+    nda: {
+      type: String,
+      default: null,
+    },
+    team_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      default: null,
+    },
+    permission: {
+      type: [String],
+      enum: ["canReview"],
+      default: [],
+    },
+    lastLogin: {
+      type: Date,
+      default: Date.now,
+    },
+    customFields: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    created_at: {
+      type: Date,
+      default: Date.now,
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    timestamps: {
+      createdAt: "created_at",
+      updatedAt: "updated_at",
+    },
+    minimize: false,
+  }
+);
+
+const User = mongoose.models.User || mongoose.model("User", userSchema);
+
 // Team Schema Definition
 const teamSchema = new mongoose.Schema(
   {
@@ -72,46 +179,52 @@ async function seedTeams() {
     });
     console.log("Connected to MongoDB");
 
-    // Create a placeholder ObjectId for createdBy
-    const placeholderId = new mongoose.Types.ObjectId();
-    console.log(`Using placeholder ID for createdBy: ${placeholderId}`);
+    // Find a system admin user
+    const adminUser = await User.findOne({ role: "system admin" });
+    
+    if (!adminUser) {
+      console.error("No system admin user found. Please create one before running this script.");
+      process.exit(1);
+    }
+    
+    console.log(`Found system admin with ID: ${adminUser._id}`);
 
     // Create default teams
     const defaultTeams = [
       {
         name: "Freelancers",
         description: "Independent contractors working on various projects",
-        createdBy: placeholderId,
+        createdBy: adminUser._id,
         members: [],
       },
       {
         name: "Blomega Lab",
         description: "Research and development team focused on innovation",
-        createdBy: placeholderId,
+        createdBy: adminUser._id,
         members: [],
       },
       {
         name: "Acolad",
         description: "Translation and localization specialists",
-        createdBy: placeholderId,
+        createdBy: adminUser._id,
         members: [],
       },
       {
         name: "AWS",
         description: "Amazon Web Services development team",
-        createdBy: placeholderId,
+        createdBy: adminUser._id,
         members: [],
       },
       {
         name: "Cloudera",
         description: "Data platform specialists",
-        createdBy: placeholderId,
+        createdBy: adminUser._id,
         members: [],
       },
       {
         name: "G42",
         description: "AI and cloud computing team",
-        createdBy: placeholderId,
+        createdBy: adminUser._id,
         members: [],
         isActive: true,
       },
