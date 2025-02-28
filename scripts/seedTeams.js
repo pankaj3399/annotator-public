@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { config } from "dotenv";
-import saltAndHashPassword from "../utils/password.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,7 +17,7 @@ if (!MONGODB_URI) {
   process.exit(1);
 }
 
-//Used the same schema as the User model in the models folder
+// User Schema Definition
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -48,6 +47,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    isReadyToWork: {
+      type: Boolean,
+      default: false,
+    },
     lang: [
       {
         type: String,
@@ -64,6 +67,12 @@ const userSchema = new mongoose.Schema(
       ref: "Invitation",
       default: null,
     },
+    enrolledCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "EnrolledCourse",
+      },
+    ],
     linkedin: {
       type: String,
       default: null,
@@ -74,6 +83,11 @@ const userSchema = new mongoose.Schema(
     },
     nda: {
       type: String,
+      default: null,
+    },
+    team_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
       default: null,
     },
     permission: {
@@ -90,6 +104,14 @@ const userSchema = new mongoose.Schema(
       of: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    created_at: {
+      type: Date,
+      default: Date.now,
+    },
+    updated_at: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: {
@@ -99,6 +121,8 @@ const userSchema = new mongoose.Schema(
     minimize: false,
   }
 );
+
+const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 // Team Schema Definition
 const teamSchema = new mongoose.Schema(
@@ -144,10 +168,9 @@ const teamSchema = new mongoose.Schema(
   }
 );
 
-const User = mongoose.models.User || mongoose.model("User", userSchema);
 const Team = mongoose.models.Team || mongoose.model("Team", teamSchema);
 
-async function seed() {
+async function seedTeams() {
   try {
     console.log("Connecting to MongoDB...");
     await mongoose.connect(MONGODB_URI, {
@@ -156,77 +179,53 @@ async function seed() {
     });
     console.log("Connected to MongoDB");
 
-    const password = saltAndHashPassword(process.env.ADMIN_PASSWORD);
-
-    const users = [
-      {
-        name: "System Admin",
-        email: process.env.ADMIN_EMAIL,
-        password: password,
-        domain: ["management", "development"],
-        location: "New York, USA",
-        phone: "+1-234-567-8900",
-        lang: ["english", "spanish"],
-        role: "system admin",
-        linkedin: "https://linkedin.com/in/admin",
-        resume: "",
-        nda: "",
-        permission: [],
-        customFields: new Map(),    
-        lastLogin: new Date(),
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
-    ];
-
-    console.log("Creating user...");
-    const createdUsers = await User.insertMany(users);
-    console.log(`Created ${createdUsers.length} users successfully`);
-
-    createdUsers.forEach((user) => {
-      console.log(`Created user: ${user.email} with role: ${user.role}`);
-    });
-
-    // Get the admin user for creating teams
-    const admin = createdUsers[0];
+    // Find a system admin user
+    const adminUser = await User.findOne({ role: "system admin" });
+    
+    if (!adminUser) {
+      console.error("No system admin user found. Please create one before running this script.");
+      process.exit(1);
+    }
+    
+    console.log(`Found system admin with ID: ${adminUser._id}`);
 
     // Create default teams
     const defaultTeams = [
       {
         name: "Freelancers",
         description: "Independent contractors working on various projects",
-        createdBy: admin._id,
-        members: [admin._id],
+        createdBy: adminUser._id,
+        members: [],
       },
       {
         name: "Blomega Lab",
         description: "Research and development team focused on innovation",
-        createdBy: admin._id,
-        members: [admin._id],
+        createdBy: adminUser._id,
+        members: [],
       },
       {
         name: "Acolad",
         description: "Translation and localization specialists",
-        createdBy: admin._id,
-        members: [admin._id],
+        createdBy: adminUser._id,
+        members: [],
       },
       {
         name: "AWS",
         description: "Amazon Web Services development team",
-        createdBy: admin._id,
-        members: [admin._id],
+        createdBy: adminUser._id,
+        members: [],
       },
       {
         name: "Cloudera",
         description: "Data platform specialists",
-        createdBy: admin._id,
-        members: [admin._id],
+        createdBy: adminUser._id,
+        members: [],
       },
       {
         name: "G42",
         description: "AI and cloud computing team",
-        createdBy: admin._id,
-        members: [admin._id],
+        createdBy: adminUser._id,
+        members: [],
         isActive: true,
       },
     ];
@@ -248,9 +247,9 @@ async function seed() {
       }
     }
 
-    console.log("Database seeded successfully!");
+    console.log("Teams collection seeded successfully!");
   } catch (error) {
-    console.error("Error seeding database:", error);
+    console.error("Error seeding teams collection:", error);
     if (error.code === "ECONNREFUSED") {
       console.error(
         "Could not connect to MongoDB. Make sure your connection string is correct and MongoDB is running."
@@ -264,4 +263,4 @@ async function seed() {
   }
 }
 
-seed();
+seedTeams();
