@@ -1,5 +1,6 @@
 "use server"
 import { connectToDatabase } from '@/lib/db';
+import { User } from '@/models/User'; // Import User model first
 import { Team } from '@/models/Team';
 import { revalidatePath } from 'next/cache';
 
@@ -15,7 +16,12 @@ interface TeamData {
 export async function getTeams() {
   try {
     await connectToDatabase();
-    const teams = await Team.find({}).populate('createdBy', 'name email');
+    const teams = await Team.find({})
+      .populate({
+        path: 'createdBy',
+        model: User,  // Explicitly provide the model
+        select: 'name email'
+      });
     return JSON.parse(JSON.stringify(teams));
   } catch (error) {
     console.error("Error fetching teams:", error);
