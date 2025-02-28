@@ -67,6 +67,11 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    team_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+      default: null,
+    },
     permission: {
       type: [String],
       enum: ["canReview"],
