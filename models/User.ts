@@ -41,7 +41,7 @@ const userSchema = new Schema(
     ],
     role: {
       type: String,
-      enum: ["project manager", "annotator", "system admin"],
+      enum: ["project manager", "annotator", "system admin", "agency owner"],
       required: true,
     },
     invitation: {

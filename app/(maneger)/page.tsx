@@ -78,6 +78,7 @@ export default function ProjectDashboard() {
     if (session) {
       if (session?.user?.role === 'annotator') router.push('/tasks');
       if (session?.user?.role === 'system admin') router.push('/admin/');
+      if (session?.user?.role === 'agency owner') router.push('/agencyOwner');
       fetch('/api/projects')
         .then((res) => res.json())
         .then((data) => {

@@ -1,6 +1,7 @@
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { Team } from "@/models/Team"; // Import Team model
+import { InvitedUsers } from "@/models/InvitedUsers"; // Import InvitedUsers model instead of Invitation
 import saltAndHashPassword from "@/utils/password";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
@@ -115,6 +116,27 @@ export async function POST(req: Request) {
         team_id,
         { $addToSet: { members: newUser._id } }
       );
+    }
+
+    // Check for pending invitations for this email and mark them as accepted
+    if (role === 'annotator') {
+      const pendingInvitations = await InvitedUsers.find({
+        email: email.toLowerCase(),
+        status: 'pending'
+      });
+
+      if (pendingInvitations.length > 0) {
+        // Update all pending invitations
+        await InvitedUsers.updateMany(
+          { _id: { $in: pendingInvitations.map(inv => inv._id) } },
+          { 
+            status: 'accepted',
+            acceptedBy: newUser._id,
+            updated_at: new Date()
+          }
+        );
+
+      }
     }
 
     // Return success response without sensitive data
