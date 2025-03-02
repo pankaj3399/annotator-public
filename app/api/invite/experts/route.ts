@@ -87,21 +87,27 @@ export async function POST(req: Request) {
     // Get the agency owner's team
     const ownerTeams = await Team.find({ members: currentUser._id });
     let teamInfo = '';
+    let teamId = '';
     
+    // Get first team ID or empty string if none exists
     if (ownerTeams && ownerTeams.length > 0) {
+      teamId = ownerTeams[0]._id.toString();
+      
       if (ownerTeams.length === 1) {
-        teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join their team "${ownerTeams[0].name}". Please consider joining this team when you sign up.</p>`;
+        teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join their team "${ownerTeams[0].name}".</p>`;
       } else {
-        // Multiple teams
-        teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join one of their teams:</p><ul>`;
-        ownerTeams.forEach(team => {
-          teamInfo += `<li>${team.name}</li>`;
-        });
-        teamInfo += `</ul><p>Please consider joining one of these teams when you sign up.</p>`;
+        // Multiple teams - still use the first one for the signup link
+        teamInfo = `<p><strong>${agencyOwnerName}</strong> would like you to join their team "${ownerTeams[0].name}".</p>`;
       }
     } else {
-      teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join their team when you sign up.</p>`;
+      teamInfo = `<p><strong>${agencyOwnerName}</strong> would like you to join their team when you sign up.</p>`;
     }
+
+    // Get base URL from environment or default
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    
+    // Create signup URL with pre-filled parameters
+    const signupUrl = `${baseUrl}/auth/signup?role=annotator&team=${teamId}`;
 
     // Arrays to track different status categories
     const existingUsersArray: string[] = [];
@@ -158,7 +164,7 @@ export async function POST(req: Request) {
                 <p>BloLabel connects domain experts like you with AI innovators who need your expertise for data labeling and other projects.</p>
                 ${teamInfo}
                 <div style="margin: 25px 0;">
-                  <a href="https://www.blolabel.ai/landing" style="background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join BloLabel Now</a>
+                  <a href="${signupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join BloLabel Now</a>
                 </div>
                 <p>As a domain expert, you'll be able to:</p>
                 <ul>

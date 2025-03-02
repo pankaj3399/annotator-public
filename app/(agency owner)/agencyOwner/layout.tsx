@@ -241,8 +241,7 @@ export default function AgencyOwnerLayout({
         <div className="mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex">
-
-            <nav className="ml-6 flex space-x-8 items-center">
+              <nav className="ml-6 flex space-x-8 items-center">
                 <Link href="/landing" className="px-3 py-2 text-sm font-medium text-gray-900 hover:text-primary flex items-center">
                   <Home className="mr-2 h-4 w-4" />
                   Home
@@ -251,6 +250,10 @@ export default function AgencyOwnerLayout({
                   <FileText className="mr-2 h-4 w-4" />
                   Dashboard
                 </Link>
+                <Link href="/agencyOwner/experts" className="px-3 py-2 text-sm font-medium text-gray-900 hover:text-primary flex items-center">
+                  <Users className="mr-2 h-4 w-4" />
+                  Experts
+                </Link>
               </nav>
             </div>
             <div className="flex items-center">
@@ -258,6 +261,7 @@ export default function AgencyOwnerLayout({
                 variant="default" 
                 onClick={() => setIsInviteModalOpen(true)}
                 className="mr-4"
+                id="invite-experts-button"
               >
                 <Users className="mr-2 h-4 w-4" />
                 Invite Experts

@@ -5,29 +5,31 @@ import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { InvitedUsers } from '@/models/InvitedUsers';
 import { Team } from '@/models/Team';
-import { parse } from 'csv-parse/sync';
+import Papa from 'papaparse';
 
 // Define helper function to read and process the uploaded file
 async function readCSVFile(file: File): Promise<string[]> {
   const buffer = await file.arrayBuffer();
   const text = new TextDecoder().decode(buffer);
   
-  // Parse CSV
-  const records = parse(text, {
-    columns: true,
-    skip_empty_lines: true,
-    trim: true,
+  // Parse CSV using PapaParse
+  const parseResult = Papa.parse<Record<string, string>>(text, {
+    header: true,
+    skipEmptyLines: true,
+    // Papa.parse types don't allow trimHeaders and transform together
+    // so we'll handle trimming manually
+    transformHeader: (header) => header.trim()
   });
   
   // Extract emails from records
   const emails: string[] = [];
-  for (const record of records) {
+  for (const record of parseResult.data) {
     if (record.email) {
-      emails.push(record.email.trim());
+      emails.push(record.email);
     }
     // Try other common column names if 'email' is not found
     else if (record.Email || record.EMAIL) {
-      emails.push((record.Email || record.EMAIL).trim());
+      emails.push(record.Email || record.EMAIL);
     }
   }
   
@@ -74,21 +76,27 @@ export async function POST(req: Request) {
     // Get the agency owner's team
     const ownerTeams = await Team.find({ members: currentUser._id });
     let teamInfo = '';
+    let teamId = '';
     
+    // Get first team ID or empty string if none exists
     if (ownerTeams && ownerTeams.length > 0) {
+      teamId = ownerTeams[0]._id.toString();
+      
       if (ownerTeams.length === 1) {
-        teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join their team "${ownerTeams[0].name}". Please consider joining this team when you sign up.</p>`;
+        teamInfo = `<p><strong>${agencyOwnerName}</strong> would like you to join their team "${ownerTeams[0].name}".</p>`;
       } else {
-        // Multiple teams
-        teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join one of their teams:</p><ul>`;
-        ownerTeams.forEach(team => {
-          teamInfo += `<li>${team.name}</li>`;
-        });
-        teamInfo += `</ul><p>Please consider joining one of these teams when you sign up.</p>`;
+        // Multiple teams - still use the first one for the signup link
+        teamInfo = `<p><strong>${agencyOwnerName}</strong> would like you to join their team "${ownerTeams[0].name}".</p>`;
       }
     } else {
-      teamInfo = `<p><strong>${agencyOwnerName}</strong> would also like you to join their team when you sign up.</p>`;
+      teamInfo = `<p><strong>${agencyOwnerName}</strong> would like you to join their team when you sign up.</p>`;
     }
+
+    // Get base URL from environment or default
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    
+    // Create signup URL with pre-filled parameters
+    const signupUrl = `${baseUrl}/auth/signup?role=annotator&team=${teamId}`;
 
     // Process CSV file
     const emails = await readCSVFile(file);
@@ -160,7 +168,7 @@ export async function POST(req: Request) {
               <p>BloLabel connects domain experts like you with AI innovators who need your expertise for data labeling and other projects.</p>
               ${teamInfo}
               <div style="margin: 25px 0;">
-                <a href="https://www.blolabel.ai/landing" style="background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join BloLabel Now</a>
+                <a href="${signupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join BloLabel Now</a>
               </div>
               <p>As a domain expert, you'll be able to:</p>
               <ul>
