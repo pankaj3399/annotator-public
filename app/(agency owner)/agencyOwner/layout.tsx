@@ -254,6 +254,10 @@ export default function AgencyOwnerLayout({
                   <Users className="mr-2 h-4 w-4" />
                   Experts
                 </Link>
+                <Link href="/agencyOwner/reviewsAndRatings" className="px-3 py-2 text-sm font-medium text-gray-900 hover:text-primary flex items-center">
+                  <Users className="mr-2 h-4 w-4" />
+                  Reviews and Ratings
+                </Link>
               </nav>
             </div>
             <div className="flex items-center">
