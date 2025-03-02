@@ -4,6 +4,8 @@ import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { InvitedUsers } from '@/models/InvitedUsers'; // Changed from Invitation to InvitedUsers
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   try {
     // Check authentication
