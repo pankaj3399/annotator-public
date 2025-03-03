@@ -12,9 +12,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getMenuList } from "@/lib/menu-list";
+import { getMenuList, UserRole } from "@/lib/menu-list";
 import { cn } from "@/lib/utils";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 interface MenuProps {
   isOpen: boolean | undefined;
@@ -22,7 +22,14 @@ interface MenuProps {
 
 export function Menu({ isOpen }: MenuProps) {
   const pathname = usePathname();
-  const menuList = getMenuList(pathname);
+  const { data: session } = useSession();
+  
+  // Get user role from session data
+  // Replace this with the correct path to the role in your session object
+  const userRole = (session?.user?.role as UserRole) || "annotator"; // Default to annotator if no role found
+  
+  // Pass both pathname and user role to getMenuList
+  const menuList = getMenuList(pathname, userRole);
 
   return (
     <nav className="mt-8 h-full w-full">
@@ -105,8 +112,8 @@ export function Menu({ isOpen }: MenuProps) {
               <TooltipTrigger asChild>
                 <Button
                   onClick={() => signOut()}
-                  variant="outline"
-                  className="w-full justify-center h-10 mt-5"
+                  variant="ghost"
+                  className="w-full justify-start h-10 mt-5 mb-1"
                 >
                   <span className={cn(isOpen === false ? "" : "mr-4")}>
                     <LogOut size={18} />

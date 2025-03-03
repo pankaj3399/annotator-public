@@ -130,7 +130,6 @@ const CustomFieldsPage = () => {
   return (
     <>
       <div className='flex justify-between items-center mb-8'>
-        <h1 className='text-3xl font-bold text-gray-900'>Custom Fields</h1>
         <div className='flex gap-4'>
           <Button
             onClick={() => setIsAddProductModalOpen(true)}
