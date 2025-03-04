@@ -147,12 +147,49 @@ function AuthPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
+      console.log("Google sign-in button clicked");
+      console.log("Current form data:", {
+        role: formData.role,
+        team_id: formData.team_id
+      });
+      
+      // For annotators, require team selection
+      if (formData.role === 'annotator' && !formData.team_id) {
+        console.log("Team ID missing, showing error");
+        toast({
+          variant: 'destructive',
+          title: 'Team Selection Required',
+          description: 'Please select a team before signing in with Google.',
+        });
+        return;
+      }
+  
+      // Ensure we're properly setting the team in the URL
+      const callbackUrl = new URL('/dashboard', window.location.origin);
+      
+      // Add the team parameter only if we have one
+      if (formData.team_id) {
+        console.log("Adding team ID to callback URL:", formData.team_id);
+        callbackUrl.searchParams.set('team', formData.team_id);
+      }
+      
+      console.log("Final callback URL:", callbackUrl.toString());
+      
+      // Also save team ID in localStorage as a backup mechanism
+      if (formData.team_id) {
+        console.log("Saving team ID in localStorage:", formData.team_id);
+        localStorage.setItem('signup_team_id', formData.team_id);
+      }
+      
+      // Use NextAuth signIn with Google provider and the callbackUrl as a string
+      console.log("Calling NextAuth signIn with Google provider");
       const result = await signIn('google', {
-        callbackUrl: '/dashboard',
+        callbackUrl: callbackUrl.toString(),
         redirect: true,
       });
-
+  
       if (result?.error) {
+        console.error("Google sign-in error:", result.error);
         toast({
           variant: 'destructive',
           title: 'Authentication failed',
@@ -160,6 +197,7 @@ function AuthPageContent() {
         });
       }
     } catch (error) {
+      console.error("Exception in Google sign-in:", error);
       toast({
         variant: 'destructive',
         title: 'Authentication failed',

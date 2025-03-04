@@ -320,4 +320,27 @@ export async function getAnnotatorByTaskId(taskId: string) {
     return { error: 'Error occurred while fetching the user from taskId' };
   }
 }
+export async function getAnnotatorCompletedTestTasks() {
+  try {
+    await connectToDatabase();
+    const session = await getServerSession(authOptions);
+    const annotatorId = session?.user?.id;
 
+    if (!annotatorId) {
+      return { error: 'User is not authenticated' };
+    }
+
+    const tasks = await Task.find({ 
+      annotator: new mongoose.Types.ObjectId(annotatorId),
+      submitted: true,
+      type: 'test' // Filter to only get 'test' type tasks
+    })
+    .sort({ updatedAt: -1 })
+    .select('_id timeTaken submitted status updatedAt type');
+
+    return { data: JSON.stringify(tasks) };
+  } catch (error) {
+    console.error('Error in getAnnotatorCompletedTasks:', error);
+    return { error: 'Error occurred while fetching completed tasks' };
+  }
+}

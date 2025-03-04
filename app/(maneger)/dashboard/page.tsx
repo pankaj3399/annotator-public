@@ -11,6 +11,8 @@ import DashboardOverviewCardComponent from './[projectId]/_components/dashboard-
 import TaskSubmissionChartComponent from './[projectId]/_components/task-submission-chart';
 import MultiSelect from './MultiSelect';
 import {toast} from 'sonner'
+import { useSearchParams } from 'next/navigation';
+import { updateUserTeam } from '@/app/actions/user';
 
 interface DashboardData {
   tasksData: {
@@ -47,19 +49,125 @@ export default function ProjectDashboard() {
   const [projectNames, setProjectNames] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (session) {
       if (session?.user?.role === 'annotator') router.push('/tasks');
       if (session?.user?.role === 'agency owner') router.push('/agencyOwner');
+      if (session?.user?.role === 'system admin') router.push('/admin');
+
       init();
       fetchProjects();
     }
-  }, [session, router]);
-
+  }, [session, router, forceRefresh]);
+  
+  useEffect(() => {
+    // Function to handle team assignment after Google sign-in
+    const handleTeamAssignment = async () => {
+      console.log("Checking for team assignment");
+      
+      if (session?.user) {
+        const userId = (session.user as any).id;
+        
+        console.log("Session user:", {
+          id: userId,
+          hasTeam: !!(session.user as any).team_id
+        });
+        
+        // Check if user already has a team
+        const userHasTeam = !!(session.user as any).team_id;
+        
+        if (!userHasTeam) {
+          console.log("User doesn't have a team, looking for team ID");
+          
+          // Get search params
+          
+          // Try to get team ID from multiple sources
+          let teamId = null;
+          
+          // 1. Check URL parameters
+          const teamParam = searchParams.get('team');
+          if (teamParam) {
+            console.log("Found team ID in URL:", teamParam);
+            teamId = teamParam;
+          }
+          
+          // 2. If not in URL, check localStorage
+          if (!teamId && typeof window !== 'undefined') {
+            const storedTeamId = localStorage.getItem('signup_team_id');
+            if (storedTeamId) {
+              console.log("Found team ID in localStorage:", storedTeamId);
+              teamId = storedTeamId;
+            }
+          }
+          
+          // 3. If still not found, try to fetch from server cookie
+          if (!teamId) {
+            try {
+              console.log("Trying to fetch team ID from server cookie");
+              const response = await fetch('/api/auth/team-cookie');
+              const cookieData = await response.json();
+              
+              if (cookieData.teamId) {
+                console.log("Found team ID in server cookie:", cookieData.teamId);
+                teamId = cookieData.teamId;
+              }
+            } catch (error) {
+              console.error("Error fetching team cookie:", error);
+            }
+          }
+          
+          // If we found a team ID, update the user
+          if (teamId && userId) {
+            console.log("Updating user with team ID:", teamId);
+            
+            try {
+              const result = await updateUserTeam(userId, teamId);
+              
+              if (result.success) {
+                console.log("Successfully updated user's team:", result);
+                
+                toast.success(`You've been assigned to ${result.team?.name || 'your team'}`);
+                
+                // Clear stored team ID from localStorage
+                if (typeof window !== 'undefined') {
+                  localStorage.removeItem('signup_team_id');
+                }
+                
+                // Clear the cookie by making a request to an API endpoint
+                try {
+                  await fetch('/api/auth/clear-team-cookie', { method: 'POST' });
+                  console.log("Team cookie cleared");
+                } catch (clearError) {
+                  console.error("Error clearing team cookie:", clearError);
+                }
+                
+                // Update session and force data refresh
+                await update();
+                setForceRefresh(prev => !prev);
+              } else {
+                console.error("Failed to update user's team:", result.error);
+                toast.error("Failed to assign team");
+              }
+            } catch (error) {
+              console.error("Error updating user's team:", error);
+              toast.error("Error assigning team");
+            }
+          } else {
+            console.log("No team ID found to assign to user");
+          }
+        }
+      }
+    };
+    
+    handleTeamAssignment();
+  }, [session, searchParams, update]);
+  
   useEffect(() => {
     if (selectedProjects.length > 0) {
       fetchSelectedProjectsDashboard();
