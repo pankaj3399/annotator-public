@@ -49,10 +49,11 @@ export default function ProjectDashboard() {
   const [projectNames, setProjectNames] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   const router = useRouter();
-  const { data: session } = useSession();
-          const searchParams = useSearchParams();
+  const { data: session, update } = useSession();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (session) {
@@ -63,7 +64,8 @@ export default function ProjectDashboard() {
       init();
       fetchProjects();
     }
-  }, [session, router]);
+  }, [session, router, forceRefresh]);
+  
   useEffect(() => {
     // Function to handle team assignment after Google sign-in
     const handleTeamAssignment = async () => {
@@ -145,11 +147,10 @@ export default function ProjectDashboard() {
                   console.error("Error clearing team cookie:", clearError);
                 }
                 
-                // Refresh session to get updated team ID
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1000);
-              }else {
+                // Update session and force data refresh
+                await update();
+                setForceRefresh(prev => !prev);
+              } else {
                 console.error("Failed to update user's team:", result.error);
                 toast.error("Failed to assign team");
               }
@@ -165,7 +166,8 @@ export default function ProjectDashboard() {
     };
     
     handleTeamAssignment();
-  }, [session]);
+  }, [session, searchParams, update]);
+  
   useEffect(() => {
     if (selectedProjects.length > 0) {
       fetchSelectedProjectsDashboard();
