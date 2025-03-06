@@ -84,7 +84,7 @@ const ProfilePage = () => {
           const userData = await userResponse.json();
 
           // Fetch custom fields
-          const fieldsResponse = await fetch('/api/admin/custom-fields');
+          const fieldsResponse = await fetch(`/api/admin/custom-fields?teamId=${userData.team_id}`);
           if (!fieldsResponse.ok)
             throw new Error('Failed to fetch custom fields');
           const fieldsData = await fieldsResponse.json();
