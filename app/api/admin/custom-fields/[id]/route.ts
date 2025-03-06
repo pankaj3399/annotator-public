@@ -15,8 +15,35 @@ interface CustomFieldType {
   acceptedFileTypes: string | null;
   isActive: boolean;
   forAllTeams: boolean;
-  teams: string[];
+  teams?: string[];
   updated_at?: Date;
+}
+
+// Get a specific custom field
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectToDatabase();
+    
+    const customField = await CustomField.findById(params.id);
+    
+    if (!customField) {
+      return NextResponse.json(
+        { message: "Custom field not found" },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json(customField);
+  } catch (error) {
+    console.error("Error fetching custom field:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch custom field" },
+      { status: 500 }
+    );
+  }
 }
 
 // Update a specific custom field
@@ -36,20 +63,49 @@ export async function PATCH(
     const { field } = await req.json() as { field: CustomFieldType };
     await connectToDatabase();
     
-    const updatedField = await CustomField.findByIdAndUpdate(
-      params.id,
-      { ...field, updated_at: new Date() },
-      { new: true, runValidators: true }
-    );
+    let updateData = { ...field, updated_at: new Date() };
     
-    if (!updatedField) {
-      return NextResponse.json(
-        { message: "Custom field not found" },
-        { status: 404 }
+    // If forAllTeams is true, remove the teams field from the database
+    if (field.forAllTeams) {
+      // Two operations needed:
+      // 1. Delete the teams field from our update data
+      delete updateData.teams;
+      
+      // 2. Use $unset to remove the teams field from the document in MongoDB
+      const updatedField = await CustomField.findByIdAndUpdate(
+        params.id,
+        { 
+          $set: updateData,
+          $unset: { teams: "" } 
+        },
+        { new: true, runValidators: true }
       );
+      
+      if (!updatedField) {
+        return NextResponse.json(
+          { message: "Custom field not found" },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json(updatedField);
+    } else {
+      // Normal update if forAllTeams is false
+      const updatedField = await CustomField.findByIdAndUpdate(
+        params.id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+      
+      if (!updatedField) {
+        return NextResponse.json(
+          { message: "Custom field not found" },
+          { status: 404 }
+        );
+      }
+      
+      return NextResponse.json(updatedField);
     }
-    
-    return NextResponse.json(updatedField);
   } catch (error) {
     console.error("Error updating custom field:", error);
     return NextResponse.json(
@@ -89,30 +145,6 @@ export async function DELETE(
     console.error("Error deleting custom field:", error);
     return NextResponse.json(
       { message: "Failed to delete custom field" },
-      { status: 500 }
-    );
-  }
-}export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await connectToDatabase();
-    
-    const customField = await CustomField.findById(params.id);
-    
-    if (!customField) {
-      return NextResponse.json(
-        { message: "Custom field not found" },
-        { status: 404 }
-      );
-    }
-    
-    return NextResponse.json(customField);
-  } catch (error) {
-    console.error("Error fetching custom field:", error);
-    return NextResponse.json(
-      { message: "Failed to fetch custom field" },
       { status: 500 }
     );
   }

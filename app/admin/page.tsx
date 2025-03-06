@@ -60,7 +60,7 @@ interface CustomField {
   acceptedFileTypes: string | null;
   isActive: boolean;
   forAllTeams: boolean;
-  teams: string[];
+  teams?: string[];
 }
 
 const CustomFieldsPage = () => {
@@ -135,7 +135,14 @@ const CustomFieldsPage = () => {
   };
 
   const handleEditField = (field: CustomField, index: number) => {
-    setEditField({...field}); // Create a copy to avoid direct state mutation
+    // Create a copy to avoid direct state mutation
+    // If forAllTeams is true but teams is missing, set it to include all teams for UI display
+    const fieldCopy = {...field};
+    if (field.forAllTeams && !field.teams) {
+      fieldCopy.teams = teams.map(team => team._id);
+    }
+    
+    setEditField(fieldCopy);
     setEditIndex(index);
     setIsEditModalOpen(true);
   };
@@ -217,7 +224,8 @@ const CustomFieldsPage = () => {
     if (!editField) return;
     
     if (checked) {
-      // If forAllTeams is checked, select all teams
+      // If forAllTeams is checked, select all teams for UI display
+      // The API will remove the teams field when saved
       setEditField({
         ...editField,
         forAllTeams: true,
@@ -522,7 +530,7 @@ const CustomFieldsPage = () => {
               </div>
               
               {/* Team selection - disabled when forAllTeams is checked */}
-              <div className="grid grid-cols-4 items-start gap-4">
+              <div className={`grid grid-cols-4 items-start gap-4 ${editField.forAllTeams ? 'opacity-50' : ''}`}>
                 <Label className="text-right pt-2">Teams</Label>
                 <div className="col-span-3 space-y-2">
                   <div className="flex items-center space-x-2">
@@ -538,6 +546,11 @@ const CustomFieldsPage = () => {
                     >
                       Select All Teams
                     </Label>
+                    {editField.forAllTeams && (
+                      <span className="text-sm text-gray-400 italic ml-2">
+                        (Team selection disabled when "For All Teams" is enabled)
+                      </span>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 mt-2">

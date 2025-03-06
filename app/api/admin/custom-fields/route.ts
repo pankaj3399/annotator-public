@@ -17,7 +17,7 @@ interface CustomFieldType {
   acceptedFileTypes: string | null;
   isActive: boolean;
   forAllTeams: boolean;
-  teams: string[];
+  teams?: string[];
   updated_at?: Date;
 }
 
@@ -68,6 +68,13 @@ export async function POST(req: Request) {
 
     const { field } = await req.json() as { field: CustomFieldType };
     await connectToDatabase();
+
+    // If forAllTeams is true, we don't need to store the teams array
+    // This will save space in the database and simplify the logic
+    if (field.forAllTeams) {
+      // Delete teams field if forAllTeams is true
+      delete field.teams;
+    }
 
     // Create new field
     const savedField = await CustomField.create(field);
