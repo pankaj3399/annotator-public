@@ -1,3 +1,5 @@
+// app/api/admin/custom-fields/route.ts
+
 import { NextResponse } from "next/server";
 import { CustomField } from "@/models/CustomField";
 import { connectToDatabase } from '@/lib/db';
@@ -14,6 +16,7 @@ interface CustomFieldType {
   isRequired: boolean;
   acceptedFileTypes: string | null;
   isActive: boolean;
+  forAllTeams: boolean;
   teams: string[];
   updated_at?: Date;
 }
@@ -28,7 +31,16 @@ export async function GET(req: Request) {
     
     let query = {};
     if (teamId) {
-      query = { teams: teamId, isActive: true };
+      // If teamId is provided, show fields where:
+      // - forAllTeams is true, OR
+      // - the specific team is included in teams array
+      query = { 
+        $or: [
+          { forAllTeams: true },
+          { teams: teamId }
+        ],
+        isActive: true 
+      };
     } else {
       query = { isActive: true };
     }

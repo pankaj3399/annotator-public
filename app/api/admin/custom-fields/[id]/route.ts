@@ -1,3 +1,4 @@
+// app/api/admin/custom-fields/[id]/route.ts
 import { NextResponse } from "next/server";
 import { CustomField } from "@/models/CustomField";
 import { connectToDatabase } from '@/lib/db';
@@ -13,6 +14,7 @@ interface CustomFieldType {
   isRequired: boolean;
   acceptedFileTypes: string | null;
   isActive: boolean;
+  forAllTeams: boolean;
   teams: string[];
   updated_at?: Date;
 }
@@ -87,6 +89,30 @@ export async function DELETE(
     console.error("Error deleting custom field:", error);
     return NextResponse.json(
       { message: "Failed to delete custom field" },
+      { status: 500 }
+    );
+  }
+}export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectToDatabase();
+    
+    const customField = await CustomField.findById(params.id);
+    
+    if (!customField) {
+      return NextResponse.json(
+        { message: "Custom field not found" },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json(customField);
+  } catch (error) {
+    console.error("Error fetching custom field:", error);
+    return NextResponse.json(
+      { message: "Failed to fetch custom field" },
       { status: 500 }
     );
   }

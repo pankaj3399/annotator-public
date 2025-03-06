@@ -59,6 +59,7 @@ interface CustomField {
   isRequired: boolean;
   acceptedFileTypes: string | null;
   isActive: boolean;
+  forAllTeams: boolean;
   teams: string[];
 }
 
@@ -123,6 +124,7 @@ const CustomFieldsPage = () => {
       isRequired: false,
       acceptedFileTypes: null,
       isActive: true,
+      forAllTeams: false,
       teams: defaultTeams,
     };
     
@@ -211,6 +213,25 @@ const CustomFieldsPage = () => {
     });
   };
 
+  const handleForAllTeamsChange = (checked: boolean) => {
+    if (!editField) return;
+    
+    if (checked) {
+      // If forAllTeams is checked, select all teams
+      setEditField({
+        ...editField,
+        forAllTeams: true,
+        teams: teams.map(team => team._id)
+      });
+    } else {
+      // If unchecked, keep the current team selection
+      setEditField({
+        ...editField,
+        forAllTeams: false
+      });
+    }
+  };
+
   const validateField = (field: CustomField) => {
     if (!field.name || !field.label) {
       toast.error('Field must have a name and label');
@@ -222,8 +243,8 @@ const CustomFieldsPage = () => {
       return false;
     }
     
-    // Ensure at least one team is selected
-    if (!field.teams || field.teams.length === 0) {
+    // If forAllTeams is true, we don't need to validate team selection
+    if (!field.forAllTeams && (!field.teams || field.teams.length === 0)) {
       toast.error('Field must be assigned to at least one team');
       return false;
     }
@@ -374,7 +395,9 @@ const CustomFieldsPage = () => {
                   <div className="md:col-span-2">
                     <Label className="font-medium">Teams:</Label>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {field.teams?.length === teams.length ? (
+                      {field.forAllTeams ? (
+                        <Badge className="bg-blue-100 text-blue-800">All Teams (Global)</Badge>
+                      ) : field.teams?.length === teams.length ? (
                         <Badge className="bg-blue-100 text-blue-800">All Teams</Badge>
                       ) : (
                         field.teams?.map(teamId => {
@@ -481,6 +504,24 @@ const CustomFieldsPage = () => {
                 </div>
               </div>
               
+              {/* New forAllTeams checkbox */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="forAllTeams" className="text-right">
+                  For All Teams
+                </Label>
+                <div className="col-span-3 flex items-center">
+                  <Checkbox
+                    id="forAllTeams"
+                    checked={editField.forAllTeams}
+                    onCheckedChange={handleForAllTeamsChange}
+                  />
+                  <Label htmlFor="forAllTeams" className="ml-2">
+                    Make this field available to all teams (current and future)
+                  </Label>
+                </div>
+              </div>
+              
+              {/* Team selection - disabled when forAllTeams is checked */}
               <div className="grid grid-cols-4 items-start gap-4">
                 <Label className="text-right pt-2">Teams</Label>
                 <div className="col-span-3 space-y-2">
@@ -489,8 +530,14 @@ const CustomFieldsPage = () => {
                       id="select-all-teams"
                       checked={editField.teams?.length === teams.length}
                       onCheckedChange={(checked) => handleSelectAllTeams(!!checked)}
+                      disabled={editField.forAllTeams}
                     />
-                    <Label htmlFor="select-all-teams">Select All Teams</Label>
+                    <Label 
+                      htmlFor="select-all-teams" 
+                      className={editField.forAllTeams ? "text-gray-400" : ""}
+                    >
+                      Select All Teams
+                    </Label>
                   </div>
                   
                   <div className="grid grid-cols-2 gap-2 mt-2">
@@ -502,8 +549,14 @@ const CustomFieldsPage = () => {
                           onCheckedChange={(checked) => 
                             checked !== 'indeterminate' && handleTeamSelection(team._id)
                           }
+                          disabled={editField.forAllTeams}
                         />
-                        <Label htmlFor={`team-${team._id}`}>{team.name}</Label>
+                        <Label 
+                          htmlFor={`team-${team._id}`}
+                          className={editField.forAllTeams ? "text-gray-400" : ""}
+                        >
+                          {team.name}
+                        </Label>
                       </div>
                     ))}
                   </div>

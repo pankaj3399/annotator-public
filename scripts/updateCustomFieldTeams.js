@@ -44,6 +44,10 @@ const customFieldSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    forAllTeams: {
+      type: Boolean,
+      default: false,
+    },
     teams: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: "Team",
@@ -110,7 +114,7 @@ const CustomField = mongoose.models.CustomField || mongoose.model("CustomField",
 const Team = mongoose.models.Team || mongoose.model("Team", teamSchema);
 
 // Migration function
-async function updateCustomFieldsWithTeams() {
+async function updateCustomFieldsWithForAllTeams() {
   try {
     console.log("Connecting to MongoDB...");
     await mongoose.connect(MONGODB_URI, {
@@ -132,17 +136,21 @@ async function updateCustomFieldsWithTeams() {
       return;
     }
 
-    // Update all custom fields to include all teams
-    console.log("Updating all custom fields to include all teams...");
-    const teamIds = teams.map(team => team._id);
+    // Update all custom fields to set forAllTeams=true
+    console.log("Setting forAllTeams=true for all existing custom fields...");
     
     const updateResults = await CustomField.updateMany(
       {}, // match all documents
-      { $set: { teams: teamIds } }
+      { 
+        $set: { 
+          forAllTeams: true,
+          updated_at: new Date()
+        } 
+      }
     );
 
     console.log(`Updated ${updateResults.modifiedCount} custom fields`);
-    console.log("All custom fields now have access to all teams");
+    console.log("All custom fields now have forAllTeams=true");
 
     console.log("Migration completed successfully!");
   } catch (error) {
@@ -161,4 +169,4 @@ async function updateCustomFieldsWithTeams() {
 }
 
 // Run the migration
-updateCustomFieldsWithTeams();
+updateCustomFieldsWithForAllTeams();
