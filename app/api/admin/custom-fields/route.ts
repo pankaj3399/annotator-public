@@ -3,11 +3,37 @@ import { CustomField } from "@/models/CustomField";
 import { connectToDatabase } from '@/lib/db';
 import { getServerSession } from "next-auth";
 import { authOptions } from '@/auth';
+import mongoose from "mongoose";
 
-export async function GET() {
+// Define the CustomField type
+interface CustomFieldType {
+  _id?: string;
+  name: string;
+  label: string;
+  type: 'text' | 'link' | 'file' | 'array';
+  isRequired: boolean;
+  acceptedFileTypes: string | null;
+  isActive: boolean;
+  teams: string[];
+  updated_at?: Date;
+}
+
+export async function GET(req: Request) {
   try {
     await connectToDatabase();
-    const customFields = await CustomField.find({ isActive: true }).sort("created_at");
+    
+    // Extract team filter from URL if present
+    const url = new URL(req.url);
+    const teamId = url.searchParams.get('teamId');
+    
+    let query = {};
+    if (teamId) {
+      query = { teams: teamId, isActive: true };
+    } else {
+      query = { isActive: true };
+    }
+    
+    const customFields = await CustomField.find(query).sort("created_at");
     return NextResponse.json(customFields);
   } catch (error) {
     console.error("Error fetching custom fields:", error);
@@ -28,18 +54,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const { fields } = await req.json();
+    const { field } = await req.json() as { field: CustomFieldType };
     await connectToDatabase();
 
-    // Delete existing fields and create new ones
-    await CustomField.deleteMany({});
-    const savedFields = await CustomField.create(fields);
-
-    return NextResponse.json(savedFields);
+    // Create new field
+    const savedField = await CustomField.create(field);
+    return NextResponse.json(savedField);
   } catch (error) {
-    console.error("Error saving custom fields:", error);
+    console.error("Error creating custom field:", error);
     return NextResponse.json(
-      { message: "Failed to save custom fields" },
+      { message: "Failed to create custom field" },
       { status: 500 }
     );
   }

@@ -27,6 +27,10 @@ const customFieldSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    teams: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Team",
+    }],
     created_at: {
       type: Date,
       default: Date.now,
