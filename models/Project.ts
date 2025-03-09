@@ -3,6 +3,20 @@ import Task from './Task';
 import { Template } from './Template';
 import { TaskRepeat } from './TaskRepeat';
 
+// Define the GuidelineMessage schema
+const guidelineMessageSchema = new Schema({
+  sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  content: { type: String, required: true },
+  timestamp: { type: Date, default: Date.now },
+  attachments: [{
+    fileName: { type: String },
+    fileType: { type: String },
+    fileSize: { type: Number },
+    fileUrl: { type: String, required: true },
+    s3Path: { type: String, required: true }
+  }]
+});
+
 const projectSchema = new Schema({
   name: { type: String, required: true },
   project_Manager: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -22,7 +36,19 @@ const projectSchema = new Schema({
       },
       message: 'Earnings per task must be a positive number with at most 2 decimal places'
     }
-  }
+  },
+  // New fields for guidelines
+  description: { type: String, default: '' },
+  guidelineMessages: [guidelineMessageSchema],
+  guidelineFiles: [{
+    fileName: { type: String, required: true },
+    fileType: { type: String, required: true },
+    fileSize: { type: Number },
+    fileUrl: { type: String, required: true },
+    s3Path: { type: String, required: true },
+    uploadedAt: { type: Date, default: Date.now },
+    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+  }]
 });
 
 projectSchema.pre('findOneAndDelete', async function (next) {
@@ -38,8 +64,7 @@ projectSchema.pre('findOneAndDelete', async function (next) {
     // Optionally delete associated tasks if you have a Task model
     await Task.deleteMany({ project: projectId });
 
-
-     await TaskRepeat.deleteMany({ project: projectId });
+    await TaskRepeat.deleteMany({ project: projectId });
     
     next();
   } catch (error) {
