@@ -7,7 +7,6 @@ import { getServerSession } from "next-auth";
 import {GoogleGenerativeAI} from '@google/generative-ai'
 import OpenAI from 'openai' 
 import { Anthropic } from "@anthropic-ai/sdk";
-type Provider = "OpenAI" | "Anthropic" | "Gemini"
 
 interface FileAttachment {
   fileName: string;
@@ -127,28 +126,26 @@ export async function generateAiResponse(
     if (attachments && attachments.length > 0) {
       enhancedPrompt += "\n\n--- Attached Files ---\n";
       
-      attachments.forEach((file, index) => {
-        enhancedPrompt += `File ${index + 1}: ${file.fileName} (${file.fileType})\n`;
+      for (let i = 0; i < attachments.length; i++) {
+        const file = attachments[i];
+        enhancedPrompt += `File ${i + 1}: ${file.fileName} (${file.fileType})\n`;
         
-        // Handle different content types
+        // Handle different content types safely
         if (typeof file.content === 'string') {
           // For text, base64 images, or other string-based content
-          enhancedPrompt += `Content: ${
-            file.content.length > 1000 
-              ? file.content.slice(0, 1000) + '...' 
-              : file.content
-          }\n\n`;
-        } else if (file.content instanceof ArrayBuffer) {
-          // For binary files, convert to base64 if needed
-          const base64Content = Buffer.from(file.content).toString('base64');
-          enhancedPrompt += `Content: Binary file (Base64 length: ${base64Content.length})\n\n`;
+          // Limit content length to avoid overwhelming the prompt
+          const contentPreview = file.content.length > 1000 
+            ? file.content.substring(0, 1000) + '...' 
+            : file.content;
+          enhancedPrompt += `Content: ${contentPreview}\n\n`;
         } else {
-          enhancedPrompt += `Content: Unsupported file type\n\n`;
+          // Skip binary content or report it was provided but not included
+          enhancedPrompt += `Content: [Binary file content not included in prompt]\n\n`;
         }
-      });
+      }
     }
 
-    // Existing AI response generation logic remains the same
+    // AI provider handling
     switch (provider) {
       case "OpenAI": {
         const openai = new OpenAI({

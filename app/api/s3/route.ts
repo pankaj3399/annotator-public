@@ -1,3 +1,4 @@
+// app/api/s3/route.ts
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { NextResponse } from "next/server";
@@ -32,6 +33,40 @@ export async function POST(req: Request) {
   } catch (error) {
     return NextResponse.json(
       { success: false, error: "Failed to generate upload URL" },
+      { status: 500 }
+    );
+  }
+}
+
+
+export async function GET(req: Request) {
+  try {
+    const url = new URL(req.url);
+    const s3Path = url.searchParams.get('s3Path');
+    
+    if (!s3Path) {
+      return NextResponse.json(
+        { success: false, error: "S3 path is required" },
+        { status: 400 }
+      );
+    }
+    
+    const bucketName = process.env.AWS_BUCKET_NAME;
+    const region = process.env.AWS_REGION || 'ap-south-1';
+    
+    if (!bucketName) {
+      return NextResponse.json(
+        { success: false, error: "AWS bucket configuration is missing" },
+        { status: 500 }
+      );
+    }
+    
+    const fileUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${s3Path}`;
+    
+    return NextResponse.json({ success: true, fileUrl });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: "Failed to generate S3 URL" },
       { status: 500 }
     );
   }

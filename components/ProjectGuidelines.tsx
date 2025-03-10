@@ -563,222 +563,189 @@ const ProjectGuidelines = () => {
     }
   };
 
-  const handleFileUpload = async (files: FileList) => {
-    if (!files.length) return;
 
-    setUploading(true);
-    const filesToUpload = Array.from(files);
-    const uploadingFilesCopy = [...uploadingFiles];
+const handleFileUpload = async (files: FileList) => {
+  if (!files.length) return;
 
-    try {
-      await Promise.all(
-        filesToUpload.map(async (originalFile) => {
-          // Explicitly create a Blob from the File
-          const file = new Blob([originalFile], {
-            type: originalFile.type || 'application/octet-stream',
-          });
+  setUploading(true);
+  const filesToUpload = Array.from(files);
+  const uploadingFilesCopy = [...uploadingFiles];
 
-          // Add custom properties to the file
-          (file as any).name = originalFile.name;
-          (file as any).lastModified = originalFile.lastModified;
+  try {
+    await Promise.all(
+      filesToUpload.map(async (originalFile) => {
+        // Step 1: Get pre-signed URL
+        const presignedUrlResponse = await fetch(`/api/s3`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filename: originalFile.name,
+            contentType: originalFile.type || 'application/octet-stream',
+          }),
+        });
 
-          // Step 1: Get pre-signed URL
-          const presignedUrlResponse = await fetch(
-            `/api/projects/${projectId}/guidelines`,
-            {
-              method: 'OPTIONS',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                filename: originalFile.name,
-                contentType: originalFile.type || 'application/octet-stream',
-              }),
-            }
-          );
+        const { url, s3Path, mongoId } = await presignedUrlResponse.json();
 
-          const { url, s3Path, mongoId } = await presignedUrlResponse.json();
+        if (!url) {
+          throw new Error('Failed to get upload URL');
+        }
 
-          if (!url) {
-            throw new Error('Failed to get upload URL');
-          }
+        // Create a simple blob without custom properties
+        const fileBlob = new Blob([originalFile], {
+          type: originalFile.type || 'application/octet-stream',
+        });
 
-          // Read file content for AI - improved file handling
-          const fileContent = await new Promise<FileContent>(
-            (resolve, reject) => {
-              const reader = new FileReader();
-
-              reader.onload = (event) => {
-                // Properly handle different file types with content size limits
-                let content: string | ArrayBuffer | null =
-                  event.target?.result ?? null;
-
-                // For text files, ensure they're properly encoded as strings
-                if (
-                  originalFile.type.startsWith('text/') ||
-                  originalFile.type === 'application/json' ||
-                  originalFile.type === 'application/javascript' ||
-                  originalFile.type === 'application/xml'
-                ) {
-                  if (content instanceof ArrayBuffer) {
-                    content = new TextDecoder().decode(content);
-                  }
-                }
-
-                resolve({
-                  fileName: originalFile.name,
-                  fileType: originalFile.type || 'unknown',
-                  content: content,
-                });
-              };
-
-              reader.onerror = (error) => {
-                reject(error);
-              };
-
-              // Use appropriate reader method based on file type
-              if (originalFile.type.startsWith('image/')) {
-                reader.readAsDataURL(originalFile); // For images, use base64
-              } else if (
-                originalFile.type.startsWith('text/') ||
-                originalFile.type === 'application/json' ||
-                originalFile.type === 'application/javascript' ||
-                originalFile.type === 'application/xml'
-              ) {
-                reader.readAsText(originalFile); // For text files
-              } else if (originalFile.size <= 500000) {
-                // 500KB limit for binary files
-                reader.readAsArrayBuffer(originalFile);
-              } else {
-                // For large binary files, don't include the content directly
-                resolve({
-                  fileName: originalFile.name,
-                  fileType: originalFile.type || 'unknown',
-                  content: `[Large binary file: ${(originalFile.size / 1024 / 1024).toFixed(2)}MB]`,
-                });
-              }
-            }
-          );
-
-          // Add file to uploading list
-          const uploadingFile = {
-            file: {
-              fileName: originalFile.name,
-              fileType: originalFile.type || 'unknown',
-              fileSize: originalFile.size,
-              fileUrl: '', // Will be updated after successful upload
-              s3Path,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: {
-                _id: session?.user.id || '',
-                name: session?.user.name || '',
-                email: session?.user.email || '',
-              },
+        // Add file to uploading list
+        const uploadingFile = {
+          file: {
+            fileName: originalFile.name,
+            fileType: originalFile.type || 'unknown',
+            fileSize: originalFile.size,
+            fileUrl: '', // Will be updated after successful upload
+            s3Path,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: {
+              _id: session?.user.id || '',
+              name: session?.user.name || '',
+              email: session?.user.email || '',
             },
-            progress: 0,
-          };
+          },
+          progress: 0,
+        };
 
-          uploadingFilesCopy.push(uploadingFile);
-          setUploadingFiles([...uploadingFilesCopy]);
+        uploadingFilesCopy.push(uploadingFile);
+        setUploadingFiles([...uploadingFilesCopy]);
 
-          // Step 2: Upload file to pre-signed URL
-          const uploadResponse = await fetch(url, {
-            method: 'PUT',
-            body: file,
+        // Step 2: Upload file to pre-signed URL
+        const uploadResponse = await fetch(url, {
+          method: 'PUT',
+          body: fileBlob,
+          headers: {
+            'Content-Type': originalFile.type || 'application/octet-stream',
+          },
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('File upload failed');
+        }
+
+        // Step 3: Get proper S3 URL from our API route
+        const s3UrlResponse = await fetch(`/api/s3?s3Path=${encodeURIComponent(s3Path)}`);
+        const s3UrlData = await s3UrlResponse.json();
+        
+        if (!s3UrlData.success) {
+          throw new Error('Failed to generate S3 URL');
+        }
+        
+        const fileUrl = s3UrlData.fileUrl;
+
+        // Step 4: Register the file with our API
+        const registerResponse = await fetch(
+          `/api/projects/${projectId}/guidelines/files`,
+          {
+            method: 'POST',
             headers: {
-              'Content-Type': originalFile.type || 'application/octet-stream',
+              'Content-Type': 'application/json',
             },
-          });
-
-          if (!uploadResponse.ok) {
-            throw new Error('File upload failed');
-          }
-
-          // File URL for public access
-          const fileUrl = `https://${
-            process.env.NEXT_PUBLIC_AWS_BUCKET_NAME
-          }.s3.${process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Path}`;
-
-          // Step 3: Register the file with our API
-          const registerResponse = await fetch(
-            `/api/projects/${projectId}/guidelines/files`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                fileName: originalFile.name,
-                fileType: originalFile.type || 'unknown',
-                fileSize: originalFile.size,
-                fileUrl,
-                s3Path,
-              }),
-            }
-          );
-
-          const registeredFile = await registerResponse.json();
-
-          if (!registeredFile.success) {
-            throw new Error('Failed to register file');
-          }
-
-          // Prepare for AI model - improved with better file handling
-          if (isAiConfigured && fileContent.content) {
-            const aiAttachments: FileAttachment[] = [
-              {
-                fileName: originalFile.name,
-                fileType: originalFile.type || 'unknown',
-                content: fileContent.content,
-              },
-            ];
-
-            // Send the new message alongside the file
-            const messageToSend = newMessage.trim()
-              ? newMessage
-              : `I've uploaded a file: ${originalFile.name}`;
-
-            await generateAIResponse(messageToSend, aiAttachments);
-          }
-
-          // Update uploading progress
-          const fileIndex = uploadingFilesCopy.findIndex(
-            (f) => f.file.s3Path === s3Path
-          );
-          if (fileIndex !== -1) {
-            uploadingFilesCopy[fileIndex].progress = 100;
-            setUploadingFiles([...uploadingFilesCopy]);
-          }
-
-          // Add file to selected files for the message
-          setSelectedFiles((prev) => [
-            ...prev,
-            {
+            body: JSON.stringify({
               fileName: originalFile.name,
               fileType: originalFile.type || 'unknown',
               fileSize: originalFile.size,
               fileUrl,
               s3Path,
-              uploadedAt: new Date().toISOString(),
-              uploadedBy: {
-                _id: session?.user.id || '',
-                name: session?.user.name || '',
-                email: session?.user.email || '',
-              },
-            } as File,
-          ]);
+            }),
+          }
+        );
 
-          toast.success(`${originalFile.name} uploaded successfully`);
-        })
-      );
-    } catch (error) {
-      console.error('Error uploading files:', error);
-      toast.error('Failed to upload file(s)');
-    } finally {
-      setUploading(false);
-      setUploadingFiles([]);
-    }
-  };
+        const registeredFile = await registerResponse.json();
+
+        if (!registeredFile.success) {
+          throw new Error('Failed to register file');
+        }
+
+        // Prepare for AI model - Only include text content, not binary
+        if (isAiConfigured) {
+          let fileContent = null;
+          
+          // Only process text files that are safe to include
+          if (
+            originalFile.type.startsWith('text/') ||
+            originalFile.type === 'application/json' ||
+            originalFile.type === 'application/javascript' ||
+            originalFile.type === 'application/xml'
+          ) {
+            try {
+              // Read as text
+              fileContent = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.onerror = reject;
+                reader.readAsText(originalFile);
+              });
+            } catch (error) {
+              console.error("Error reading file:", error);
+              fileContent = `[Error reading file: ${originalFile.name}]`;
+            }
+          } else {
+            // For non-text files, just include the filename and type
+            fileContent = `[File: ${originalFile.name} (${originalFile.type})]`;
+          }
+
+          // Create a simpler attachment object for the server action
+          const aiAttachments = [{
+            fileName: originalFile.name,
+            fileType: originalFile.type || 'unknown',
+            content: fileContent
+          }];
+
+          // Send the new message alongside the file
+          const messageToSend = newMessage.trim()
+            ? newMessage
+            : `I've uploaded a file: ${originalFile.name}`;
+
+          await generateAIResponse(messageToSend, aiAttachments);
+        }
+
+        // Update uploading progress
+        const fileIndex = uploadingFilesCopy.findIndex(
+          (f) => f.file.s3Path === s3Path
+        );
+        if (fileIndex !== -1) {
+          uploadingFilesCopy[fileIndex].progress = 100;
+          setUploadingFiles([...uploadingFilesCopy]);
+        }
+
+        // Add file to selected files for the message
+        setSelectedFiles((prev) => [
+          ...prev,
+          {
+            fileName: originalFile.name,
+            fileType: originalFile.type || 'unknown',
+            fileSize: originalFile.size,
+            fileUrl,
+            s3Path,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: {
+              _id: session?.user.id || '',
+              name: session?.user.name || '',
+              email: session?.user.email || '',
+            },
+          } as File,
+        ]);
+
+        toast.success(`${originalFile.name} uploaded successfully`);
+      })
+    );
+  } catch (error) {
+    console.error('Error uploading files:', error);
+    toast.error('Failed to upload file(s)');
+  } finally {
+    setUploading(false);
+    setUploadingFiles([]);
+  }
+};
 
   const removeSelectedFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
