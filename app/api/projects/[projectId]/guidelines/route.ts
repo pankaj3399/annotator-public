@@ -1,13 +1,23 @@
-// app/api/projects/[projectId]/guidelines/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Project } from '@/models/Project';
+import { Guideline } from '@/models/Guideline';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { ObjectId } from 'mongodb';
+interface Attachment {
+  fileName: string;
+  fileType: string;
+  fileSize?: number;
+  fileUrl: string;
+  s3Path: string;
+}
 
+interface GuidelineFile extends Attachment {
+  uploadedBy: string;
+}
 const s3Client = new S3Client({
   region: process.env.AWS_REGION!,
   credentials: {
@@ -29,26 +39,31 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const project = await Project.findById(params.projectId)
-      .select('description guidelineMessages guidelineFiles')
+    // Find guidelines for the project
+    const guidelines = await Guideline.findOne({ project: params.projectId })
       .populate({
-        path: 'guidelineMessages.sender',
+        path: 'messages.sender',
         select: 'name email image'
       })
       .populate({
-        path: 'guidelineFiles.uploadedBy',
+        path: 'files.uploadedBy',
         select: 'name email image'
       });
 
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    if (!guidelines) {
+      return NextResponse.json({ 
+        success: true, 
+        description: '',
+        messages: [],
+        files: []
+      });
     }
 
     return NextResponse.json({ 
       success: true, 
-      description: project.description,
-      messages: project.guidelineMessages,
-      files: project.guidelineFiles
+      description: guidelines.description,
+      messages: guidelines.messages,
+      files: guidelines.files
     });
   } catch (error) {
     console.error('Error fetching guidelines:', error);
@@ -59,7 +74,6 @@ export async function GET(
   }
 }
 
-// Add a new message to guidelines
 export async function POST(
   request: NextRequest,
   { params }: { params: { projectId: string } }
@@ -72,38 +86,73 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { content, attachments = [] } = await request.json();
+    const { content = '', attachments = [], isAiMessage, aiProvider, aiModel } = await request.json();
     
-    if (!content && attachments.length === 0) {
+    if (!content.trim() && (!attachments || attachments.length === 0)) {
       return NextResponse.json(
         { success: false, error: "Message content or attachments required" },
         { status: 400 }
       );
     }
 
-    const newMessage = {
-      sender: session.user.id,
-      content,
-      timestamp: new Date(),
-      attachments
-    };
-
-    const project = await Project.findByIdAndUpdate(
-      params.projectId,
-      { $push: { guidelineMessages: newMessage } },
-      { new: true }
-    ).populate({
-      path: 'guidelineMessages.sender',
-      select: 'name email image',
-      match: { _id: session.user.id }
-    });
-
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    // Find or create guidelines for the project
+    let guidelines = await Guideline.findOne({ project: params.projectId });
+    
+    if (!guidelines) {
+      guidelines = new Guideline({ 
+        project: params.projectId,
+        description: '',
+        messages: [],
+        files: []
+      });
     }
 
-    // Get the newly added message (the last one in the array)
-    const addedMessage = project.guidelineMessages[project.guidelineMessages.length - 1];
+    // Create new message
+    const newMessage = {
+      sender: session.user.id,
+      content: content.trim() || 'Attachment shared', // Ensure non-empty content
+      timestamp: new Date(),
+      attachments,
+      isAiMessage: isAiMessage || false,
+      aiProvider: isAiMessage ? aiProvider : undefined,
+      aiModel: isAiMessage ? aiModel : undefined
+    };
+
+    // Add message to guidelines
+    guidelines.messages.push(newMessage);
+
+    // Add new files to guidelines if they don't already exist
+    if (attachments && attachments.length > 0) {
+      attachments.forEach((attachment: Attachment) => {
+        const existingFileIndex = guidelines.files.findIndex(
+          (file: GuidelineFile) => file.s3Path === attachment.s3Path
+        );
+
+        if (existingFileIndex === -1) {
+          const newFile: GuidelineFile = {
+            fileName: attachment.fileName,
+            fileType: attachment.fileType,
+            fileSize: attachment.fileSize,
+            fileUrl: attachment.fileUrl,
+            s3Path: attachment.s3Path,
+            uploadedBy: session.user.id
+          };
+          guidelines.files.push(newFile);
+        }
+      });
+    }
+
+    // Save guidelines
+    await guidelines.save();
+
+    // Populate sender details
+    await guidelines.populate({
+      path: 'messages.sender',
+      select: 'name email image'
+    });
+
+    // Get the newly added message
+    const addedMessage = guidelines.messages[guidelines.messages.length - 1];
 
     return NextResponse.json({ 
       success: true, 
@@ -118,7 +167,7 @@ export async function POST(
   }
 }
 
-// Update project description
+// Update guidelines description
 export async function PUT(
   request: NextRequest,
   { params }: { params: { projectId: string } }
@@ -133,19 +182,25 @@ export async function PUT(
 
     const { description } = await request.json();
     
-    const project = await Project.findByIdAndUpdate(
-      params.projectId,
-      { description },
-      { new: true }
-    );
-
-    if (!project) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    // Find or create guidelines for the project
+    let guidelines = await Guideline.findOne({ project: params.projectId });
+    
+    if (!guidelines) {
+      guidelines = new Guideline({ 
+        project: params.projectId,
+        description: description || '',
+        messages: [],
+        files: []
+      });
+    } else {
+      guidelines.description = description || '';
     }
+
+    await guidelines.save();
 
     return NextResponse.json({ 
       success: true, 
-      description: project.description
+      description: guidelines.description
     });
   } catch (error) {
     console.error('Error updating description:', error);
@@ -194,5 +249,3 @@ export async function OPTIONS(
     );
   }
 }
-
-// Register a file after upload is complete

@@ -2,27 +2,12 @@ import { Schema, model, models, CallbackError } from 'mongoose';
 import Task from './Task';
 import { Template } from './Template';
 import { TaskRepeat } from './TaskRepeat';
-
-// Define the GuidelineMessage schema
-const guidelineMessageSchema = new Schema({
-  sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  content: { type: String, required: true },
-  timestamp: { type: Date, default: Date.now },
-  attachments: [{
-    fileName: { type: String },
-    fileType: { type: String },
-    fileSize: { type: Number },
-    fileUrl: { type: String, required: true },
-    s3Path: { type: String, required: true }
-  }]
-});
+import { Guideline } from './Guideline';
 
 const projectSchema = new Schema({
   name: { type: String, required: true },
   project_Manager: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  // status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   created_at: { type: Date, default: Date.now },
-  // updated_at: { type: Date, default: Date.now },
   templates: [{ type: Schema.Types.ObjectId, ref: 'Template' }],
   labels: { type: [String], default: [] },
   earnings_per_task: { 
@@ -36,19 +21,7 @@ const projectSchema = new Schema({
       },
       message: 'Earnings per task must be a positive number with at most 2 decimal places'
     }
-  },
-  // New fields for guidelines
-  description: { type: String, default: '' },
-  guidelineMessages: [guidelineMessageSchema],
-  guidelineFiles: [{
-    fileName: { type: String, required: true },
-    fileType: { type: String, required: true },
-    fileSize: { type: Number },
-    fileUrl: { type: String, required: true },
-    s3Path: { type: String, required: true },
-    uploadedAt: { type: Date, default: Date.now },
-    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
-  }]
+  }
 });
 
 projectSchema.pre('findOneAndDelete', async function (next) {
@@ -61,15 +34,19 @@ projectSchema.pre('findOneAndDelete', async function (next) {
     // Delete all associated templates
     await Template.deleteMany({ project: projectId });
     
-    // Optionally delete associated tasks if you have a Task model
+    // Delete associated tasks 
     await Task.deleteMany({ project: projectId });
 
+    // Delete associated task repeats
     await TaskRepeat.deleteMany({ project: projectId });
+
+    // Delete associated guidelines
+    await Guideline.deleteOne({ project: projectId });
     
     next();
   } catch (error) {
     console.error('Error deleting project:', error);
-    next(error as CallbackError); // Pass the error to the next middleware
+    next(error as CallbackError);
   }
 });
 

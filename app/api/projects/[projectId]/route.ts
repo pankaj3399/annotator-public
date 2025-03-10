@@ -29,7 +29,6 @@ export async function GET(
       project: {
         _id: project._id,
         name: project.name,
-        description: project.description,
         created_at: project.created_at,
         labels: project.labels
       }
@@ -78,7 +77,6 @@ export async function PUT(
       project: {
         _id: project._id,
         name: project.name,
-        description: project.description,
         created_at: project.created_at,
         labels: project.labels
       }

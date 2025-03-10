@@ -9,11 +9,11 @@ import OpenAI from 'openai'
 import { Anthropic } from "@anthropic-ai/sdk";
 type Provider = "OpenAI" | "Anthropic" | "Gemini"
 
-const providerModels: Record<Provider, string[]> = {
-  OpenAI: ["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"],
-  Anthropic: ["claude-3-5-sonnet-latest", "claude-3-5-sonnet-20240620", "claude-3-haiku-20240307", "claude-3-opus-latest", "claude-3-opus-20240229"],
-  Gemini: ["gemini-1.0-pro", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"],
-};
+interface FileAttachment {
+  fileName: string;
+  fileType: string;
+  content: string | ArrayBuffer | null;
+}
 
 export async function addModel(provider: string, projectId: string, model: string, apiKey: string,name:string, systemPrompt?: string) {
   await connectToDatabase();
@@ -99,8 +99,6 @@ export async function deleteJobByTaskid(Taskid: string) {
 }
 
 
-
-
 export async function getAIModels(projectid: string) {
   await connectToDatabase();
   try {
@@ -114,21 +112,43 @@ export async function getAIModels(projectid: string) {
   }
 }
 
-
-
-
-
-const getProviderFromModel = (model: string): Provider | null => {
-  for (const [provider, models] of Object.entries(providerModels)) {
-    if (models.includes(model)) {
-      return provider as Provider;
-    }
-  }
-  return null;
-};
-
-export async function generateAiResponse(provider: string,model:string, prompt: string, projectId: string,apiKey:string) {
+export async function generateAiResponse(
+  provider: string, 
+  model: string, 
+  prompt: string, 
+  projectId: string, 
+  apiKey: string,
+  attachments?: FileAttachment[]
+) {
   try {
+    // Enhance prompt with file contents
+    let enhancedPrompt = prompt;
+    
+    if (attachments && attachments.length > 0) {
+      enhancedPrompt += "\n\n--- Attached Files ---\n";
+      
+      attachments.forEach((file, index) => {
+        enhancedPrompt += `File ${index + 1}: ${file.fileName} (${file.fileType})\n`;
+        
+        // Handle different content types
+        if (typeof file.content === 'string') {
+          // For text, base64 images, or other string-based content
+          enhancedPrompt += `Content: ${
+            file.content.length > 1000 
+              ? file.content.slice(0, 1000) + '...' 
+              : file.content
+          }\n\n`;
+        } else if (file.content instanceof ArrayBuffer) {
+          // For binary files, convert to base64 if needed
+          const base64Content = Buffer.from(file.content).toString('base64');
+          enhancedPrompt += `Content: Binary file (Base64 length: ${base64Content.length})\n\n`;
+        } else {
+          enhancedPrompt += `Content: Unsupported file type\n\n`;
+        }
+      });
+    }
+
+    // Existing AI response generation logic remains the same
     switch (provider) {
       case "OpenAI": {
         const openai = new OpenAI({
@@ -137,7 +157,7 @@ export async function generateAiResponse(provider: string,model:string, prompt: 
 
         const completion = await openai.chat.completions.create({
           model: model,
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content: enhancedPrompt }],
         });
 
         return completion.choices[0].message.content;
@@ -145,12 +165,12 @@ export async function generateAiResponse(provider: string,model:string, prompt: 
 
       case "Anthropic": {
         const anthropic = new Anthropic({
-          apiKey:apiKey
+          apiKey: apiKey
         })
         const message = await anthropic.messages.create({
           model: model,
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 1024,
+          messages: [{ role: "user", content: enhancedPrompt }],
+          max_tokens: 4096,
         });
         //@ts-ignore
         return message.content[0].text
@@ -162,7 +182,7 @@ export async function generateAiResponse(provider: string,model:string, prompt: 
         );
         
         const modelInstance = genAI.getGenerativeModel({ model });
-        const result = await modelInstance.generateContent(prompt);
+        const result = await modelInstance.generateContent(enhancedPrompt);
         
         return result.response.text();
       }
@@ -177,5 +197,6 @@ export async function generateAiResponse(provider: string,model:string, prompt: 
       : new Error("Failed to generate AI response");
   }
 }
+
 
 
