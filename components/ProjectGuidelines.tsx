@@ -43,10 +43,10 @@ interface FileAttachment {
   fileName: string;
   fileType: string;
   content: string | ArrayBuffer | null;
+  fileUrl?: string;
+  s3Path?: string;  
 }
 
-interface FileContent extends FileAttachment {}
-// Type definitions
 interface Attachment {
   fileName: string;
   fileType: string;
@@ -77,6 +77,7 @@ interface File extends Attachment {
     email: string;
     image?: string;
   };
+  originalFile?: any; 
 }
 
 interface AIConfig {
@@ -289,30 +290,31 @@ const ProjectGuidelines = () => {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() && !selectedFiles.length) return;
-
+  
     try {
+      // Prepare file attachments with proper file URLs for the UI message
       const attachments = selectedFiles.map((file) => ({
         fileName: file.fileName,
         fileType: file.fileType,
         fileSize: file.fileSize,
         fileUrl: file.fileUrl,
         s3Path: file.s3Path,
-        content: file.fileUrl,
       }));
-
+  
+      // First send the user's message
       const response = await fetch(`/api/projects/${projectId}/guidelines`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: newMessage,
+          content: newMessage || (selectedFiles.length > 0 ? `I've uploaded ${selectedFiles.length} PDF file(s)` : ''),
           attachments,
         }),
       });
-
+  
       const data = await response.json();
-
+  
       if (data.success) {
         // Optimistically add the message to the UI
         const optimisticMessage = {
@@ -323,14 +325,50 @@ const ProjectGuidelines = () => {
             email: session?.user.email || '',
           },
         };
-
+  
         setMessages((prev) => [...prev, optimisticMessage]);
-        setNewMessage('');
-        setSelectedFiles([]);
-
-        // Only generate AI response if AI is configured
+        
+        // Only after the user message is sent and displayed, process AI response
         if (isAiConfigured && aiConfig.apiKey) {
-          await generateAIResponse(newMessage);
+          // Process PDFs for AI
+          const aiAttachments = await Promise.all(
+            selectedFiles.map(async (file) => {
+              const originalFile = file.originalFile;
+              let fileContent = null;
+              
+              // For PDF files, try to read content as data URL
+              if (originalFile) {
+                try {
+                  // Read PDF as a data URL (base64)
+                  fileContent = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target?.result as string);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(originalFile);
+                  });
+                  console.log(`Successfully read content for PDF: ${file.fileName}`);
+                } catch (error) {
+                  console.error(`Error reading PDF content for ${file.fileName}:`, error);
+                  // Continue with s3Path as fallback
+                }
+              }
+              
+              // Create attachment object with all necessary info for AI
+              return {
+                fileName: file.fileName,
+                fileType: file.fileType,
+                content: fileContent, // Direct content if available
+                fileUrl: file.fileUrl,  // URL for server-side access
+                s3Path: file.s3Path     // S3 path for server-side retrieval
+              };
+            })
+          );
+  
+          // Send message with prepared attachments to AI
+          await generateAIResponse(
+            newMessage || `I've uploaded ${selectedFiles.length} PDF file(s)`,
+            aiAttachments
+          );
         } else if (!isAiConfigured) {
           // If AI is not configured, show a reminder toast
           toast.info('Configure AI assistant to get automated responses', {
@@ -340,7 +378,11 @@ const ProjectGuidelines = () => {
             },
           });
         }
-
+  
+        // Clear inputs after processing
+        setNewMessage('');
+        setSelectedFiles([]);
+  
         // Refetch to get the latest data
         await fetchGuidelines();
       } else {
@@ -351,6 +393,8 @@ const ProjectGuidelines = () => {
       toast.error('An error occurred while sending your message');
     }
   };
+  
+  
 
   const generateAIResponse = async (
     userMessage: string,
@@ -360,7 +404,7 @@ const ProjectGuidelines = () => {
       toast.error('AI assistant not properly configured');
       return;
     }
-
+  
     setIsGeneratingAI(true);
     try {
       // Create a prompt using context from the conversation
@@ -368,7 +412,7 @@ const ProjectGuidelines = () => {
         .slice(-5)
         .map((msg) => `${msg.sender.name}: ${msg.content}`)
         .join('\n');
-
+  
       const prompt = `
         Project Name: ${projectName}
         Project Description: ${description}
@@ -378,19 +422,19 @@ const ProjectGuidelines = () => {
         
         User's message: ${userMessage}
         
-        Please provide a helpful, professional response as the AI assistant for this project.
+        Please provide a helpful, professional response as the AI assistant for this project. If PDF files are attached, analyze their content and provide relevant insights.
       `;
-
-      // Combine selected files and additional attachments
-      const attachments: FileAttachment[] = [
-        ...selectedFiles.map((file) => ({
-          fileName: file.fileName,
-          fileType: file.fileType,
-          content: file.fileUrl,
-        })),
-        ...(additionalAttachments || []),
-      ];
-
+  
+      // Use the additionalAttachments which already contain PDF content
+      const attachments = additionalAttachments || [];
+  
+      console.log(`Sending ${attachments.length} PDF attachments to AI service`);
+      if (attachments.length > 0) {
+        console.log('PDF attachments have content:', attachments.map(a => a.content ? 'Yes' : 'No').join(', '));
+        console.log('PDF attachments have s3Path:', attachments.map(a => a.s3Path ? 'Yes' : 'No').join(', '));
+      }
+  
+      // Send to AI service
       const response = await generateAiResponse(
         aiConfig.provider,
         aiConfig.model,
@@ -399,10 +443,10 @@ const ProjectGuidelines = () => {
         aiConfig.apiKey,
         attachments.length > 0 ? attachments : undefined
       );
-
+  
       if (response) {
         // Add AI response to the UI
-        const aiResponseMessage: Message = {
+        const aiResponseMessage = {
           _id: `ai-response-${Date.now()}`,
           sender: {
             _id: 'ai-assistant',
@@ -415,9 +459,9 @@ const ProjectGuidelines = () => {
           attachments: selectedFiles,
           isAiMessage: true,
         };
-
+  
         setMessages((prev) => [...prev, aiResponseMessage]);
-
+  
         // Save AI message to the server
         await fetch(`/api/projects/${projectId}/guidelines`, {
           method: 'POST',
@@ -432,7 +476,7 @@ const ProjectGuidelines = () => {
             attachments: selectedFiles,
           }),
         });
-
+  
         // Clear selected files after sending
         setSelectedFiles([]);
       }
@@ -564,165 +608,134 @@ const ProjectGuidelines = () => {
   };
 
 
-const handleFileUpload = async (files: FileList) => {
-  if (!files.length) return;
-
-  setUploading(true);
-  const filesToUpload = Array.from(files);
-  const uploadingFilesCopy = [...uploadingFiles];
-
-  try {
-    await Promise.all(
-      filesToUpload.map(async (originalFile) => {
-        // Step 1: Get pre-signed URL
-        const presignedUrlResponse = await fetch(`/api/s3`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            filename: originalFile.name,
-            contentType: originalFile.type || 'application/octet-stream',
-          }),
-        });
-
-        const { url, s3Path, mongoId } = await presignedUrlResponse.json();
-
-        if (!url) {
-          throw new Error('Failed to get upload URL');
-        }
-
-        // Create a simple blob without custom properties
-        const fileBlob = new Blob([originalFile], {
-          type: originalFile.type || 'application/octet-stream',
-        });
-
-        // Add file to uploading list
-        const uploadingFile = {
-          file: {
-            fileName: originalFile.name,
-            fileType: originalFile.type || 'unknown',
-            fileSize: originalFile.size,
-            fileUrl: '', // Will be updated after successful upload
-            s3Path,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: {
-              _id: session?.user.id || '',
-              name: session?.user.name || '',
-              email: session?.user.email || '',
-            },
-          },
-          progress: 0,
-        };
-
-        uploadingFilesCopy.push(uploadingFile);
-        setUploadingFiles([...uploadingFilesCopy]);
-
-        // Step 2: Upload file to pre-signed URL
-        const uploadResponse = await fetch(url, {
-          method: 'PUT',
-          body: fileBlob,
-          headers: {
-            'Content-Type': originalFile.type || 'application/octet-stream',
-          },
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('File upload failed');
-        }
-
-        // Step 3: Get proper S3 URL from our API route
-        const s3UrlResponse = await fetch(`/api/s3?s3Path=${encodeURIComponent(s3Path)}`);
-        const s3UrlData = await s3UrlResponse.json();
-        
-        if (!s3UrlData.success) {
-          throw new Error('Failed to generate S3 URL');
-        }
-        
-        const fileUrl = s3UrlData.fileUrl;
-
-        // Step 4: Register the file with our API
-        const registerResponse = await fetch(
-          `/api/projects/${projectId}/guidelines/files`,
-          {
+  const handleFileUpload = async (files: FileList) => {
+    if (!files.length) return;
+  
+    setUploading(true);
+    const filesToUpload = Array.from(files);
+    const uploadingFilesCopy = [...uploadingFiles];
+  
+    try {
+      await Promise.all(
+        filesToUpload.map(async (originalFile) => {
+          // Check if file is a PDF
+          const isPdf = originalFile.type === 'application/pdf' || 
+                        originalFile.name.toLowerCase().endsWith('.pdf');
+          
+          if (!isPdf) {
+            toast.error(`${originalFile.name} is not a PDF file. Only PDF files are supported.`);
+            return; // Skip non-PDF files
+          }
+          
+          // Set content type to PDF
+          const contentType = 'application/pdf';
+          
+          console.log(`Uploading PDF file: ${originalFile.name}`);
+  
+          // Step 1: Get pre-signed URL from project-specific guideline route
+          const presignedUrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              fileName: originalFile.name,
-              fileType: originalFile.type || 'unknown',
-              fileSize: originalFile.size,
-              fileUrl,
-              s3Path,
+              filename: originalFile.name,
+              contentType: contentType,
             }),
+          });
+  
+          const { url, s3Path, fileId } = await presignedUrlResponse.json();
+  
+          if (!url) {
+            throw new Error('Failed to get upload URL');
           }
-        );
-
-        const registeredFile = await registerResponse.json();
-
-        if (!registeredFile.success) {
-          throw new Error('Failed to register file');
-        }
-
-        // Prepare for AI model - Only include text content, not binary
-        if (isAiConfigured) {
-          let fileContent = null;
-          
-          // Only process text files that are safe to include
-          if (
-            originalFile.type.startsWith('text/') ||
-            originalFile.type === 'application/json' ||
-            originalFile.type === 'application/javascript' ||
-            originalFile.type === 'application/xml'
-          ) {
-            try {
-              // Read as text
-              fileContent = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target?.result as string);
-                reader.onerror = reject;
-                reader.readAsText(originalFile);
-              });
-            } catch (error) {
-              console.error("Error reading file:", error);
-              fileContent = `[Error reading file: ${originalFile.name}]`;
-            }
-          } else {
-            // For non-text files, just include the filename and type
-            fileContent = `[File: ${originalFile.name} (${originalFile.type})]`;
-          }
-
-          // Create a simpler attachment object for the server action
-          const aiAttachments = [{
-            fileName: originalFile.name,
-            fileType: originalFile.type || 'unknown',
-            content: fileContent
-          }];
-
-          // Send the new message alongside the file
-          const messageToSend = newMessage.trim()
-            ? newMessage
-            : `I've uploaded a file: ${originalFile.name}`;
-
-          await generateAIResponse(messageToSend, aiAttachments);
-        }
-
-        // Update uploading progress
-        const fileIndex = uploadingFilesCopy.findIndex(
-          (f) => f.file.s3Path === s3Path
-        );
-        if (fileIndex !== -1) {
-          uploadingFilesCopy[fileIndex].progress = 100;
+  
+          // Create a blob with PDF content type
+          const fileBlob = new Blob([originalFile], {
+            type: contentType,
+          });
+  
+          // Add file to uploading list
+          const uploadingFile = {
+            file: {
+              fileName: originalFile.name,
+              fileType: contentType,
+              fileSize: originalFile.size,
+              fileUrl: '', // Will be updated after successful upload
+              s3Path,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: {
+                _id: session?.user.id || '',
+                name: session?.user.name || '',
+                email: session?.user.email || '',
+              },
+            },
+            progress: 0,
+          };
+  
+          uploadingFilesCopy.push(uploadingFile);
           setUploadingFiles([...uploadingFilesCopy]);
-        }
-
-        // Add file to selected files for the message
-        setSelectedFiles((prev) => [
-          ...prev,
-          {
+  
+          // Step 2: Upload file to pre-signed URL
+          const uploadResponse = await fetch(url, {
+            method: 'PUT',
+            body: fileBlob,
+            headers: {
+              'Content-Type': contentType,
+            },
+          });
+  
+          if (!uploadResponse.ok) {
+            throw new Error('File upload failed');
+          }
+  
+          // Step 3: Get proper S3 URL from our project-specific API route
+          const s3UrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}`);
+          const s3UrlData = await s3UrlResponse.json();
+          
+          if (!s3UrlData.success) {
+            throw new Error('Failed to generate S3 URL');
+          }
+          
+          const fileUrl = s3UrlData.fileUrl;
+  
+          // Step 4: Register the file with our API
+          const registerResponse = await fetch(
+            `/api/projects/${projectId}/guidelines/files`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                fileName: originalFile.name,
+                fileType: contentType,
+                fileSize: originalFile.size,
+                fileUrl,
+                s3Path,
+              }),
+            }
+          );
+  
+          const registeredFile = await registerResponse.json();
+  
+          if (!registeredFile.success) {
+            throw new Error('Failed to register file');
+          }
+  
+          // Update uploading progress
+          const fileIndex = uploadingFilesCopy.findIndex(
+            (f) => f.file.s3Path === s3Path
+          );
+          if (fileIndex !== -1) {
+            uploadingFilesCopy[fileIndex].progress = 100;
+            setUploadingFiles([...uploadingFilesCopy]);
+          }
+  
+          // Create a new file object with the originalFile reference for content extraction
+          const newFile = {
             fileName: originalFile.name,
-            fileType: originalFile.type || 'unknown',
+            fileType: contentType,
             fileSize: originalFile.size,
             fileUrl,
             s3Path,
@@ -732,20 +745,27 @@ const handleFileUpload = async (files: FileList) => {
               name: session?.user.name || '',
               email: session?.user.email || '',
             },
-          } as File,
-        ]);
-
-        toast.success(`${originalFile.name} uploaded successfully`);
-      })
-    );
-  } catch (error) {
-    console.error('Error uploading files:', error);
-    toast.error('Failed to upload file(s)');
-  } finally {
-    setUploading(false);
-    setUploadingFiles([]);
-  }
-};
+            originalFile, // Keep reference to the original file for content extraction later
+          };
+  
+          // Add file to selected files for the message
+          setSelectedFiles((prev) => [
+            ...prev,
+            newFile as File,
+          ]);
+  
+          toast.success(`${originalFile.name} uploaded successfully`);
+        })
+      );
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      toast.error('Failed to upload file(s)');
+    } finally {
+      setUploading(false);
+      setUploadingFiles([]);
+    }
+  };
+  
 
   const removeSelectedFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
@@ -774,7 +794,38 @@ const handleFileUpload = async (files: FileList) => {
       </Card>
     );
   }
-
+  const FileInput = () => (
+    <>
+      <Button
+        type='button'
+        size='icon'
+        variant='ghost'
+        className='rounded-full'
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading || !isAiConfigured}
+        title={
+          !isAiConfigured
+            ? 'Configure AI assistant to send messages'
+            : 'Attach PDF file'
+        }
+      >
+        <PaperclipIcon
+          className={`h-5 w-5 ${!isAiConfigured ? 'opacity-50' : ''}`}
+        />
+        <span className='sr-only'>Attach PDF</span>
+      </Button>
+      <input
+        type='file'
+        ref={fileInputRef}
+        className='hidden'
+        accept=".pdf,application/pdf"
+        multiple
+        onChange={(e) =>
+          e.target.files && handleFileUpload(e.target.files)
+        }
+      />
+    </>
+  );
   return (
     <Card className='w-full'>
       <CardHeader>
@@ -1091,33 +1142,8 @@ const handleFileUpload = async (files: FileList) => {
               {/* Message input - only show if AI is configured or messages exist */}
               {(isAiConfigured || messages.length > 0) && (
                 <div className='p-3 border-t flex gap-2'>
-                  <Button
-                    type='button'
-                    size='icon'
-                    variant='ghost'
-                    className='rounded-full'
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading || !isAiConfigured}
-                    title={
-                      !isAiConfigured
-                        ? 'Configure AI assistant to send messages'
-                        : 'Attach file'
-                    }
-                  >
-                    <PaperclipIcon
-                      className={`h-5 w-5 ${!isAiConfigured ? 'opacity-50' : ''}`}
-                    />
-                    <span className='sr-only'>Attach file</span>
-                  </Button>
-                  <input
-                    type='file'
-                    ref={fileInputRef}
-                    className='hidden'
-                    multiple
-                    onChange={(e) =>
-                      e.target.files && handleFileUpload(e.target.files)
-                    }
-                  />
+                  
+                  <FileInput />
                   <Textarea
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}

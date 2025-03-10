@@ -13,6 +13,13 @@ interface FileAttachment {
   fileType: string;
   content: string | ArrayBuffer | null;
 }
+interface FileAttachment {
+  fileName: string;
+  fileType: string;
+  content: string | ArrayBuffer | null;
+  fileUrl?: string;
+  s3Path?: string;
+}
 
 export async function addModel(provider: string, projectId: string, model: string, apiKey: string,name:string, systemPrompt?: string) {
   await connectToDatabase();
@@ -111,6 +118,34 @@ export async function getAIModels(projectid: string) {
   }
 }
 
+async function fetchGuidelineFileContent(projectId: string, s3Path: string): Promise<string | null> {
+  try {
+    // We need to use absolute URL here to avoid server-side relative URL issues
+    const apiUrl = `${process.env.NEXTAUTH_URL || ''}/api/projects/${projectId}/guidelines/files/s3`;
+    const response = await fetch(`${apiUrl}?s3Path=${encodeURIComponent(s3Path)}&operation=content`);
+    
+    if (!response.ok) {
+      console.error(`Error fetching file: Status ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      if (data.isTextContent) {
+        return data.content;
+      } else {
+        return `[${data.contentType} file - content not directly accessible]`;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error fetching guideline file content:", error);
+    return null;
+  }
+}
+
 export async function generateAiResponse(
   provider: string, 
   model: string, 
@@ -126,26 +161,94 @@ export async function generateAiResponse(
     if (attachments && attachments.length > 0) {
       enhancedPrompt += "\n\n--- Attached Files ---\n";
       
+      // Process each attachment
       for (let i = 0; i < attachments.length; i++) {
         const file = attachments[i];
         enhancedPrompt += `File ${i + 1}: ${file.fileName} (${file.fileType})\n`;
         
-        // Handle different content types safely
+        // Handle file content
         if (typeof file.content === 'string') {
-          // For text, base64 images, or other string-based content
-          // Limit content length to avoid overwhelming the prompt
-          const contentPreview = file.content.length > 1000 
-            ? file.content.substring(0, 1000) + '...' 
-            : file.content;
-          enhancedPrompt += `Content: ${contentPreview}\n\n`;
-        } else {
-          // Skip binary content or report it was provided but not included
-          enhancedPrompt += `Content: [Binary file content not included in prompt]\n\n`;
+          // Check if this is just a URL reference (from chat history) and we need to fetch content
+          if ((file.content.startsWith('http') || file.content === file.fileUrl) && file.s3Path) {
+            console.log(`Fetching content for file ${file.fileName} from s3Path: ${file.s3Path}`);
+            const fetchedContent = await fetchGuidelineFileContent(projectId, file.s3Path);
+            
+            if (fetchedContent) {
+              // Limit size to avoid overwhelming the AI
+              const contentPreview = fetchedContent.length > 3000 
+                ? fetchedContent.substring(0, 3000) + '...' 
+                : fetchedContent;
+              
+              enhancedPrompt += `Content: ${contentPreview}\n\n`;
+            } else {
+              enhancedPrompt += `Content: [Unable to retrieve file content. Please refer to the file by name.]\n\n`;
+            }
+          }
+          // Check if this is a base64 image
+          else if (file.content.startsWith('data:image/')) {
+            enhancedPrompt += `Content: [Image data provided]\n\n`;
+          }
+          // Check if this is a JSON string (like from our binary_file references)
+          else if (file.content.startsWith('{') && file.content.includes('binary_file')) {
+            try {
+              const fileData = JSON.parse(file.content);
+              
+              // If it has s3Path, try to fetch content
+              if (fileData.s3Path) {
+                const fetchedContent = await fetchGuidelineFileContent(projectId, fileData.s3Path);
+                
+                if (fetchedContent) {
+                  const contentPreview = fetchedContent.length > 3000 
+                    ? fetchedContent.substring(0, 3000) + '...' 
+                    : fetchedContent;
+                  
+                  enhancedPrompt += `Content: ${contentPreview}\n\n`;
+                } else {
+                  enhancedPrompt += `Content: [Binary file referenced - content not directly accessible]\n\n`;
+                }
+              } else {
+                enhancedPrompt += `Content: [Binary file referenced]\n\n`;
+              }
+            } catch (e) {
+              // Not valid JSON, treat as regular content
+              const contentPreview = file.content.length > 3000 
+                ? file.content.substring(0, 3000) + '...' 
+                : file.content;
+              
+              enhancedPrompt += `Content: ${contentPreview}\n\n`;
+            }
+          }
+          // Regular text content (with length limit)
+          else {
+            const contentPreview = file.content.length > 3000 
+              ? file.content.substring(0, 3000) + '...' 
+              : file.content;
+            
+            enhancedPrompt += `Content: ${contentPreview}\n\n`;
+          }
+        } 
+        // Handle non-string content
+        else if (file.s3Path) {
+          // Try to fetch content if we have an s3Path
+          const fetchedContent = await fetchGuidelineFileContent(projectId, file.s3Path);
+          
+          if (fetchedContent) {
+            const contentPreview = fetchedContent.length > 3000 
+              ? fetchedContent.substring(0, 3000) + '...' 
+              : fetchedContent;
+            
+            enhancedPrompt += `Content: ${contentPreview}\n\n`;
+          } else {
+            enhancedPrompt += `Content: [File content not available in text format]\n\n`;
+          }
+        }
+        else {
+          enhancedPrompt += `Content: [File content not available]\n\n`;
         }
       }
     }
 
-    // AI provider handling
+    // AI provider handling with improved system prompts
     switch (provider) {
       case "OpenAI": {
         const openai = new OpenAI({
@@ -154,7 +257,14 @@ export async function generateAiResponse(
 
         const completion = await openai.chat.completions.create({
           model: model,
-          messages: [{ role: "user", content: enhancedPrompt }],
+          messages: [
+            { 
+              role: "system", 
+              content: "You are a helpful project assistant. When referencing files, provide insights based on their content when available."
+            },
+            { role: "user", content: enhancedPrompt }
+          ],
+          max_tokens: 4096
         });
 
         return completion.choices[0].message.content;
@@ -163,23 +273,27 @@ export async function generateAiResponse(
       case "Anthropic": {
         const anthropic = new Anthropic({
           apiKey: apiKey
-        })
+        });
+        
         const message = await anthropic.messages.create({
           model: model,
+          system: "You are a helpful project assistant. When referencing files, provide insights based on their content when available.",
           messages: [{ role: "user", content: enhancedPrompt }],
           max_tokens: 4096,
         });
+        
         //@ts-ignore
-        return message.content[0].text
+        return message.content[0].text;
       }
 
       case "Gemini": {
-        const genAI = new GoogleGenerativeAI(
-          apiKey
-        );
+        const genAI = new GoogleGenerativeAI(apiKey);
+        
+        // For Gemini, include system prompt in the user content
+        const geminiPrompt = `You are a helpful project assistant. When referencing files, provide insights based on their content when available.\n\n${enhancedPrompt}`;
         
         const modelInstance = genAI.getGenerativeModel({ model });
-        const result = await modelInstance.generateContent(enhancedPrompt);
+        const result = await modelInstance.generateContent(geminiPrompt);
         
         return result.response.text();
       }
