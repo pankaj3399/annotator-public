@@ -961,7 +961,7 @@ export async function getNotificationTemplatesByProject(projectId: string) {
     };
   }
 }
-export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = []) {
+export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = []): Promise<any[]> {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const annotatorId = session?.user?.id;
@@ -974,7 +974,7 @@ export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = 
   try {
     console.log(`Fetching projects for annotator: ${annotatorId}`);
     
-    // First approach: Try a simpler and more efficient find query
+    // First approach: Try a simpler find query
     try {
       // Get all tasks for this annotator with only project field
       const tasks = await Task.find({ 
@@ -993,7 +993,7 @@ export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = 
       const projectIds = [...new Set(tasks.map(task => 
         task.project instanceof mongoose.Types.ObjectId 
           ? task.project.toString() 
-          : task.project
+          : String(task.project)
       ))];
       
       if (projectIds.length === 0) {
@@ -1001,54 +1001,105 @@ export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = 
         return [];
       }
       
-      // Get the project details with label filtering if needed
+      // Get the full project details
       let projectQuery: any = { _id: { $in: projectIds } };
       
       if (selectedLabels.length > 0) {
         projectQuery.labels = { $all: selectedLabels };
       }
       
-      const projects = await Project.find(projectQuery).lean().exec();
+      const projects = await Project.find(projectQuery)
+        .lean()
+        .exec();
+      
       console.log(`Found ${projects.length} projects using find() approach`);
       
-      return projects;
+      // Ensure created_at is a valid string date
+      return projects.map((project: any) => {
+        // Ensure created_at is a valid ISO string
+        let created_at = '';
+        try {
+          if (project.created_at instanceof Date) {
+            created_at = project.created_at.toISOString();
+          } else if (typeof project.created_at === 'string') {
+            created_at = project.created_at;
+          } else {
+            created_at = new Date().toISOString(); // Fallback
+          }
+        } catch (e) {
+          created_at = new Date().toISOString(); // Fallback on error
+        }
+        
+        return {
+          _id: String(project._id),
+          name: project.name || '',
+          created_at: created_at,
+          templates: Array.isArray(project.templates) ? project.templates : [],
+          labels: Array.isArray(project.labels) ? project.labels : []
+        };
+      });
     } catch (findError) {
       console.warn("Simple query approach failed, falling back to aggregation:", findError);
       
-      // Fallback: Use aggregation with better timeout and performance settings
+      // Fallback to a two-step aggregation with better timeout settings
       const aggregationOptions = {
-        maxTimeMS: 60000, // 60 seconds timeout
-        allowDiskUse: true // Allow using disk for large aggregations
+        maxTimeMS: 60000, // 60 seconds
+        allowDiskUse: true
       };
       
-      // Break the aggregation into two simpler steps
       // Step 1: Get just the project IDs
-      const projectIdsAgg = await Task.aggregate([
+      const projectIdsResult = await Task.aggregate([
         { $match: { annotator: new mongoose.Types.ObjectId(annotatorId) } },
         { $group: { _id: "$project" } }
       ], aggregationOptions);
       
-      if (!projectIdsAgg || projectIdsAgg.length === 0) {
-        console.log("No project IDs found in aggregation");
+      if (!projectIdsResult || projectIdsResult.length === 0) {
         return [];
       }
       
-      const projectIds = projectIdsAgg.map(item => item._id);
+      const projectIds = projectIdsResult.map(item => String(item._id));
       
-      // Step 2: Get the project details in a separate query
+      // Step 2: Get the project details with proper fields
       let projectQuery: any = { _id: { $in: projectIds } };
       
       if (selectedLabels.length > 0) {
         projectQuery.labels = { $all: selectedLabels };
       }
       
-      const projects = await Project.find(projectQuery).lean().exec();
-      console.log(`Found ${projects.length} projects using two-step aggregation approach`);
+      const projects = await Project.find(projectQuery)
+        .lean()
+        .exec();
       
-      return projects;
+      console.log(`Found ${projects.length} projects using two-step aggregation`);
+      
+      // Ensure created_at is a valid string date
+      return projects.map((project: any) => {
+        // Ensure created_at is a valid ISO string
+        let created_at = '';
+        try {
+          if (project.created_at instanceof Date) {
+            created_at = project.created_at.toISOString();
+          } else if (typeof project.created_at === 'string') {
+            created_at = project.created_at;
+          } else {
+            created_at = new Date().toISOString(); // Fallback
+          }
+        } catch (e) {
+          created_at = new Date().toISOString(); // Fallback on error
+        }
+        
+        return {
+          _id: String(project._id),
+          name: project.name || '',
+          created_at: created_at,
+          templates: Array.isArray(project.templates) ? project.templates : [],
+          labels: Array.isArray(project.labels) ? project.labels : []
+        };
+      });
     }
   } catch (error) {
     console.error("Error fetching distinct projects by annotator:", error);
+    // Return empty array instead of throwing to prevent UI disruption
     return [];
   }
 }
