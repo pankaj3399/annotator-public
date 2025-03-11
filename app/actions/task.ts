@@ -831,8 +831,7 @@ export async function sendNotificationEmail(taskId: string, action: string) {
     } else {
       console.error("Error in sending notification email:", error);
     }
-    // Log the error but don't throw it to prevent task updates from failing
-    // This ensures the user can still update tasks even if email sending fails
+    throw error;
   }
 }
 
