@@ -12,13 +12,9 @@ import NotificationTemplate from "@/models/NotificationTemplate";
 import Rework from "@/models/Rework";
 import nodemailer from 'nodemailer';
 import { AIJob } from "@/models/aiModel";
-import { NextResponse } from "next/server";
-import AnnotatorPoints from "@/models/points";
+import { Project } from "@/models/Project";
 import AnnotatorHistory from "@/models/points";
-import { getAllAnnotators } from "./annotator";
-import { Annotator, RepeatTask } from "@/components/taskDialog";
-import { Project } from "../(maneger)/page";
-
+import { RepeatTask } from "@/components/taskDialog";
 
 
 export async function getTestTemplateTasks() {
@@ -234,8 +230,6 @@ export async function compareWithGroundTruth(taskId: string, throwError: boolean
 }
 
 
-
-
 export async function createTestTasks(
   tasks: {
     project: string;
@@ -273,7 +267,6 @@ export async function createTestTasks(
     throw error;
   }
 }
-
 
 export async function setGroundTruth(id: string) {
   await connectToDatabase();
@@ -327,8 +320,6 @@ export async function setGroundTruth(id: string) {
   }
 }
 
-
-
 export async function createTasks(
   tasks: {
     project: string;
@@ -361,10 +352,6 @@ export async function createTasks(
     tasks: createdTasks
   });
 }
-
-
-
-
 
 export async function saveRepeatTasks(
   repeatTasks: {
@@ -427,7 +414,6 @@ export async function getAllTasks(projectid: string) {
   const res = await Task.find({ project: projectid });
   return JSON.stringify(res);
 }
-
 
 export async function getAllUnassignedTasks(projectid: string) {
 
@@ -498,9 +484,6 @@ export async function getPaginatedTasks(
     pages: Math.ceil(total / pageSize),
   });
 }
-
-
-
 
 export async function getATask(projectid: string) {
   await connectToDatabase();
@@ -783,23 +766,28 @@ export async function setTaskStatus(
 
 export async function sendNotificationEmail(taskId: string, action: string) {
   try {
-
-    const task = await Task.findById(taskId).populate("project annotator").exec();
+    // Find the task but don't populate immediately - this avoids the model registration issue
+    const task = await Task.findById(taskId).exec();
 
     if (!task) {
       throw new Error("Task not found");
     }
 
-    const projectId = task.project._id;
-    const annotator = await User.findById(task.annotator).exec();
+    // Get project and annotator separately instead of using populate
+    const projectId = task.project;
+    const annotatorId = task.annotator;
+
+    if (!annotatorId) {
+      throw new Error("Task has no assigned annotator");
+    }
+
+    const annotator = await User.findById(annotatorId).exec();
 
     if (!annotator || !annotator.email) {
       throw new Error("Annotator email not found");
     }
 
     // Fetch notification templates for the project
-
-
     const response = await getNotificationTemplatesByProject(projectId);
     const { templates } = response;
 
@@ -843,7 +831,8 @@ export async function sendNotificationEmail(taskId: string, action: string) {
     } else {
       console.error("Error in sending notification email:", error);
     }
-    throw error;
+    // Log the error but don't throw it to prevent task updates from failing
+    // This ensures the user can still update tasks even if email sending fails
   }
 }
 
