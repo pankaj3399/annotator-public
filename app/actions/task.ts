@@ -964,36 +964,92 @@ export async function getNotificationTemplatesByProject(projectId: string) {
 export async function getDistinctProjectsByAnnotator(selectedLabels: string[] = []) {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
-  const annotatorId = session?.user.id;
+  const annotatorId = session?.user?.id;
+
+  if (!annotatorId) {
+    console.log("No annotator ID found in session");
+    return [];
+  }
 
   try {
-    let matchStage: any = { annotator: new mongoose.Types.ObjectId(annotatorId) };
-
-    const uniqueProjects = await Task.aggregate([
-      { $match: matchStage },
-      { $group: { _id: "$project" } },
-      {
-        $lookup: {
-          from: "projects",
-          localField: "_id",
-          foreignField: "_id",
-          as: "projectDetails",
-        },
-      },
-      { $unwind: "$projectDetails" },
-      // Add a filter for labels if they are provided
-      ...(selectedLabels.length > 0 ? [{
-        $match: {
-          "projectDetails.labels": { $all: selectedLabels }
-        }
-      }] : []),
-      { $project: { _id: 0, project: "$projectDetails" } },
-    ]);
-
-    return JSON.parse(JSON.stringify(uniqueProjects.map(p => p.project)));
+    console.log(`Fetching projects for annotator: ${annotatorId}`);
+    
+    // First approach: Try a simpler and more efficient find query
+    try {
+      // Get all tasks for this annotator with only project field
+      const tasks = await Task.find({ 
+        annotator: new mongoose.Types.ObjectId(annotatorId) 
+      })
+        .select('project')
+        .lean()
+        .exec();
+      
+      if (!tasks || tasks.length === 0) {
+        console.log("No tasks found for annotator");
+        return [];
+      }
+      
+      // Extract unique project IDs
+      const projectIds = [...new Set(tasks.map(task => 
+        task.project instanceof mongoose.Types.ObjectId 
+          ? task.project.toString() 
+          : task.project
+      ))];
+      
+      if (projectIds.length === 0) {
+        console.log("No project IDs extracted");
+        return [];
+      }
+      
+      // Get the project details with label filtering if needed
+      let projectQuery: any = { _id: { $in: projectIds } };
+      
+      if (selectedLabels.length > 0) {
+        projectQuery.labels = { $all: selectedLabels };
+      }
+      
+      const projects = await Project.find(projectQuery).lean().exec();
+      console.log(`Found ${projects.length} projects using find() approach`);
+      
+      return projects;
+    } catch (findError) {
+      console.warn("Simple query approach failed, falling back to aggregation:", findError);
+      
+      // Fallback: Use aggregation with better timeout and performance settings
+      const aggregationOptions = {
+        maxTimeMS: 60000, // 60 seconds timeout
+        allowDiskUse: true // Allow using disk for large aggregations
+      };
+      
+      // Break the aggregation into two simpler steps
+      // Step 1: Get just the project IDs
+      const projectIdsAgg = await Task.aggregate([
+        { $match: { annotator: new mongoose.Types.ObjectId(annotatorId) } },
+        { $group: { _id: "$project" } }
+      ], aggregationOptions);
+      
+      if (!projectIdsAgg || projectIdsAgg.length === 0) {
+        console.log("No project IDs found in aggregation");
+        return [];
+      }
+      
+      const projectIds = projectIdsAgg.map(item => item._id);
+      
+      // Step 2: Get the project details in a separate query
+      let projectQuery: any = { _id: { $in: projectIds } };
+      
+      if (selectedLabels.length > 0) {
+        projectQuery.labels = { $all: selectedLabels };
+      }
+      
+      const projects = await Project.find(projectQuery).lean().exec();
+      console.log(`Found ${projects.length} projects using two-step aggregation approach`);
+      
+      return projects;
+    }
   } catch (error) {
     console.error("Error fetching distinct projects by annotator:", error);
-    throw error;
+    return [];
   }
 }
 
