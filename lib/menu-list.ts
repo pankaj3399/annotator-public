@@ -56,10 +56,16 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   const projectId = pathname.split("/")[pathname.split("/").length - 1];
   const fpath = pathname.split("/")[1];
   
-  // For project managers, always ensure Sourcing, Analytics, Project settings are included
+  // Check if we're in a project context (valid project ID that's not a special page)
+  const specialPages = ["dashboard", "annotator", "chat", "profile", "wishlist", "bank", ""];
+  const hasProjectContext = projectId && !specialPages.includes(projectId);
+  
+  // For project managers, always ensure Sourcing, Analytics are included
+  // But Project Settings only when a project is chosen
   let projectManagerSpecificGroups: Group[] = [];
   
   if (userRole === "project manager") {
+    // Add Sourcing and Analytics always
     projectManagerSpecificGroups = [
       {
         groupLabel: "Sourcing",
@@ -96,8 +102,12 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
         visibleTo: ["project manager"], // Only PM can see analytics
-      },
-      {
+      }
+    ];
+    
+    // Add Project Settings only if we have a project context
+    if (hasProjectContext) {
+      projectManagerSpecificGroups.push({
         groupLabel: "Project settings",
         menus: [
           {
@@ -120,8 +130,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
         visibleTo: ["project manager"], // Only PM can see project settings
-      }
-    ];
+      });
+    }
   }
   
   // Handle specific role-based menu structures
@@ -444,7 +454,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       },
     ];
 
-    // For project manager, add the specific groups regardless of path
+    // For project manager, add the specific groups
     if (userRole === "project manager") {
       return filterMenusByRole([...homeMenu, ...projectManagerSpecificGroups], userRole);
     }
@@ -570,30 +580,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       visibleTo: ["project manager"], // Only PM can see analytics
     },
     {
-      groupLabel: "Project settings",
-      menus: [
-        {
-          href: `/projects/ai-config/${projectId}`,
-          label: "AI Expert",
-          active: pathname.includes("/ai-config"),
-          icon: Bot,
-        },
-        {
-          href: `/projects/settings/${projectId}`,
-          label: "Settings",
-          active: pathname.includes("/settings"),
-          icon: Settings,
-        },
-        {
-          href: `/projects/notification/${projectId}`,
-          label: "Notification",
-          active: pathname.includes("/notification"),
-          icon: Bell,
-        },
-      ],
-      visibleTo: ["project manager"], // Only PM can see project settings
-    },
-    {
       groupLabel: "User",
       menus: [
         {
@@ -628,6 +614,34 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
         },
       ],
       visibleTo: ["project manager"], // Only PM can see analytics
+    });
+  }
+
+  // Only add Project Settings to the default menu if we have a project context
+  if (hasProjectContext && userRole === "project manager") {
+    defaultMenu.push({
+      groupLabel: "Project settings",
+      menus: [
+        {
+          href: `/projects/ai-config/${projectId}`,
+          label: "AI Expert",
+          active: pathname.includes("/ai-config"),
+          icon: Bot,
+        },
+        {
+          href: `/projects/settings/${projectId}`,
+          label: "Settings",
+          active: pathname.includes("/settings"),
+          icon: Settings,
+        },
+        {
+          href: `/projects/notification/${projectId}`,
+          label: "Notification",
+          active: pathname.includes("/notification"),
+          icon: Bell,
+        },
+      ],
+      visibleTo: ["project manager"], // Only PM can see project settings
     });
   }
 
