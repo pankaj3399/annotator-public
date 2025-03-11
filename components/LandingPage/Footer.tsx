@@ -76,7 +76,7 @@ const Footer = () => {
             </div>
             <div className="space-y-2">
               <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-50">Contact</h4>
-              <div className="text-sm text-gray-600 dark:text-gray-400">partnerships@blomega.com</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">blolabel@blomega.com</div>
             </div>
           </div>
         </div>
