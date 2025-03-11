@@ -146,7 +146,58 @@ async function fetchGuidelineFileContent(projectId: string, s3Path: string): Pro
   }
 }
 
-export async function generateAiResponse(
+
+export async function generateAiResponse(provider: string,model:string, prompt: string, projectId: string,apiKey:string) {
+  try {
+    switch (provider) {
+      case "OpenAI": {
+        const openai = new OpenAI({
+          apiKey: apiKey
+        });
+
+        const completion = await openai.chat.completions.create({
+          model: model,
+          messages: [{ role: "user", content: prompt }],
+        });
+
+        return completion.choices[0].message.content;
+      }
+
+      case "Anthropic": {
+        const anthropic = new Anthropic({
+          apiKey:apiKey
+        })
+        const message = await anthropic.messages.create({
+          model: model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 1024,
+        });
+        //@ts-ignore
+        return message.content[0].text
+      }
+
+      case "Gemini": {
+        const genAI = new GoogleGenerativeAI(
+          apiKey
+        );
+        
+        const modelInstance = genAI.getGenerativeModel({ model });
+        const result = await modelInstance.generateContent(prompt);
+        
+        return result.response.text();
+      }
+
+      default:
+        throw new Error(`Provider ${provider} not implemented`);
+    }
+  } catch (error) {
+    console.error("AI Response Generation Error:", error);
+    throw error instanceof Error 
+      ? error 
+      : new Error("Failed to generate AI response");
+  }
+}
+export async function generateAIResponseWithAttachments(
   provider: string, 
   model: string, 
   prompt: string, 

@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams} from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
@@ -19,7 +18,6 @@ import {
   Loader2,
   PaperclipIcon,
   Send,
-  Upload,
   X,
   Settings,
 } from 'lucide-react';
@@ -33,12 +31,8 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { generateAiResponse } from '@/app/actions/aiModel';
-interface FileContent {
-  fileName: string;
-  fileType: string;
-  content: string | ArrayBuffer | null;
-}
+import { generateAIResponseWithAttachments } from '@/app/actions/aiModel';
+
 interface FileAttachment {
   fileName: string;
   fileType: string;
@@ -87,8 +81,7 @@ interface AIConfig {
 }
 
 const ProjectGuidelines = () => {
-  // Router and session
-  const router = useRouter();
+
   const { data: session } = useSession();
   const params = useParams();
   const projectId = params.projectId as string;
@@ -409,7 +402,6 @@ const ProjectGuidelines = () => {
     try {
       // Create a prompt using context from the conversation
       const conversationContext = messages
-        .slice(-5)
         .map((msg) => `${msg.sender.name}: ${msg.content}`)
         .join('\n');
   
@@ -435,7 +427,7 @@ const ProjectGuidelines = () => {
       }
   
       // Send to AI service
-      const response = await generateAiResponse(
+      const response = await generateAIResponseWithAttachments(
         aiConfig.provider,
         aiConfig.model,
         prompt,
@@ -551,7 +543,7 @@ const ProjectGuidelines = () => {
       `;
 
       // Send training prompt to AI
-      const response = await generateAiResponse(
+      const response = await generateAIResponseWithAttachments(
         aiConfig.provider,
         aiConfig.model,
         trainingPrompt,

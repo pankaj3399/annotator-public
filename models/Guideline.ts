@@ -1,5 +1,21 @@
 import { Schema, model, models, CallbackError } from 'mongoose';
 
+// Define a common file schema to be reused
+const fileSchema = new Schema({
+  fileName: { type: String, required: true },
+  fileType: { type: String, required: true },
+  fileSize: { type: Number },
+  fileUrl: { type: String, required: true },
+  s3Path: { type: String, required: true }
+});
+
+// Extended file schema with upload metadata
+const uploadedFileSchema = new Schema({
+  ...fileSchema.obj,  // Inherit all properties from the base file schema
+  uploadedAt: { type: Date, default: Date.now },
+  uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+});
+
 // Define the GuidelineMessage schema
 const guidelineMessageSchema = new Schema({
   sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -8,13 +24,7 @@ const guidelineMessageSchema = new Schema({
   isAiMessage: { type: Boolean, default: false },
   aiProvider: { type: String },
   aiModel: { type: String },
-  attachments: [{
-    fileName: { type: String },
-    fileType: { type: String },
-    fileSize: { type: Number },
-    fileUrl: { type: String, required: true },
-    s3Path: { type: String, required: true }
-  }]
+  attachments: [fileSchema]  // Use the common file schema
 }, { timestamps: true });
 
 const guidelineSchema = new Schema({
@@ -29,15 +39,7 @@ const guidelineSchema = new Schema({
     default: '' 
   },
   messages: [guidelineMessageSchema],
-  files: [{
-    fileName: { type: String, required: true },
-    fileType: { type: String, required: true },
-    fileSize: { type: Number },
-    fileUrl: { type: String, required: true },
-    s3Path: { type: String, required: true },
-    uploadedAt: { type: Date, default: Date.now },
-    uploadedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }
-  }]
+  files: [uploadedFileSchema]  // Use the extended file schema with upload metadata
 }, { timestamps: true });
 
 // Ensure a project can have only one guideline
@@ -45,8 +47,6 @@ guidelineSchema.index({ project: 1 }, { unique: true });
 
 // Pre-remove hook to clean up associated data if needed
 guidelineSchema.pre('deleteOne', async function(next) {
-  const guidelineId = this.getFilter()._id;
-  
   try {
     // Optional: Additional cleanup logic can be added here
     next();
