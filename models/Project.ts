@@ -2,13 +2,12 @@ import { Schema, model, models, CallbackError } from 'mongoose';
 import Task from './Task';
 import { Template } from './Template';
 import { TaskRepeat } from './TaskRepeat';
+import { Guideline } from './Guideline';
 
 const projectSchema = new Schema({
   name: { type: String, required: true },
   project_Manager: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  // status: { type: String, enum: ['active', 'inactive'], default: 'active' },
   created_at: { type: Date, default: Date.now },
-  // updated_at: { type: Date, default: Date.now },
   templates: [{ type: Schema.Types.ObjectId, ref: 'Template' }],
   labels: { type: [String], default: [] },
   earnings_per_task: { 
@@ -35,16 +34,19 @@ projectSchema.pre('findOneAndDelete', async function (next) {
     // Delete all associated templates
     await Template.deleteMany({ project: projectId });
     
-    // Optionally delete associated tasks if you have a Task model
+    // Delete associated tasks 
     await Task.deleteMany({ project: projectId });
 
+    // Delete associated task repeats
+    await TaskRepeat.deleteMany({ project: projectId });
 
-     await TaskRepeat.deleteMany({ project: projectId });
+    // Delete associated guidelines
+    await Guideline.deleteOne({ project: projectId });
     
     next();
   } catch (error) {
     console.error('Error deleting project:', error);
-    next(error as CallbackError); // Pass the error to the next middleware
+    next(error as CallbackError);
   }
 });
 

@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import jsonToCsvExport from 'json-to-csv-export';
-import { CalendarIcon, FileDown, PlusCircle, Trash2Icon } from 'lucide-react';
+import { CalendarIcon, FileDown, FileText, PlusCircle, Trash2Icon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -405,6 +405,17 @@ export default function ProjectDashboard() {
                         </div>
                       </TableCell>
                       <TableCell className='text-right'>
+                      <Button
+    variant='ghost'
+    size='sm'
+    onClick={(e) => {
+      e.stopPropagation(); // Prevent row click
+      router.push(`/projects/${project._id}/guidelines`);
+    }}
+  >
+    <FileText className='h-4 w-4' />
+    <span className='sr-only'>guidelines</span>
+  </Button>
                         <Button
                           variant='ghost'
                           size='sm'

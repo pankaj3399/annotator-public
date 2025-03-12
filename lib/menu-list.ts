@@ -518,7 +518,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           href: `/projects/${projectId}`,
           label: "Templates",
           active:
-            pathname.includes("/projects/") &&
+            pathname.includes(`/projects/${projectId}`) &&
             !pathname.includes("/task") &&
             !pathname.includes("/ai-config") &&
             !pathname.includes("/analytics/view") &&
@@ -526,9 +526,20 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             !pathname.includes("/notification") &&
             !pathname.includes("/leaderboard") &&
             !pathname.includes("/job-list") &&
-            !pathname.includes("/job-applications"),
+            !pathname.includes("/job-applications") &&
+            !pathname.includes("/guidelines"),
           icon: SquarePen,
         },
+        // Only include Guidelines if we have a valid projectId (not empty, not "dashboard", etc.)
+        ...(projectId && 
+          !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ? 
+          [{
+            href: `/projects/guidelines/${projectId}`,
+            label: "Guidelines",
+            active: pathname.includes(`/projects/guidelines/${projectId}`),
+            icon: FileText,
+            visibleTo: ["project manager" as UserRole],
+          }] : []),
         {
           href: `/projects/task/${projectId}`,
           label: "Tasks",
