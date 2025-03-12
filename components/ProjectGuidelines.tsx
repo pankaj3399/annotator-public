@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { useParams} from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,7 @@ interface FileAttachment {
   fileType: string;
   content: string | ArrayBuffer | null;
   fileUrl?: string;
-  s3Path?: string;  
+  s3Path?: string;
 }
 
 interface Attachment {
@@ -71,7 +71,7 @@ interface File extends Attachment {
     email: string;
     image?: string;
   };
-  originalFile?: any; 
+  originalFile?: any;
 }
 
 interface AIConfig {
@@ -81,7 +81,6 @@ interface AIConfig {
 }
 
 const ProjectGuidelines = () => {
-
   const { data: session } = useSession();
   const params = useParams();
   const projectId = params.projectId as string;
@@ -106,8 +105,8 @@ const ProjectGuidelines = () => {
 
   // AI configuration states
   const [aiConfig, setAiConfig] = useState<AIConfig>({
-    provider: 'OpenAI',
-    model: 'gpt-4o',
+    provider: '',
+    model: '',
     apiKey: '',
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -283,7 +282,7 @@ const ProjectGuidelines = () => {
 
   const handleSendMessage = async () => {
     if (!newMessage.trim() && !selectedFiles.length) return;
-  
+
     try {
       // Prepare file attachments with proper file URLs for the UI message
       const attachments = selectedFiles.map((file) => ({
@@ -293,7 +292,7 @@ const ProjectGuidelines = () => {
         fileUrl: file.fileUrl,
         s3Path: file.s3Path,
       }));
-  
+
       // First send the user's message
       const response = await fetch(`/api/projects/${projectId}/guidelines`, {
         method: 'POST',
@@ -301,13 +300,17 @@ const ProjectGuidelines = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          content: newMessage || (selectedFiles.length > 0 ? `I've uploaded ${selectedFiles.length} PDF file(s)` : ''),
+          content:
+            newMessage ||
+            (selectedFiles.length > 0
+              ? `I've uploaded ${selectedFiles.length} PDF file(s)`
+              : ''),
           attachments,
         }),
       });
-  
+
       const data = await response.json();
-  
+
       if (data.success) {
         // Optimistically add the message to the UI
         const optimisticMessage = {
@@ -318,9 +321,9 @@ const ProjectGuidelines = () => {
             email: session?.user.email || '',
           },
         };
-  
+
         setMessages((prev) => [...prev, optimisticMessage]);
-        
+
         // Only after the user message is sent and displayed, process AI response
         if (isAiConfigured && aiConfig.apiKey) {
           // Process PDFs for AI
@@ -328,7 +331,7 @@ const ProjectGuidelines = () => {
             selectedFiles.map(async (file) => {
               const originalFile = file.originalFile;
               let fileContent = null;
-              
+
               // For PDF files, try to read content as data URL
               if (originalFile) {
                 try {
@@ -339,24 +342,29 @@ const ProjectGuidelines = () => {
                     reader.onerror = reject;
                     reader.readAsDataURL(originalFile);
                   });
-                  console.log(`Successfully read content for PDF: ${file.fileName}`);
+                  console.log(
+                    `Successfully read content for PDF: ${file.fileName}`
+                  );
                 } catch (error) {
-                  console.error(`Error reading PDF content for ${file.fileName}:`, error);
+                  console.error(
+                    `Error reading PDF content for ${file.fileName}:`,
+                    error
+                  );
                   // Continue with s3Path as fallback
                 }
               }
-              
+
               // Create attachment object with all necessary info for AI
               return {
                 fileName: file.fileName,
                 fileType: file.fileType,
                 content: fileContent, // Direct content if available
-                fileUrl: file.fileUrl,  // URL for server-side access
-                s3Path: file.s3Path     // S3 path for server-side retrieval
+                fileUrl: file.fileUrl, // URL for server-side access
+                s3Path: file.s3Path, // S3 path for server-side retrieval
               };
             })
           );
-  
+
           // Send message with prepared attachments to AI
           await generateAIResponse(
             newMessage || `I've uploaded ${selectedFiles.length} PDF file(s)`,
@@ -371,11 +379,11 @@ const ProjectGuidelines = () => {
             },
           });
         }
-  
+
         // Clear inputs after processing
         setNewMessage('');
         setSelectedFiles([]);
-  
+
         // Refetch to get the latest data
         await fetchGuidelines();
       } else {
@@ -386,8 +394,6 @@ const ProjectGuidelines = () => {
       toast.error('An error occurred while sending your message');
     }
   };
-  
-  
 
   const generateAIResponse = async (
     userMessage: string,
@@ -397,14 +403,14 @@ const ProjectGuidelines = () => {
       toast.error('AI assistant not properly configured');
       return;
     }
-  
+
     setIsGeneratingAI(true);
     try {
       // Create a prompt using context from the conversation
       const conversationContext = messages
         .map((msg) => `${msg.sender.name}: ${msg.content}`)
         .join('\n');
-  
+
       const prompt = `
         Project Name: ${projectName}
         Project Description: ${description}
@@ -416,16 +422,24 @@ const ProjectGuidelines = () => {
         
         Please provide a helpful, professional response as the AI assistant for this project. If PDF files are attached, analyze their content and provide relevant insights.
       `;
-  
+
       // Use the additionalAttachments which already contain PDF content
       const attachments = additionalAttachments || [];
-  
-      console.log(`Sending ${attachments.length} PDF attachments to AI service`);
+
+      console.log(
+        `Sending ${attachments.length} PDF attachments to AI service`
+      );
       if (attachments.length > 0) {
-        console.log('PDF attachments have content:', attachments.map(a => a.content ? 'Yes' : 'No').join(', '));
-        console.log('PDF attachments have s3Path:', attachments.map(a => a.s3Path ? 'Yes' : 'No').join(', '));
+        console.log(
+          'PDF attachments have content:',
+          attachments.map((a) => (a.content ? 'Yes' : 'No')).join(', ')
+        );
+        console.log(
+          'PDF attachments have s3Path:',
+          attachments.map((a) => (a.s3Path ? 'Yes' : 'No')).join(', ')
+        );
       }
-  
+
       // Send to AI service
       const response = await generateAIResponseWithAttachments(
         aiConfig.provider,
@@ -435,7 +449,7 @@ const ProjectGuidelines = () => {
         aiConfig.apiKey,
         attachments.length > 0 ? attachments : undefined
       );
-  
+
       if (response) {
         // Add AI response to the UI
         const aiResponseMessage = {
@@ -451,9 +465,9 @@ const ProjectGuidelines = () => {
           attachments: selectedFiles,
           isAiMessage: true,
         };
-  
+
         setMessages((prev) => [...prev, aiResponseMessage]);
-  
+
         // Save AI message to the server
         await fetch(`/api/projects/${projectId}/guidelines`, {
           method: 'POST',
@@ -468,7 +482,7 @@ const ProjectGuidelines = () => {
             attachments: selectedFiles,
           }),
         });
-  
+
         // Clear selected files after sending
         setSelectedFiles([]);
       }
@@ -599,54 +613,59 @@ const ProjectGuidelines = () => {
     }
   };
 
-
   const handleFileUpload = async (files: FileList) => {
     if (!files.length) return;
-  
+
     setUploading(true);
     const filesToUpload = Array.from(files);
     const uploadingFilesCopy = [...uploadingFiles];
-  
+
     try {
       await Promise.all(
         filesToUpload.map(async (originalFile) => {
           // Check if file is a PDF
-          const isPdf = originalFile.type === 'application/pdf' || 
-                        originalFile.name.toLowerCase().endsWith('.pdf');
-          
+          const isPdf =
+            originalFile.type === 'application/pdf' ||
+            originalFile.name.toLowerCase().endsWith('.pdf');
+
           if (!isPdf) {
-            toast.error(`${originalFile.name} is not a PDF file. Only PDF files are supported.`);
+            toast.error(
+              `${originalFile.name} is not a PDF file. Only PDF files are supported.`
+            );
             return; // Skip non-PDF files
           }
-          
+
           // Set content type to PDF
           const contentType = 'application/pdf';
-          
+
           console.log(`Uploading PDF file: ${originalFile.name}`);
-  
+
           // Step 1: Get pre-signed URL from project-specific guideline route
-          const presignedUrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              filename: originalFile.name,
-              contentType: contentType,
-            }),
-          });
-  
+          const presignedUrlResponse = await fetch(
+            `/api/projects/${projectId}/guidelines/files/s3`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                filename: originalFile.name,
+                contentType: contentType,
+              }),
+            }
+          );
+
           const { url, s3Path, fileId } = await presignedUrlResponse.json();
-  
+
           if (!url) {
             throw new Error('Failed to get upload URL');
           }
-  
+
           // Create a blob with PDF content type
           const fileBlob = new Blob([originalFile], {
             type: contentType,
           });
-  
+
           // Add file to uploading list
           const uploadingFile = {
             file: {
@@ -664,10 +683,10 @@ const ProjectGuidelines = () => {
             },
             progress: 0,
           };
-  
+
           uploadingFilesCopy.push(uploadingFile);
           setUploadingFiles([...uploadingFilesCopy]);
-  
+
           // Step 2: Upload file to pre-signed URL
           const uploadResponse = await fetch(url, {
             method: 'PUT',
@@ -676,21 +695,23 @@ const ProjectGuidelines = () => {
               'Content-Type': contentType,
             },
           });
-  
+
           if (!uploadResponse.ok) {
             throw new Error('File upload failed');
           }
-  
+
           // Step 3: Get proper S3 URL from our project-specific API route
-          const s3UrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}`);
+          const s3UrlResponse = await fetch(
+            `/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}`
+          );
           const s3UrlData = await s3UrlResponse.json();
-          
+
           if (!s3UrlData.success) {
             throw new Error('Failed to generate S3 URL');
           }
-          
+
           const fileUrl = s3UrlData.fileUrl;
-  
+
           // Step 4: Register the file with our API
           const registerResponse = await fetch(
             `/api/projects/${projectId}/guidelines/files`,
@@ -708,13 +729,13 @@ const ProjectGuidelines = () => {
               }),
             }
           );
-  
+
           const registeredFile = await registerResponse.json();
-  
+
           if (!registeredFile.success) {
             throw new Error('Failed to register file');
           }
-  
+
           // Update uploading progress
           const fileIndex = uploadingFilesCopy.findIndex(
             (f) => f.file.s3Path === s3Path
@@ -723,7 +744,7 @@ const ProjectGuidelines = () => {
             uploadingFilesCopy[fileIndex].progress = 100;
             setUploadingFiles([...uploadingFilesCopy]);
           }
-  
+
           // Create a new file object with the originalFile reference for content extraction
           const newFile = {
             fileName: originalFile.name,
@@ -739,13 +760,10 @@ const ProjectGuidelines = () => {
             },
             originalFile, // Keep reference to the original file for content extraction later
           };
-  
+
           // Add file to selected files for the message
-          setSelectedFiles((prev) => [
-            ...prev,
-            newFile as File,
-          ]);
-  
+          setSelectedFiles((prev) => [...prev, newFile as File]);
+
           toast.success(`${originalFile.name} uploaded successfully`);
         })
       );
@@ -757,7 +775,6 @@ const ProjectGuidelines = () => {
       setUploadingFiles([]);
     }
   };
-  
 
   const removeSelectedFile = (index: number) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
@@ -810,11 +827,9 @@ const ProjectGuidelines = () => {
         type='file'
         ref={fileInputRef}
         className='hidden'
-        accept=".pdf,application/pdf"
+        accept='.pdf,application/pdf'
         multiple
-        onChange={(e) =>
-          e.target.files && handleFileUpload(e.target.files)
-        }
+        onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
       />
     </>
   );
@@ -1052,9 +1067,7 @@ const ProjectGuidelines = () => {
                             message.sender._id === session?.user.id && (
                               <div className='flex-shrink-0 ml-2'>
                                 <Avatar className='h-8 w-8'>
-                                  <AvatarImage
-                                    alt={session?.user.name || ''}
-                                  />
+                                  <AvatarImage alt={session?.user.name || ''} />
                                   <AvatarFallback>
                                     {session?.user.name?.charAt(0) || 'U'}
                                   </AvatarFallback>
@@ -1134,7 +1147,6 @@ const ProjectGuidelines = () => {
               {/* Message input - only show if AI is configured or messages exist */}
               {(isAiConfigured || messages.length > 0) && (
                 <div className='p-3 border-t flex gap-2'>
-                  
                   <FileInput />
                   <Textarea
                     value={newMessage}
@@ -1270,69 +1282,76 @@ const ProjectGuidelines = () => {
             </DialogDescription>
           </DialogHeader>
           <div className='space-y-4 py-4'>
-            <div className='space-y-2'>
-              <label className='text-sm font-medium'>AI Provider</label>
-              <select
-                className='w-full p-2 border rounded'
-                value={aiConfig.provider}
-                onChange={(e) =>
-                  setAiConfig({ ...aiConfig, provider: e.target.value })
-                }
-              >
-                <option value='OpenAI'>OpenAI</option>
-                <option value='Anthropic'>Anthropic</option>
-                <option value='Gemini'>Gemini</option>
-              </select>
-            </div>
-
-            <div className='space-y-2'>
-              <label className='text-sm font-medium'>Model</label>
-              <select
-                className='w-full p-2 border rounded'
-                value={aiConfig.model}
-                onChange={(e) =>
-                  setAiConfig({ ...aiConfig, model: e.target.value })
-                }
-              >
-                {aiConfig.provider === 'OpenAI' && (
-                  <>
-                    <option value='gpt-4'>GPT-4</option>
-                    <option value='gpt-4-turbo'>GPT-4 Turbo</option>
-                    <option value='gpt-4o'>GPT-4o</option>
-                    <option value='gpt-4o-mini'>GPT-4o Mini</option>
-                    <option value='gpt-3.5-turbo'>GPT-3.5 Turbo</option>
-                  </>
-                )}
-                {aiConfig.provider === 'Anthropic' && (
-                  <>
-                    <option value='claude-3-5-sonnet-latest'>
-                      Claude 3.5 Sonnet Latest
-                    </option>
-                    <option value='claude-3-5-sonnet-20240620'>
-                      Claude 3.5 Sonnet 20240620
-                    </option>
-                    <option value='claude-3-haiku-20240307'>
-                      Claude 3 Haiku 20240307
-                    </option>
-                    <option value='claude-3-opus-latest'>
-                      Claude 3 Opus Latest
-                    </option>
-                    <option value='claude-3-opus-20240229'>
-                      Claude 3 Opus 20240229
-                    </option>
-                  </>
-                )}
-                {aiConfig.provider === 'Gemini' && (
-                  <>
-                    <option value='gemini-1.0-pro'>Gemini 1.0 Pro</option>
-                    <option value='gemini-1.5-flash'>Gemini 1.5 Flash</option>
-                    <option value='gemini-1.5-pro'>Gemini 1.5 Pro</option>
-                    <option value='gemini-pro'>Gemini Pro</option>
-                  </>
-                )}
-              </select>
-            </div>
-
+          <div className='space-y-2'>
+  <label className='text-sm font-medium'>AI Provider <span className="text-red-500">*</span></label>
+  <select
+    className='w-full p-2 border rounded'
+    value={aiConfig.provider}
+    onChange={(e) =>
+      setAiConfig({
+        ...aiConfig,
+        provider: e.target.value,
+        model: '', // Reset model when provider changes
+      })
+    }
+    required
+  >
+    <option value=''>Choose AI Provider</option>
+    <option value='OpenAI'>OpenAI</option>
+    <option value='Anthropic'>Anthropic</option>
+    <option value='Gemini'>Gemini</option>
+  </select>
+</div>
+<div className='space-y-2'>
+  <label className='text-sm font-medium'>Model <span className="text-red-500">*</span></label>
+  <select
+    className='w-full p-2 border rounded'
+    value={aiConfig.model}
+    onChange={(e) =>
+      setAiConfig({ ...aiConfig, model: e.target.value })
+    }
+    required
+    disabled={!aiConfig.provider}
+  >
+    <option value=''>Choose AI Model</option>
+    {aiConfig.provider === 'OpenAI' && (
+      <>
+        <option value='gpt-4'>GPT-4</option>
+        <option value='gpt-4-turbo'>GPT-4 Turbo</option>
+        <option value='gpt-4o'>GPT-4o</option>
+        <option value='gpt-4o-mini'>GPT-4o Mini</option>
+        <option value='gpt-3.5-turbo'>GPT-3.5 Turbo</option>
+      </>
+    )}
+    {aiConfig.provider === 'Anthropic' && (
+      <>
+        <option value='claude-3-5-sonnet-latest'>
+          Claude 3.5 Sonnet Latest
+        </option>
+        <option value='claude-3-5-sonnet-20240620'>
+          Claude 3.5 Sonnet 20240620
+        </option>
+        <option value='claude-3-haiku-20240307'>
+          Claude 3 Haiku 20240307
+        </option>
+        <option value='claude-3-opus-latest'>
+          Claude 3 Opus Latest
+        </option>
+        <option value='claude-3-opus-20240229'>
+          Claude 3 Opus 20240229
+        </option>
+      </>
+    )}
+    {aiConfig.provider === 'Gemini' && (
+      <>
+        <option value='gemini-1.0-pro'>Gemini 1.0 Pro</option>
+        <option value='gemini-1.5-flash'>Gemini 1.5 Flash</option>
+        <option value='gemini-1.5-pro'>Gemini 1.5 Pro</option>
+        <option value='gemini-pro'>Gemini Pro</option>
+      </>
+    )}
+  </select>
+</div>
             <div className='space-y-2'>
               <label className='text-sm font-medium'>API Key</label>
               <Input
@@ -1349,18 +1368,26 @@ const ProjectGuidelines = () => {
             <Button variant='outline' onClick={() => setAiModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={configureAndTrainAI} disabled={isGeneratingAI}>
-              {isGeneratingAI ? (
-                <>
-                  <Loader2 className='h-4 w-4 mr-2 animate-spin' />
-                  {isAiConfigured ? 'Updating...' : 'Setting up AI...'}
-                </>
-              ) : isAiConfigured ? (
-                'Update AI Assistant'
-              ) : (
-                'Configure & Train AI'
-              )}
-            </Button>
+            <Button
+  onClick={configureAndTrainAI}
+  disabled={
+    isGeneratingAI ||
+    !aiConfig.provider ||
+    !aiConfig.model ||
+    !aiConfig.apiKey
+  }
+>
+  {isGeneratingAI ? (
+    <>
+      <Loader2 className='h-4 w-4 mr-2 animate-spin' />
+      {isAiConfigured ? 'Updating...' : 'Setting up AI...'}
+    </>
+  ) : isAiConfigured ? (
+    'Update AI Assistant'
+  ) : (
+    'Configure & Train AI'
+  )}
+</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
