@@ -542,6 +542,15 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: SquarePen,
         },
 
+
+
+
+
+
+
+
+
+
         {
           href: `/projects/task/${projectId}`,
           label: "Tasks",
