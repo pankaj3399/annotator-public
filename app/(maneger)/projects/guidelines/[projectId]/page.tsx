@@ -63,7 +63,7 @@ export default function GuidelinesPage() {
           <BreadcrumbLink href={`/projects/${projectId}`}>{projectName}</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbItem>
-          <BreadcrumbLink>Guidelines</BreadcrumbLink>
+          <BreadcrumbLink> <span className="inline-block ml-1">Guidelines</span> </BreadcrumbLink>
         </BreadcrumbItem>
       </Breadcrumb>
 
@@ -80,7 +80,7 @@ export default function GuidelinesPage() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold flex items-center">
           <FileText className="mr-2 h-8 w-8" />
-          {projectName} Guidelines
+          {projectName}  <span className="ml-1">Guidelines</span>
         </h1>
       </div>
 

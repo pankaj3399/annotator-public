@@ -56,75 +56,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   const projectId = pathname.split("/")[pathname.split("/").length - 1];
   const fpath = pathname.split("/")[1];
 
-  // For project managers, always ensure Sourcing, Analytics, Project settings are included
-  let projectManagerSpecificGroups: Group[] = [];
-
-  if (userRole === "project manager") {
-    projectManagerSpecificGroups = [
-      {
-        groupLabel: "Sourcing",
-        menus: [
-          {
-            href: `/projects/job-list/${projectId}`,
-            label: "Job List",
-            active: pathname.includes("/job-list"),
-            icon: List,
-          },
-          {
-            href: `/projects/job-applications/${projectId}`,
-            label: "Job Applicants",
-            active: pathname.includes("/job-applications"),
-            icon: Dock,
-          },
-        ],
-        visibleTo: ["project manager"], // Only PM can see sourcing
-      },
-      {
-        groupLabel: "Analytics",
-        menus: [
-          {
-            href: `/projects/analytics/view/${projectId}`,
-            label: "Overview",
-            active: pathname.includes("/analytics/view"),
-            icon: BarChart2,
-          },
-          {
-            href: `/projects/leaderboard/${projectId}`,
-            label: "Leaderboard",
-            active: pathname.includes("/leaderboard"),
-            icon: BarChart,
-          },
-        ],
-        visibleTo: ["project manager"], // Only PM can see analytics
-      },
-      {
-        groupLabel: "Project settings",
-        menus: [
-          {
-            href: `/projects/ai-config/${projectId}`,
-            label: "AI Expert",
-            active: pathname.includes("/ai-config"),
-            icon: Bot,
-          },
-          {
-            href: `/projects/settings/${projectId}`,
-            label: "Settings",
-            active: pathname.includes("/settings"),
-            icon: Settings,
-          },
-          {
-            href: `/projects/notification/${projectId}`,
-            label: "Notification",
-            active: pathname.includes("/notification"),
-            icon: Bell,
-          },
-        ],
-        visibleTo: ["project manager"], // Only PM can see project settings
-      }
-    ];
-  }
-
-  // Handle specific role-based menu structures
+  // For agency owner role
   if (userRole === "agency owner") {
     return [
       {
@@ -163,6 +95,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     ];
   }
 
+  // For system admin role
   if (userRole === "system admin") {
     return [
       {
@@ -207,6 +140,70 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       },
     ];
   }
+
+  // Common project-related menu items for PM
+  const projectManagerCommonGroups: Group[] = [
+    {
+      groupLabel: "Sourcing",
+      menus: [
+        {
+          href: `/projects/job-list/${projectId}`,
+          label: "Job List",
+          active: pathname.includes("/job-list"),
+          icon: List,
+        },
+        {
+          href: `/projects/job-applications/${projectId}`,
+          label: "Job Applicants",
+          active: pathname.includes("/job-applications"),
+          icon: Dock,
+        },
+      ],
+      visibleTo: ["project manager"], // Only PM can see sourcing
+    },
+    {
+      groupLabel: "Analytics",
+      menus: [
+        {
+          href: `/projects/analytics/view/${projectId}`,
+          label: "Overview",
+          active: pathname.includes("/analytics/view"),
+          icon: BarChart2,
+        },
+        {
+          href: `/projects/leaderboard/${projectId}`,
+          label: "Leaderboard",
+          active: pathname.includes("/leaderboard"),
+          icon: BarChart,
+        },
+      ],
+      visibleTo: ["project manager"], // Only PM can see analytics
+    },
+    {
+      groupLabel: "Project settings",
+      menus: [
+        {
+          href: `/projects/ai-config/${projectId}`,
+          label: "AI Expert",
+          active: pathname.includes("/ai-config"),
+          icon: Bot,
+        },
+        {
+          href: `/projects/settings/${projectId}`,
+          label: "Settings",
+          active: pathname.includes("/settings"),
+          icon: Settings,
+        },
+        {
+          href: `/projects/notification/${projectId}`,
+          label: "Notification",
+          active: pathname.includes("/notification"),
+          icon: Bell,
+        },
+      ],
+      visibleTo: ["project manager"], // Only PM can see project settings
+    }
+  ];
 
   // For tasks path
   if (fpath === "tasks") {
@@ -329,7 +326,26 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
 
     // For project manager, add the specific groups regardless of path
     if (userRole === "project manager") {
-      return filterMenusByRole([...tasksMenu, ...projectManagerSpecificGroups], userRole);
+      // Check if there's a project context in the tasks path
+      const potentialProjectId = pathname.split("/").slice(2).find(segment =>
+        segment &&
+        !["all", "annotatorDashboard", "chat", "profile", "wishlist", "bank", "viewCourses", "myCourses", "benchmark-arena", "review"].includes(segment)
+      );
+
+      if (potentialProjectId) {
+        // If there's a project context, include PM-specific groups with the correct projectId
+        const pmGroupsWithCorrectProject = projectManagerCommonGroups.map(group => ({
+          ...group,
+          menus: group.menus.map(menu => ({
+            ...menu,
+            href: menu.href.replace(projectId, potentialProjectId)
+          }))
+        }));
+
+        return filterMenusByRole([...tasksMenu, ...pmGroupsWithCorrectProject], userRole);
+      }
+
+      return filterMenusByRole([...tasksMenu, ...projectManagerCommonGroups], userRole);
     }
 
     return filterMenusByRole(tasksMenu, userRole);
@@ -444,11 +460,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       },
     ];
 
-    // For project manager, add the specific groups regardless of path
-    if (userRole === "project manager") {
-      return filterMenusByRole([...homeMenu, ...projectManagerSpecificGroups], userRole);
-    }
-
     return filterMenusByRole(homeMenu, userRole);
   }
 
@@ -505,7 +516,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: Folder,
         },
 
-        // Only include Guidelines if we have a valid projectId (not empty, not "dashboard", etc.)
+        // Only include Guidelines if we have a valid projectId
         ...(projectId &&
           !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ?
           [{
@@ -515,15 +526,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: FileText,
             visibleTo: ["project manager" as UserRole],
           }] : []),
-        // ...(projectId && 
-        //   !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ? 
-        //   [{
-        //     href: `/projects/data/${projectId}`,
-        //     label: "Data",
-        //     active: pathname.includes(`/projects/data/${projectId}`),
-        //     icon: BarChart, // You might want to use a different icon like Database if available
-        //     visibleTo: ["project manager" as UserRole],
-        //   }] : []),
         {
           href: `/projects/${projectId}`,
           label: "Templates",
@@ -538,19 +540,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             !pathname.includes("/job-list") &&
             !pathname.includes("/job-applications") &&
             !pathname.includes("/guidelines"),
-          // !pathname.includes("/data"),
           icon: SquarePen,
         },
-
-
-
-
-
-
-
-
-
-
         {
           href: `/projects/task/${projectId}`,
           label: "Tasks",
@@ -565,86 +556,34 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
         },
       ],
     },
-    {
-      groupLabel: "Sourcing",
-      menus: [
-        {
-          href: `/projects/job-list/${projectId}`,
-          label: "Job List",
-          active: pathname.includes("/job-list"),
-          icon: List,
-        },
-        {
-          href: `/projects/job-applications/${projectId}`,
-          label: "Job Applicants",
-          active: pathname.includes("/job-applications"),
-          icon: Dock,
-        },
-      ],
-      visibleTo: ["project manager"], // Only PM can see sourcing
-    },
-    {
-      groupLabel: "Analytics",
-      menus: [
-        {
-          href: `/projects/analytics/view/${projectId}`,
-          label: "Overview",
-          active: pathname.includes("/analytics/view"),
-          icon: BarChart2,
-        },
-        {
-          href: `/projects/leaderboard/${projectId}`,
-          label: "Leaderboard",
-          active: pathname.includes("/leaderboard"),
-          icon: BarChart,
-        },
-      ],
-      visibleTo: ["project manager"], // Only PM can see analytics
-    },
-    {
-      groupLabel: "Project settings",
-      menus: [
-        {
-          href: `/projects/ai-config/${projectId}`,
-          label: "AI Expert",
-          active: pathname.includes("/ai-config"),
-          icon: Bot,
-        },
-        {
-          href: `/projects/settings/${projectId}`,
-          label: "Settings",
-          active: pathname.includes("/settings"),
-          icon: Settings,
-        },
-        {
-          href: `/projects/notification/${projectId}`,
-          label: "Notification",
-          active: pathname.includes("/notification"),
-          icon: Bell,
-        },
-      ],
-      visibleTo: ["project manager"], // Only PM can see project settings
-    },
-    {
-      groupLabel: "User",
-      menus: [
-        {
-          href: "/projects/profile",
-          label: "Profile",
-          active: pathname.includes("/projects/profile"),
-          icon: User,
-        },
-        // {
-        //   href: "/bank",
-        //   label: "Bank Settings",
-        //   active: pathname.includes("/bank"),
-        //   icon: Landmark,
-        // },
-      ],
-    },
   ];
 
-  // This conditional check is now redundant since we always include analytics for PM
+  // Always include project-specific groups for project managers when a valid project ID is present
+  if (userRole === "project manager" && projectId &&
+    !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId)) {
+    defaultMenu.push(...projectManagerCommonGroups);
+  }
+
+  // Add User group
+  defaultMenu.push({
+    groupLabel: "User",
+    menus: [
+      {
+        href: "/projects/profile",
+        label: "Profile",
+        active: pathname.includes("/projects/profile"),
+        icon: User,
+      },
+      // {
+      //   href: "/bank",
+      //   label: "Bank Settings",
+      //   active: pathname.includes("/bank"),
+      //   icon: Landmark,
+      // },
+    ],
+  });
+
+  // This conditional check is for a specific analytics view within the annotator path
   if (
     pathname.includes("/tasks/annotator") &&
     pathname.includes("/analytics")
