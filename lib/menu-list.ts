@@ -55,10 +55,10 @@ type Group = {
 export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   const projectId = pathname.split("/")[pathname.split("/").length - 1];
   const fpath = pathname.split("/")[1];
-  
+
   // For project managers, always ensure Sourcing, Analytics, Project settings are included
   let projectManagerSpecificGroups: Group[] = [];
-  
+
   if (userRole === "project manager") {
     projectManagerSpecificGroups = [
       {
@@ -123,7 +123,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       }
     ];
   }
-  
+
   // Handle specific role-based menu structures
   if (userRole === "agency owner") {
     return [
@@ -162,7 +162,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       },
     ];
   }
-  
+
   if (userRole === "system admin") {
     return [
       {
@@ -317,12 +317,12 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/tasks/profile"),
             icon: User,
           },
-          {
-            href: "/tasks/bank",
-            label: "Bank Settings",
-            active: pathname.includes("/tasks/bank"),
-            icon: Landmark,
-          },
+          // {
+          //   href: "/tasks/bank",
+          //   label: "Bank Settings",
+          //   active: pathname.includes("/tasks/bank"),
+          //   icon: Landmark,
+          // },
         ],
       },
     ];
@@ -434,12 +434,12 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/projects/profile"),
             icon: User,
           },
-          {
-            href: "/bank",
-            label: "Bank Settings",
-            active: pathname.includes("/bank"),
-            icon: Landmark,
-          },
+          // {
+          //   href: "/bank",
+          //   label: "Bank Settings",
+          //   active: pathname.includes("/bank"),
+          //   icon: Landmark,
+          // },
         ],
       },
     ];
@@ -504,6 +504,26 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname === "/",
           icon: Folder,
         },
+
+        // Only include Guidelines if we have a valid projectId (not empty, not "dashboard", etc.)
+        ...(projectId &&
+          !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ?
+          [{
+            href: `/projects/guidelines/${projectId}`,
+            label: "Guidelines",
+            active: pathname.includes(`/projects/guidelines/${projectId}`),
+            icon: FileText,
+            visibleTo: ["project manager" as UserRole],
+          }] : []),
+        // ...(projectId && 
+        //   !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ? 
+        //   [{
+        //     href: `/projects/data/${projectId}`,
+        //     label: "Data",
+        //     active: pathname.includes(`/projects/data/${projectId}`),
+        //     icon: BarChart, // You might want to use a different icon like Database if available
+        //     visibleTo: ["project manager" as UserRole],
+        //   }] : []),
         {
           href: `/projects/${projectId}`,
           label: "Templates",
@@ -518,18 +538,10 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             !pathname.includes("/job-list") &&
             !pathname.includes("/job-applications") &&
             !pathname.includes("/guidelines"),
+          // !pathname.includes("/data"),
           icon: SquarePen,
         },
-        // Only include Guidelines if we have a valid projectId (not empty, not "dashboard", etc.)
-        ...(projectId && 
-          !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ? 
-          [{
-            href: `/projects/guidelines/${projectId}`,
-            label: "Guidelines",
-            active: pathname.includes(`/projects/guidelines/${projectId}`),
-            icon: FileText,
-            visibleTo: ["project manager" as UserRole],
-          }] : []),
+
         {
           href: `/projects/task/${projectId}`,
           label: "Tasks",
@@ -613,12 +625,12 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/projects/profile"),
           icon: User,
         },
-        {
-          href: "/bank",
-          label: "Bank Settings",
-          active: pathname.includes("/bank"),
-          icon: Landmark,
-        },
+        // {
+        //   href: "/bank",
+        //   label: "Bank Settings",
+        //   active: pathname.includes("/bank"),
+        //   icon: Landmark,
+        // },
       ],
     },
   ];
@@ -648,20 +660,20 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
 // Helper function to filter menus by role
 function filterMenusByRole(groups: Group[], userRole: UserRole): Group[] {
   // First filter out groups that aren't visible to the user role
-  const filteredGroups = groups.filter(group => 
+  const filteredGroups = groups.filter(group =>
     !group.visibleTo || group.visibleTo.includes(userRole)
   );
 
   // Then filter menu items within each group
   return filteredGroups.map(group => {
-    const filteredMenus = group.menus.filter(menu => 
+    const filteredMenus = group.menus.filter(menu =>
       !menu.visibleTo || menu.visibleTo.includes(userRole)
     );
-    
+
     return {
       ...group,
       menus: filteredMenus
     };
-  // Remove empty groups (groups with no visible menus)
+    // Remove empty groups (groups with no visible menus)
   }).filter(group => group.menus.length > 0);
 }
