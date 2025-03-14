@@ -44,6 +44,8 @@ import { useRouter } from 'next/navigation';
 import { domains, languages, locations } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Transfer } from '@/components/transferDialog';
+import { DeleteUserButton } from '@/components/DeleteUserButton';
+
 interface User {
   _id: string;
   name: string;
@@ -93,7 +95,7 @@ const locationOptions: Option[] = locations.map((location) => ({
 export default function AnnotatorsPage() {
   const [annotators, setAnnotators] = useState<User[]>([]);
   const [onOpen, setOnOpen] = useState(false);
-  const [id,setId]=useState('')
+  const [id, setId] = useState('');
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string[]>([]);
@@ -109,44 +111,44 @@ export default function AnnotatorsPage() {
   const { toast } = useToast();
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchAnnotators = async () => {
-      try {
-        const data = JSON.parse(await getAllAnnotators());
-        const transformedData = data.map((annotator: User) => {
-          const currentPermissions = annotator.permission || ['noPermission'];
-          const transformedPermissions = currentPermissions.map(
-            (perm) => permissionMapping[perm] || 'No Permission'
-          );
-
-          return {
-            ...annotator,
-            permission: transformedPermissions,
-          };
-        });
-
-        setAnnotators(transformedData);
-        setFilteredAnnotators(transformedData);
-
-        const initialPermissionsState = transformedData.reduce(
-          (acc: { [key: string]: string[] }, user: User) => {
-            acc[user._id] = user.permission;
-            return acc;
-          },
-          {}
+  const fetchAnnotators = async () => {
+    try {
+      const data = JSON.parse(await getAllAnnotators());
+      const transformedData = data.map((annotator: User) => {
+        const currentPermissions = annotator.permission || ['noPermission'];
+        const transformedPermissions = currentPermissions.map(
+          (perm) => permissionMapping[perm] || 'No Permission'
         );
 
-        setReviewPermissionsState(initialPermissionsState);
-      } catch (error) {
-        console.error('Error fetching annotators:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Failed to fetch annotators',
-        });
-      }
-    };
+        return {
+          ...annotator,
+          permission: transformedPermissions,
+        };
+      });
 
+      setAnnotators(transformedData);
+      setFilteredAnnotators(transformedData);
+
+      const initialPermissionsState = transformedData.reduce(
+        (acc: { [key: string]: string[] }, user: User) => {
+          acc[user._id] = user.permission;
+          return acc;
+        },
+        {}
+      );
+
+      setReviewPermissionsState(initialPermissionsState);
+    } catch (error) {
+      console.error('Error fetching annotators:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to fetch annotators',
+      });
+    }
+  };
+
+  useEffect(() => {
     fetchAnnotators();
   }, [toast]);
 
@@ -307,6 +309,23 @@ export default function AnnotatorsPage() {
     setOnOpen(v=>!v)
   }
 
+  const handleUserDeleted = (userId: string) => {
+    // Remove the deleted user from the state
+    setAnnotators((prevAnnotators) =>
+      prevAnnotators.filter((annotator) => annotator._id !== userId)
+    );
+    // Also update the filtered list
+    setFilteredAnnotators((prevFiltered) =>
+      prevFiltered.filter((annotator) => annotator._id !== userId)
+    );
+
+    toast({
+      variant: 'default',
+      title: 'Success',
+      description: 'Expert has been removed from the system',
+    });
+  };
+
   return (
     <div className='min-h-screen'>
       <header className='bg-white'>
@@ -450,7 +469,7 @@ export default function AnnotatorsPage() {
                           {format(parseISO(user.lastLogin.toString()), 'PPPpp')}
                         </div>
                       </TableCell>
-                      <TableCell className='flex items-center space-x-4'>
+                      <TableCell className='flex items-center space-x-2'>
                         <button
                           className='flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 rounded-full shadow-md hover:bg-gray-300 transition-colors'
                           onClick={()=>handleTransfer(user._id)}
@@ -472,6 +491,12 @@ export default function AnnotatorsPage() {
                         >
                           <User className='h-5 w-5' />
                         </button>
+                        <DeleteUserButton
+                          userId={user._id}
+                          userName={user.name}
+                          userEmail={user.email}
+                          onDeleted={() => handleUserDeleted(user._id)}
+                        />
                       </TableCell>
                     </TableRow>
                   );
