@@ -978,243 +978,11 @@ export function TaskDialog({
       });
     }
   };
-
-  // Modified part of generateFilledTemplates function in TaskDialog
-
   const generateFilledTemplates = async () => {
     try {
-      console.log('Current tasks:', tasks);
-
-      // Check if we have a cloud storage URL to process
-      const hasCloudStorageUrl = tasks.some((task) =>
-        Object.entries(task.values).some(([_, value]) => {
-          const val = value as TaskValue;
-          return (
-            val?.content &&
-            typeof val.content === 'string' &&
-            (val.content.includes('/api/storage/proxy') ||
-              val.content.includes('/api/storage/s3/download') ||
-              val.content.includes('/api/storage/browse'))
-          );
-        })
-      );
-
-      if (hasCloudStorageUrl) {
-        setIsLoading(true);
-
-        // Find the cloud storage URL
-        let csvUrl = '';
-        for (const task of tasks) {
-          for (const [_, value] of Object.entries(task.values)) {
-            const val = value as TaskValue;
-            if (
-              val?.content &&
-              typeof val.content === 'string' &&
-              (val.content.includes('/api/storage/proxy') ||
-                val.content.includes('/api/storage/s3/download') ||
-                val.content.includes('/api/storage/browse'))
-            ) {
-              csvUrl = val.content;
-              break;
-            }
-          }
-          if (csvUrl) break;
-        }
-
-        try {
-          // Fetch the CSV content from the storage URL
-          const response = await fetch(csvUrl, {
-            method: 'GET',
-            credentials: 'include', // Important for cookies/auth
-            headers: {
-              Accept: 'text/csv,text/plain,*/*',
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch CSV: ${response.status} ${response.statusText}`
-            );
-          }
-
-          const csvText = await response.text();
-
-          if (!csvText || csvText.trim() === '') {
-            throw new Error('Downloaded CSV file is empty');
-          }
-
-          // Process the CSV content
-          Papa.parse(csvText, {
-            complete: (results) => {
-              if (!results.data || results.data.length < 2) {
-                // At least headers + 1 row
-                throw new Error('CSV file has insufficient data');
-              }
-
-              console.log('CSV parsed successfully:', {
-                rows: results.data.length,
-                firstRowSample: results.data[0],
-              });
-
-              // Skip header row and process data rows
-              const dataRows = results.data.slice(1) as string[][];
-
-              // Create new tasks from the CSV data
-              const newTasks = dataRows
-                .filter((row) => row.some((cell) => cell && cell.trim() !== ''))
-                .map((row, index) => ({
-                  id: index + 1,
-                  values: Object.fromEntries(
-                    placeholders.map((placeholder, i) => [
-                      placeholder.index,
-                      {
-                        content: i < row.length ? row[i] || '' : '',
-                        fileType: 'document' as
-                          | 'image'
-                          | 'video'
-                          | 'document'
-                          | 'audio',
-                      },
-                    ])
-                  ),
-                }));
-
-              setTasks(newTasks);
-
-              // If we successfully parsed the CSV and created tasks, continue with task creation
-              if (newTasks.length > 0) {
-                // Create the filled tasks for each task in newTasks
-                const filledTasks: FilledTask[] = [];
-                const repeatTasks: RepeatTask[] = [];
-
-                newTasks.forEach((task) => {
-                  const filled = renderFilledTemplate(task.values);
-
-                  if (assignToAllAnnotators) {
-                    repeatTasks.push({
-                      project: project._id,
-                      name: `${project.name} - ${template.name} - Task${task.id}`,
-                      content: filled,
-                      timer: template.timer,
-                      annotator: null,
-                      reviewer: '',
-                      template: template._id,
-                      type: 'test',
-                    });
-                  } else {
-                    for (let i = 0; i < globalRepeat; i++) {
-                      filledTasks.push({
-                        project: project._id,
-                        name: `${project.name} - ${template.name} - Task${task.id}.${i + 1}`,
-                        content: filled,
-                        timer: template.timer,
-                        reviewer: '',
-                        type: template.type,
-                        template: template._id,
-                      });
-                    }
-                  }
-                });
-
-                // Save the created tasks
-                if (assignToAllAnnotators && repeatTasks.length > 0) {
-                  saveRepeatTasks(repeatTasks)
-                    .then((response: any) => {
-                      if (response.success) {
-                        toast({
-                          title: 'Success',
-                          description: `Created ${response.createdTasks} tasks for all annotators`,
-                        });
-                        setIsDialogOpen(false);
-                      } else {
-                        throw new Error('Failed to create tasks');
-                      }
-                    })
-                    .catch((error) => {
-                      console.error('Error saving repeat tasks:', error);
-                      toast({
-                        title: 'Error',
-                        description: 'Failed to create tasks',
-                        variant: 'destructive',
-                      });
-                    })
-                    .finally(() => {
-                      setIsLoading(false);
-                    });
-                } else if (filledTasks.length > 0) {
-                  createTasks(filledTasks)
-                    .then((response: any) => {
-                      if (response.success) {
-                        toast({
-                          title: 'Success',
-                          description: `Created ${filledTasks.length} tasks`,
-                        });
-                        setIsDialogOpen(false);
-                      } else {
-                        throw new Error('Failed to create tasks');
-                      }
-                    })
-                    .catch((error: unknown) => {
-                      console.error('Error creating tasks:', error);
-                      toast({
-                        title: 'Error',
-                        description: 'Failed to create tasks',
-                        variant: 'destructive',
-                      });
-                    })
-                    .finally(() => {
-                      setIsLoading(false);
-                    });
-                } else {
-                  setIsLoading(false);
-                  toast({
-                    title: 'Error',
-                    description: 'No valid tasks to create',
-                    variant: 'destructive',
-                  });
-                }
-              } else {
-                setIsLoading(false);
-                toast({
-                  title: 'Error',
-                  description: 'No valid data rows found in CSV',
-                  variant: 'destructive',
-                });
-              }
-            },
-            error: (error: unknown) => {
-              console.error('CSV parsing error:', error);
-              setIsLoading(false);
-              toast({
-                title: 'Error',
-                description: 'Error parsing CSV',
-                variant: 'destructive',
-              });
-            },
-            header: false, // We handle headers manually
-            skipEmptyLines: true,
-            delimitersToGuess: [',', '\t', '|', ';'], // Support different delimiters
-          });
-
-          // Return early since we're handling task creation in the Papa.parse callback
-          return;
-        } catch (error) {
-          console.error('Error processing cloud storage file:', error);
-          setIsLoading(false);
-          toast({
-            title: 'Error',
-            description:
-              error instanceof Error ? error.message : 'Failed to process file',
-            variant: 'destructive',
-          });
-          return;
-        }
-      }
-
-      // If no cloud storage URL, proceed with normal task creation
       const filledTasks: FilledTask[] = [];
       const repeatTasks: RepeatTask[] = [];
-
+      let repeatTaskCount;
       tasks.forEach((task) => {
         const filled = renderFilledTemplate(task.values);
 
@@ -1233,7 +1001,9 @@ export function TaskDialog({
           for (let i = 0; i < globalRepeat; i++) {
             filledTasks.push({
               project: project._id,
-              name: `${project.name} - ${template.name} - Task${task.id}.${i + 1}`,
+              name: `${project.name} - ${template.name} - Task${task.id}.${
+                i + 1
+              }`,
               content: filled,
               timer: template.timer,
               reviewer: '',
@@ -1244,42 +1014,27 @@ export function TaskDialog({
         }
       });
 
-      if (assignToAllAnnotators && repeatTasks.length > 0) {
-        const response = await saveRepeatTasks(repeatTasks);
-
-        // Use type assertion or check for property existence
-        if (!response.success) {
+      const response = (await createTasks(
+        filledTasks
+      )) as unknown as CreateTasksResponse;
+      if (assignToAllAnnotators) {
+        const createRepeatResponse = await createRepeatTask(repeatTasks);
+        repeatTaskCount = createRepeatResponse.createdTasks;
+        if (!createRepeatResponse.success) {
           throw new Error('Failed to save repeat tasks');
         }
+      }
 
-        // Get task count safely
-        const taskCount =
-          'createdTasks' in response
-            ? response.createdTasks
-            : repeatTasks.length;
-
+      if (assignToAllAnnotators) {
         toast({
-          title: 'Success',
-          description: `Created ${taskCount} tasks for all annotators`,
-        });
-      } else if (filledTasks.length > 0) {
-        const response = (await createTasks(
-          filledTasks
-        )) as unknown as CreateTasksResponse;
-        if (!response.success) {
-          throw new Error('Failed to create tasks');
-        }
-        toast({
-          title: 'Success',
-          description: `Created ${filledTasks.length} tasks`,
+          title: 'Tasks created successfully',
+          description: `Created ${repeatTaskCount} tasks and ${repeatTasks.length} repeat tasks successfully`,
         });
       } else {
         toast({
-          title: 'Error',
-          description: 'No tasks to create',
-          variant: 'destructive',
+          title: 'Tasks created successfully',
+          description: `Created ${filledTasks.length} tasks and ${repeatTasks.length} repeat tasks successfully`,
         });
-        return;
       }
 
       setTasks([{ id: 1, values: {} }]);
@@ -1287,14 +1042,11 @@ export function TaskDialog({
       setAssignToAllAnnotators(false);
       setIsDialogOpen(false);
     } catch (error: any) {
-      console.error('Error in generateFilledTemplates:', error);
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
         description: error.message,
       });
-    } finally {
-      setIsLoading(false);
     }
   };
   // New helper function to create tasks
@@ -1612,15 +1364,9 @@ export function TaskDialog({
                     setIsLoading(true);
 
                     try {
-                      // Detect if this is a Google Drive API endpoint
-                      const isGoogleDriveApi = fileUrl.includes(
-                        '/api/storage/google-drive/file'
-                      );
-
+               
                       // Fetch the CSV content
                       const response = await fetch(fileUrl, {
-                        // Include credentials for your own API endpoints
-                        credentials: 'include',
                         headers: {
                           Accept: 'text/csv,text/plain,*/*',
                         },
@@ -1735,11 +1481,14 @@ export function TaskDialog({
                   }
                 }}
               />
+             <Button onClick={() => fileInputRef.current?.click()}>
+                <Upload className="mr-2 h-4 w-4" /> Upload CSV
+              </Button>
               <input
-                type='file'
+                type="file"
                 ref={fileInputRef}
-                className='hidden'
-                accept='.csv'
+                className="hidden"
+                accept=".csv"
                 onChange={handleFileUpload}
               />
               <Button onClick={generateFilledTemplates}>
