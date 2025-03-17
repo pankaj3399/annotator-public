@@ -74,7 +74,7 @@ export default function AuthComponent(){
           <h2 className="text-4xl font-bold text-center mb-6">Login</h2>
   
           {/* Google Sign In Button */}
-          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET && (
+          {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
             <Button
               type="button"
               variant="outline"
