@@ -51,13 +51,13 @@ function initializeGoogleDriveClient(googleDriveConfig: any) {
     clientIdSet: !!process.env.GOOGLE_CLIENT_ID,
     clientSecretSet: !!process.env.GOOGLE_CLIENT_SECRET
   }));
-
+  const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const redirectUri = `${nextAuthUrl}/api/auth/callback/google`;
   try {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/auth/callback/google"
-    );
+      redirectUri    );
 
     // Set credentials
     const credentials = {
@@ -282,13 +282,6 @@ export async function GET(request: NextRequest) {
           hasAccessToken: !!storageCredentials.googleDriveConfig?.accessToken,
           hasRefreshToken: !!storageCredentials.googleDriveConfig?.refreshToken,
           tokenExpiry: storageCredentials.googleDriveConfig?.tokenExpiry
-        }));
-        
-        // Check environment variables
-        console.log("Google API Environment Variables:", JSON.stringify({
-          hasClientId: !!process.env.GOOGLE_CLIENT_ID,
-          hasClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-          hasRedirectUri: !!process.env.GOOGLE_REDIRECT_URI
         }));
         
         // Create Google Drive client

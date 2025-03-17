@@ -4,15 +4,15 @@ import { StorageCredentials } from "@/models/StorageCredentials";
 import { google } from "googleapis";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db";
-
+const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+const redirectUri = `${nextAuthUrl}/api/auth/callback/google`;
 // Your Google OAuth credentials from environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/storage/connect/google-drive/callback";
-const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
+const GOOGLE_REDIRECT_URI =redirectUri
 // Modify these lines
-const FRONTEND_REDIRECT_SUCCESS = process.env.FRONTEND_REDIRECT_SUCCESS || "http://localhost:3000/data?status=success";
-const FRONTEND_REDIRECT_ERROR = process.env.FRONTEND_REDIRECT_ERROR || "http://localhost:3000/data?status=error";
+const FRONTEND_REDIRECT_SUCCESS = `${nextAuthUrl}/data?status=success`;
+const FRONTEND_REDIRECT_ERROR =  `${nextAuthUrl}/data?status=error`;
 // Create OAuth client
 function getOAuthClient() {
   return new google.auth.OAuth2(

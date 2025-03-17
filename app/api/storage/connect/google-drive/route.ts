@@ -3,11 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { google } from "googleapis";
 import { authOptions } from "@/auth";
-
+const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 // Your Google OAuth credentials from environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI || "http://localhost:3000/api/storage/connect/google-drive/callback";
+const GOOGLE_REDIRECT_URI = `${nextAuthUrl}/api/auth/callback/google`
 
 // Create OAuth client
 function getOAuthClient() {
