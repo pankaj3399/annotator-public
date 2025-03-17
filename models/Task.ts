@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import { boolean } from 'zod';
 
 const taskSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -13,13 +12,35 @@ const taskSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'accepted', 'rejected', 'reassigned'], default: 'pending' },
   submitted: { type: Boolean, default: false },
   timeTaken: { type: Number, default: 0 },
-  assignedAt:{type:Date,default:Date.now()},
+  assignedAt: { type: Date, default: Date.now() },
   feedback: { type: String, default: '' },
   timer: { type: Number, default: 0 },
-  type:{type:String,enum:['test','training','core'],default:'test'},
-  isGroundTruth:{type:Boolean,default:false},
-  template:{type:mongoose.Schema.Types.ObjectId,ref:'Template',required:true}
+  type: { type: String, enum: ['test', 'training', 'core'], default: 'test' },
+  isGroundTruth: { type: Boolean, default: false },
+  template: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true }
+}, {
+  timestamps: true // Adds createdAt and updatedAt fields
 });
+
+// Single field indexes
+taskSchema.index({ annotator: 1 });
+taskSchema.index({ project: 1 });
+taskSchema.index({ reviewer: 1 });
+taskSchema.index({ type: 1 });
+taskSchema.index({ template: 1 });
+taskSchema.index({ created_at: -1 });
+taskSchema.index({ updatedAt: -1 });
+
+// Compound indexes for specific query patterns
+taskSchema.index({ annotator: 1, project: 1 });
+taskSchema.index({ annotator: 1, type: 1 });
+taskSchema.index({ annotator: 1, updatedAt: -1 });
+taskSchema.index({ annotator: 1, submitted: 1, updatedAt: -1 });
+taskSchema.index({ reviewer: 1, submitted: -1, status: 1, created_at: -1 });
+taskSchema.index({ project: 1, type: 1 });
+taskSchema.index({ project: 1, status: 1 });
+taskSchema.index({ project: 1, submitted: 1 });
+taskSchema.index({ project: 1, annotator: 1 });
 
 const Task = mongoose.models?.Task || mongoose.model('Task', taskSchema);
 export default Task;
