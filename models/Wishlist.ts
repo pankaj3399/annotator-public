@@ -79,4 +79,9 @@ const wishlistSchema = new Schema(
   }
 );
 
+wishlistSchema.index({ expert: 1 });
+wishlistSchema.index({ "items.is_external_request": 1, "items.payment_data.payment_status": 1 });
+wishlistSchema.index({ "items.payment_data.paid_by": 1 });
+
+
 export const Wishlist = models?.Wishlist || model("Wishlist", wishlistSchema);
