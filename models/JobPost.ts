@@ -93,5 +93,19 @@ const JobPostSchema = new Schema({
   }
 });
 
+JobPostSchema.index({ status: 1, createdAt: -1 });
+
+// Index for project-specific queries
+JobPostSchema.index({ projectId: 1, createdAt: -1 });
+
+// Compound index for location-based queries
+JobPostSchema.index({ lat: 1, lng: 1 });
+
+// Index for text search (if you implement search functionality)
+JobPostSchema.index(
+  { title: 'text', content: 'text', skills: 'text' },
+  { weights: { title: 10, skills: 5, content: 1 } }
+);
+
 export default mongoose.models.JobPost ||
   mongoose.model<IJobPost>("JobPost", JobPostSchema);
