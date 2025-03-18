@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import mongoose from 'mongoose';
 
 type ChangeFreq = 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
@@ -10,7 +9,7 @@ async function connectDB() {
 }
 
 export const getPublicPages = () => {
-  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
   
   return [
     {

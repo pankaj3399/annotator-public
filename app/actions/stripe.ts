@@ -59,12 +59,12 @@ export async function stripe(data: any) {
       mode: "payment",
       success_url:
         data.type === "product"
-          ? `${process.env.NEXTAUTH_URL}/wishlist?payment=success`
-          : `${process.env.NEXTAUTH_URL}/tasks/myCourses`,
+          ? `${process.env.NEXTAUTH_URL}wishlist?payment=success`
+          : `${process.env.NEXTAUTH_URL}tasks/myCourses`,
       cancel_url:
         data.type === "product"
-          ? `${process.env.NEXTAUTH_URL}/wishlist?payment=cancelled`
-          : `${process.env.NEXTAUTH_URL}/tasks/viewCourses?payment=cancelled`,
+          ? `${process.env.NEXTAUTH_URL}wishlist?payment=cancelled`
+          : `${process.env.NEXTAUTH_URL}tasks/viewCourses?payment=cancelled`,
       metadata: metadata,
       payment_intent_data: {
         shipping: {

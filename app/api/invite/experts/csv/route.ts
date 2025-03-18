@@ -93,10 +93,10 @@ export async function POST(req: Request) {
     }
 
     // Get base URL from environment or default
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
     
     // Create signup URL with pre-filled parameters
-    const signupUrl = `${baseUrl}/auth/signup?role=annotator&team=${teamId}`;
+    const signupUrl = `${baseUrl}auth/signup?role=annotator&team=${teamId}`;
 
     // Process CSV file
     const emails = await readCSVFile(file);

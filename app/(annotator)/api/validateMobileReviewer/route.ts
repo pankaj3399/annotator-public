@@ -102,8 +102,8 @@ export async function GET(req: NextRequest) {
       sessionCookieOptions.push("Secure");
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const redirectUrl = new URL(`/task/${taskId}`, baseUrl).toString();
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000/";
+    const redirectUrl = new URL(`task/${taskId}`, baseUrl).toString();
 
     const redirectResponse = NextResponse.redirect(redirectUrl);
     redirectResponse.headers.append("Set-Cookie", cookieOptions.join("; "));

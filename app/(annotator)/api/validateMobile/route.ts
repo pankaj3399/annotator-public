@@ -111,8 +111,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Construct redirect URL
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const redirectUrl = new URL(`/task/${taskId}`, baseUrl).toString();
+    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000/";
+    const redirectUrl = new URL(`task/${taskId}`, baseUrl).toString();
 
     // Create response with redirect and cookies
     const redirectResponse = NextResponse.redirect(redirectUrl);

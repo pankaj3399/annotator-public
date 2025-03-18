@@ -121,7 +121,7 @@ export async function getAIModels(projectid: string) {
 async function fetchGuidelineFileContent(projectId: string, s3Path: string): Promise<string | null> {
   try {
     // We need to use absolute URL here to avoid server-side relative URL issues
-    const apiUrl = `${process.env.NEXTAUTH_URL || ''}/api/projects/${projectId}/guidelines/files/s3`;
+    const apiUrl = `${process.env.NEXTAUTH_URL || ''}api/projects/${projectId}/guidelines/files/s3`;
     const response = await fetch(`${apiUrl}?s3Path=${encodeURIComponent(s3Path)}&operation=content`);
     
     if (!response.ok) {
