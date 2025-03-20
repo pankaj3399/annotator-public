@@ -27,6 +27,7 @@ import {
   Database
 } from "lucide-react";
 import { BookIcon } from "@/components/BookIcon";
+import {TemplateIcon} from "@/components/TemplateIcon";
 
 // Define user roles - using space-separated strings to match what's in your system
 export type UserRole = "project manager" | "annotator" | "agency owner" | "system admin";
@@ -551,6 +552,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             !pathname.includes("/guidelines") &&
             !pathname.includes("/data"),
           icon: SquarePen,
+
         },
         {
           href: `/projects/task/${projectId}`,
