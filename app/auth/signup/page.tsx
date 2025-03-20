@@ -42,6 +42,7 @@ import {
 import MultiCombobox from '@/components/ui/multi-combobox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getTestTemplateTasks, createTestTasks } from '@/app/actions/task';
+import { getTeams } from '@/app/actions/team';
 
 interface Option {
   value: string;
@@ -100,13 +101,8 @@ function AuthPageContent() {
     const fetchTeams = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/teams');
-        if (response.ok) {
-          const data = await response.json();
-          setTeams(data);
-        } else {
-          console.error('Failed to fetch teams');
-        }
+        const data = await getTeams();
+        setTeams(data);
       } catch (error) {
         console.error('Error fetching teams:', error);
       } finally {

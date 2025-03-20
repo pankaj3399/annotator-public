@@ -24,6 +24,7 @@ import {
   Users,
   ShoppingCart,
   FileText,
+  Database
 } from "lucide-react";
 import { BookIcon } from "@/components/BookIcon";
 import {TemplateIcon} from "@/components/TemplateIcon";
@@ -532,7 +533,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             href: `/data`,
             label: "Data",
             active: pathname.includes(`/data/`),
-            icon: FileText,
+            icon: Database,
             visibleTo: ["project manager" as UserRole],
           }] : []),
         {
