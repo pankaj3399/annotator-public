@@ -2,7 +2,7 @@
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User'; // Import User model first
 import { Team } from '@/models/Team';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 // Type for team data
 interface TeamData {
@@ -15,6 +15,8 @@ interface TeamData {
 // Action to fetch all teams
 export async function getTeams() {
   try {
+    revalidateTag('teams');
+
     await connectToDatabase();
     const teams = await Team.find({})
       .populate({
@@ -35,7 +37,8 @@ export async function createTeam(teamData: TeamData) {
     await connectToDatabase();
     const newTeam = await Team.create(teamData);
     revalidatePath('/admin/teams');
-    return JSON.parse(JSON.stringify(newTeam));
+    revalidateTag('teams');
+     return JSON.parse(JSON.stringify(newTeam));
   } catch (error) {
     console.error("Error creating team:", error);
     throw new Error('Error creating team');
