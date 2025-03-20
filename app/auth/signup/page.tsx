@@ -61,16 +61,18 @@ function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  
+
   // Get URL parameters if they exist
   const roleParam = searchParams.get('role');
   const teamParam = searchParams.get('team');
-  
+
   // Determine initial step based on URL parameters
   const initialStep = roleParam ? 'details' : 'role';
-  
+
   const [step, setStep] = useState<Step>(initialStep);
-  const [invitationMode, setInvitationMode] = useState<'enter' | 'request'>('enter');
+  const [invitationMode, setInvitationMode] = useState<'enter' | 'request'>(
+    'enter'
+  );
   const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,15 +149,15 @@ function AuthPageContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      console.log("Google sign-in button clicked");
-      console.log("Current form data:", {
+      console.log('Google sign-in button clicked');
+      console.log('Current form data:', {
         role: formData.role,
-        team_id: formData.team_id
+        team_id: formData.team_id,
       });
-      
+
       // For annotators, require team selection
       if (formData.role === 'annotator' && !formData.team_id) {
-        console.log("Team ID missing, showing error");
+        console.log('Team ID missing, showing error');
         toast({
           variant: 'destructive',
           title: 'Team Selection Required',
@@ -163,33 +165,33 @@ function AuthPageContent() {
         });
         return;
       }
-  
+
       // Ensure we're properly setting the team in the URL
       const callbackUrl = new URL('/dashboard', window.location.origin);
-      
+
       // Add the team parameter only if we have one
       if (formData.team_id) {
-        console.log("Adding team ID to callback URL:", formData.team_id);
+        console.log('Adding team ID to callback URL:', formData.team_id);
         callbackUrl.searchParams.set('team', formData.team_id);
       }
-      
-      console.log("Final callback URL:", callbackUrl.toString());
-      
+
+      console.log('Final callback URL:', callbackUrl.toString());
+
       // Also save team ID in localStorage as a backup mechanism
       if (formData.team_id) {
-        console.log("Saving team ID in localStorage:", formData.team_id);
+        console.log('Saving team ID in localStorage:', formData.team_id);
         localStorage.setItem('signup_team_id', formData.team_id);
       }
-      
+
       // Use NextAuth signIn with Google provider and the callbackUrl as a string
-      console.log("Calling NextAuth signIn with Google provider");
+      console.log('Calling NextAuth signIn with Google provider');
       const result = await signIn('google', {
         callbackUrl: callbackUrl.toString(),
         redirect: true,
       });
-  
+
       if (result?.error) {
-        console.error("Google sign-in error:", result.error);
+        console.error('Google sign-in error:', result.error);
         toast({
           variant: 'destructive',
           title: 'Authentication failed',
@@ -197,7 +199,7 @@ function AuthPageContent() {
         });
       }
     } catch (error) {
-      console.error("Exception in Google sign-in:", error);
+      console.error('Exception in Google sign-in:', error);
       toast({
         variant: 'destructive',
         title: 'Authentication failed',
@@ -542,18 +544,19 @@ function AuthPageContent() {
 
         {/* Display info when user is arriving from invitation link */}
         {isTeamSelectionDisabled && formData.role === 'annotator' && (
-          <Alert className="mb-6 bg-blue-50 border-blue-200">
-            <AlertDescription className="flex items-center">
-              <Users className="mr-2 h-5 w-5 text-blue-500" />
-              <span>You've been invited to join as a <strong>Domain Expert</strong></span>
+          <Alert className='mb-6 bg-blue-50 border-blue-200'>
+            <AlertDescription className='flex items-center'>
+              <Users className='mr-2 h-5 w-5 text-blue-500' />
+              <span>
+                You've been invited to join as a <strong>Domain Expert</strong>
+              </span>
             </AlertDescription>
           </Alert>
         )}
 
         {/* Google Sign In Button - Only show for annotators */}
         {formData.role === 'annotator' &&
-          process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID &&
-          process.env.NEXT_PUBLIC_GOOGLE_CLIENT_SECRET && (
+          process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
             <>
               <Button
                 type='button'
@@ -645,10 +648,10 @@ function AuthPageContent() {
 
           {/* Team Selection - Added for all users */}
           <div className='space-y-2'>
-            <Label htmlFor='team' className="flex items-center">
+            <Label htmlFor='team' className='flex items-center'>
               Select Team
               {isTeamSelectionDisabled && (
-                <Lock className="ml-2 h-4 w-4 text-gray-400" />
+                <Lock className='ml-2 h-4 w-4 text-gray-400' />
               )}
             </Label>
             <Select
@@ -753,7 +756,13 @@ function AuthPageContent() {
 // Main component that wraps the content with Suspense
 export default function AuthPageComponent() {
   return (
-    <Suspense fallback={<div className="h-screen flex items-center justify-center">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className='h-screen flex items-center justify-center'>
+          Loading...
+        </div>
+      }
+    >
       <AuthPageContent />
     </Suspense>
   );

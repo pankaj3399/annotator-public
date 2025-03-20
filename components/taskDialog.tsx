@@ -36,6 +36,7 @@ import AIConfigModal from './AiModal';
 import MultiAIModal from './MultiAiModal';
 import { generateAiResponse } from '@/app/actions/aiModel';
 import { usePathname } from 'next/navigation';
+import CloudStorageFileBrowser from './GoogleDriveOrS3UploadFileButton';
 
 interface TaskValue {
   content: string;
@@ -125,6 +126,24 @@ interface Model {
   model: string;
 }
 
+interface StorageConnection {
+  _id: string;
+  storageType: 's3' | 'googleDrive';
+  isActive: boolean;
+  lastUsed: string | null;
+  created_at: string;
+  // S3 specific fields
+  s3Config?: {
+    bucketName: string;
+    region: string;
+    folderPrefix?: string;
+  };
+  // Google Drive specific fields
+  googleDriveConfig?: {
+    displayName: string;
+    email: string;
+  };
+}
 export function TaskDialog({
   onConfigure,
   aiModels,
@@ -169,11 +188,13 @@ export function TaskDialog({
   const [selectedPlaceholder, setSelectedPlaceholder] = useState<any>({});
   const [numberOfTasks, setNumberOfTasks] = useState(tasks.length);
   const [aiResponse, setAiResponse] = useState<any>([]);
-
+  const [connections, setConnections] = useState<StorageConnection[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   useEffect(() => {
     if (isDialogOpen) {
       fetchCurrentTemplateState();
       fetchAnnotators();
+      fetchStorageConnections();
     }
   }, [isDialogOpen]);
 
@@ -218,7 +239,35 @@ export function TaskDialog({
       });
     }
   };
+  const fetchStorageConnections = async () => {
+    try {
+      const response = await fetch('/api/storage/connections');
+      if (response.ok) {
+        const data = await response.json();
+        // Cast the connections to ensure they match the expected type
+        const typedConnections = (data.connections || []).map((conn: any) => ({
+          ...conn,
+          // Ensure storageType is one of the expected values
+          storageType: conn.storageType === 's3' ? 's3' : 'googleDrive',
+        })) as StorageConnection[];
 
+        setConnections(typedConnections);
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch storage connections',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error);
+      toast({
+        title: 'Error',
+        description: 'Something went wrong while fetching your connections.',
+        variant: 'destructive',
+      });
+    }
+  };
   const handleAnnotatorAssignmentToggle = async (checked: boolean) => {
     try {
       const result = await updateTestTemplate(template._id, checked);
@@ -293,7 +342,50 @@ export function TaskDialog({
       });
     }
   }, [template]);
+  useEffect(() => {
+    const handleGoogleDriveFileSelected = (event: Event) => {
+      if (event instanceof CustomEvent) {
+        const file = (event.detail as { file: File }).file;
 
+        Papa.parse(file, {
+          complete: (results) => {
+            // Your existing CSV parsing logic
+            const data = results.data as string[][];
+
+            // Validate and create tasks with correct typing
+            const newTasks: Task[] = data.slice(1).map((row, index) => ({
+              id: index + 1,
+              values: Object.fromEntries(
+                placeholders.map((placeholder, i) => [
+                  placeholder.index,
+                  {
+                    content: row[i] || '',
+                    fileType: 'document' as const,
+                  } as TaskValue,
+                ])
+              ),
+            }));
+
+            setTasks(newTasks);
+          },
+          header: false,
+          skipEmptyLines: true,
+        });
+      }
+    };
+
+    window.addEventListener(
+      'googleDriveFileSelected',
+      handleGoogleDriveFileSelected as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        'googleDriveFileSelected',
+        handleGoogleDriveFileSelected as EventListener
+      );
+    };
+  }, [placeholders, toast, setTasks]);
   const handleAddTask = () => {
     setTasks((prevTasks) => [
       ...prevTasks,
@@ -399,15 +491,15 @@ export function TaskDialog({
       console.log('currentSlides:', currentSlides);
 
       return (
-        <div className="border rounded p-4 space-y-4">
-          <h4 className="text-lg font-semibold">
+        <div className='border rounded p-4 space-y-4'>
+          <h4 className='text-lg font-semibold'>
             Carousel Content for {placeholder.name}
           </h4>
 
           {currentSlides.map((slide, index) => (
-            <div key={index} className="mb-4 p-2 border rounded">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
+            <div key={index} className='mb-4 p-2 border rounded'>
+              <div className='flex items-center justify-between mb-2'>
+                <label className='block text-sm font-medium text-gray-700'>
                   Slide {index + 1} ({slide.type})
                 </label>
               </div>
@@ -438,7 +530,7 @@ export function TaskDialog({
                     );
                   }}
                   placeholder={`Enter text for Slide ${index + 1}`}
-                  className="w-full"
+                  className='w-full'
                 />
               )}
 
@@ -468,7 +560,7 @@ export function TaskDialog({
                     );
                   }}
                   placeholder={`Enter image URL for Slide ${index + 1}`}
-                  className="w-full"
+                  className='w-full'
                 />
               )}
 
@@ -498,7 +590,7 @@ export function TaskDialog({
                     );
                   }}
                   placeholder={`Enter video URL for Slide ${index + 1}`}
-                  className="w-full"
+                  className='w-full'
                 />
               )}
             </div>
@@ -509,8 +601,8 @@ export function TaskDialog({
     // Existing input rendering logic for other placeholders
     if (placeholder.type === 'upload') {
       return (
-        <div className="space-y-2">
-          <div className="flex gap-2">
+        <div className='space-y-2'>
+          <div className='flex gap-2'>
             <Input
               id={`${task.id}-${placeholder.index}`}
               value={
@@ -520,7 +612,7 @@ export function TaskDialog({
                 handleInputChange(task.id, placeholder, e.target.value)
               }
               placeholder={`Enter file URL for ${placeholder.name}`}
-              className="flex-1"
+              className='flex-1'
             />
             <Select
               value={
@@ -531,14 +623,14 @@ export function TaskDialog({
                 value: 'image' | 'video' | 'document' | 'audio'
               ) => handleFileTypeChange(task.id, placeholder, value)}
             >
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="File Type" />
+              <SelectTrigger className='w-32'>
+                <SelectValue placeholder='File Type' />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="image">Image</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
-                <SelectItem value="document">Document</SelectItem>
-                <SelectItem value="audio">Audio</SelectItem>
+                <SelectItem value='image'>Image</SelectItem>
+                <SelectItem value='video'>Video</SelectItem>
+                <SelectItem value='document'>Document</SelectItem>
+                <SelectItem value='audio'>Audio</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -548,7 +640,7 @@ export function TaskDialog({
 
     // Default input rendering for other types
     return (
-      <div className="flex items-center space-x-4">
+      <div className='flex items-center space-x-4'>
         <Input
           id={`${task.id}-${placeholder.index}`}
           value={(task.values[placeholder.index] as TaskValue)?.content || ''}
@@ -572,31 +664,53 @@ export function TaskDialog({
     );
   };
   const handleGenerateAI = async (task: Task, placeholder: Placeholder) => {
-    const response = await generateAiResponse(
-      provider,
-      selectedModel,
-      systemPrompt,
-      projectId,
-      apiKey
-    );
-    handleInputChange(task.id, placeholder, response);
+    try {
+      const response = await generateAiResponse(
+        provider,
+        selectedModel,
+        systemPrompt,
+        projectId,
+        apiKey
+      );
+      handleInputChange(task.id, placeholder, response);
+      return response;
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate AI response',
+        variant: 'destructive',
+      });
+      throw error;
+    }
   };
 
   useEffect(() => {
-    // Ensure all necessary states and task/placeholder are present
     if (
       provider &&
       selectedModel &&
       systemPrompt &&
       apiKey &&
-      currentTask &&
-      currentPlaceholder &&
-      isGeneratingForAll == false
+      selectedPlaceholder &&
+      numberOfTasks &&
+      !isLoading &&
+      isGeneratingForAll
     ) {
-      handleGenerateAI(currentTask, currentPlaceholder);
+      setIsLoading(true);
+      handleGenerateAIForAllPlaceholders().finally(() => {
+        setIsLoading(false);
+        setIsGeneratingForAll(false);
+      });
     }
-  }, [provider, selectedModel, systemPrompt, apiKey]);
-
+  }, [
+    provider,
+    selectedModel,
+    systemPrompt,
+    apiKey,
+    selectedPlaceholder,
+    numberOfTasks,
+    isGeneratingForAll,
+  ]);
   const handleConfigureAi = async (
     provider: string,
     model: string,
@@ -790,20 +904,46 @@ export function TaskDialog({
     if (file) {
       Papa.parse(file, {
         complete: (results) => {
+          // Treat the first row as headers
           const headers = results.data[0] as string[];
 
+          // Prepare detailed debug information
+          const debugMessage = JSON.stringify(
+            {
+              headersLength: headers.length,
+              placeholdersLength: placeholders.length,
+              headers: headers,
+              placeholders: placeholders.map((p) => ({
+                name: p.name,
+                type: p.type,
+                index: p.index,
+              })),
+            },
+            null,
+            2
+          );
+
+          // Validate column count
           if (headers.length !== placeholders.length) {
+            const errorDetails = {
+              csvHeaders: headers,
+              templatePlaceholders: placeholders.map((p) => p.name),
+              csvHeaderCount: headers.length,
+              placeholderCount: placeholders.length,
+            };
+
             toast({
               title: 'CSV Error',
-              description:
-                'The number of columns in the CSV does not match the number of placeholders in the template.',
+              description: `Column Mismatch: CSV has ${headers.length} columns, but template expects ${placeholders.length} placeholders.\n\nCSV Headers: ${headers.join(', ')}\nTemplate Placeholders: ${placeholders.map((p) => p.name).join(', ')}`,
               variant: 'destructive',
+              duration: 10000, // Longer display time to read
             });
             return;
           }
 
+          // Create new tasks from CSV data
           const newTasks = (results.data as string[][])
-            .slice(1)
+            .slice(1) // Skip header row
             .map((row, index) => {
               return {
                 id: index + 1,
@@ -822,8 +962,12 @@ export function TaskDialog({
                 ),
               };
             });
+
+          // Update tasks state with new tasks from CSV
           setTasks(newTasks);
         },
+        header: false, // Treat first row as data, not automatic headers
+        skipEmptyLines: true, // Ignore empty lines
         error: (error) => {
           toast({
             title: 'CSV Parsing Error',
@@ -834,7 +978,6 @@ export function TaskDialog({
       });
     }
   };
-
   const generateFilledTemplates = async () => {
     try {
       const filledTasks: FilledTask[] = [];
@@ -904,6 +1047,82 @@ export function TaskDialog({
         title: 'Uh oh! Something went wrong.',
         description: error.message,
       });
+    }
+  };
+  // New helper function to create tasks
+  const proceedWithTaskCreation = async (tasksToCreate: Task[]) => {
+    try {
+      setIsLoading(true);
+      const filledTasks: FilledTask[] = [];
+      const repeatTasks: RepeatTask[] = [];
+
+      tasksToCreate.forEach((task) => {
+        const filled = renderFilledTemplate(task.values);
+
+        if (assignToAllAnnotators) {
+          repeatTasks.push({
+            project: project._id,
+            name: `${project.name} - ${template.name} - Task${task.id}`,
+            content: filled,
+            timer: template.timer,
+            annotator: null,
+            reviewer: '',
+            template: template._id,
+            type: 'test',
+          });
+        } else {
+          for (let i = 0; i < globalRepeat; i++) {
+            filledTasks.push({
+              project: project._id,
+              name: `${project.name} - ${template.name} - Task${task.id}.${i + 1}`,
+              content: filled,
+              timer: template.timer,
+              reviewer: '',
+              type: template.type,
+              template: template._id,
+            });
+          }
+        }
+      });
+
+      // Create the tasks
+      const response = (await createTasks(
+        filledTasks
+      )) as unknown as CreateTasksResponse;
+
+      if (assignToAllAnnotators) {
+        const createRepeatResponse = await createRepeatTask(repeatTasks);
+        const repeatTaskCount = createRepeatResponse.createdTasks;
+
+        if (!createRepeatResponse.success) {
+          throw new Error('Failed to save repeat tasks');
+        }
+
+        toast({
+          title: 'Tasks created successfully',
+          description: `Created ${repeatTaskCount} tasks and ${repeatTasks.length} repeat tasks successfully`,
+        });
+      } else {
+        toast({
+          title: 'Tasks created successfully',
+          description: `Created ${filledTasks.length} tasks successfully`,
+        });
+      }
+
+      // Reset state
+      setTasks([{ id: 1, values: {} }]);
+      setGlobalRepeat(1);
+      setAssignToAllAnnotators(false);
+      setIsDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error creating tasks:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error creating tasks',
+        description: error.message,
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1062,39 +1281,39 @@ export function TaskDialog({
       />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[425px] md:max-w-fit">
-          <DialogHeader className="flex flex-col gap-4">
-            <div className="flex flex-row items-center justify-between pr-8">
-              <DialogTitle className="flex-1">Ingest Data</DialogTitle>
-              <div className="flex items-center gap-2 ml-4">
+        <DialogContent className='sm:max-w-[425px] md:max-w-fit'>
+          <DialogHeader className='flex flex-col gap-4'>
+            <div className='flex flex-row items-center justify-between pr-8'>
+              <DialogTitle className='flex-1'>Ingest Data</DialogTitle>
+              <div className='flex items-center gap-2 ml-4'>
                 <label
-                  htmlFor="global-repeat"
-                  className="text-sm font-medium text-gray-700"
+                  htmlFor='global-repeat'
+                  className='text-sm font-medium text-gray-700'
                 >
                   Repeat Each Task:
                 </label>
                 <Input
-                  id="global-repeat"
-                  type="number"
-                  min="1"
+                  id='global-repeat'
+                  type='number'
+                  min='1'
                   value={globalRepeat}
                   onChange={(e) =>
                     handleGlobalRepeatChange(parseInt(e.target.value, 10))
                   }
-                  className="w-20"
+                  className='w-20'
                   disabled={assignToAllAnnotators}
                 />
               </div>
             </div>
-            <div className="flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <div className='flex justify-between items-center space-x-6 p-4 bg-gray-50 rounded-lg shadow-sm'>
               {/* Left section - Switch for annotator assignment */}
-              <div className="flex items-center space-x-3">
+              <div className='flex items-center space-x-3'>
                 <Switch
                   checked={assignToAllAnnotators}
                   onCheckedChange={handleAnnotatorAssignmentToggle}
-                  className="transition duration-200 ease-in-out"
+                  className='transition duration-200 ease-in-out'
                 />
-                <label className="text-sm font-medium text-gray-700">
+                <label className='text-sm font-medium text-gray-700'>
                   Assign to all annotators ({annotators.length} annotators)
                 </label>
               </div>
@@ -1102,26 +1321,26 @@ export function TaskDialog({
               {/* Right section - AI model selector and settings icon */}
             </div>
           </DialogHeader>
-          <div className="max-h-[60vh] overflow-y-auto">
+          <div className='max-h-[60vh] overflow-y-auto'>
             {tasks.map((task) => (
-              <div key={task.id} className="mb-4 p-2 border rounded">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-semibold">Task {task.id}</h3>
-                  <div className="flex items-center space-x-2">
+              <div key={task.id} className='mb-4 p-2 border rounded'>
+                <div className='flex justify-between items-center mb-2'>
+                  <h3 className='text-lg font-semibold'>Task {task.id}</h3>
+                  <div className='flex items-center space-x-2'>
                     <Button
-                      variant="ghost"
-                      size="icon"
+                      variant='ghost'
+                      size='icon'
                       onClick={() => handleRemoveTask(task.id)}
                     >
-                      <Minus className="h-4 w-4" />
+                      <Minus className='h-4 w-4' />
                     </Button>
                   </div>
                 </div>
                 {placeholders.map((placeholder) => (
-                  <div key={placeholder.index} className="mb-2">
+                  <div key={placeholder.index} className='mb-2'>
                     <label
                       htmlFor={`${task.id}-${placeholder.index}`}
-                      className="block text-sm font-medium text-gray-700"
+                      className='block text-sm font-medium text-gray-700'
                     >
                       {placeholder.name} ({placeholder.type})
                     </label>
@@ -1131,12 +1350,138 @@ export function TaskDialog({
               </div>
             ))}
           </div>
-          <DialogFooter className="flex w-full">
-            <Button onClick={handleAddTask} className="mr-auto">
-              <Plus className="mr-2 h-4 w-4" /> Add More Task
+          <DialogFooter className='flex w-full'>
+            <Button onClick={handleAddTask} className='mr-auto'>
+              <Plus className='mr-2 h-4 w-4' /> Add More Task
             </Button>
-            <div className="flex gap-2">
-              <Button onClick={() => fileInputRef.current?.click()}>
+            <div className='flex gap-2'>
+              <CloudStorageFileBrowser
+                connections={connections}
+                onSelectFiles={async (fileUrls: string[]) => {
+                  if (fileUrls && fileUrls.length > 0) {
+                    const fileUrl = fileUrls[0];
+                    console.log('Selected file URL:', fileUrl);
+                    setIsLoading(true);
+
+                    try {
+               
+                      // Fetch the CSV content
+                      const response = await fetch(fileUrl, {
+                        headers: {
+                          Accept: 'text/csv,text/plain,*/*',
+                        },
+                      });
+
+                      console.log(
+                        'Response status:',
+                        response.status,
+                        response.statusText
+                      );
+
+                      if (!response.ok) {
+                        let errorMessage = `Failed to fetch CSV: ${response.status} ${response.statusText}`;
+                        try {
+                          const errorData = await response.json();
+                          if (errorData.error) {
+                            errorMessage = errorData.error;
+                            if (errorData.details) {
+                              errorMessage += `: ${errorData.details}`;
+                            }
+                          }
+                        } catch (e) {
+                          // If we can't parse the error as JSON, use the default message
+                        }
+                        throw new Error(errorMessage);
+                      }
+
+                      const csvText = await response.text();
+                      console.log('CSV content length:', csvText.length);
+
+                      if (!csvText || csvText.trim() === '') {
+                        throw new Error('Downloaded CSV file is empty');
+                      }
+
+                      // Parse the CSV content with Papa Parse
+                      Papa.parse(csvText, {
+                        complete: (results) => {
+                          // Process the parsed CSV data
+                          if (!results.data || results.data.length === 0) {
+                            throw new Error('No data found in CSV file');
+                          }
+
+                          // Create tasks from CSV data
+                          const dataRows =
+                            results.data.length > 1
+                              ? (results.data.slice(1) as string[][])
+                              : (results.data as string[][]);
+
+                          const newTasks = dataRows
+                            .filter(
+                              (row) =>
+                                Array.isArray(row) &&
+                                row.some(
+                                  (cell) => cell && String(cell).trim() !== ''
+                                )
+                            )
+                            .map((row, index) => ({
+                              id: index + 1,
+                              values: Object.fromEntries(
+                                placeholders.map((placeholder, i) => [
+                                  placeholder.index,
+                                  {
+                                    content:
+                                      i < row.length
+                                        ? String(row[i] || '')
+                                        : '',
+                                    fileType: 'document' as
+                                      | 'image'
+                                      | 'video'
+                                      | 'document'
+                                      | 'audio',
+                                  },
+                                ])
+                              ),
+                            }));
+
+                          // Update UI
+                          setTasks(newTasks);
+                          setIsLoading(false);
+
+                          toast({
+                            title: 'CSV Loaded',
+                            description: `Loaded ${newTasks.length} entries from CSV`,
+                            duration: 3000,
+                          });
+                        },
+                        error: (error: any) => {
+                          console.error('CSV parsing error:', error);
+                          setIsLoading(false);
+                          toast({
+                            title: 'CSV Parsing Error',
+                            description: error.message,
+                            variant: 'destructive',
+                          });
+                        },
+                        header: false,
+                        skipEmptyLines: true,
+                        delimitersToGuess: [',', '\t', '|', ';'],
+                      });
+                    } catch (error: unknown) {
+                      console.error('Error processing file:', error);
+                      setIsLoading(false);
+                      toast({
+                        title: 'Error',
+                        description:
+                          error instanceof Error
+                            ? error.message
+                            : 'Failed to process file',
+                        variant: 'destructive',
+                      });
+                    }
+                  }
+                }}
+              />
+             <Button onClick={() => fileInputRef.current?.click()}>
                 <Upload className="mr-2 h-4 w-4" /> Upload CSV
               </Button>
               <input

@@ -516,7 +516,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname === "/",
           icon: Folder,
         },
-
+    
         // Only include Guidelines if we have a valid projectId
         ...(projectId &&
           !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ?
@@ -524,6 +524,14 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             href: `/projects/guidelines/${projectId}`,
             label: "Guidelines",
             active: pathname.includes(`/projects/guidelines/${projectId}`),
+            icon: FileText,
+            visibleTo: ["project manager" as UserRole],
+          },
+          // Add the new data route here
+          {
+            href: `/data`,
+            label: "Data",
+            active: pathname.includes(`/data/`),
             icon: FileText,
             visibleTo: ["project manager" as UserRole],
           }] : []),
@@ -540,8 +548,10 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             !pathname.includes("/leaderboard") &&
             !pathname.includes("/job-list") &&
             !pathname.includes("/job-applications") &&
-            !pathname.includes("/guidelines"),
-          icon: TemplateIcon,
+            !pathname.includes("/guidelines") &&
+            !pathname.includes("/data"),
+          icon: SquarePen,
+
         },
         {
           href: `/projects/task/${projectId}`,
@@ -556,7 +566,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: List,
         },
       ],
-    },
+    }
   ];
 
   // Always include project-specific groups for project managers when a valid project ID is present
