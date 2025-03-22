@@ -1,20 +1,8 @@
 import { connectToDatabase } from '@/lib/db';
 import { Invitation } from '@/models/Invitation';
 import { NextRequest, NextResponse } from 'next/server';
-import nodemailer from 'nodemailer';
 import crypto from 'crypto';
-import { getAdminNotificationTemplate, getRequesterConfirmationTemplate } from '../../template/recent/emailTemplates';
-
-// Configure nodemailer
-const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-    },
-});
+import { getAdminNotificationTemplate, getRequesterConfirmationTemplate, sendEmail } from '@/lib/email';
 
 // Generate a random invitation code
 function generateInvitationCode(): string {
@@ -62,8 +50,7 @@ export async function POST(req: NextRequest) {
         // Send admin notification with the code
         if (process.env.ADMIN_EMAIL) {
             try {
-                await transporter.sendMail({
-                    from: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
+                await sendEmail({
                     to: process.env.ADMIN_EMAIL,
                     subject: 'New Project Manager Access Request',
                     html: getAdminNotificationTemplate({
@@ -81,8 +68,7 @@ export async function POST(req: NextRequest) {
 
         // Send confirmation email to requester
         try {
-            await transporter.sendMail({
-                from: process.env.FROM_EMAIL || 'noreply@yourdomain.com',
+            await sendEmail({
                 to: email,
                 subject: 'Project Manager Access Request Received',
                 html: getRequesterConfirmationTemplate({})

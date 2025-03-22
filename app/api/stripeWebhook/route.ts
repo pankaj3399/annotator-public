@@ -3,21 +3,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { enrollCourse } from "@/app/actions/course";
 import { headers } from "next/headers";
 import { updatePaymentStatus } from "@/app/actions/product";
-import nodemailer from "nodemailer";
-import { getAdminPaymentNotificationTemplate } from "../template/recent/emailTemplates";
+import { getAdminPaymentNotificationTemplate, sendEmail } from "@/lib/email";
 
-// Configure nodemailer
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD,
-  },
+// Initialize Stripe with proper typing for the secret key
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2024-12-18.acacia",
 });
 
-const sendEmail = async ({
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+const sendPaymentNotification = async ({
   paymentIntentId,
   date = new Date(),
   amount,
@@ -30,9 +25,8 @@ const sendEmail = async ({
   productName: string;
   projectManager: string;
 }) => {
-  await transporter.sendMail({
-    from: process.env.FROM_EMAIL || "noreply@yourdomain.com",
-    to: process.env.ADMIN_EMAIL,
+  return sendEmail({
+    to: process.env.ADMIN_EMAIL || '',
     subject: "New Payment Received",
     html: getAdminPaymentNotificationTemplate({
       paymentIntentId,
@@ -43,13 +37,6 @@ const sendEmail = async ({
     }),
   });
 };
-
-// Initialize Stripe with proper typing for the secret key
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
-});
-
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 console.log(endpointSecret);
 export async function POST(req: NextRequest) {
@@ -117,7 +104,6 @@ export async function POST(req: NextRequest) {
               console.log("Course Enrollment status:", status);
               return NextResponse.json({ received: true, status });
             }
-            // Add future handling for product type here
             else if (type === "product") {
               const status = await updatePaymentStatus(
                 successSession.metadata?.wishlistId as string,
@@ -132,7 +118,7 @@ export async function POST(req: NextRequest) {
 
               // Send email notification to admin
               try {
-                await sendEmail({
+                await sendPaymentNotification({
                   paymentIntentId: payment_intent,
                   date: new Date(),
                   amount: (price ?? 0) / 100,
@@ -160,7 +146,9 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
-      // ... other event handlers
+      default:
+        // Handle other event types if needed
+        break;
     }
 
     return NextResponse.json({ received: true });
@@ -172,4 +160,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

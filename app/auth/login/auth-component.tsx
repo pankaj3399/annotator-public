@@ -144,6 +144,11 @@ export default function AuthComponent() {
             Don&apos;t have an account? Sign Up
           </button>
         </div>
+        <div className="mt-4 text-center">
+  <button className="text-sm text-gray-600 hover:underline" onClick={() => router.push("/auth/forgot-password")}>
+    Forgot your password?
+  </button>
+</div>
       </div>
     </div>
   )
