@@ -2,9 +2,9 @@
 import { NextResponse } from "next/server";
 import { User } from "@/models/User";
 import { ResetToken } from "@/models/ResetToken";
-import nodemailer from "nodemailer";
 import crypto from "crypto";
 import mongoose from "mongoose";
+import { sendEmail, getPasswordResetEmailTemplate } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -32,29 +32,11 @@ export async function POST(request: Request) {
     // Create reset link
     const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
     
-    // Send email using your existing SMTP settings
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
-    
-    await transporter.sendMail({
-      from: `"Your App" <${process.env.FROM_EMAIL}>`,
+    // Send email using our utility
+    await sendEmail({
       to: email,
       subject: "Password Reset Request",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>Password Reset</h2>
-          <p>Click the link below to reset your password:</p>
-          <a href="${resetLink}" style="display: inline-block; padding: 10px 20px; background: #4F46E5; color: white; text-decoration: none; border-radius: 4px;">Reset Password</a>
-          <p>This link will expire in 1 hour.</p>
-        </div>
-      `,
+      html: getPasswordResetEmailTemplate(resetLink)
     });
 
     return NextResponse.json({ message: "If your email exists, you'll receive a reset link" });
@@ -63,3 +45,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+
+
+

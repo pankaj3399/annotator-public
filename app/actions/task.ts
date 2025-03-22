@@ -15,6 +15,7 @@ import { AIJob } from "@/models/aiModel";
 import { Project } from "@/models/Project";
 import AnnotatorHistory from "@/models/points";
 import { RepeatTask } from "@/components/taskDialog";
+import { sendEmail } from "@/lib/email";
 
 
 export async function getTestTemplateTasks() {
@@ -801,29 +802,22 @@ export async function sendNotificationEmail(taskId: string, action: string) {
     );
 
     if (triggerTemplate) {
-      // Send an email using Nodemailer
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASSWORD,
-        },
-      });
-
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
+      // Send email using our email utility
+      const emailResult = await sendEmail({
         to: annotator.email,
         subject: `Task ${action} Notification`,
-        html: triggerTemplate.triggerBody, // Use the trigger body as the email content
-      };
+        html: triggerTemplate.triggerBody
+      });
 
-      await transporter.sendMail(mailOptions);
-
-      console.log(`Notification email sent to ${annotator.email} for task ${action}`);
+      if (emailResult.success) {
+        console.log(`Notification email sent to ${annotator.email} for task ${action}`);
+        return { success: true, messageId: emailResult.messageId };
+      } else {
+        throw new Error(`Failed to send email: ${JSON.stringify(emailResult.error)}`);
+      }
     } else {
       console.warn(`No active template found for the ${action} trigger.`);
+      return { success: false, reason: 'No active template found' };
     }
   } catch (error) {
     if (error instanceof Error) {
@@ -861,35 +855,30 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
       throw new Error("No users found with the provided IDs.");
     }
 
-    // Create a transport using Nodemailer
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
-
-    // Send the email to each user
-    for (const user of users) {
-      if (user.email) {
-        const mailOptions = {
-          from: process.env.EMAIL_USER,
+    // Send emails to each user
+    const results = await Promise.all(
+      users.map(async (user) => {
+        if (!user.email) {
+          console.warn(`No email found for user ${user._id}`);
+          return { userId: user._id, success: false, reason: 'No email address' };
+        }
+        
+        const emailResult = await sendEmail({
           to: user.email,
-          subject: `Custom Email`,
-          html: triggerTemplate.triggerBody, // Use the trigger body as the email content
+          subject: 'Custom Email',
+          html: triggerTemplate.triggerBody
+        });
+        
+        return { 
+          userId: user._id, 
+          success: emailResult.success,
+          messageId: emailResult.messageId
         };
+      })
+    );
 
-        await transporter.sendMail(mailOptions);
-        console.log(`Notification email sent to ${user.email}`);
-      } else {
-        console.warn(`No email found for user ${user._id}`);
-      }
-    }
-
-    console.log(`Notification emails sent successfully to all users`);
+    console.log(`Notification emails sent successfully to ${results.filter(r => r.success).length} out of ${users.length} users`);
+    return { success: true, results };
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error in sending notification email: ${error.message}`);

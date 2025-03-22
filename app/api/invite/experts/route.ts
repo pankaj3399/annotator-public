@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import nodemailer from 'nodemailer';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { InvitedUsers } from '@/models/InvitedUsers';
 import { Team } from '@/models/Team';
+import { sendEmail, getInvitationEmailTemplate } from '@/lib/email';
 
 export async function POST(req: Request) {
   console.log('=== INVITE EXPERTS API CALLED ===');
@@ -58,29 +58,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: 'No valid email addresses provided' },
         { status: 400 }
-      );
-    }
-
-    // Create email transporter
-    let transporter;
-    try {
-      transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: parseInt(process.env.SMTP_PORT || '587'),
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASSWORD,
-        },
-      });
-      
-      // Verify transporter
-      await transporter.verify();
-    } catch (transporterError) {
-      console.error('Transporter error:', transporterError);
-      return NextResponse.json(
-        { error: 'Failed to set up email transport', details: (transporterError as Error).message },
-        { status: 500 }
       );
     }
 
@@ -150,43 +127,22 @@ export async function POST(req: Request) {
           await invitation.save();
           console.log(`[${index}] Invitation saved with ID: ${invitation._id.toString()}`);
 
-          // Use the teamInfo in the email
           console.log(`[${index}] Sending email...`);
-          const mailOptions = {
-            from: process.env.FROM_EMAIL,
+          
+          // Using our email utility
+          const emailResult = await sendEmail({
             to: email,
             subject: 'Join BloLabel as a Domain Expert',
-            html: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #333;">You've Been Invited!</h2>
-                <p>Hi there,</p>
-                <p><strong>${agencyOwnerName}</strong> has invited you to join BloLabel and help grow the AI ecosystem as a domain expert.</p>
-                <p>BloLabel connects domain experts like you with AI innovators who need your expertise for data labeling and other projects.</p>
-                ${teamInfo}
-                <div style="margin: 25px 0;">
-                  <a href="${signupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join BloLabel Now</a>
-                </div>
-                <p>As a domain expert, you'll be able to:</p>
-                <ul>
-                  <li>Work on meaningful AI projects</li>
-                  <li>Set your own schedule</li>
-                  <li>Get paid for your expertise</li>
-                  <li>Be part of building the future of AI</li>
-                </ul>
-                <p>If you have any questions, feel free to reply to this email.</p>
-                <p>Best regards,<br>The BloLabel Team</p>
-              </div>
-            `,
-          };
-          
-          const info = await transporter.sendMail(mailOptions);
-          console.log(`[${index}] Email sent successfully:`, JSON.stringify(info, null, 2));
+            html: getInvitationEmailTemplate(signupUrl, teamInfo, agencyOwnerName)
+          });
+          console.log(`[${index}] Email HTML type:`, typeof getInvitationEmailTemplate(signupUrl, teamInfo, agencyOwnerName));
+          console.log(`[${index}] Email sent successfully:`, emailResult);
 
           return { 
             email, 
             status: 'sent', 
             invitationId: invitation._id.toString(),
-            messageId: info.messageId
+            messageId: emailResult.success ? emailResult.messageId : undefined
           };
         } catch (emailError) {
           console.error(`[${index}] Error processing email ${email}:`, emailError);

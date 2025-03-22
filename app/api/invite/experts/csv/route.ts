@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import nodemailer from 'nodemailer';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { InvitedUsers } from '@/models/InvitedUsers';
 import { Team } from '@/models/Team';
 import Papa from 'papaparse';
+import { sendEmail, getInvitationEmailTemplate } from '@/lib/email';
 
 // Define helper function to read and process the uploaded file
 async function readCSVFile(file: File): Promise<string[]> {
@@ -108,17 +108,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create email transporter
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASSWORD,
-      },
-    });
-
     // Arrays to track different user types
     const existingUsersArray: string[] = [];
     const alreadyInvitedUsersArray: string[] = [];
@@ -155,35 +144,19 @@ export async function POST(req: Request) {
         
         await invitation.save();
 
-        // Send invitation email
-        await transporter.sendMail({
-          from: process.env.FROM_EMAIL,
+        // Send invitation email using our utility
+        const emailResult = await sendEmail({
           to: email,
           subject: 'Join BloLabel as a Domain Expert',
-          html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #333;">You've Been Invited!</h2>
-              <p>Hi there,</p>
-              <p><strong>${agencyOwnerName}</strong> has invited you to join BloLabel and help grow the AI ecosystem as a domain expert.</p>
-              <p>BloLabel connects domain experts like you with AI innovators who need your expertise for data labeling and other projects.</p>
-              ${teamInfo}
-              <div style="margin: 25px 0;">
-                <a href="${signupUrl}" style="background-color: #4F46E5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">Join BloLabel Now</a>
-              </div>
-              <p>As a domain expert, you'll be able to:</p>
-              <ul>
-                <li>Work on meaningful AI projects</li>
-                <li>Set your own schedule</li>
-                <li>Get paid for your expertise</li>
-                <li>Be part of building the future of AI</li>
-              </ul>
-              <p>If you have any questions, feel free to reply to this email.</p>
-              <p>Best regards,<br>The BloLabel Team</p>
-            </div>
-          `,
+          html: getInvitationEmailTemplate(signupUrl, teamInfo, agencyOwnerName)
         });
 
-        return { email, status: 'sent', invitationId: invitation._id.toString() };
+        return { 
+          email, 
+          status: 'sent', 
+          invitationId: invitation._id.toString(),
+          emailSent: emailResult.success
+        };
       })
     );
 
