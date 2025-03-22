@@ -1,18 +1,16 @@
-// app/api/auth/reset-password/route.ts
 import { NextResponse } from "next/server";
 import { User } from "@/models/User";
 import { ResetToken } from "@/models/ResetToken";
-import mongoose from "mongoose";
 // Import the same password hashing function used in login
 import saltAndHashPassword from "@/utils/password";
+import { connectToDatabase } from "@/lib/db";
 
 export async function POST(request: Request) {
   try {
     const { token, email, password } = await request.json();
-    
-    if (!mongoose.connection.readyState) {
-      await mongoose.connect(process.env.MONGODB_URI!);
-    }
+
+    // Use the connection utility instead of manual connection
+    await connectToDatabase();
 
     // Verify token
     const resetToken = await ResetToken.findOne({
@@ -34,11 +32,11 @@ export async function POST(request: Request) {
 
     // Hash password - using the SAME hashing method as in auth.ts
     const hashedPassword = saltAndHashPassword(password);
-    
+
     // Update user's password
     user.password = hashedPassword;
     await user.save();
-    
+
     // Mark token as used
     resetToken.used = true;
     await resetToken.save();
