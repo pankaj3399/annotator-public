@@ -1,70 +1,212 @@
 // app/api/transcribe/route.ts
 
+import { createChunksAndGetUrls } from '@/utils/audioChunker';
 import { NextRequest, NextResponse } from 'next/server';
+
+// Maximum size for individual chunks (10MB is a typical limit for many APIs)
+const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+
+// Seconds of overlap between chunks to ensure continuous transcription
+const CHUNK_OVERLAP_SECONDS = 3;
 
 export async function POST(req: NextRequest) {
   try {
-    const { audioUrl, model, apiKey, language } = await req.json();
+    const { audioUrl, model, apiKey, language, enableChunking = false } = await req.json();
 
     if (!audioUrl || !model) {
-        return NextResponse.json(
-          { error: 'Missing required parameters' },
-          { status: 400 }
-        );
-      }
+      return NextResponse.json(
+        { error: 'Missing required parameters' },
+        { status: 400 }
+      );
+    }
   
-      // Only require API key for non-local models
-      if (!apiKey && model !== 'whisper-large-v3-local') {
-        return NextResponse.json(
-          { error: 'API key is required for cloud transcription services' },
-          { status: 400 }
-        );
+    // Only require API key for non-local models
+    if (!apiKey && model !== 'whisper-large-v3-local') {
+      return NextResponse.json(
+        { error: 'API key is required for cloud transcription services' },
+        { status: 400 }
+      );
     }
 
-    let transcriptionResponse;
-
-    // Different API implementations based on the selected model
-    switch (model) {
-      case 'azure-ai-speech':
-        transcriptionResponse = await transcribeWithAzure(audioUrl, apiKey, language);
-        break;
-      case 'deepgram-nova-2':
-        transcriptionResponse = await transcribeWithDeepgram(audioUrl, apiKey, language);
-        break;
-      case 'openai-whisper-large-v2':
-        transcriptionResponse = await transcribeWithOpenAI(audioUrl, apiKey, language);
-        break;
-      case 'groq-whisper-large-v3':
-      case 'groq-whisper-large-v3-turbo':
-      case 'groq-distil-whisper':
-        transcriptionResponse = await transcribeWithGroq(audioUrl, apiKey, model, language);
-        break;
-    //   case 'whisper-large-v3-local':
-    //     transcriptionResponse = await transcribeWithLocalWhisper(audioUrl, language);
-    //     break;
-      case 'speechmatics':
-        transcriptionResponse = await transcribeWithSpeechmatics(audioUrl, apiKey, language);
-        break;
-      case 'gladia':
-        transcriptionResponse = await transcribeWithGladia(audioUrl, apiKey, language);
-        break;
-      default:
-        return NextResponse.json(
-          { error: 'Unsupported transcription model' },
-          { status: 400 }
+    // Pre-fetch the audio to check size and determine if chunking is needed
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: `Failed to fetch audio: ${response.statusText}` },
+        { status: 500 }
+      );
+    }
+    
+    const audioBlob = await response.blob();
+    console.log(`Audio file fetched successfully: ${audioBlob.size} bytes`);
+    
+    // Determine if we need to chunk the audio
+    // - If enableChunking is true, and the file is larger than MAX_CHUNK_SIZE
+    const shouldChunk = enableChunking && audioBlob.size > MAX_CHUNK_SIZE;
+    
+    let transcriptionResult = "";
+    
+    if (shouldChunk) {
+      console.log(`Audio file size (${audioBlob.size} bytes) exceeds threshold. Chunking enabled.`);
+      
+      // Create temporary URLs for chunks
+      const chunkUrls = await createChunksAndGetUrls(audioBlob, MAX_CHUNK_SIZE, CHUNK_OVERLAP_SECONDS);
+      
+      console.log(`Audio chunked into ${chunkUrls.length} parts`);
+      
+      // Process each chunk URL and collect results
+      const chunkResults = [];
+      
+      for (let i = 0; i < chunkUrls.length; i++) {
+        console.log(`Processing chunk ${i+1}/${chunkUrls.length}`);
+        
+        // Use existing transcription functions with the chunk URL
+        const chunkTranscription = await transcribeChunk(
+          chunkUrls[i], 
+          model, 
+          apiKey, 
+          language
         );
+        
+        chunkResults.push(chunkTranscription);
+        
+        console.log(`Transcription for chunk ${i+1} completed`);
+      }
+      
+      // Combine results
+      transcriptionResult = combineTranscriptions(chunkResults);
+    } else {
+      // Process the entire audio file as a single piece
+      console.log(`Processing audio file as a single chunk (${audioBlob.size} bytes)`);
+      
+      // Use existing transcription functions
+      let transcriptionResponse;
+
+      // Different API implementations based on the selected model
+      switch (model) {
+        case 'azure-ai-speech':
+          transcriptionResponse = await transcribeWithAzure(audioUrl, apiKey, language);
+          break;
+        case 'deepgram-nova-2':
+          transcriptionResponse = await transcribeWithDeepgram(audioUrl, apiKey, language);
+          break;
+        case 'openai-whisper-large-v2':
+          transcriptionResponse = await transcribeWithOpenAI(audioUrl, apiKey, language);
+          break;
+        case 'groq-whisper-large-v3':
+        case 'groq-whisper-large-v3-turbo':
+        case 'groq-distil-whisper':
+          transcriptionResponse = await transcribeWithGroq(audioUrl, apiKey, model, language);
+          break;
+        // Remove or uncomment the local whisper case
+        // case 'whisper-large-v3-local':
+        //   transcriptionResponse = await transcribeWithLocalWhisper(audioUrl, language);
+        //   break;
+        case 'speechmatics':
+          transcriptionResponse = await transcribeWithSpeechmatics(audioUrl, apiKey, language);
+          break;
+        case 'gladia':
+          transcriptionResponse = await transcribeWithGladia(audioUrl, apiKey, language);
+          break;
+        default:
+          return NextResponse.json(
+            { error: 'Unsupported transcription model' },
+            { status: 400 }
+          );
+      }
+      
+      transcriptionResult = transcriptionResponse;
     }
 
-    return NextResponse.json({ transcription: transcriptionResponse });
-  } catch (error) {
+    return NextResponse.json({ transcription: transcriptionResult });
+  } catch (error: unknown) {
     console.error('Transcription error:', error);
     return NextResponse.json(
-      { error: 'Failed to transcribe audio' },
+      { error: 'Failed to transcribe audio: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }
 }
 
+// Helper function to intelligently combine transcriptions
+// This could be enhanced with more sophisticated text processing
+function combineTranscriptions(transcriptions: string[]): string {
+  if (transcriptions.length === 0) return "";
+  if (transcriptions.length === 1) return transcriptions[0];
+  
+  // Basic approach: join with spaces
+  return transcriptions.map(text => text.trim()).join(' ');
+  
+  // More advanced approach (commented out for now):
+  // This would remove duplicate sentences at chunk boundaries
+  /*
+  let combined = transcriptions[0];
+  
+  for (let i = 1; i < transcriptions.length; i++) {
+    const current = transcriptions[i];
+    
+    // Find potential overlapping text (sentences, phrases)
+    // This is a simplified approach - a real implementation would be more sophisticated
+    const sentences = combined.match(/[^.!?]+[.!?]+/g) || [];
+    
+    if (sentences.length >= 2) {
+      const lastTwoSentences = sentences.slice(-2).join(' ');
+      if (current.startsWith(lastTwoSentences)) {
+        combined += current.substring(lastTwoSentences.length);
+      } else {
+        combined += ' ' + current;
+      }
+    } else {
+      combined += ' ' + current;
+    }
+  }
+  
+  return combined;
+  */
+}
+
+// Helper function that uses the existing switch case logic
+async function transcribeChunk(chunkUrl: string, model: string, apiKey: string, language = 'en'): Promise<string> {
+  // Use the existing switch case logic
+  let transcriptionResponse;
+
+  // Different API implementations based on the selected model
+  switch (model) {
+    case 'azure-ai-speech':
+      transcriptionResponse = await transcribeWithAzure(chunkUrl, apiKey, language);
+      break;
+    case 'deepgram-nova-2':
+      transcriptionResponse = await transcribeWithDeepgram(chunkUrl, apiKey, language);
+      break;
+    case 'openai-whisper-large-v2':
+      transcriptionResponse = await transcribeWithOpenAI(chunkUrl, apiKey, language);
+      break;
+    case 'groq-whisper-large-v3':
+    case 'groq-whisper-large-v3-turbo':
+    case 'groq-distil-whisper':
+      transcriptionResponse = await transcribeWithGroq(chunkUrl, apiKey, model, language);
+      break;
+    // Remove or uncomment the local whisper case
+    // case 'whisper-large-v3-local':
+    //   transcriptionResponse = await transcribeWithLocalWhisper(chunkUrl, language);
+    //   break;
+    case 'speechmatics':
+      transcriptionResponse = await transcribeWithSpeechmatics(chunkUrl, apiKey, language);
+      break;
+    case 'gladia':
+      transcriptionResponse = await transcribeWithGladia(chunkUrl, apiKey, language);
+      break;
+    default:
+      throw new Error('Unsupported transcription model');
+  }
+
+  return transcriptionResponse;
+}
+
+// Keep all your existing transcription functions below this point
+// The code for transcribeWithAzure, transcribeWithDeepgram, etc. remains unchanged
+
+// Commented out since you don't seem to have this implementation ready yet
 // async function transcribeWithLocalWhisper(audioUrl: string, language = 'en') {
 //     console.log(`Starting Local Whisper transcription for: ${audioUrl} with language: ${language}`);
 //     try {
@@ -248,103 +390,106 @@ export async function POST(req: NextRequest) {
       }
       
       return transcription;
-    } catch (error) {
-      console.error(`Speechmatics transcription failed: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`Speechmatics transcription failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
 
   async function transcribeWithGladia(audioUrl: string, apiKey: string, language = 'en') {
-    // Fetch the audio file
-    const response = await fetch(audioUrl);
-    const audioBlob = await response.blob();
-    
-    // Create form data for the API request
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.wav');
-    formData.append('language', language);
-    
-    // Prepare request options including language setting
-    const options = {
-      method: 'POST',
-      headers: {
-        'x-gladia-key': apiKey,
-        'Accept': 'application/json'
-      },
-      body: formData
-    };
-    
-    // Make API request to Gladia
-    const gladiaResponse = await fetch('https://api.gladia.io/audio/text/audio-transcription/', options);
-    
-    if (!gladiaResponse.ok) {
-      throw new Error(`Gladia API error: ${gladiaResponse.statusText}`);
-    }
-    
-    const data = await gladiaResponse.json();
-    
-    // Extract transcriptions from all segments in prediction array
-    if (Array.isArray(data.prediction) && data.prediction.length > 0) {
-      // Join all transcription segments with a space
-      return data.prediction
-        .map(segment => segment.transcription)
-        .join(' ')
-        .trim();
-    } else {
-      throw new Error('No transcription found in Gladia API response');
+    try {
+      // Fetch the audio file
+      const response = await fetch(audioUrl);
+      const audioBlob = await response.blob();
+      
+      // Create form data for the API request
+      const formData = new FormData();
+      formData.append('audio', audioBlob, 'audio.wav');
+      formData.append('language', language);
+      
+      // Prepare request options including language setting
+      const options = {
+        method: 'POST',
+        headers: {
+          'x-gladia-key': apiKey,
+          'Accept': 'application/json'
+        },
+        body: formData
+      };
+      
+      // Make API request to Gladia
+      const gladiaResponse = await fetch('https://api.gladia.io/audio/text/audio-transcription/', options);
+      
+      if (!gladiaResponse.ok) {
+        throw new Error(`Gladia API error: ${gladiaResponse.statusText}`);
+      }
+      
+      const data = await gladiaResponse.json();
+      
+      // Extract transcriptions from all segments in prediction array
+      if (Array.isArray(data.prediction) && data.prediction.length > 0) {
+        // Join all transcription segments with a space
+        return data.prediction
+          .map((segment: { transcription: string }) => segment.transcription)
+          .join(' ')
+          .trim();
+      } else {
+        throw new Error('No transcription found in Gladia API response');
+      }
+    } catch (error: unknown) {
+      console.error(`Gladia transcription failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
   }
 
-    // Example implementation for OpenAI Whisper with enhanced logging
-    async function transcribeWithOpenAI(audioUrl: string, apiKey: string, language = 'en') {
-        console.log(`Starting OpenAI Whisper transcription for: ${audioUrl} with language: ${language}`);
-        try {
-          // Fetch the audio file
-          const response = await fetch(audioUrl);
-          if (!response.ok) {
-            const errorMsg = `Failed to fetch audio file from ${audioUrl}: ${response.status} ${response.statusText}`;
-            console.error(errorMsg);
-            throw new Error(errorMsg);
-          }
-          
-          const audioBlob = await response.blob();
-          console.log(`Audio file fetched successfully: ${audioBlob.size} bytes`);
-          
-          // Create form data for the API request
-          const formData = new FormData();
-          formData.append('file', audioBlob, 'audio.mp3');
-          formData.append('model', 'whisper-1');
-          formData.append('language', language);
-          
-          // Make the API request to OpenAI
-          console.log('Sending request to OpenAI Whisper API');
-          const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`
-            },
-            body: formData
-          });
-          
-          if (!whisperResponse.ok) {
-            const responseText = await whisperResponse.text().catch(() => 'No response body');
-            const errorMsg = `OpenAI API error: ${whisperResponse.status} ${whisperResponse.statusText}. Response: ${responseText}`;
-            console.error(errorMsg);
-            throw new Error(errorMsg);
-          }
-          
-          const data = await whisperResponse.json();
-          console.log(`OpenAI Whisper transcription completed successfully. Result: ${JSON.stringify(data)}`);
-          return data.text;
-        } catch (error) {
-          console.error(`OpenAI Whisper transcription failed: ${error.message}`);
-          throw error;
-        }
+  // Example implementation for OpenAI Whisper with enhanced logging
+  async function transcribeWithOpenAI(audioUrl: string, apiKey: string, language = 'en') {
+    console.log(`Starting OpenAI Whisper transcription for: ${audioUrl} with language: ${language}`);
+    try {
+      // Fetch the audio file
+      const response = await fetch(audioUrl);
+      if (!response.ok) {
+        const errorMsg = `Failed to fetch audio file from ${audioUrl}: ${response.status} ${response.statusText}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
       }
       
-
+      const audioBlob = await response.blob();
+      console.log(`Audio file fetched successfully: ${audioBlob.size} bytes`);
       
-async function transcribeWithAzure(audioUrl: string, apiKey: string, language = 'en') {
+      // Create form data for the API request
+      const formData = new FormData();
+      formData.append('file', audioBlob, 'audio.mp3');
+      formData.append('model', 'whisper-1');
+      formData.append('language', language);
+      
+      // Make the API request to OpenAI
+      console.log('Sending request to OpenAI Whisper API');
+      const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: formData
+      });
+      
+      if (!whisperResponse.ok) {
+        const responseText = await whisperResponse.text().catch(() => 'No response body');
+        const errorMsg = `OpenAI API error: ${whisperResponse.status} ${whisperResponse.statusText}. Response: ${responseText}`;
+        console.error(errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      const data = await whisperResponse.json();
+      console.log(`OpenAI Whisper transcription completed successfully. Result: ${JSON.stringify(data)}`);
+      return data.text;
+    } catch (error: unknown) {
+      console.error(`OpenAI Whisper transcription failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  }
+      
+  async function transcribeWithAzure(audioUrl: string, apiKey: string, language = 'en') {
     console.log(`Starting Azure transcription for: ${audioUrl} with language: ${language}`);
     try {
       // Fetch the audio file
@@ -389,13 +534,11 @@ async function transcribeWithAzure(audioUrl: string, apiKey: string, language = 
       const data = await azureResponse.json();
       console.log(`Azure transcription completed successfully: ${JSON.stringify(data)}`);
       return data.DisplayText;
-    } catch (error) {
-      console.error(`Azure transcription failed: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`Azure transcription failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
-  
-
   
   // Deepgram implementation with enhanced logging
   async function transcribeWithDeepgram(audioUrl: string, apiKey: string, language = 'en') {
@@ -446,13 +589,13 @@ async function transcribeWithAzure(audioUrl: string, apiKey: string, language = 
       }
       
       return data.results.channels[0].alternatives[0].transcript;
-    } catch (error) {
-      console.error(`Deepgram transcription failed: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`Deepgram transcription failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }
   
-async function transcribeWithGroq(audioUrl: string, apiKey: string, model: string, language = 'en') {
+  async function transcribeWithGroq(audioUrl: string, apiKey: string, model: string, language = 'en') {
     console.log(`Starting Groq transcription for: ${audioUrl} with model: ${model} and language: ${language}`);
     try {
       // Fetch the audio file
@@ -468,7 +611,7 @@ async function transcribeWithGroq(audioUrl: string, apiKey: string, model: strin
       
       // Map Groq model names to actual model IDs
       // As of March 2025, Groq supports whisper-large-v3 for audio transcription
-      const modelMap = {
+      const modelMap: Record<string, string> = {
         'groq-whisper-large-v3': 'whisper-large-v3',
         'groq-whisper-large-v3-turbo': 'whisper-large-v3', // Use standard model as fallback
         'groq-distil-whisper': 'whisper-large-v3' // Replace with a supported model
@@ -513,8 +656,8 @@ async function transcribeWithGroq(audioUrl: string, apiKey: string, model: strin
       }
       
       return data.text;
-    } catch (error) {
-      console.error(`Groq transcription failed: ${error.message}`);
+    } catch (error: unknown) {
+      console.error(`Groq transcription failed: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   }

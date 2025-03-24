@@ -175,7 +175,8 @@ const RecordAudioComponent = (props: Props) => {
           audioUrl: elementContent.src,
           model: elementContent.transcriptionModel,
           apiKey: elementContent.apiKey,
-          language: elementContent.language
+          language: elementContent.language,
+          enableChunking: true 
         }),
       })
 
@@ -332,7 +333,7 @@ const RecordAudioComponent = (props: Props) => {
                 className="min-h-[120px] resize-y"
               />
               
-              {transcription && (
+              {/* {transcription && (
                 <div className="flex justify-end mt-2">
                   <Button
                     variant="outline"
@@ -353,7 +354,7 @@ const RecordAudioComponent = (props: Props) => {
                     Download
                   </Button>
                 </div>
-              )}
+              )} */}
             </div>
           )}
         </div>
