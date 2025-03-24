@@ -22,21 +22,31 @@ export type EditorElement = {
     src?: string
     selectedCheckbox?: string[]
     title?: string
-    fileName?:string
+    fileName?: string
     checkboxes?: string[]
     type?: string
     limit?: number
     wordLimit?: number
-    copyAllowed?:boolean
-    // Add carousel specific properties
+    copyAllowed?: boolean
+    
+    // Add transcription specific properties
+    transcribeEnabled?: boolean
+    transcriptionModel?: string
+    apiKey?: string
+    language?: string
+    transcription?: string
+    
+    // Carousel specific properties
     keyboardNav?: boolean
     autoSlide?: boolean
     slideInterval?: number
     slides?: CarouselSlide[]
     currentSlideIndex?: number
-    backgroundNoise:boolean;
-    fillerRemoval:boolean;
-    silenceRemoval:boolean;
+    
+    // Audio recording properties
+    backgroundNoise?: boolean
+    fillerWordRemoval?: boolean
+    silenceRemoval?: boolean
   }
 }
 export type Editor = {
