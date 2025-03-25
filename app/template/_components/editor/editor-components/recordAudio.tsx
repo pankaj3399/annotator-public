@@ -2,12 +2,13 @@
 
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
+import { Textarea } from '@/components/ui/textarea'
 import { EditorBtns } from '@/lib/constants'
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import { useUploadThing } from '@/utils/uploadthing'
 import clsx from 'clsx'
-import { Mic, RotateCcw, Send, Square, Trash } from 'lucide-react'
-import React, { useEffect, useRef } from 'react'
+import { Download, Mic, RotateCcw, Send, Square, Trash } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 import AudioPlayer from 'react-h5-audio-player'
 import 'react-h5-audio-player/lib/styles.css'
 import { useReactMediaRecorder } from "react-media-recorder"
@@ -19,19 +20,45 @@ type Props = {
 
 const RecordAudioComponent = (props: Props) => {
   const { dispatch, state } = useEditor()
-  const [elementContent, setElementContent] = React.useState({
-    src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
+  const [elementContent, setElementContent] = useState({
+    src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : '',
+    transcribeEnabled: !Array.isArray(props.element.content) ? props.element.content?.transcribeEnabled || false : false,
+    transcription: !Array.isArray(props.element.content) ? props.element.content?.transcription || '' : '',
+    transcriptionModel: !Array.isArray(props.element.content) ? props.element.content?.transcriptionModel || 'openai-whisper-large-v2' : 'openai-whisper-large-v2',
+    apiKey: !Array.isArray(props.element.content) ? props.element.content?.apiKey || '' : '',
+    language: !Array.isArray(props.element.content) ? props.element.content?.language || 'en' : 'en'
   })
-  const [duration, setDuration] = React.useState(0)
-  const [loading, setLoading] = React.useState(false)
+  const [duration, setDuration] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [transcription, setTranscription] = useState(
+    !Array.isArray(props.element.content) ? props.element.content?.transcription || '' : ''
+  )
   
   const { status, startRecording, stopRecording, mediaBlobUrl } = useReactMediaRecorder({ audio: true })
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Add console log to verify component is being rendered
+  console.log('RecordAudioComponent rendered:', {
+    elementId: props.element.id,
+    isLiveMode: state.editor.liveMode,
+    transcribeEnabled: elementContent.transcribeEnabled,
+    hasTranscription: !!transcription,
+    model: elementContent.transcriptionModel,
+    src: elementContent.src
+  })
+
   useEffect(() => {
     setElementContent({
-      src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
+      src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : '',
+      transcribeEnabled: !Array.isArray(props.element.content) ? props.element.content?.transcribeEnabled || false : false,
+      transcription: !Array.isArray(props.element.content) ? props.element.content?.transcription || '' : '',
+      transcriptionModel: !Array.isArray(props.element.content) ? props.element.content?.transcriptionModel || 'openai-whisper-large-v2' : 'openai-whisper-large-v2',
+      apiKey: !Array.isArray(props.element.content) ? props.element.content?.apiKey || '' : '',
+      language: !Array.isArray(props.element.content) ? props.element.content?.language || 'en' : 'en'
     })
+    
+    setTranscription(!Array.isArray(props.element.content) ? props.element.content?.transcription || '' : '')
   }, [props.element])
 
   useEffect(() => {
@@ -124,6 +151,89 @@ const RecordAudioComponent = (props: Props) => {
     }
   }
 
+  const handleTranscribe = async () => {
+    if (!elementContent.transcribeEnabled) {
+      toast.error('Transcription is not enabled for this audio')
+      return
+    }
+
+    if (!elementContent.src) {
+      toast.error('No audio source available for transcription')
+      return
+    }
+
+    setIsTranscribing(true)
+    
+    try {
+      // Call your transcription API
+      const response = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          audioUrl: elementContent.src,
+          model: elementContent.transcriptionModel,
+          apiKey: elementContent.apiKey,
+          language: elementContent.language,
+          enableChunking: true 
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Transcription failed')
+      }
+
+      const data = await response.json()
+      const newTranscription = data.transcription
+
+      // Update state and element
+      setTranscription(newTranscription)
+      
+      if (!Array.isArray(props.element.content)) {
+        dispatch({
+          type: 'UPDATE_ELEMENT',
+          payload: {
+            elementDetails: {
+              ...props.element,
+              content: {
+                ...props.element.content,
+                transcription: newTranscription
+              },
+            },
+          },
+        })
+      }
+      
+      toast.success('Transcription completed successfully')
+    } catch (error) {
+      console.error('Transcription error:', error)
+      toast.error(error instanceof Error ? error.message : 'Error occurred during transcription')
+    } finally {
+      setIsTranscribing(false)
+    }
+  }
+
+  const handleTranscriptionChange = (text: string) => {
+    setTranscription(text)
+    
+    if (!Array.isArray(props.element.content)) {
+      dispatch({
+        type: 'UPDATE_ELEMENT',
+        payload: {
+          elementDetails: {
+            ...props.element,
+            content: {
+              ...props.element.content,
+              transcription: text
+            },
+          },
+        },
+      })
+    }
+  }
+
   const isSelected = state.editor.selectedElement.id === props.element.id
   const isLiveMode = state.editor.liveMode
 
@@ -200,6 +310,53 @@ const RecordAudioComponent = (props: Props) => {
             autoPlay
             src={elementContent.src}
           />
+          
+          {/* Transcription UI for annotators */}
+          {elementContent.transcribeEnabled && isLiveMode && (
+            <div className="mt-4 border-t pt-4 px-4 pb-4">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-medium">Transcription</h3>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleTranscribe}
+                  disabled={isTranscribing}
+                >
+                  {isTranscribing ? 'Transcribing...' : 'Auto-Transcribe'}
+                </Button>
+              </div>
+              
+              <Textarea
+                value={transcription}
+                onChange={(e) => handleTranscriptionChange(e.target.value)}
+                placeholder="Listen to the audio and type your transcription here. You can also click 'Auto-Transcribe' for assistance."
+                className="min-h-[120px] resize-y"
+              />
+              
+              {/* {transcription && (
+                <div className="flex justify-end mt-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const blob = new Blob([transcription], { type: 'text/plain' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = 'transcription.txt'
+                      document.body.appendChild(a)
+                      a.click()
+                      document.body.removeChild(a)
+                      URL.revokeObjectURL(url)
+                    }}
+                  >
+                    <Download size={16} className="mr-2" />
+                    Download
+                  </Button>
+                </div>
+              )} */}
+            </div>
+          )}
         </div>
       )}
     </div>
