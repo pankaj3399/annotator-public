@@ -415,8 +415,9 @@ const PropertyPanel = () => {
                           <SelectItem value='speechmatics'>
                             Speechmatics
                           </SelectItem>
-                          <SelectItem value='whisper-large-v3-local'>
-                            Whisper Large V3 Local
+
+                          <SelectItem value='assemblyai-universal-2'>
+                            AssemblyAI Universal 2
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -628,8 +629,9 @@ const PropertyPanel = () => {
                           <SelectItem value='speechmatics'>
                             Speechmatics
                           </SelectItem>
-                          <SelectItem value='whisper-large-v3-local'>
-                            Whisper Large V3 Local
+
+                          <SelectItem value='assemblyai-universal-2'>
+                            AssemblyAI Universal 2
                           </SelectItem>
                         </SelectContent>
                       </Select>
