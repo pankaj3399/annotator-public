@@ -57,6 +57,7 @@ import {
 } from '@/components/ui/command';
 import { Search } from 'lucide-react';
 import ReviewerDialogComponent from './reviewer-dialog';
+import AnnotatorDialog from './annotator-dialog';
 export interface Task {
   _id: string;
   name: string;
@@ -114,6 +115,7 @@ export default function Component() {
   const [totalItems, setTotalItems] = useState(0);
   const [expertSearch, setExpertSearch] = useState('');
   const [reviewerSearch, setReviewerSearch] = useState('');
+  const [isAnnotatorDialogOpen, setIsAnnotatorDialogOpen] = useState(false);
   const [isReviewerDialogOpen,setIsReviewerDialogOpen]=useState(false);
   const { toast } = useToast();
   const [selectedTask, setSelectedTask] = useState<Task[]>([]);
@@ -290,100 +292,6 @@ export default function Component() {
         description: error.message,
       });
     }
-  };
-
-  const handleBulkAssignReviewers = async () => {
-    if (allReviewers.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Bulk reviewer assignment failed',
-        description: 'No reviewers available.',
-      });
-      return;
-    }
-
-    const tasksNeedingReviewer =
-      selectedTask.length === 0
-        ? tasks.filter((task) => !task.reviewer)
-        : selectedTask.filter((task) => !task.reviewer);
-
-    const updatedTasks = [...tasks];
-
-    for (let i = 0; i < tasksNeedingReviewer.length; i++) {
-      const task = tasksNeedingReviewer[i];
-      const reviewerIndex = (i % (allReviewers.length - 1)) + 1;
-      const reviewerId = allReviewers[reviewerIndex]._id;
-
-      if (reviewerId === task.annotator) {
-        await changeAnnotator(task._id, allReviewers[0]._id, false, true);
-        const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
-        updatedTasks[taskIndex] = {
-          ...task,
-          reviewer: allReviewers[0]._id,
-        };
-      } else {
-        await changeAnnotator(task._id, reviewerId, false, true);
-        const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
-        updatedTasks[taskIndex] = {
-          ...task,
-          reviewer: reviewerId,
-        };
-      }
-    }
-
-    setTasks(updatedTasks);
-    toast({
-      title: 'Bulk reviewer assignment completed',
-      description: `${tasksNeedingReviewer.length} tasks have been assigned reviewers.`,
-    });
-  };
-
-  const handleAutoAssign = async () => {
-    if (annotators.length === 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Auto-assign failed',
-        description: 'There are no annotators available.',
-      });
-      return;
-    }
-
-    const tasksToAssign =
-      selectedTask.length > 0
-        ? selectedTask
-        : tasks.filter((task) => !task.annotator);
-
-    const updatedTasks = [...tasks];
-
-    for (let i = 0; i < tasksToAssign.length; i++) {
-      const task = tasksToAssign[i];
-      const annotatorIndex = i % annotators.length;
-      const annotatorId = annotators[annotatorIndex]._id;
-
-      const availableReviewers = allReviewers.filter(
-        (r) => r._id !== annotatorId
-      );
-      const reviewerId =
-        availableReviewers.length > 1
-          ? availableReviewers[1]._id
-          : allReviewers[0]._id;
-
-      await changeAnnotator(task._id, annotatorId, false, false);
-      await changeAnnotator(task._id, reviewerId, false, true);
-
-      const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
-      updatedTasks[taskIndex] = {
-        ...task,
-        annotator: annotatorId,
-        reviewer: reviewerId,
-      };
-    }
-
-    setTasks(updatedTasks);
-    toast({
-      title: 'Auto-assign completed',
-      description: `${tasksToAssign.length} tasks have been assigned with annotators and reviewers.`,
-    });
   };
 
   async function handleAssignAI() {
@@ -804,8 +712,8 @@ export default function Component() {
 
                 <div className='flex gap-2'>
                   <Button
-                    onClick={handleAutoAssign}
-                    variant='outline'
+  onClick={() => setIsAnnotatorDialogOpen(true)}
+  variant='outline'
                     size='sm'
                   >
                     <Shuffle className='mr-2 h-4 w-4' /> Auto-assign Annotators(
@@ -920,6 +828,15 @@ export default function Component() {
 
       <div>
         <ReviewerDialogComponent isOpen={isReviewerDialogOpen} onClose={()=>setIsReviewerDialogOpen(false)} reviewers={filteredReviewers} tasks={tasks} setTasks={setTasks} selectedTasks={selectedTask} ></ReviewerDialogComponent>
+        <AnnotatorDialog 
+  isOpen={isAnnotatorDialogOpen}
+  onClose={() => setIsAnnotatorDialogOpen(false)}
+  selectedTasks={selectedTask}
+  annotators={annotators}
+  reviewers={filteredReviewers}
+  setTasks={setTasks}
+  tasks={tasks}
+/>
         <MailDialogComponent
           isMailDialogOpen={isMailDialogOpen}
           setIsMailDialogOpen={setIsMailDialogOpen}
