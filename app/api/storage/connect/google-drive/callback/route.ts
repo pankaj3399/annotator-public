@@ -4,7 +4,7 @@ import { StorageCredentials } from "@/models/StorageCredentials";
 import { google } from "googleapis";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db";
-const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
+const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 const redirectUri = `${nextAuthUrl}api/auth/callback/google`;
 // Your Google OAuth credentials from environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;

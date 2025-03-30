@@ -302,33 +302,39 @@ export default function CloudStorageFileBrowser({
     setAuthError(null);
   }, []);
 
-  // File selection handler
-  const handleFileSelect = useCallback(
-    (file: CloudFile) => {
-      if (file.type === 'folder') {
-        handleFolderClick(file);
-      } else {
-        // For Google Drive files, create a direct API URL instead of using the file.url
-        if (activeTabValue === 'googleDrive' && file.id) {
-          // Create a direct API URL that will use the Google Drive API
-          const directApiUrl = `/api/storage/connect/google-drive/file?fileId=${file.id}&connectionId=${activeConnectionId}`;
-          
-          // Create a modified file object with the API URL
-          const modifiedFile = {
-            ...file,
-            url: directApiUrl
-          };
-          
-          setSelectedFile(modifiedFile);
-        } else {
-          // For S3 or other storage, use the original behavior
-          setSelectedFile(file);
+// In your API route for handling Google Drive files
+const handleFileSelect = useCallback(
+  (file: CloudFile) => {
+    if (file.type === 'folder') {
+      handleFolderClick(file);
+    } else {
+      // For Google Drive files, create a direct API URL
+      if (activeTabValue === 'googleDrive' && file.id) {
+        // Validate connectionId is a valid ObjectId
+        if (!activeConnectionId || activeConnectionId === 'data' || 
+            !isValidObjectId(activeConnectionId)) {
+          toast({
+            title: 'Error',
+            description: 'Invalid connection configuration',
+            variant: 'destructive',
+          });
+          return;
         }
+        
+        const directApiUrl = `/api/storage/connect/google-drive/file?fileId=${file.id}&connectionId=${activeConnectionId}`;
+        setSelectedFile({ ...file, url: directApiUrl });
+      } else {
+        setSelectedFile(file);
       }
-    },
-    [handleFolderClick, activeTabValue, activeConnectionId]
-  );
+    }
+  },
+  [handleFolderClick, activeTabValue, activeConnectionId, toast]
+);
 
+// Helper function to validate ObjectIds
+function isValidObjectId(id: string): boolean {
+  return /^[0-9a-fA-F]{24}$/.test(id);
+}
   // Confirm file selection
   const handleConfirmSelection = useCallback(() => {
     if (!selectedFile) {
@@ -339,6 +345,17 @@ export default function CloudStorageFileBrowser({
       });
       return;
     }
+
+    if (!activeConnectionId || activeConnectionId === 'data' || 
+      !isValidObjectId(activeConnectionId)) {
+    toast({
+      title: 'Invalid Connection',
+      description: 'Storage connection is invalid',
+      variant: 'destructive',
+    });
+    return;
+  }
+
 
     if (onSelectFiles) {
       // For both S3 and Google Drive, pass the URL to the parent component

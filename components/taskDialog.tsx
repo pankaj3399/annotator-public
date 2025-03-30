@@ -907,22 +907,6 @@ export function TaskDialog({
           // Treat the first row as headers
           const headers = results.data[0] as string[];
 
-          // Prepare detailed debug information
-          const debugMessage = JSON.stringify(
-            {
-              headersLength: headers.length,
-              placeholdersLength: placeholders.length,
-              headers: headers,
-              placeholders: placeholders.map((p) => ({
-                name: p.name,
-                type: p.type,
-                index: p.index,
-              })),
-            },
-            null,
-            2
-          );
-
           // Validate column count
           if (headers.length !== placeholders.length) {
             const errorDetails = {
@@ -980,6 +964,15 @@ export function TaskDialog({
   };
   const generateFilledTemplates = async () => {
     try {
+      if (!project || !project._id || typeof project._id !== 'string' || project._id === 'data') {
+        toast({
+          title: 'Invalid Project',
+          description: 'Project ID is invalid or missing',
+          variant: 'destructive',
+        });
+        return;
+      }
+  
       const filledTasks: FilledTask[] = [];
       const repeatTasks: RepeatTask[] = [];
       let repeatTaskCount;

@@ -338,7 +338,11 @@ export async function createTasks(
   if (!session || !session.user) {
     throw new Error("Unauthorized");
   }
-
+  for (const task of tasks) {
+    if (!mongoose.Types.ObjectId.isValid(task.project)) {
+      throw new Error(`Invalid project ID format: ${task.project}`);
+    }
+  }
   const taskData = tasks.map((task) => ({
     ...task,
     type: task.type,
@@ -447,6 +451,16 @@ export async function getPaginatedTasks(
   pageSize: number = 10
 ) {
   await connectToDatabase();
+
+  if (!mongoose.Types.ObjectId.isValid(projectid)) {
+    return JSON.stringify({
+      error: `Invalid project ID format: ${projectid}`,
+      tasks: [],
+      total: 0,
+      page,
+      pages: 0
+    });
+  }
   const skip = (page - 1) * pageSize;
 
   let tasks = [];
@@ -1140,7 +1154,11 @@ export async function createRepeatTask(repeatTasks: RepeatTask[]) {
     if (!session || !session.user) {
       throw new Error("Unauthorized");
     }
-
+    for (const task of repeatTasks) {
+      if (!mongoose.Types.ObjectId.isValid(task.project)) {
+        throw new Error(`Invalid project ID format: ${task.project}`);
+      }
+    }
     // Prepare tasks for creation
     const tasksToCreate = repeatTasks.map((task) => ({
       project: task.project,
