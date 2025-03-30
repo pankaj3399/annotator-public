@@ -7,7 +7,7 @@ const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
 // Your Google OAuth credentials from environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = `${nextAuthUrl}api/auth/callback/google`
+const GOOGLE_REDIRECT_URI = `${nextAuthUrl}api/storage/connect/google-drive/callback`
 
 // Create OAuth client
 function getOAuthClient() {
@@ -37,21 +37,32 @@ export async function GET(request: NextRequest) {
     
     // Generate authentication URL with enhanced scopes
     const authUrl = oauth2Client.generateAuthUrl({
-      access_type: 'offline', // This will return a refresh token
+      access_type: 'offline', 
       scope: [
-        'https://www.googleapis.com/auth/drive.file', // Access to files created/opened by the app
-        'https://www.googleapis.com/auth/drive.readonly', // Basic readonly access
-        'https://www.googleapis.com/auth/spreadsheets.readonly', // Specific access for Google Sheets
-        'https://www.googleapis.com/auth/userinfo.email', // To get user email
-        'https://www.googleapis.com/auth/userinfo.profile', // To get user name
+        'https://www.googleapis.com/auth/drive.file',
+        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/spreadsheets.readonly',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile',
       ],
-      prompt: 'consent', // Force the consent screen to ensure we get a refresh token
-      state: state, // Pass state to callback (usually contains user ID)
-      include_granted_scopes: true, // Include previously granted scopes
+      prompt: 'consent',
+      state: state,
+      include_granted_scopes: true,
     });
 
-    // Redirect user to Google's authorization page
-    return NextResponse.redirect(authUrl);
+    // Create a response with a session preservation cookie
+    const response = NextResponse.redirect(authUrl);
+    
+    // Set a cookie to preserve the auth state
+    response.cookies.set('google_drive_auth_state', state, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 15, // 15 minutes
+    });
+    
+    return response;
   } catch (error: any) {
     console.error("Google Drive OAuth error:", error);
     return NextResponse.json(
