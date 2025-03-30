@@ -7,7 +7,7 @@ const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
 // Your Google OAuth credentials from environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = `${nextAuthUrl}/api/storage/connect/google-drive/callback`
+const GOOGLE_REDIRECT_URI = `${nextAuthUrl}api/storage/connect/google-drive/callback`
 
 // Create OAuth client
 function getOAuthClient() {
