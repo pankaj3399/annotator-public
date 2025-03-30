@@ -16,7 +16,6 @@ interface JWTToken {
 export const authOptions: AuthOptions = {
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days in seconds
   },
   providers: [
     CredentialsProvider({
@@ -54,56 +53,8 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      authorization: {
-        params: {
-          prompt: "consent",
-          access_type: "offline",
-          // Explicitly specify the redirect_uri for user authentication
-          redirect_uri: `${process.env.NEXTAUTH_URL}/api/auth/callback/google`
-        }
-      }
     }),
   ],
-  // Add explicit cookie configuration to handle state cookies properly
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-      },
-    },
-    state: {
-      name: 'next-auth.state',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 900, // 15 minutes in seconds
-      },
-    },
-  },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -254,6 +205,4 @@ export const authOptions: AuthOptions = {
     signIn: "/auth/login",
     newUser: "/auth/signup",
   },
-  // Add debug mode for development to help troubleshoot auth issues
-  debug: process.env.NODE_ENV === 'development',
 };
