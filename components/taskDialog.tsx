@@ -763,9 +763,7 @@ export function TaskDialog({
           if (placeholder) {
             // Handle carousel specifically
             if (item.type === 'dynamicCarousel') {
-              const carouselValue = values[
-                placeholder.index
-              ] as CarouselContent;
+              const carouselValue = values[placeholder.index] as CarouselContent;
               return {
                 ...item,
                 content: {
@@ -774,67 +772,30 @@ export function TaskDialog({
                 },
               };
             }
-
-            // Existing logic for other dynamic types remains the same
-            if (item.type === 'dynamicCarousel') {
-              const placeholder = placeholders.find(
-                (p) => p.name === item.name
-              );
-              if (placeholder) {
-                const carouselValue = values[
-                  placeholder.index
-                ] as CarouselContent;
-
-                // Create slides with proper type mapping
-                const mappedSlides = carouselValue.slides.map((slide) => {
-                  // If no type is specified, default to text
-                  const slideType = slide.type || 'text';
-
-                  // Map slides based on their type
-                  switch (slideType) {
-                    case 'image':
-                      return {
-                        type: 'image',
-                        src: slide.src || `{{${placeholder.type}_image}}`,
-                        innerText: slide.innerText || '',
-                      };
-                    case 'video':
-                      return {
-                        type: 'video',
-                        src: slide.src || `{{${placeholder.type}_video}}`,
-                        innerText: slide.innerText || '',
-                      };
-                    case 'text':
-                    default:
-                      return {
-                        type: 'text',
-                        innerText:
-                          slide.innerText || `{{${placeholder.type}_text}}`,
-                        src: slide.src || '',
-                      };
-                  }
-                });
-
-                return {
-                  ...item,
-                  content: {
-                    ...item.content,
-                    slides: mappedSlides,
-                    keyboardNav: carouselValue.keyboardNav ?? true,
-                    autoSlide: carouselValue.autoSlide ?? false,
-                    slideInterval: carouselValue.slideInterval ?? 5000,
-                    currentSlideIndex: carouselValue.currentSlideIndex ?? 0,
-                  },
-                };
-              }
-            } else if (item.type === 'dynamicUpload') {
-              const fileType =
-                (values[placeholder.index] as TaskValue)?.fileType ||
-                'document';
+      
+            // Handle dynamicAudio specifically to preserve transcription settings
+            if (item.type === 'dynamicAudio') {
+              const currentContent = item.content || {};
+              return {
+                ...item,
+                content: {
+                  ...currentContent,
+                  src: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
+                  // Preserve transcription settings
+                  transcribeEnabled: currentContent.transcribeEnabled || false,
+                  transcriptionModel: currentContent.transcriptionModel || 'openai-whisper-large-v2',
+                  apiKey: currentContent.apiKey || '',
+                  language: currentContent.language || 'en',
+                  transcription: currentContent.transcription || ''
+                },
+              };
+            }
+      
+            // Handle dynamicUpload
+            if (item.type === 'dynamicUpload') {
+              const fileType = (values[placeholder.index] as TaskValue)?.fileType || 'document';
               if (fileType === 'document') {
-                const textContent =
-                  (values[placeholder.index] as TaskValue)?.content ||
-                  `{{${placeholder.type}}}`;
+                const textContent = (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`;
                 return {
                   ...item,
                   type: 'dynamicText',
@@ -846,17 +807,13 @@ export function TaskDialog({
                   },
                 };
               }
-              const dynamicType = `dynamic${fileType
-                .charAt(0)
-                .toUpperCase()}${fileType.slice(1)}`;
+              const dynamicType = `dynamic${fileType.charAt(0).toUpperCase()}${fileType.slice(1)}`;
               return {
                 ...item,
                 type: dynamicType,
                 content: {
                   ...item.content,
-                  src:
-                    (values[placeholder.index] as TaskValue)?.content ||
-                    `{{${placeholder.type}}}`,
+                  src: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
                 },
               };
             } else if (item.type === 'dynamicText') {
@@ -864,19 +821,16 @@ export function TaskDialog({
                 ...item,
                 content: {
                   ...item.content,
-                  innerText:
-                    (values[placeholder.index] as TaskValue)?.content ||
-                    `{{${placeholder.type}}}`,
+                  innerText: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
                 },
               };
             } else {
+              // Other dynamic types
               return {
                 ...item,
                 content: {
                   ...item.content,
-                  src:
-                    (values[placeholder.index] as TaskValue)?.content ||
-                    `{{${placeholder.type}}}`,
+                  src: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
                 },
               };
             }
