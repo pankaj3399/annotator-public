@@ -77,11 +77,10 @@ const InputText = (props: Props) => {
   const isSelected = state.editor.selectedElement.id === props.element.id
   const isLiveMode = state.editor.liveMode
   const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    if(elementContent.copyAllowed){
+    if(elementContent.copyAllowed === true){
       return
     }
     else{
-
       e.preventDefault()
       setShowNotification(true)
       setTimeout(() => {

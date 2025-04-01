@@ -167,7 +167,7 @@ const PropertyPanel = () => {
                       : false
                   }
                   onChange={(e) =>
-                    handlePropertyChange('copyAllowed', e.target.checked)
+                    handlePropertyChange('content.copyAllowed', e.target.checked)
                   }
                   className='toggle-checkbox'
                 />
