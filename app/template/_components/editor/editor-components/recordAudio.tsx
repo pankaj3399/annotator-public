@@ -19,7 +19,7 @@ type Props = {
 }
 
 const RecordAudioComponent = (props: Props) => {
-  const { dispatch, state } = useEditor()
+  const { dispatch, state, pageDetails } = useEditor()
   const [elementContent, setElementContent] = useState({
     src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : '',
     transcribeEnabled: !Array.isArray(props.element.content) ? props.element.content?.transcribeEnabled || false : false,
@@ -311,52 +311,31 @@ const RecordAudioComponent = (props: Props) => {
             src={elementContent.src}
           />
           
-          {/* Transcription UI for annotators */}
-          {elementContent.transcribeEnabled && isLiveMode && (
-            <div className="mt-4 border-t pt-4 px-4 pb-4">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="text-sm font-medium">Transcription</h3>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleTranscribe}
-                  disabled={isTranscribing}
-                >
-                  {isTranscribing ? 'Transcribing...' : 'Auto-Transcribe'}
-                </Button>
-              </div>
-              
-              <Textarea
-                value={transcription}
-                onChange={(e) => handleTranscriptionChange(e.target.value)}
-                placeholder="Listen to the audio and type your transcription here. You can also click 'Auto-Transcribe' for assistance."
-                className="min-h-[120px] resize-y"
-              />
-              
-              {/* {transcription && (
-                <div className="flex justify-end mt-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const blob = new Blob([transcription], { type: 'text/plain' })
-                      const url = URL.createObjectURL(blob)
-                      const a = document.createElement('a')
-                      a.href = url
-                      a.download = 'transcription.txt'
-                      document.body.appendChild(a)
-                      a.click()
-                      document.body.removeChild(a)
-                      URL.revokeObjectURL(url)
-                    }}
-                  >
-                    <Download size={16} className="mr-2" />
-                    Download
-                  </Button>
-                </div>
-              )} */}
-            </div>
-          )}
+{elementContent.transcribeEnabled && isLiveMode && (
+  <div className="mt-4 border-t pt-4 px-4 pb-4">
+    <div className="flex justify-between items-center mb-2">
+      <h3 className="text-sm font-medium">Transcription</h3>
+      {!pageDetails.submitted && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={handleTranscribe}
+          disabled={isTranscribing}
+        >
+          {isTranscribing ? 'Transcribing...' : 'Auto-Transcribe'}
+        </Button>
+      )}
+    </div>
+    
+    <Textarea
+      value={transcription}
+      onChange={(e) => handleTranscriptionChange(e.target.value)}
+      placeholder="Listen to the audio and type your transcription here. You can also click 'Auto-Transcribe' for assistance."
+      className="min-h-[120px] resize-y"
+      readOnly={pageDetails.submitted}
+    />
+  </div>
+)}
         </div>
       )}
     </div>

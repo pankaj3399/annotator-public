@@ -790,7 +790,22 @@ export function TaskDialog({
                 },
               };
             }
-      
+            if (item.type === 'inputText') {
+              const currentContent = item.content || {};
+              return {
+                ...item,
+                content: {
+                  ...currentContent,
+                  innerText: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
+                  // Preserve translation settings
+                  translationEnabled: currentContent.translationEnabled || false,
+                  translationModel: currentContent.translationModel || 'deepl',
+                  translationApiKey: currentContent.translationApiKey || '',
+                  sourceLanguage: currentContent.sourceLanguage || 'auto',
+                  targetLanguage: currentContent.targetLanguage || 'en',
+                  translation: currentContent.translation || ''
+                },
+              }}
             // Handle dynamicUpload
             if (item.type === 'dynamicUpload') {
               const fileType = (values[placeholder.index] as TaskValue)?.fileType || 'document';

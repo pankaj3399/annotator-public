@@ -42,6 +42,13 @@ export type EditorElement = {
     slideInterval?: number
     slides?: CarouselSlide[]
     currentSlideIndex?: number
+    translationEnabled?: boolean;
+    translationModel?: string; 
+    translationApiKey?: string;
+    sourceLanguage?: string;
+    targetLanguage?: string;
+    translation?: string;
+    
     
     // Audio recording properties
     backgroundNoise?: boolean
