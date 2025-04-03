@@ -1,6 +1,6 @@
 'use client';
 
-import { useEditor } from '@/providers/editor/editor-provider';
+import { EditorElement, useEditor } from '@/providers/editor/editor-provider';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -16,8 +16,6 @@ import { EditorBtns } from '@/lib/constants';
 
 import { Button } from '@/components/ui/button';
 import { Plus, Minus } from 'lucide-react';
-import { Checkbox } from '@radix-ui/react-checkbox';
-
 type ElementContent = {
   href?: string;
   innerText?: string;
@@ -37,25 +35,69 @@ type ElementContent = {
     innerText?: string;
   }>;
   currentSlideIndex?: number;
+
+  // Add all the missing properties here:
+  translationEnabled?: boolean;
+  translationModel?: string;
+  translationApiKey?: string;
+  sourceLanguage?: string;
+  targetLanguage?: string;
+  translation?: string;
+  translationTarget?: string | null;
+  copyAllowed?: boolean;
+  transcribeEnabled?: boolean;
+  transcriptionModel?: string;
+  apiKey?: string;
+  language?: string;
+  backgroundNoise?: boolean;
+  fillerWordRemoval?: boolean;
+  silenceRemoval?: boolean;
+  fileName?: string;
 };
 
 const PropertyPanel = () => {
   const { state, dispatch } = useEditor();
   const element = state.editor.selectedElement;
 
-  const [elementProperties, setElementProperties] = useState({
+  const [elementProperties, setElementProperties] = useState<{
+    id: string;
+    name: string;
+    content: ElementContent;
+  }>({
     id: element.id || '',
     name: element.name || '',
-    content: !Array.isArray(element.content) ? element.content : {},
+    content: !Array.isArray(element.content)
+      ? (element.content as ElementContent)
+      : ({} as ElementContent),
   });
 
   useEffect(() => {
     setElementProperties({
       id: element.id || '',
       name: element.name || '',
-      content: !Array.isArray(element.content) ? element.content : {},
+      content: !Array.isArray(element.content)
+        ? (element.content as ElementContent)
+        : ({} as ElementContent),
     });
-  }, [element]);
+  }, [element, state.editor.elements]);
+
+  const findAllElementsOfType = (
+    elements: EditorElement[],
+    types: string[]
+  ): EditorElement[] => {
+    let result: EditorElement[] = [];
+
+    elements.forEach((element) => {
+      if (element.type && types.includes(element.type)) {
+        result.push(element);
+      }
+      if (element.content && Array.isArray(element.content)) {
+        result = [...result, ...findAllElementsOfType(element.content, types)];
+      }
+    });
+
+    return result;
+  };
 
   const handlePropertyChange = (property: string, value: any) => {
     // Check if the property starts with 'content.'
@@ -65,12 +107,10 @@ const PropertyPanel = () => {
 
       setElementProperties((prev) => ({
         ...prev,
-        content: Array.isArray(prev.content)
-          ? prev.content.map((item) => ({
-              ...item,
-              [contentKey]: value,
-            }))
-          : { ...prev.content, [contentKey]: value },
+        content: {
+          ...prev.content,
+          [contentKey]: value,
+        },
       }));
 
       // Dispatch update for content changes
@@ -109,6 +149,10 @@ const PropertyPanel = () => {
   };
 
   if (!element || !element.id || element.type === '__body') {
+    return null;
+  }
+
+  if (!element || !element.id || element.type === ('__body' as EditorBtns)) {
     return null;
   }
 
@@ -167,7 +211,10 @@ const PropertyPanel = () => {
                       : false
                   }
                   onChange={(e) =>
-                    handlePropertyChange('content.copyAllowed', e.target.checked)
+                    handlePropertyChange(
+                      'content.copyAllowed',
+                      e.target.checked
+                    )
                   }
                   className='toggle-checkbox'
                 />
@@ -179,150 +226,173 @@ const PropertyPanel = () => {
                 </span>
               </div>
             </div>
-              {/* Translation Settings Section */}
-<div className='border-t pt-4 mt-4'>
-  <h3 className='font-medium mb-2'>Translation Settings</h3>
+            {/* Translation Settings Section */}
+            <div className='border-t pt-4 mt-4'>
+              <h3 className='font-medium mb-2'>Translation Settings</h3>
 
-  <div className='flex items-center space-x-2 mb-4'>
-    <input
-      type='checkbox'
-      id='translationEnabled'
-      checked={
-        !Array.isArray(elementProperties.content)
-          ? elementProperties.content.translationEnabled
-          : false
-      }
-      onChange={(e) =>
-        handlePropertyChange(
-          'content.translationEnabled',
-          e.target.checked
-        )
-      }
-      className='toggle-checkbox'
-    />
-    <Label htmlFor='translationEnabled'>Enable Translation</Label>
-  </div>
+              <div className='flex items-center space-x-2 mb-4'>
+                <input
+                  type='checkbox'
+                  id='translationEnabled'
+                  checked={
+                    !Array.isArray(elementProperties.content)
+                      ? elementProperties.content.translationEnabled
+                      : false
+                  }
+                  onChange={(e) =>
+                    handlePropertyChange(
+                      'content.translationEnabled',
+                      e.target.checked
+                    )
+                  }
+                  className='toggle-checkbox'
+                />
+                <Label htmlFor='translationEnabled'>Enable Translation</Label>
+              </div>
 
-  {!Array.isArray(elementProperties.content) &&
-    elementProperties.content.translationEnabled && (
-      <div className='space-y-4'>
-        <div className='space-y-2'>
-          <Label>Translation Service</Label>
-          <Select
-            value={
-              elementProperties.content.translationModel || 'deepl'
-            }
-            onValueChange={(value) =>
-              handlePropertyChange(
-                'content.translationModel',
-                value
-              )
-            }
-          >
-           <SelectTrigger className='w-full'>
-  <SelectValue placeholder='Select a translation service' />
-</SelectTrigger>
-<SelectContent>
-  <SelectItem value='deepl'>DeepL</SelectItem>
-  {/* <SelectItem value='google-translate'>Google Translate</SelectItem>
+              {!Array.isArray(elementProperties.content) &&
+                elementProperties.content.translationEnabled && (
+                  <div className='space-y-4'>
+                    <div className='space-y-2'>
+                      <Label>Translation Service</Label>
+                      <Select
+                        value={
+                          elementProperties.content.translationModel || 'deepl'
+                        }
+                        onValueChange={(value) =>
+                          handlePropertyChange(
+                            'content.translationModel',
+                            value
+                          )
+                        }
+                      >
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Select a translation service' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='deepl'>DeepL</SelectItem>
+                          {/* <SelectItem value='google-translate'>Google Translate</SelectItem>
   <SelectItem value='libretranslate'>LibreTranslate (Free)</SelectItem>
   <SelectItem value='mymemory'>MyMemory (Free)</SelectItem> */}
-</SelectContent>
-          </Select>
-        </div>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-        <div className='space-y-2'>
-          <Label>API Key</Label>
-          <Input
-            type='password'
-            value={
-              !Array.isArray(elementProperties.content)
-                ? elementProperties.content.translationApiKey || ''
-                : ''
-            }
-            onChange={(e) =>
-              handlePropertyChange('content.translationApiKey', e.target.value)
-            }
-            placeholder='Enter API key'
-          />
-        </div>
+                    <div className='space-y-2'>
+                      <Label>API Key</Label>
+                      <Input
+                        type='password'
+                        value={
+                          !Array.isArray(elementProperties.content)
+                            ? elementProperties.content.translationApiKey || ''
+                            : ''
+                        }
+                        onChange={(e) =>
+                          handlePropertyChange(
+                            'content.translationApiKey',
+                            e.target.value
+                          )
+                        }
+                        placeholder='Enter API key'
+                      />
+                    </div>
 
-        <div className='space-y-2'>
-          <Label>Source Language</Label>
-          <Select
-            value={
-              !Array.isArray(elementProperties.content)
-                ? elementProperties.content.sourceLanguage || 'auto'
-                : 'auto'
-            }
-            onValueChange={(value) =>
-              handlePropertyChange('content.sourceLanguage', value)
-            }
-          >
-            <SelectTrigger className='w-full'>
-              <SelectValue placeholder='Select source language' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='auto'>Auto-detect</SelectItem>
-              <SelectItem value='en'>English</SelectItem>
-              <SelectItem value='es'>Spanish</SelectItem>
-              <SelectItem value='fr'>French</SelectItem>
-              <SelectItem value='de'>German</SelectItem>
-              <SelectItem value='it'>Italian</SelectItem>
-              <SelectItem value='pt'>Portuguese</SelectItem>
-              <SelectItem value='ru'>Russian</SelectItem>
-              <SelectItem value='zh'>Chinese</SelectItem>
-              <SelectItem value='ja'>Japanese</SelectItem>
-              <SelectItem value='ko'>Korean</SelectItem>
-              <SelectItem value='ar'>Arabic</SelectItem>
-              <SelectItem value='hi'>Hindi</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+                    <div className='space-y-2'>
+                      <Label>Source Language</Label>
+                      <Select
+                        value={
+                          !Array.isArray(elementProperties.content)
+                            ? elementProperties.content.sourceLanguage || 'auto'
+                            : 'auto'
+                        }
+                        onValueChange={(value) =>
+                          handlePropertyChange('content.sourceLanguage', value)
+                        }
+                      >
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Select source language' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='auto'>Auto-detect</SelectItem>
+                          <SelectItem value='en'>English</SelectItem>
+                          <SelectItem value='es'>Spanish</SelectItem>
+                          <SelectItem value='fr'>French</SelectItem>
+                          <SelectItem value='de'>German</SelectItem>
+                          <SelectItem value='it'>Italian</SelectItem>
+                          <SelectItem value='pt'>Portuguese</SelectItem>
+                          <SelectItem value='ru'>Russian</SelectItem>
+                          <SelectItem value='zh'>Chinese</SelectItem>
+                          <SelectItem value='ja'>Japanese</SelectItem>
+                          <SelectItem value='ko'>Korean</SelectItem>
+                          <SelectItem value='ar'>Arabic</SelectItem>
+                          <SelectItem value='hi'>Hindi</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-        <div className='space-y-2'>
-          <Label>Target Language</Label>
-          <Select
-            value={
-              !Array.isArray(elementProperties.content)
-                ? elementProperties.content.targetLanguage || 'en'
-                : 'en'
-            }
-            onValueChange={(value) =>
-              handlePropertyChange('content.targetLanguage', value)
-            }
-          >
-            <SelectTrigger className='w-full'>
-              <SelectValue placeholder='Select target language' />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value='en'>English</SelectItem>
-              <SelectItem value='es'>Spanish</SelectItem>
-              <SelectItem value='fr'>French</SelectItem>
-              <SelectItem value='de'>German</SelectItem>
-              <SelectItem value='it'>Italian</SelectItem>
-              <SelectItem value='pt'>Portuguese</SelectItem>
-              <SelectItem value='ru'>Russian</SelectItem>
-              <SelectItem value='zh'>Chinese</SelectItem>
-              <SelectItem value='ja'>Japanese</SelectItem>
-              <SelectItem value='ko'>Korean</SelectItem>
-              <SelectItem value='ar'>Arabic</SelectItem>
-              <SelectItem value='hi'>Hindi</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+                    <div className='space-y-2'>
+                      <Label>Target Language</Label>
+                      <Select
+                        value={
+                          !Array.isArray(elementProperties.content)
+                            ? elementProperties.content.targetLanguage || 'en'
+                            : 'en'
+                        }
+                        onValueChange={(value) =>
+                          handlePropertyChange('content.targetLanguage', value)
+                        }
+                      >
+                        <SelectTrigger className='w-full'>
+                          <SelectValue placeholder='Select target language' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='en'>English</SelectItem>
+                          <SelectItem value='es'>Spanish</SelectItem>
+                          <SelectItem value='fr'>French</SelectItem>
+                          <SelectItem value='de'>German</SelectItem>
+                          <SelectItem value='it'>Italian</SelectItem>
+                          <SelectItem value='pt'>Portuguese</SelectItem>
+                          <SelectItem value='ru'>Russian</SelectItem>
+                          <SelectItem value='zh'>Chinese</SelectItem>
+                          <SelectItem value='ja'>Japanese</SelectItem>
+                          <SelectItem value='ko'>Korean</SelectItem>
+                          <SelectItem value='ar'>Arabic</SelectItem>
+                          <SelectItem value='hi'>Hindi</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-        <div className='text-xs text-muted-foreground mt-1'>
-          {!Array.isArray(elementProperties.content) && 
-           elementProperties.content.translationModel === 'deepl' ? (
-            <span>Get a DeepL API key at <a href="https://www.deepl.com/pro-api" target="_blank" rel="noopener noreferrer" className="underline">deepl.com/pro-api</a></span>
-          ) : (
-            <span>Get a Google Translate API key from <a href="https://cloud.google.com/translate" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a></span>
-          )}
-        </div>
-      </div>
-    )}
-</div>
+                    <div className='text-xs text-muted-foreground mt-1'>
+                      {!Array.isArray(elementProperties.content) &&
+                      elementProperties.content.translationModel === 'deepl' ? (
+                        <span>
+                          Get a DeepL API key at{' '}
+                          <a
+                            href='https://www.deepl.com/pro-api'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='underline'
+                          >
+                            deepl.com/pro-api
+                          </a>
+                        </span>
+                      ) : (
+                        <span>
+                          Get a Google Translate API key from{' '}
+                          <a
+                            href='https://cloud.google.com/translate'
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='underline'
+                          >
+                            Google Cloud Console
+                          </a>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+            </div>
           </div>
         );
 
@@ -348,11 +418,230 @@ const PropertyPanel = () => {
                     : ''
                 }
                 onChange={(e) =>
-                  handlePropertyChange('innerText', e.target.value)
+                  handlePropertyChange('content.innerText', e.target.value)
                 }
                 placeholder='Enter text content'
               />
             </div>
+
+            {/* Translation Settings Section for Dynamic Text */}
+            {element.type === 'dynamicText' && (
+              <div className='border-t pt-4 mt-4'>
+                <h3 className='font-medium mb-2'>Translation Settings</h3>
+
+                <div className='flex items-center space-x-2 mb-4'>
+                  <input
+                    type='checkbox'
+                    id='translationEnabled'
+                    checked={
+                      !Array.isArray(elementProperties.content)
+                        ? elementProperties.content.translationEnabled
+                        : false
+                    }
+                    onChange={(e) =>
+                      handlePropertyChange(
+                        'content.translationEnabled',
+                        e.target.checked
+                      )
+                    }
+                    className='toggle-checkbox'
+                  />
+                  <Label htmlFor='translationEnabled'>Enable Translation</Label>
+                </div>
+
+                {!Array.isArray(elementProperties.content) &&
+                  elementProperties.content.translationEnabled && (
+                    <div className='space-y-4'>
+                      <div className='space-y-2'>
+                        <Label>Translation Display</Label>
+                        <Select
+                          value={
+                            elementProperties.content.translationTarget ||
+                            'self'
+                          }
+                          onValueChange={(value) =>
+                            handlePropertyChange(
+                              'content.translationTarget',
+                              value === 'self'
+                                ? element.id
+                                : value === 'none'
+                                  ? null
+                                  : value
+                            )
+                          }
+                        >
+                          <SelectTrigger className='w-full'>
+                            <SelectValue placeholder='Select where to display translation' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='self'>
+                              Display in this field
+                            </SelectItem>
+                            {findAllElementsOfType(state.editor.elements, [
+                              'text',
+                              'dynamicText',
+                            ])
+                              .filter((e) => e.id !== element.id)
+                              .map((e) => (
+                                <SelectItem key={e.id} value={e.id}>
+                                  {e.name || `Element ${e.id.substring(0, 6)}`}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>Translation Service</Label>
+                        <Select
+                          value={
+                            elementProperties.content.translationModel ||
+                            'deepl'
+                          }
+                          onValueChange={(value) =>
+                            handlePropertyChange(
+                              'content.translationModel',
+                              value
+                            )
+                          }
+                        >
+                          <SelectTrigger className='w-full'>
+                            <SelectValue placeholder='Select a translation service' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='deepl'>DeepL</SelectItem>
+                            {/* <SelectItem value='google-translate'>Google Translate</SelectItem>
+                      <SelectItem value='libretranslate'>LibreTranslate (Free)</SelectItem>
+                      <SelectItem value='mymemory'>MyMemory (Free)</SelectItem> */}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>API Key</Label>
+                        <Input
+                          type='password'
+                          value={
+                            !Array.isArray(elementProperties.content)
+                              ? elementProperties.content.translationApiKey ||
+                                ''
+                              : ''
+                          }
+                          onChange={(e) =>
+                            handlePropertyChange(
+                              'content.translationApiKey',
+                              e.target.value
+                            )
+                          }
+                          placeholder='Enter API key'
+                        />
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>Source Language</Label>
+                        <Select
+                          value={
+                            !Array.isArray(elementProperties.content)
+                              ? elementProperties.content.sourceLanguage ||
+                                'auto'
+                              : 'auto'
+                          }
+                          onValueChange={(value) =>
+                            handlePropertyChange(
+                              'content.sourceLanguage',
+                              value
+                            )
+                          }
+                        >
+                          <SelectTrigger className='w-full'>
+                            <SelectValue placeholder='Select source language' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='auto'>Auto-detect</SelectItem>
+                            <SelectItem value='en'>English</SelectItem>
+                            <SelectItem value='es'>Spanish</SelectItem>
+                            <SelectItem value='fr'>French</SelectItem>
+                            <SelectItem value='de'>German</SelectItem>
+                            <SelectItem value='it'>Italian</SelectItem>
+                            <SelectItem value='pt'>Portuguese</SelectItem>
+                            <SelectItem value='ru'>Russian</SelectItem>
+                            <SelectItem value='zh'>Chinese</SelectItem>
+                            <SelectItem value='ja'>Japanese</SelectItem>
+                            <SelectItem value='ko'>Korean</SelectItem>
+                            <SelectItem value='ar'>Arabic</SelectItem>
+                            <SelectItem value='hi'>Hindi</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className='space-y-2'>
+                        <Label>Target Language</Label>
+                        <Select
+                          value={
+                            !Array.isArray(elementProperties.content)
+                              ? elementProperties.content.targetLanguage || 'en'
+                              : 'en'
+                          }
+                          onValueChange={(value) =>
+                            handlePropertyChange(
+                              'content.targetLanguage',
+                              value
+                            )
+                          }
+                        >
+                          <SelectTrigger className='w-full'>
+                            <SelectValue placeholder='Select target language' />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value='en'>English</SelectItem>
+                            <SelectItem value='es'>Spanish</SelectItem>
+                            <SelectItem value='fr'>French</SelectItem>
+                            <SelectItem value='de'>German</SelectItem>
+                            <SelectItem value='it'>Italian</SelectItem>
+                            <SelectItem value='pt'>Portuguese</SelectItem>
+                            <SelectItem value='ru'>Russian</SelectItem>
+                            <SelectItem value='zh'>Chinese</SelectItem>
+                            <SelectItem value='ja'>Japanese</SelectItem>
+                            <SelectItem value='ko'>Korean</SelectItem>
+                            <SelectItem value='ar'>Arabic</SelectItem>
+                            <SelectItem value='hi'>Hindi</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className='text-xs text-muted-foreground mt-1'>
+                        {!Array.isArray(elementProperties.content) &&
+                        elementProperties.content.translationModel ===
+                          'deepl' ? (
+                          <span>
+                            Get a DeepL API key at{' '}
+                            <a
+                              href='https://www.deepl.com/pro-api'
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='underline'
+                            >
+                              deepl.com/pro-api
+                            </a>
+                          </span>
+                        ) : (
+                          <span>
+                            Get a Google Translate API key from{' '}
+                            <a
+                              href='https://cloud.google.com/translate'
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='underline'
+                            >
+                              Google Cloud Console
+                            </a>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+              </div>
+            )}
           </div>
         );
 
@@ -617,8 +906,6 @@ const PropertyPanel = () => {
                   </div>
                 )}
             </div>
-
-          
           </div>
         );
       case 'image':
