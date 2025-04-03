@@ -477,9 +477,6 @@ const PropertyPanel = () => {
                             <SelectItem value='self'>
                               Display in this field
                             </SelectItem>
-                            <SelectItem value='none'>
-                              Don't display (just translate)
-                            </SelectItem>
                             {findAllElementsOfType(state.editor.elements, [
                               'text',
                               'dynamicText',
