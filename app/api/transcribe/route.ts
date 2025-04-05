@@ -5,9 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Maximum size for individual chunks (10MB is a typical limit for many APIs)
 const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+// const MAX_CHUNK_SIZE = 100 * 1024;
+
 
 // Seconds of overlap between chunks to ensure continuous transcription
 const CHUNK_OVERLAP_SECONDS = 3;
+// const CHUNK_OVERLAP_SECONDS = 1;
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -59,10 +63,11 @@ export async function POST(req: NextRequest) {
 
       for (let i = 0; i < chunkUrls.length; i++) {
         console.log(`Processing chunk ${i + 1}/${chunkUrls.length}`);
+        const chunkUrl = new URL(chunkUrls[i], process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString();
 
         // Use existing transcription functions with the chunk URL
         const chunkTranscription = await transcribeChunk(
-          chunkUrls[i],
+          chunkUrl,
           model,
           apiKey,
           language
@@ -137,16 +142,22 @@ function combineTranscriptions(transcriptions: string[]): string {
   if (transcriptions.length === 0) return "";
   if (transcriptions.length === 1) return transcriptions[0];
 
+  // Filter out empty transcriptions before combining
+  const nonEmptyTranscriptions = transcriptions.filter(text => text.trim() !== '');
+
+  if (nonEmptyTranscriptions.length === 0) return "";
+  if (nonEmptyTranscriptions.length === 1) return nonEmptyTranscriptions[0];
+
   // Basic approach: join with spaces
-  return transcriptions.map(text => text.trim()).join(' ');
+  return nonEmptyTranscriptions.map(text => text.trim()).join(' ');
 
   // More advanced approach (commented out for now):
   // This would remove duplicate sentences at chunk boundaries
   /*
-  let combined = transcriptions[0];
+  let combined = nonEmptyTranscriptions[0];
   
-  for (let i = 1; i < transcriptions.length; i++) {
-    const current = transcriptions[i];
+  for (let i = 1; i < nonEmptyTranscriptions.length; i++) {
+    const current = nonEmptyTranscriptions[i];
     
     // Find potential overlapping text (sentences, phrases)
     // This is a simplified approach - a real implementation would be more sophisticated
@@ -284,7 +295,19 @@ async function transcribeWithAssemblyAI(audioUrl: string, apiKey: string, langua
       console.log(`AssemblyAI job status: ${transcriptionResult.status}`);
 
       if (transcriptionResult.status === 'completed') {
-        console.log(`Transcription completed successfully. Text length: ${transcriptionResult.text.length} characters`);
+        // Check text field exists
+        if (transcriptionResult.text === undefined) {
+          console.error(`Unexpected AssemblyAI response structure: ${JSON.stringify(transcriptionResult)}`);
+          throw new Error('Unexpected AssemblyAI response structure: text field not found');
+        }
+
+        // Log if empty but don't treat as error
+        if (transcriptionResult.text === '') {
+          console.log(`AssemblyAI returned an empty transcription for this chunk. This may be normal for silent segments.`);
+        } else {
+          console.log(`Transcription completed successfully. Text length: ${transcriptionResult.text.length} characters`);
+        }
+
         return transcriptionResult.text;
       } else if (transcriptionResult.status === 'error') {
         throw new Error(`Transcription failed: ${transcriptionResult.error}`);
@@ -372,16 +395,29 @@ async function transcribeWithGladia(audioUrl: string, apiKey: string, language =
 
     const data = await gladiaResponse.json();
 
-    // Extract transcriptions from all segments in prediction array
-    if (Array.isArray(data.prediction) && data.prediction.length > 0) {
-      // Join all transcription segments with a space
-      return data.prediction
-        .map((segment: { transcription: string }) => segment.transcription)
-        .join(' ')
-        .trim();
-    } else {
-      throw new Error('No transcription found in Gladia API response');
+    // Check response structure
+    if (!data.prediction) {
+      console.error(`Unexpected Gladia response structure: ${JSON.stringify(data)}`);
+      throw new Error('Unexpected Gladia response structure');
     }
+
+    // Handle empty predictions array - no speech detected
+    if (!Array.isArray(data.prediction) || data.prediction.length === 0) {
+      console.log(`Gladia returned no transcript segments for this chunk. This may be normal for silent segments.`);
+      return "";
+    }
+
+    // Join all transcription segments with a space
+    const transcript = data.prediction
+      .map((segment: { transcription: string }) => segment.transcription || "")
+      .join(' ')
+      .trim();
+
+    if (transcript === "") {
+      console.log(`Gladia returned an empty transcription for this chunk. This may be normal for silent segments.`);
+    }
+
+    return transcript;
   } catch (error: unknown) {
     console.error(`Gladia transcription failed: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -428,6 +464,18 @@ async function transcribeWithOpenAI(audioUrl: string, apiKey: string, language =
 
     const data = await whisperResponse.json();
     console.log(`OpenAI Whisper transcription completed successfully. Result: ${JSON.stringify(data)}`);
+
+    // Check if the text field exists
+    if (data.text === undefined) {
+      console.error(`Unexpected OpenAI response structure: ${JSON.stringify(data)}`);
+      throw new Error('Unexpected OpenAI response structure: text field not found');
+    }
+
+    // Log empty transcriptions but don't treat them as errors
+    if (data.text === '') {
+      console.log(`OpenAI returned an empty transcription for this chunk. This may be normal for silent segments.`);
+    }
+
     return data.text;
   } catch (error: unknown) {
     console.error(`OpenAI Whisper transcription failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -499,7 +547,6 @@ async function transcribeWithAzure(audioUrl: string, apiKey: string, language = 
           method: 'POST',
           headers: {
             'Ocp-Apim-Subscription-Key': apiKey
-            // Do not set 'Content-Type' manually, as the browser will set the correct boundary for FormData
           },
           body: formData
         });
@@ -519,26 +566,25 @@ async function transcribeWithAzure(audioUrl: string, apiKey: string, language = 
         const data = await azureResponse.json();
         console.log(`Azure transcription successful in region ${region}. Response:`, data);
 
-        // Extract the text from the new response format
+        // Extract the text from the response format
+        let transcription = "";
+
         if (data.combinedPhrases && data.combinedPhrases.length > 0) {
           // Get text from all phrases
-          const transcription = data.combinedPhrases.map((phrase: any) => phrase.text).join(' ');
-          console.log(`Extracted transcription: ${transcription}`);
-
-          if (transcription && transcription.trim() !== "") {
-            return transcription;
-          }
+          transcription = data.combinedPhrases.map((phrase: any) => phrase.text || "").join(' ');
         } else if (data.phrases && data.phrases.length > 0) {
           // Fallback to using individual phrases if combined phrases not available
-          const transcription = data.phrases.map((phrase: any) => phrase.text).join(' ');
-          console.log(`Extracted transcription from phrases: ${transcription}`);
-
-          if (transcription && transcription.trim() !== "") {
-            return transcription;
-          }
+          transcription = data.phrases.map((phrase: any) => phrase.text || "").join(' ');
         }
 
-        console.warn(`Azure returned empty transcript for region ${region}. Trying next region...`);
+        // Log empty results but don't treat as errors
+        if (transcription.trim() === "") {
+          console.log(`Azure returned an empty transcription for region ${region}. This may be normal for silent segments.`);
+        } else {
+          console.log(`Extracted transcription: ${transcription}`);
+        }
+
+        return transcription;
       } catch (error) {
         console.error(`Error with Azure Speech in region ${region}: ${error instanceof Error ? error.message : String(error)}`);
         // Continue to next region
@@ -607,12 +653,24 @@ async function transcribeWithDeepgram(audioUrl: string, apiKey: string, language
     console.log(`Deepgram transcription completed. Result structure: ${JSON.stringify(Object.keys(data))}`);
     console.log(`Deepgram result preview: ${JSON.stringify(data).substring(0, 500)}...`);
 
-    if (!data.results?.channels?.[0]?.alternatives?.[0]?.transcript) {
+    // Check if the expected structure exists
+    if (!data.results?.channels?.[0]?.alternatives) {
       console.error(`Unexpected Deepgram response structure: ${JSON.stringify(data)}`);
       throw new Error('Unexpected Deepgram response structure');
     }
 
-    return data.results.channels[0].alternatives[0].transcript;
+    // Handle an empty transcript (no speech detected)
+    if (data.results.channels[0].alternatives.length === 0) {
+      console.log(`Deepgram returned no alternatives for this chunk. This may be normal for silent segments.`);
+      return "";
+    }
+
+    const transcript = data.results.channels[0].alternatives[0]?.transcript || "";
+    if (transcript === "") {
+      console.log(`Deepgram returned an empty transcription for this chunk. This may be normal for silent segments.`);
+    }
+
+    return transcript;
   } catch (error: unknown) {
     console.error(`Deepgram transcription failed: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
@@ -674,11 +732,18 @@ async function transcribeWithGroq(audioUrl: string, apiKey: string, model: strin
     const data = await groqResponse.json();
     console.log(`Groq transcription completed successfully. Result: ${JSON.stringify(data)}`);
 
-    if (!data.text) {
+    // Check if the text field exists and is not undefined
+    if (data.text === undefined) {
       console.error(`Unexpected Groq response structure: ${JSON.stringify(data)}`);
       throw new Error('Unexpected Groq response structure: text field not found');
     }
 
+    // Log when we get an empty transcription but continue processing
+    if (data.text === '') {
+      console.log(`Groq returned an empty transcription for this chunk. This may be normal for silent segments.`);
+    }
+
+    // Return the text (even if empty)
     return data.text;
   } catch (error: unknown) {
     console.error(`Groq transcription failed: ${error instanceof Error ? error.message : String(error)}`);
