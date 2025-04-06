@@ -226,7 +226,6 @@ const PropertyPanel = () => {
                 </span>
               </div>
             </div>
-           
           </div>
         );
 
@@ -286,38 +285,47 @@ const PropertyPanel = () => {
                 {!Array.isArray(elementProperties.content) &&
                   elementProperties.content.translationEnabled && (
                     <div className='space-y-4'>
-<div className='space-y-2'>
-  <Label>Translation Display</Label>
-  <select 
-    className="w-full p-2 border rounded-md"
-    value={elementProperties.content.translationTarget || 'none'}
-    onChange={(e) => {
-      const value = e.target.value;
-      handlePropertyChange(
-        'content.translationTarget',
-        value === 'none' ? null : value
-      );
-    }}
-  >
-    <option value="none">Select input box</option>
-    {findAllElementsOfType(state.editor.elements, [
-      'text',
-      'inputText'
-    ])
-      .filter((e) => e.id !== element.id && (e.type === 'inputText' || e.type === 'text'))
-      .map((e) => (
-        <option key={e.id} value={e.id}>
-          {e.name || `Element ${e.id.substring(0, 6)}`}
-        </option>
-      ))}
-  </select>
-  {(!elementProperties.content.translationTarget ||
-    elementProperties.content.translationTarget === 'none') && (
-    <div className="text-sm text-orange-500 mt-1">
-      Please select an input box to display the translation
-    </div>
-  )}
-</div>
+                      <div className='space-y-2'>
+                        <Label>Translation Display</Label>
+                        <select
+                          className='w-full p-2 border rounded-md'
+                          value={
+                            elementProperties.content.translationTarget ||
+                            'none'
+                          }
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            handlePropertyChange(
+                              'content.translationTarget',
+                              value === 'none' ? null : value
+                            );
+                          }}
+                        >
+                          <option value='none'>Select input box</option>
+                          {findAllElementsOfType(state.editor.elements, [
+                            'text',
+                            'inputText',
+                          ])
+                            .filter(
+                              (e) =>
+                                e.id !== element.id &&
+                                (e.type === 'inputText' || e.type === 'text')
+                            )
+                            .map((e) => (
+                              <option key={e.id} value={e.id}>
+                                {e.name || `Element ${e.id.substring(0, 6)}`}
+                              </option>
+                            ))}
+                        </select>
+                        {(!elementProperties.content.translationTarget ||
+                          elementProperties.content.translationTarget ===
+                            'none') && (
+                          <div className='text-sm text-orange-500 mt-1'>
+                            Please select an input box to display the
+                            translation
+                          </div>
+                        )}
+                      </div>
 
                       <div className='space-y-2'>
                         <Label>Translation Service</Label>
