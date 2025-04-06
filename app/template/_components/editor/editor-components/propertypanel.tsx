@@ -13,9 +13,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { EditorBtns } from '@/lib/constants';
-
+import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Loader2 } from 'lucide-react';
+
 type ElementContent = {
   href?: string;
   innerText?: string;
@@ -54,10 +55,77 @@ type ElementContent = {
   silenceRemoval?: boolean;
   fileName?: string;
 };
+type ModelOption = {
+  value: string;
+  label: string;
+};
+interface ModelSelectorProps {
+  label: string;
+  modelType: 'transcription' | 'translation';
+  modelOptions: ModelOption[];
+  currentValue: string | undefined;
+  onModelChange: (value: string, type: 'transcription' | 'translation') => void;
+  loading: boolean;
+  apiKeyExists: boolean | undefined;
+}
 
+const ModelSelector: React.FC<ModelSelectorProps> = ({
+  label,
+  modelType,
+  modelOptions,
+  currentValue,
+  onModelChange,
+  loading,
+  apiKeyExists,
+}) => {
+  // Enhanced debug logging
+  console.log(`Rendering ModelSelector for ${modelType}:`, {
+    currentValue,
+    hasApiKey: !!apiKeyExists,
+  });
+
+  return (
+    <div className='space-y-2'>
+      <Label>{label}</Label>
+      <select
+        className='w-full p-2 border rounded-md'
+        value={currentValue || ''}
+        onChange={(e) => {
+          console.log(`Selected ${modelType} model:`, e.target.value);
+          onModelChange(e.target.value, modelType);
+        }}
+      >
+        <option value='' disabled>
+          Select {modelType} model
+        </option>
+        {modelOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+
+      {loading && (
+        <div className='flex items-center mt-1'>
+          <Loader2 className='h-4 w-4 animate-spin mr-2' />
+          <span className='text-xs'>Loading API key...</span>
+        </div>
+      )}
+
+      {currentValue && (
+        <div className='text-xs text-muted-foreground mt-1'>
+          {apiKeyExists
+            ? '✅ Using API key from project settings'
+            : '⚠️ No API key found - add in project settings'}
+        </div>
+      )}
+    </div>
+  );
+};
 const PropertyPanel = () => {
   const { state, dispatch } = useEditor();
   const element = state.editor.selectedElement;
+  const [loading, setLoading] = useState(false);
 
   const [elementProperties, setElementProperties] = useState<{
     id: string;
@@ -70,6 +138,27 @@ const PropertyPanel = () => {
       ? (element.content as ElementContent)
       : ({} as ElementContent),
   });
+  const translationModelOptions: ModelOption[] = [
+    { value: 'deepl', label: 'DeepL' },
+    { value: 'google-translate', label: 'Google Translate' },
+    { value: 'libretranslate', label: 'LibreTranslate (Free)' },
+    { value: 'mymemory', label: 'MyMemory (Free)' },
+  ];
+
+  const transcriptionModelOptions: ModelOption[] = [
+    { value: 'azure-ai-speech', label: 'Azure AI Speech' },
+    { value: 'deepgram-nova-2', label: 'Deepgram Nova 2' },
+    { value: 'gladia', label: 'Gladia' },
+    { value: 'groq-distil-whisper', label: 'Groq Distil Whisper' },
+    { value: 'groq-whisper-large-v3', label: 'Groq Whisper Large V3' },
+    {
+      value: 'groq-whisper-large-v3-turbo',
+      label: 'Groq Whisper Large V3 Turbo',
+    },
+    { value: 'openai-whisper-large-v2', label: 'OpenAI Whisper Large V2' },
+    { value: 'speechmatics', label: 'Speechmatics' },
+    { value: 'assemblyai-universal-2', label: 'AssemblyAI Universal 2' },
+  ];
 
   useEffect(() => {
     setElementProperties({
@@ -97,6 +186,139 @@ const PropertyPanel = () => {
     });
 
     return result;
+  };
+
+  const fetchApiKey = async (providerId: string, providerType: string) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/providerKeys?providerId=${providerId}&providerType=${providerType}`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch API key');
+      }
+
+      const data = await response.json();
+
+      if (!data.exists || !data.apiKey) {
+        toast({
+          title: 'API Key Missing',
+          description: `No API key found for ${providerId}. Please add it in project settings.`,
+          variant: 'destructive',
+        });
+        return null;
+      }
+
+      toast({
+        title: 'API Key Loaded',
+        description: `Successfully loaded API key for ${providerId}`,
+        variant: 'default',
+      });
+
+      return data.apiKey;
+    } catch (error) {
+      console.error('Error fetching API key:', error);
+      toast({
+        title: 'Error',
+        description:
+          'Failed to fetch API key. Please check if you have added the key in project settings.',
+        variant: 'destructive',
+      });
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleModelChange = async (
+    modelValue: string,
+    type: 'transcription' | 'translation'
+  ): Promise<void> => {
+    if (!modelValue) {
+      console.error('Model selection failed: No model value provided');
+      return;
+    }
+
+    console.log(`handleModelChange called with:`, { modelValue, type });
+
+    const propertyPath =
+      type === 'transcription' ? 'transcriptionModel' : 'translationModel';
+    const apiKeyPath =
+      type === 'transcription' ? 'apiKey' : 'translationApiKey';
+
+    // Update local state first for immediate UI feedback
+    console.log(
+      `Updating model selection in local state: ${propertyPath} = ${modelValue}`
+    );
+    setElementProperties((prev) => {
+      const newState = {
+        ...prev,
+        content: {
+          ...prev.content,
+          [propertyPath]: modelValue,
+        },
+      };
+      console.log('Updated element properties state:', newState);
+      return newState;
+    });
+
+    // Update in editor state
+    console.log(`Dispatching model update to editor state`);
+    dispatch({
+      type: 'UPDATE_ELEMENT',
+      payload: {
+        elementDetails: {
+          ...element,
+          content: Array.isArray(element.content)
+            ? element.content
+            : { ...(element.content || {}), [propertyPath]: modelValue },
+        },
+      },
+    });
+
+    try {
+      // Fetch API key
+      console.log(`Fetching API key for ${modelValue} (${type})`);
+      const apiKey = await fetchApiKey(modelValue, type);
+      console.log(
+        `API key fetch result:`,
+        apiKey ? 'Found key' : 'No key found'
+      );
+
+      // Update with API key result
+      setElementProperties((prev) => ({
+        ...prev,
+        content: {
+          ...prev.content,
+          [apiKeyPath]: apiKey || '',
+        },
+      }));
+
+      // Update API key in editor state
+      dispatch({
+        type: 'UPDATE_ELEMENT',
+        payload: {
+          elementDetails: {
+            ...element,
+            content: Array.isArray(element.content)
+              ? element.content
+              : {
+                  ...(element.content || {}),
+                  [propertyPath]: modelValue,
+                  [apiKeyPath]: apiKey || '',
+                },
+          },
+        },
+      });
+    } catch (error) {
+      console.error('Error in handleModelChange:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update model selection',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handlePropertyChange = (property: string, value: any) => {
@@ -327,51 +549,25 @@ const PropertyPanel = () => {
                         )}
                       </div>
 
-                      <div className='space-y-2'>
-                        <Label>Translation Service</Label>
-                        <Select
-                          value={
-                            elementProperties.content.translationModel ||
-                            'deepl'
-                          }
-                          onValueChange={(value) =>
-                            handlePropertyChange(
-                              'content.translationModel',
-                              value
-                            )
-                          }
-                        >
-                          <SelectTrigger className='w-full'>
-                            <SelectValue placeholder='Select a translation service' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='deepl'>DeepL</SelectItem>
-                            {/* <SelectItem value='google-translate'>Google Translate</SelectItem>
-                      <SelectItem value='libretranslate'>LibreTranslate (Free)</SelectItem>
-                      <SelectItem value='mymemory'>MyMemory (Free)</SelectItem> */}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className='space-y-2'>
-                        <Label>API Key</Label>
-                        <Input
-                          type='password'
-                          value={
-                            !Array.isArray(elementProperties.content)
-                              ? elementProperties.content.translationApiKey ||
-                                ''
-                              : ''
-                          }
-                          onChange={(e) =>
-                            handlePropertyChange(
-                              'content.translationApiKey',
-                              e.target.value
-                            )
-                          }
-                          placeholder='Enter API key'
-                        />
-                      </div>
+                      <ModelSelector
+                        label='Translation Service'
+                        modelType='translation'
+                        modelOptions={translationModelOptions}
+                        currentValue={
+                          !Array.isArray(elementProperties.content) &&
+                          elementProperties.content
+                            ? elementProperties.content.translationModel
+                            : undefined
+                        }
+                        onModelChange={handleModelChange}
+                        loading={loading}
+                        apiKeyExists={
+                          !Array.isArray(elementProperties.content) &&
+                          elementProperties.content
+                            ? !!elementProperties.content.translationApiKey
+                            : undefined
+                        }
+                      />
 
                       <div className='space-y-2'>
                         <Label>Source Language</Label>
@@ -443,36 +639,6 @@ const PropertyPanel = () => {
                             <SelectItem value='hi'>Hindi</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-
-                      <div className='text-xs text-muted-foreground mt-1'>
-                        {!Array.isArray(elementProperties.content) &&
-                        elementProperties.content.translationModel ===
-                          'deepl' ? (
-                          <span>
-                            Get a DeepL API key at{' '}
-                            <a
-                              href='https://www.deepl.com/pro-api'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='underline'
-                            >
-                              deepl.com/pro-api
-                            </a>
-                          </span>
-                        ) : (
-                          <span>
-                            Get a Google Translate API key from{' '}
-                            <a
-                              href='https://cloud.google.com/translate'
-                              target='_blank'
-                              rel='noopener noreferrer'
-                              className='underline'
-                            >
-                              Google Cloud Console
-                            </a>
-                          </span>
-                        )}
                       </div>
                     </div>
                   )}
@@ -645,68 +811,25 @@ const PropertyPanel = () => {
               {!Array.isArray(elementProperties.content) &&
                 elementProperties.content.transcribeEnabled && (
                   <div className='space-y-4'>
-                    <div className='space-y-2'>
-                      <Label>Transcription Model</Label>
-                      <Select
-                        value={
-                          elementProperties.content.transcriptionModel || ''
-                        }
-                        onValueChange={(value) =>
-                          handlePropertyChange(
-                            'content.transcriptionModel',
-                            value
-                          )
-                        }
-                      >
-                        <SelectTrigger className='w-full'>
-                          <SelectValue placeholder='Select a model' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='azure-ai-speech'>
-                            Azure AI Speech
-                          </SelectItem>
-                          <SelectItem value='deepgram-nova-2'>
-                            Deepgram Nova 2
-                          </SelectItem>
-                          <SelectItem value='gladia'>Gladia</SelectItem>
-                          <SelectItem value='groq-distil-whisper'>
-                            Groq Distil Whisper
-                          </SelectItem>
-                          <SelectItem value='groq-whisper-large-v3'>
-                            Groq Whisper Large V3
-                          </SelectItem>
-                          <SelectItem value='groq-whisper-large-v3-turbo'>
-                            Groq Whisper Large V3 Turbo
-                          </SelectItem>
-                          <SelectItem value='openai-whisper-large-v2'>
-                            OpenAI Whisper Large V2
-                          </SelectItem>
-                          <SelectItem value='speechmatics'>
-                            Speechmatics
-                          </SelectItem>
-
-                          <SelectItem value='assemblyai-universal-2'>
-                            AssemblyAI Universal 2
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className='space-y-2'>
-                      <Label>API Key</Label>
-                      <Input
-                        type='password'
-                        value={
-                          !Array.isArray(elementProperties.content)
-                            ? elementProperties.content.apiKey || ''
-                            : ''
-                        }
-                        onChange={(e) =>
-                          handlePropertyChange('content.apiKey', e.target.value)
-                        }
-                        placeholder='Enter API key'
-                      />
-                    </div>
+                    <ModelSelector
+                      label='Transcription Model'
+                      modelType='transcription'
+                      modelOptions={transcriptionModelOptions}
+                      currentValue={
+                        !Array.isArray(elementProperties.content) &&
+                        elementProperties.content
+                          ? elementProperties.content.transcriptionModel
+                          : undefined
+                      }
+                      onModelChange={handleModelChange}
+                      loading={loading}
+                      apiKeyExists={
+                        !Array.isArray(elementProperties.content) &&
+                        elementProperties.content
+                          ? !!elementProperties.content.apiKey
+                          : undefined
+                      }
+                    />
 
                     <div className='space-y-2'>
                       <Label>Language</Label>
@@ -859,68 +982,25 @@ const PropertyPanel = () => {
               {!Array.isArray(elementProperties.content) &&
                 elementProperties.content.transcribeEnabled && (
                   <div className='space-y-4'>
-                    <div className='space-y-2'>
-                      <Label>Transcription Model</Label>
-                      <Select
-                        value={
-                          elementProperties.content.transcriptionModel || ''
-                        }
-                        onValueChange={(value) =>
-                          handlePropertyChange(
-                            'content.transcriptionModel',
-                            value
-                          )
-                        }
-                      >
-                        <SelectTrigger className='w-full'>
-                          <SelectValue placeholder='Select a model' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='azure-ai-speech'>
-                            Azure AI Speech
-                          </SelectItem>
-                          <SelectItem value='deepgram-nova-2'>
-                            Deepgram Nova 2
-                          </SelectItem>
-                          <SelectItem value='gladia'>Gladia</SelectItem>
-                          <SelectItem value='groq-distil-whisper'>
-                            Groq Distil Whisper
-                          </SelectItem>
-                          <SelectItem value='groq-whisper-large-v3'>
-                            Groq Whisper Large V3
-                          </SelectItem>
-                          <SelectItem value='groq-whisper-large-v3-turbo'>
-                            Groq Whisper Large V3 Turbo
-                          </SelectItem>
-                          <SelectItem value='openai-whisper-large-v2'>
-                            OpenAI Whisper Large V2
-                          </SelectItem>
-                          <SelectItem value='speechmatics'>
-                            Speechmatics
-                          </SelectItem>
-
-                          <SelectItem value='assemblyai-universal-2'>
-                            AssemblyAI Universal 2
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className='space-y-2'>
-                      <Label>API Key</Label>
-                      <Input
-                        type='password'
-                        value={
-                          !Array.isArray(elementProperties.content)
-                            ? elementProperties.content.apiKey || ''
-                            : ''
-                        }
-                        onChange={(e) =>
-                          handlePropertyChange('content.apiKey', e.target.value)
-                        }
-                        placeholder='Enter API key'
-                      />
-                    </div>
+                    <ModelSelector
+                      label='Transcription Model'
+                      modelType='transcription'
+                      modelOptions={transcriptionModelOptions}
+                      currentValue={
+                        !Array.isArray(elementProperties.content) &&
+                        elementProperties.content
+                          ? elementProperties.content.transcriptionModel
+                          : undefined
+                      }
+                      onModelChange={handleModelChange}
+                      loading={loading}
+                      apiKeyExists={
+                        !Array.isArray(elementProperties.content) &&
+                        elementProperties.content
+                          ? !!elementProperties.content.apiKey
+                          : undefined
+                      }
+                    />
 
                     <div className='space-y-2'>
                       <Label>Language</Label>
@@ -945,7 +1025,7 @@ const PropertyPanel = () => {
                           <SelectItem value='it'>Italian</SelectItem>
                           <SelectItem value='pt'>Portuguese</SelectItem>
                           <SelectItem value='ru'>Russian</SelectItem>
-                          <SelectItem value='zh'>Chinese</SelectItem>
+                          <SelectItem value='zh'>Chinese</SelectItem>{' '}
                           <SelectItem value='ja'>Japanese</SelectItem>
                           <SelectItem value='ko'>Korean</SelectItem>
                           <SelectItem value='ar'>Arabic</SelectItem>
