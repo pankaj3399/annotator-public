@@ -6,7 +6,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { encode } from "next-auth/jwt";
 
 // Initialize two OAuth clients - one for Android and one for iOS
-const androidClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const iosClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_IOS);
 
 if (!process.env.NEXTAUTH_SECRET) {
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const isIosClient = is_ios === true || is_ios === "true" || is_ios === 1 || is_ios === "1";
 
     // Select the appropriate client based on the is_ios parameter
-    const client = isIosClient ? iosClient : androidClient;
+    const client = isIosClient ? iosClient : googleClient;
     
     // Also select the corresponding client ID for verification
     const clientId = isIosClient 
