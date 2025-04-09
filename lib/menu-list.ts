@@ -24,10 +24,11 @@ import {
   Users,
   ShoppingCart,
   FileText,
-  Database
+  Database,
+  Key
 } from "lucide-react";
 import { BookIcon } from "@/components/BookIcon";
-import {TemplateIcon} from "@/components/TemplateIcon";
+import { TemplateIcon } from "@/components/TemplateIcon";
 
 // Define user roles - using space-separated strings to match what's in your system
 export type UserRole = "project manager" | "annotator" | "agency owner" | "system admin";
@@ -241,6 +242,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: Heart,
             submenus: [],
           },
+
         ],
       },
       {
@@ -331,7 +333,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       // Check if there's a project context in the tasks path
       const potentialProjectId = pathname.split("/").slice(2).find(segment =>
         segment &&
-        !["all", "annotatorDashboard", "chat", "profile", "wishlist", "bank", "viewCourses", "myCourses", "benchmark-arena", "review"].includes(segment)
+        !["all", "annotatorDashboard", "chat", "profile", "wishlist", "bank", "viewCourses", "myCourses", "benchmark-arena", "review",].includes(segment)
       );
 
       if (potentialProjectId) {
@@ -361,7 +363,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     projectId == "chat" ||
     projectId == "profile" ||
     projectId == "wishlist" ||
-    projectId == "bank" ||
+    projectId == "bank" || projectId == "providerKeys" ||
     fpath == "courses"
   ) {
     const homeMenu: Group[] = [
@@ -403,6 +405,14 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/wishlist"),
             icon: Heart,
             submenus: [],
+          },
+          {
+            href: "/providerKeys",
+            label: "Provider Keys",
+            active: pathname.includes("/providerKeys"),
+            icon: Key,
+            submenus: [],
+            visibleTo: ["project manager"],
           },
         ],
       },
@@ -506,6 +516,14 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: Heart,
           submenus: [],
         },
+        {
+          href: "/providerKeys",
+          label: "Provider Keys",
+          active: pathname.includes("/providerKeys"),
+          icon: Key,
+          submenus: [],
+          visibleTo: ["project manager"], // Only visible to project managers
+        },
       ],
     },
     {
@@ -517,7 +535,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname === "/",
           icon: Folder,
         },
-    
+
         // Only include Guidelines if we have a valid projectId
         ...(projectId &&
           !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ?

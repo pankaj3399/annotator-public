@@ -27,11 +27,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { generateAIResponseWithAttachments } from '@/app/actions/aiModel';
+import {
+  generateAIResponseWithAttachments,
+  getProviderAIModels,
+} from '@/app/actions/providerAIModel';
 
 interface FileAttachment {
   fileName: string;
@@ -40,7 +42,17 @@ interface FileAttachment {
   fileUrl?: string;
   s3Path?: string;
 }
-
+interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  apiKey: string;
+  systemPrompt?: string;
+  lastUsed?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 interface Attachment {
   fileName: string;
   fileType: string;
@@ -78,8 +90,137 @@ interface AIConfig {
   provider: string;
   model: string;
   apiKey: string;
+  modelName?: string;
 }
 
+interface AIModelSelectorProps {
+  onSelect: (config: AIConfig) => void;
+  isLoading: boolean;
+}
+const AIModelSelector: React.FC<AIModelSelectorProps> = ({
+  onSelect,
+  isLoading,
+}) => {
+  const [aiModels, setAiModels] = useState<AIModel[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Fetch available AI models on component mount
+  useEffect(() => {
+    const fetchModels = async () => {
+      setLoading(true);
+      try {
+        // Call the server action directly
+        const response = await getProviderAIModels();
+
+        if (response.success && response.models) {
+          setAiModels(response.models);
+
+          // Auto-select the first model if none is selected
+          if (response.models.length > 0 && !selectedModelId) {
+            setSelectedModelId(response.models[0].id);
+
+            // Set the AI config with the first model's details
+            onSelect({
+              provider: response.models[0].provider,
+              model: response.models[0].model,
+              apiKey: response.models[0].apiKey,
+            });
+          }
+        } else {
+          toast.error(response.error || 'Failed to fetch AI models');
+        }
+      } catch (error) {
+        console.error('Error fetching AI models:', error);
+        toast.error('Error loading AI models');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchModels();
+  }, [selectedModelId, onSelect]);
+
+  // Update parent component when selection changes
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    setSelectedModelId(id);
+
+    if (id) {
+      const selectedModel = aiModels.find((model) => model.id === id);
+      if (selectedModel) {
+        onSelect({
+          provider: selectedModel.provider,
+          model: selectedModel.model,
+          apiKey: selectedModel.apiKey,
+          modelName: selectedModel.name,
+        });
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className='flex justify-center py-4'>
+        <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
+      </div>
+    );
+  }
+
+  if (aiModels.length === 0) {
+    return (
+      <div className='text-center py-4'>
+        <p className='text-muted-foreground mb-2'>No AI models available</p>
+        <Button
+          variant='outline'
+          onClick={() => (window.location.href = '/settings/ai-models')}
+        >
+          Add New AI Model
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className='space-y-2'>
+      <label className='text-sm font-medium'>
+        Select AI Model <span className='text-red-500'>*</span>
+      </label>
+      <select
+        className='w-full p-2 border rounded'
+        value={selectedModelId}
+        onChange={handleModelChange}
+        disabled={isLoading}
+        required
+      >
+        <option value=''>Choose an AI Model</option>
+        {aiModels.map((model) => (
+          <option key={model.id} value={model.id}>
+            {model.name} ({model.provider} - {model.model})
+          </option>
+        ))}
+      </select>
+
+      {selectedModelId && (
+        <div className='rounded-md bg-muted p-3 text-sm'>
+          <p className='font-medium'>Selected Model Information:</p>
+          <ul className='mt-1 space-y-1 text-muted-foreground'>
+            <li>
+              Name: {aiModels.find((m) => m.id === selectedModelId)?.name}
+            </li>
+            <li>
+              Provider:{' '}
+              {aiModels.find((m) => m.id === selectedModelId)?.provider}
+            </li>
+            <li>
+              Model: {aiModels.find((m) => m.id === selectedModelId)?.model}
+            </li>
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+};
 const ProjectGuidelines = () => {
   const { data: session } = useSession();
   const params = useParams();
@@ -930,12 +1071,56 @@ const ProjectGuidelines = () => {
                     questions about this project.
                   </p>
                   <Dialog open={aiModalOpen} onOpenChange={setAiModalOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Bot className='h-4 w-4 mr-2' />
-                        Setup AI Assistant
-                      </Button>
-                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {isAiConfigured
+                            ? 'AI Assistant Settings'
+                            : 'Configure AI Assistant'}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {isAiConfigured
+                            ? 'Select an AI model for this project'
+                            : 'Set up an AI assistant to help with project discussions'}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className='space-y-4 py-4'>
+                        <AIModelSelector
+                          onSelect={setAiConfig}
+                          isLoading={isGeneratingAI}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button
+                          variant='outline'
+                          onClick={() => setAiModalOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={configureAndTrainAI}
+                          disabled={
+                            isGeneratingAI ||
+                            !aiConfig.provider ||
+                            !aiConfig.model ||
+                            !aiConfig.apiKey
+                          }
+                        >
+                          {isGeneratingAI ? (
+                            <>
+                              <Loader2 className='h-4 w-4 mr-2 animate-spin' />
+                              {isAiConfigured
+                                ? 'Updating...'
+                                : 'Setting up AI...'}
+                            </>
+                          ) : isAiConfigured ? (
+                            'Update AI Assistant'
+                          ) : (
+                            'Configure & Train AI'
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
                   </Dialog>
                 </div>
               ) : (
@@ -1266,7 +1451,6 @@ const ProjectGuidelines = () => {
         </Tabs>
       </CardContent>
 
-      {/* AI Configuration Dialog - accessible from settings button */}
       <Dialog open={aiModalOpen} onOpenChange={setAiModalOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1277,117 +1461,40 @@ const ProjectGuidelines = () => {
             </DialogTitle>
             <DialogDescription>
               {isAiConfigured
-                ? 'Update your AI assistant configuration'
+                ? 'Select an AI model for this project'
                 : 'Set up an AI assistant to help with project discussions'}
             </DialogDescription>
           </DialogHeader>
           <div className='space-y-4 py-4'>
-          <div className='space-y-2'>
-  <label className='text-sm font-medium'>AI Provider <span className="text-red-500">*</span></label>
-  <select
-    className='w-full p-2 border rounded'
-    value={aiConfig.provider}
-    onChange={(e) =>
-      setAiConfig({
-        ...aiConfig,
-        provider: e.target.value,
-        model: '', // Reset model when provider changes
-      })
-    }
-    required
-  >
-    <option value=''>Choose AI Provider</option>
-    <option value='OpenAI'>OpenAI</option>
-    <option value='Anthropic'>Anthropic</option>
-    <option value='Gemini'>Gemini</option>
-  </select>
-</div>
-<div className='space-y-2'>
-  <label className='text-sm font-medium'>Model <span className="text-red-500">*</span></label>
-  <select
-    className='w-full p-2 border rounded'
-    value={aiConfig.model}
-    onChange={(e) =>
-      setAiConfig({ ...aiConfig, model: e.target.value })
-    }
-    required
-    disabled={!aiConfig.provider}
-  >
-    <option value=''>Choose AI Model</option>
-    {aiConfig.provider === 'OpenAI' && (
-      <>
-        <option value='gpt-4'>GPT-4</option>
-        <option value='gpt-4-turbo'>GPT-4 Turbo</option>
-        <option value='gpt-4o'>GPT-4o</option>
-        <option value='gpt-4o-mini'>GPT-4o Mini</option>
-        <option value='gpt-3.5-turbo'>GPT-3.5 Turbo</option>
-      </>
-    )}
-    {aiConfig.provider === 'Anthropic' && (
-      <>
-        <option value='claude-3-5-sonnet-latest'>
-          Claude 3.5 Sonnet Latest
-        </option>
-        <option value='claude-3-5-sonnet-20240620'>
-          Claude 3.5 Sonnet 20240620
-        </option>
-        <option value='claude-3-haiku-20240307'>
-          Claude 3 Haiku 20240307
-        </option>
-        <option value='claude-3-opus-latest'>
-          Claude 3 Opus Latest
-        </option>
-        <option value='claude-3-opus-20240229'>
-          Claude 3 Opus 20240229
-        </option>
-      </>
-    )}
-    {aiConfig.provider === 'Gemini' && (
-      <>
-        <option value='gemini-1.0-pro'>Gemini 1.0 Pro</option>
-        <option value='gemini-1.5-flash'>Gemini 1.5 Flash</option>
-        <option value='gemini-1.5-pro'>Gemini 1.5 Pro</option>
-        <option value='gemini-pro'>Gemini Pro</option>
-      </>
-    )}
-  </select>
-</div>
-            <div className='space-y-2'>
-              <label className='text-sm font-medium'>API Key</label>
-              <Input
-                type='password'
-                placeholder='Enter API key'
-                value={aiConfig.apiKey}
-                onChange={(e) =>
-                  setAiConfig({ ...aiConfig, apiKey: e.target.value })
-                }
-              />
-            </div>
+            <AIModelSelector
+              onSelect={setAiConfig}
+              isLoading={isGeneratingAI}
+            />
           </div>
           <DialogFooter>
             <Button variant='outline' onClick={() => setAiModalOpen(false)}>
               Cancel
             </Button>
             <Button
-  onClick={configureAndTrainAI}
-  disabled={
-    isGeneratingAI ||
-    !aiConfig.provider ||
-    !aiConfig.model ||
-    !aiConfig.apiKey
-  }
->
-  {isGeneratingAI ? (
-    <>
-      <Loader2 className='h-4 w-4 mr-2 animate-spin' />
-      {isAiConfigured ? 'Updating...' : 'Setting up AI...'}
-    </>
-  ) : isAiConfigured ? (
-    'Update AI Assistant'
-  ) : (
-    'Configure & Train AI'
-  )}
-</Button>
+              onClick={configureAndTrainAI}
+              disabled={
+                isGeneratingAI ||
+                !aiConfig.provider ||
+                !aiConfig.model ||
+                !aiConfig.apiKey
+              }
+            >
+              {isGeneratingAI ? (
+                <>
+                  <Loader2 className='h-4 w-4 mr-2 animate-spin' />
+                  {isAiConfigured ? 'Updating...' : 'Setting up AI...'}
+                </>
+              ) : isAiConfigured ? (
+                'Update AI Assistant'
+              ) : (
+                'Configure & Train AI'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
