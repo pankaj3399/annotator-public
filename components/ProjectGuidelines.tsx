@@ -980,16 +980,14 @@ const ProjectGuidelines = () => {
         <CardTitle className='flex justify-between items-center'>
           <span>Project Guidelines</span>
           <div className='flex gap-2'>
-            {isAiConfigured && (
-              <Button
-                size='sm'
-                variant='outline'
-                onClick={() => setAiModalOpen(true)}
-              >
-                <Settings className='h-4 w-4 mr-2' />
-                AI Settings
-              </Button>
-            )}
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => setAiModalOpen(true)}
+            >
+              <Settings className='h-4 w-4 mr-2' />
+              AI Settings
+            </Button>
           </div>
         </CardTitle>
       </CardHeader>
