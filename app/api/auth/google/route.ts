@@ -1,10 +1,13 @@
+// app/api/auth/google/route.ts
 import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { NextResponse } from "next/server";
 import { OAuth2Client } from 'google-auth-library';
 import { encode } from "next-auth/jwt";
 
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+// Initialize two OAuth clients - one for Android and one for iOS
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const iosClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID_IOS);
 
 if (!process.env.NEXTAUTH_SECRET) {
   throw new Error('NEXTAUTH_SECRET must be defined');
@@ -14,7 +17,7 @@ export async function POST(req: Request) {
   try {
     await connectToDatabase();
     const body = await req.json();
-    const { token } = body;
+    const { token, is_ios } = body;
 
     if (!token) {
       return NextResponse.json(
@@ -23,10 +26,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Handle different possible types for is_ios (boolean or string)
+    const isIosClient = is_ios === true || is_ios === "true" || is_ios === 1 || is_ios === "1";
+
+    // Select the appropriate client based on the is_ios parameter
+    const client = isIosClient ? iosClient : googleClient;
+    
+    // Also select the corresponding client ID for verification
+    const clientId = isIosClient 
+      ? process.env.GOOGLE_CLIENT_ID_IOS 
+      : process.env.GOOGLE_CLIENT_ID;
+
     // Verify the Google ID token
     const ticket = await client.verifyIdToken({
       idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: clientId
     });
 
     const payload = ticket.getPayload();
@@ -36,7 +50,7 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
-
+    
     // Find or create user
     let user = await User.findOne({ email: payload.email });
     if (!user) {

@@ -105,8 +105,8 @@ export async function getAIModels(projectid: string) {
 
 export async function generateAiResponse(provider: string, model: string, prompt: string, projectId: string, apiKey: string) {
   try {
-    switch (provider) {
-      case "OpenAI": {
+    switch (provider.toLowerCase()) {
+      case "openai": {
         const openai = new OpenAI({
           apiKey: apiKey
         });
@@ -119,7 +119,7 @@ export async function generateAiResponse(provider: string, model: string, prompt
         return completion.choices[0].message.content;
       }
 
-      case "Anthropic": {
+      case "anthropic": {
         const anthropic = new Anthropic({
           apiKey: apiKey
         })
@@ -132,7 +132,7 @@ export async function generateAiResponse(provider: string, model: string, prompt
         return message.content[0].text
       }
 
-      case "Gemini": {
+      case "gemini": {
         const genAI = new GoogleGenerativeAI(
           apiKey
         );
