@@ -169,6 +169,8 @@ const MultiAIModal: React.FC<AIModalProps> = ({
       
       if (selectedModel && selectedPlaceholder && numberOfTasks) {
         const resolvedPrompt = resolveSystemPrompt();
+        
+        // Call onConfigure with all the necessary parameters
         await onConfigure(
           selectedModel.provider,
           selectedModel.model,
@@ -177,22 +179,27 @@ const MultiAIModal: React.FC<AIModalProps> = ({
           selectedPlaceholder,
           numberOfTasks
         );
+        
+        // Close the modal after configuration is complete
+        // The parent component will handle the generation process
+        setIsAIModalOpen(false);
       }
     } catch (error) {
       console.error('Error during configuration:', error);
     } finally {
       setIsLoading(false);
-      resetAndClose();
     }
   };
-
+  
+  // Don't reset values in resetAndClose, as it might trigger unwanted state changes
   const resetAndClose = () => {
-    // setIsAIModalOpen(false);
-    setFormValues({
-      ...formValues,
-      systemPrompt: '',
-    });
-    setSelectedPlaceholder({});
+    setIsAIModalOpen(false);
+    // Just close the modal, don't modify other state
+    // setFormValues({
+    //   ...formValues,
+    //   systemPrompt: '',
+    // });
+    // setSelectedPlaceholder({});
   };
 
   const isSubmitDisabled = !formValues.modelId || !selectedPlaceholder || numberOfTasks <= 0;
