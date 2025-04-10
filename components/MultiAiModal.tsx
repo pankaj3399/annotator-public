@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,25 +16,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Bot, Brain, Upload, LucideIcon } from 'lucide-react';
+import { Bot, Brain, Upload, LucideIcon, Loader2 } from 'lucide-react';
 import { Task } from './taskDialog';
 import { Placeholder } from './taskDialog';
 import { Badge } from './ui/badge';
-
-type Provider = 'OpenAI' | 'Anthropic' | 'Gemini';
+import { getProviderAIModels } from '@/app/actions/providerAIModel';
 
 interface FormValues {
-  model: string;
-  provider: Provider | '';
-  apiKey: string;
+  modelId: string;
   systemPrompt: string;
 }
 
-interface AIProvider {
-  name: Provider;
-  icon: LucideIcon;
-  description: string;
-  color: string;
+interface SavedAIModel {
+  id: string;
+  name: string;
+  provider: string;
+  model: string;
+  apiKey: string;
+  systemPrompt?: string;
+  lastUsed?: Date | null;
 }
 
 interface AIModalProps {
@@ -56,43 +56,19 @@ interface AIModalProps {
   setNumberOfTasks: (number: number) => void;
 }
 
-const providerModels: Record<Provider, string[]> = {
-  OpenAI: ['gpt-4', 'gpt-4-turbo', 'gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'],
-  Anthropic: [
-    'claude-3-5-sonnet-latest',
-    'claude-3-5-sonnet-20240620',
-    'claude-3-haiku-20240307',
-    'claude-3-opus-latest',
-    'claude-3-opus-20240229',
-  ],
-  Gemini: [
-    'gemini-1.0-pro',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro',
-    'gemini-pro',
-  ],
+// Icons for providers
+const getProviderIcon = (provider: string): LucideIcon => {
+  switch (provider.toLowerCase()) {
+    case "anthropic":
+      return Bot;
+    case "openai":
+      return Brain;
+    case "gemini":
+      return Upload;
+    default:
+      return Bot;
+  }
 };
-
-const aiProviders: AIProvider[] = [
-  {
-    name: 'Anthropic',
-    icon: Bot,
-    description: 'Advanced AI for complex tasks',
-    color: 'bg-purple-500',
-  },
-  {
-    name: 'OpenAI',
-    icon: Brain,
-    description: 'Versatile language models',
-    color: 'bg-green-500',
-  },
-  {
-    name: 'Gemini',
-    icon: Upload,
-    description: 'Multi-modal AI capabilities',
-    color: 'bg-blue-500',
-  },
-];
 
 const MultiAIModal: React.FC<AIModalProps> = ({
   onConfigure,
@@ -106,19 +82,44 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   setNumberOfTasks,
 }) => {
   const [formValues, setFormValues] = useState<FormValues>({
-    model: '',
-    provider: '',
-    apiKey: '',
+    modelId: '',
     systemPrompt: '',
   });
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isLoading, setLoading] = useState<boolean>(false);
+  const [savedModels, setSavedModels] = useState<SavedAIModel[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
 
-  const handleProviderChange = (value: string) => {
-    setFormValues((prev) => ({
+  // Fetch saved AI models when modal opens
+  useEffect(() => {
+    if (isAIModalOpen) {
+      fetchSavedModels();
+    }
+  }, [isAIModalOpen]);
+
+  const fetchSavedModels = async () => {
+    setIsLoadingModels(true);
+    try {
+      const response = await getProviderAIModels();
+      if (response.success && response.models) {
+        setSavedModels(response.models);
+      } else {
+        console.error('Failed to fetch models:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching AI models:', error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
+  const handleModelChange = (modelId: string) => {
+    const selectedModel = savedModels.find(model => model.id === modelId);
+    
+    setFormValues(prev => ({
       ...prev,
-      provider: value as Provider,
-      model: '',
+      modelId,
+      // Pre-populate with the saved system prompt if it exists
+      systemPrompt: selectedModel?.systemPrompt || prev.systemPrompt
     }));
   };
 
@@ -127,10 +128,6 @@ const MultiAIModal: React.FC<AIModalProps> = ({
   ) => {
     const { name, value } = e.target;
     setFormValues((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleModelChange = (value: string) => {
-    setFormValues((prev) => ({ ...prev, model: value }));
   };
 
   const handleBadgeClick = (placeholderName: string) => {
@@ -162,36 +159,29 @@ const MultiAIModal: React.FC<AIModalProps> = ({
       );
     });
 
-    console.log(resolvedPrompt);
-
     return resolvedPrompt;
   };
 
   const handleSubmit = async () => {
-    console.log(isLoading);
+    setIsLoading(true);
     try {
-      if (
-        formValues.provider &&
-        formValues.model &&
-        formValues.apiKey &&
-        selectedPlaceholder &&
-        numberOfTasks
-      ) {
+      const selectedModel = savedModels.find(model => model.id === formValues.modelId);
+      
+      if (selectedModel && selectedPlaceholder && numberOfTasks) {
         const resolvedPrompt = resolveSystemPrompt();
         await onConfigure(
-          formValues.provider,
-          formValues.model,
+          selectedModel.provider,
+          selectedModel.model,
           resolvedPrompt,
-          formValues.apiKey,
+          selectedModel.apiKey,
           selectedPlaceholder,
           numberOfTasks
         );
       }
     } catch (error) {
-      setLoading(false)
       console.error('Error during configuration:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
       resetAndClose();
     }
   };
@@ -205,13 +195,7 @@ const MultiAIModal: React.FC<AIModalProps> = ({
     setSelectedPlaceholder({});
   };
 
-  const isSubmitDisabled =
-    !formValues.provider || !formValues.model || !formValues.apiKey;
-
-  const getAvailableModels = (provider: Provider | ''): string[] => {
-    if (!provider || !(provider in providerModels)) return [];
-    return providerModels[provider as Provider];
-  };
+  const isSubmitDisabled = !formValues.modelId || !selectedPlaceholder || numberOfTasks <= 0;
 
   return (
     <Dialog open={isAIModalOpen} onOpenChange={setIsAIModalOpen}>
@@ -224,71 +208,59 @@ const MultiAIModal: React.FC<AIModalProps> = ({
 
         <div className="py-6 space-y-6">
           <div>
-            {' '}
             <div className="space-y-2">
-              <label className="text-sm font-medium">AI Provider</label>
-              <Select
-                value={formValues.provider}
-                onValueChange={handleProviderChange}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select an AI provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {aiProviders.map((provider) => {
-                    const Icon = provider.icon;
-                    return (
-                      <SelectItem key={provider.name} value={provider.name}>
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          <span>{provider.name}</span>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Model Version</label>
-              <Select
-                value={formValues.model}
-                onValueChange={handleModelChange}
-                disabled={!formValues.provider}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {getAvailableModels(formValues.provider).map((model) => (
-                    <SelectItem key={model} value={model}>
-                      {model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">API Key</label>
-              <Input
-                placeholder="Enter your API key"
-                name="apiKey"
-                type="password"
-                value={formValues.apiKey}
-                onChange={handleInputChange}
-                disabled={!formValues.provider}
-              />
+              <label className="text-sm font-medium">AI Model</label>
+              {isLoadingModels ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+                  <span className="ml-2 text-sm text-gray-500">Loading models...</span>
+                </div>
+              ) : savedModels.length === 0 ? (
+                <div className="text-sm text-gray-500 py-2">
+                  No saved AI models found. Please configure models in your settings.
+                </div>
+              ) : (
+                <Select
+                  value={formValues.modelId}
+                  onValueChange={handleModelChange}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a saved AI model" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {savedModels.map((model) => {
+                      const Icon = getProviderIcon(model.provider);
+                      return (
+                        <SelectItem key={model.id} value={model.id}>
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <div className="flex flex-col">
+                              <span>{model.name}</span>
+                              <span className="text-xs text-gray-500">
+                                {model.provider} | {model.model}
+                              </span>
+                            </div>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 
           <div className="flex items-center space-x-2 w-full max-w-md">
-            <Select onValueChange={setSelectedPlaceholder}>
+            <Select 
+              value={selectedPlaceholder ? JSON.stringify(selectedPlaceholder) : ''}
+              onValueChange={(value) => setSelectedPlaceholder(JSON.parse(value))}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select Placeholder" />
               </SelectTrigger>
               <SelectContent>
                 {placeholders.map((p) => (
-                  <SelectItem key={p.index} value={p as any}>
+                  <SelectItem key={p.index} value={JSON.stringify(p)}>
                     {p.name}
                   </SelectItem>
                 ))}
@@ -300,7 +272,8 @@ const MultiAIModal: React.FC<AIModalProps> = ({
               placeholder="# of Tasks"
               className="w-[100px]"
               value={numberOfTasks}
-              onChange={(e) => setNumberOfTasks(parseInt(e.target.value))}
+              onChange={(e) => setNumberOfTasks(parseInt(e.target.value) || 0)}
+              min={1}
             />
           </div>
 
@@ -324,7 +297,7 @@ const MultiAIModal: React.FC<AIModalProps> = ({
                 <Badge
                   key={placeholder.index}
                   variant="outline"
-                  className="cursor-pointer"
+                  className="cursor-pointer hover:bg-gray-100"
                   onClick={() => handleBadgeClick(placeholder.name)}
                 >
                   {placeholder.name}
@@ -343,19 +316,16 @@ const MultiAIModal: React.FC<AIModalProps> = ({
             Cancel
           </Button>
           <Button
-            onClick={() => {
-              setLoading(true);
-              handleSubmit();
-            }}
+            onClick={handleSubmit}
             disabled={isSubmitDisabled || isLoading}
           >
             {isLoading ? (
               <div className="flex items-center gap-2">
-                <div className="animate-spin">⚪</div>
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Generating...
               </div>
             ) : (
-              `Configure ${formValues.provider || 'AI Model'}`
+              'Use Selected Model'
             )}
           </Button>
         </DialogFooter>
