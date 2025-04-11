@@ -21,8 +21,9 @@ import { Task } from "./taskDialog";
 import { Placeholder } from "./taskDialog";
 import { Badge } from "./ui/badge";
 import { getProviderAIModels } from "@/app/actions/providerAIModel";
-
-type Provider = "OpenAI" | "Anthropic" | "Gemini";
+import { generateAiResponse } from "@/app/actions/aiModel";
+import { toast } from "@/hooks/use-toast";
+import { usePathname } from "next/navigation";
 
 interface FormValues {
   modelId: string;
@@ -79,6 +80,8 @@ const AIModal: React.FC<AIModalProps> = ({
   const [savedModels, setSavedModels] = useState<SavedAIModel[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(true);
+  const pathName = usePathname();
+  const projectId = pathName.split('/')[2];
 
   // Fetch saved AI models when modal opens
   useEffect(() => {
@@ -151,16 +154,25 @@ const AIModal: React.FC<AIModalProps> = ({
       
       if (selectedModel) {
         const resolvedPrompt = resolveSystemPrompt();
+        
+        // Just configure the parent component and let it handle the API call
         await onConfigure(
           selectedModel.provider,
           selectedModel.model,
           resolvedPrompt,
           selectedModel.apiKey
         );
+        
+        // Close modal - the parent will handle the API call
         resetAndClose();
       }
     } catch (error) {
       console.error("Error during configuration:", error);
+      toast({
+        title: 'Error',
+        description: 'Failed to configure AI model',
+        variant: 'destructive',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -238,23 +250,6 @@ const AIModal: React.FC<AIModalProps> = ({
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">
-              Available Placeholders
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {placeholders.map((placeholder) => (
-                <Badge
-                  key={placeholder.index}
-                  variant="outline"
-                  className="cursor-pointer hover:bg-gray-100"
-                  onClick={() => handleBadgeClick(placeholder.name)}
-                >
-                  {placeholder.name}
-                </Badge>
-              ))}
-            </div>
-          </div>
         </div>
 
         <DialogFooter className="gap-2">
@@ -275,7 +270,7 @@ const AIModal: React.FC<AIModalProps> = ({
                 Generating...
               </div>
             ) : (
-              'Use Selected Model'
+              'Generate with AI'
             )}
           </Button>
         </DialogFooter>

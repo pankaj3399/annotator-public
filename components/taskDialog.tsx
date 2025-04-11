@@ -687,29 +687,30 @@ export function TaskDialog({
 
   useEffect(() => {
     if (
+      isGeneratingForAll &&
       provider &&
       selectedModel &&
       systemPrompt &&
       apiKey &&
       selectedPlaceholder &&
       numberOfTasks &&
-      !isLoading &&
-      isGeneratingForAll
+      !isLoading
     ) {
       setIsLoading(true);
       handleGenerateAIForAllPlaceholders().finally(() => {
-        setIsLoading(false);
         setIsGeneratingForAll(false);
+        setIsLoading(false);
       });
     }
   }, [
+    isGeneratingForAll,
     provider,
     selectedModel,
     systemPrompt,
     apiKey,
     selectedPlaceholder,
     numberOfTasks,
-    isGeneratingForAll,
+    isLoading,
   ]);
   const handleConfigureAi = async (
     provider: string,
@@ -719,15 +720,43 @@ export function TaskDialog({
     task: Task,
     placeholder: Placeholder
   ) => {
-    // Update the necessary state variables
+    // Set state as before
+    console.log('=== handleConfigureAi called ===');
+
     setProvider(provider);
     setSelectedModel(model);
     setSystemPrompt(systemPrompt);
     setApiKey(apiKey);
-
-    // Store task and placeholder in state for later use
     setCurrentTask(task);
     setCurrentPlaceholder(placeholder);
+    
+    // Immediately generate AI response
+    try {
+      setIsLoading(true);
+      const response = await generateAiResponse(
+        provider,
+        model,
+        systemPrompt,
+        projectId,
+        apiKey
+      );
+      
+      // Update the task with the generated response
+      handleInputChange(task.id, placeholder, response);
+      
+      // Close the modal
+      setIsAiModalOpen(false);
+      setIsGeneratingForAll(false);
+    } catch (error) {
+      console.error('Error generating AI response:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate AI response',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleConfigureAiForAll = async (
@@ -738,16 +767,18 @@ export function TaskDialog({
     placeholder: any,
     numberOfTasks: any
   ) => {
+    // Set all necessary state
     setProvider(provider);
     setSelectedModel(model);
     setSystemPrompt(systemPrompt);
     setApiKey(apiKey);
-
-    // setCurrentPlaceholder(placeholder);
-
-    // // Trigger AI generation for all placeholders
-    // handleGenerateAIForAllPlaceholders();
+    setSelectedPlaceholder(placeholder);
+    setNumberOfTasks(numberOfTasks);
+    
+    // Trigger generation with a single state change
+    setIsGeneratingForAll(true);
   };
+  
 
   const renderFilledTemplate = (values: {
     [key: string]: TaskValue | CarouselContent;
@@ -1123,6 +1154,16 @@ export function TaskDialog({
   };
 
   const handleGenerateAIForAllPlaceholders = async () => {
+    console.log('=== handleGenerateAIForAllPlaceholders called ===');
+    console.log('Initial state:', {
+      numberOfTasks,
+      currentTasksLength: tasks.length,
+      provider,
+      selectedModel,
+      hasPlaceholder: !!selectedPlaceholder,
+      systemPrompt,
+      isGeneratingForAll
+    });
     console.log('=== Starting Task Generation ===');
     console.log('Initial state:', {
       numberOfTasks,
@@ -1132,7 +1173,7 @@ export function TaskDialog({
       hasPlaceholder: !!selectedPlaceholder,
       systemPrompt,
     });
-
+  
     if (
       !provider ||
       !selectedModel ||
@@ -1141,18 +1182,17 @@ export function TaskDialog({
       !selectedPlaceholder ||
       !numberOfTasks
     ) {
-      setIsGeneratingForAll(true);
-      setIsMultiAiModalOpen(true);
+      console.error('Missing required parameters for AI generation');
       return;
     }
-
+  
     try {
       const modifiedPrompt = `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
       limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & 
       the total response quantity should be: ${numberOfTasks}`;
-
-      console.log('mod', modifiedPrompt);
-
+  
+      console.log('Modified prompt:', modifiedPrompt);
+  
       const response = await generateAiResponse(
         provider,
         selectedModel,
@@ -1160,40 +1200,59 @@ export function TaskDialog({
         projectId,
         apiKey
       );
-
+  
       const allMatches = response.match(/^\d+\.\s*.+$/gm) || [];
       const parsedQuestions = allMatches
         .slice(0, numberOfTasks)
         .map((match: any) => match.replace(/^\d+\.\s*/, '').trim());
-
+  
       setAiResponse(parsedQuestions);
       updateTaskHelper(parsedQuestions);
-
-      setSystemPrompt('');
+  
+      // Don't reset system prompt here to avoid state change triggering more calls
+      return parsedQuestions;
     } catch (error) {
       console.error('Error in task generation:', error);
+      throw error;
     }
   };
-
   useEffect(() => {
     if (
+      isGeneratingForAll &&
       provider &&
       selectedModel &&
       systemPrompt &&
       apiKey &&
-      selectedPlaceholder &&
-      numberOfTasks
+      // For bulk generation, we need selectedPlaceholder
+      // For single field generation, we need currentTask and currentPlaceholder
+      ((selectedPlaceholder && numberOfTasks) || 
+       (currentTask && currentPlaceholder)) &&
+      !isLoading
     ) {
-      handleGenerateAIForAllPlaceholders();
+      console.log('Triggering AI generation from useEffect');
+      setIsLoading(true);
+      if (selectedPlaceholder && numberOfTasks) {
+        // Bulk generation
+        handleGenerateAIForAllPlaceholders()
+          .then(() => {
+            setIsGeneratingForAll(false);
+            setIsMultiAiModalOpen(false);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
+      } else if (currentTask && currentPlaceholder) {
+        // Single field generation
+        handleGenerateAI(currentTask, currentPlaceholder)
+          .then(() => {
+            setIsGeneratingForAll(false);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
+      }
     }
-  }, [
-    provider,
-    selectedModel,
-    systemPrompt,
-    apiKey,
-    selectedPlaceholder,
-    numberOfTasks,
-  ]);
+  }, [isGeneratingForAll]);
 
   return (
     <div>
@@ -1457,13 +1516,22 @@ export function TaskDialog({
                 Save Tasks ({tasks.length * globalRepeat} total)
               </Button>
               <Button
-                onClick={() => {
-                  setIsGeneratingForAll(true);
-                  setIsMultiAiModalOpen(true);
-                }}
-              >
-                Bulk Data Generation with AI
-              </Button>
+  onClick={() => {
+    // Reset all previous state
+    setCurrentTask(null);
+    setCurrentPlaceholder(null);
+    setProvider('');
+    setSelectedModel('');
+    setSystemPrompt('');
+    setApiKey('');
+    setIsGeneratingForAll(false);
+    
+    // Then open modal
+    setIsMultiAiModalOpen(true);
+  }}
+>
+  Bulk Data Generation with AI
+</Button>
             </div>
           </DialogFooter>
         </DialogContent>
