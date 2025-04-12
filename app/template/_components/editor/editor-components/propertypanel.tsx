@@ -16,6 +16,7 @@ import { EditorBtns } from '@/lib/constants';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Plus, Minus, Loader2 } from 'lucide-react';
+import TranscriptionFormatTip from '@/components/LandingPage/TranscriptionFormatTip';
 
 type ElementContent = {
   href?: string;
@@ -138,6 +139,45 @@ const PropertyPanel = () => {
       ? (element.content as ElementContent)
       : ({} as ElementContent),
   });
+
+  const modelFileSupport = {
+    'azure-ai-speech': {
+      preferred: ['wav', 'mp3'],
+      note: 'PCM WAV gives best results'
+    },
+    'deepgram-nova-2': {
+      preferred: ['wav', 'mp3', 'flac'],
+      note: 'High-quality audio recommended'
+    },
+    'openai-whisper-large-v2': {
+      preferred: ['mp3', 'wav', 'mp4'],
+      note: 'Max size: 25MB'
+    },
+    'groq-whisper-large-v3': {
+      preferred: ['mp3', 'wav', 'mp4'],
+      note: 'Max size: 25MB'
+    },
+    'groq-whisper-large-v3-turbo': {
+      preferred: ['mp3', 'wav', 'mp4'],
+      note: 'Max size: 25MB'
+    },
+    'groq-distil-whisper': {
+      preferred: ['mp3', 'wav', 'mp4'],
+      note: 'Max size: 25MB'
+    },
+    'assemblyai-universal-2': {
+      preferred: ['mp3', 'wav', 'flac'],
+      note: 'Supports files up to 5GB'
+    },
+    'gladia': {
+      preferred: ['wav', 'mp3', 'flac'],
+      note: 'Max size: 1GB or 4 hours'
+    },
+    'speechmatics': {
+      preferred: ['wav', 'mp3'],
+      note: 'Uncompressed audio preferred'
+    }
+  };
   const translationModelOptions: ModelOption[] = [
     { value: 'deepl', label: 'DeepL' },
     { value: 'google-translate', label: 'Google Translate' },
@@ -830,7 +870,12 @@ const PropertyPanel = () => {
                           : undefined
                       }
                     />
-
+{!Array.isArray(elementProperties.content) && 
+  elementProperties.content.transcriptionModel && (
+  <TranscriptionFormatTip 
+    selectedModel={elementProperties.content.transcriptionModel} 
+  />
+)}
                     <div className='space-y-2'>
                       <Label>Language</Label>
                       <Select

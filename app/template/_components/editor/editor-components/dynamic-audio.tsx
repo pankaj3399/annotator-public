@@ -134,7 +134,7 @@ const DynamicAudioComponent = (props: Props) => {
       toast.success('Transcription completed successfully')
     } catch (error) {
       console.error('Transcription error:', error)
-      toast.error(error instanceof Error ? error.message : 'Error occurred during transcription')
+      toast.error('Error occurred during transcription')
     } finally {
       setIsTranscribing(false)
     }
