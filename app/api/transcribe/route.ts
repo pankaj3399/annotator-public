@@ -3,15 +3,14 @@
 import { createChunksAndGetUrls } from '@/utils/audioChunker';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Maximum size for individual chunks (10MB is a typical limit for many APIs)
-const MAX_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+// Maximum size for individual chunks (25MB is a typical limit for many APIs)
+const MAX_CHUNK_SIZE = 25 * 1024 * 1024; // 25MB
 // const MAX_CHUNK_SIZE = 100 * 1024;
 
 
 // Seconds of overlap between chunks to ensure continuous transcription
 const CHUNK_OVERLAP_SECONDS = 3;
 // const CHUNK_OVERLAP_SECONDS = 1;
-
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,26 +59,47 @@ export async function POST(req: NextRequest) {
 
       // Process each chunk URL and collect results
       const chunkResults = [];
+      const failedChunks = [];
 
       for (let i = 0; i < chunkUrls.length; i++) {
         console.log(`Processing chunk ${i + 1}/${chunkUrls.length}`);
         const chunkUrl = new URL(chunkUrls[i], process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString();
 
-        // Use existing transcription functions with the chunk URL
-        const chunkTranscription = await transcribeChunk(
-          chunkUrl,
-          model,
-          apiKey,
-          language
-        );
+        try {
+          // Use existing transcription functions with the chunk URL
+          const chunkTranscription = await transcribeChunk(
+            chunkUrl,
+            model,
+            apiKey,
+            language
+          );
 
-        chunkResults.push(chunkTranscription);
-
-        console.log(`Transcription for chunk ${i + 1} completed`);
+          chunkResults.push(chunkTranscription);
+          console.log(`Transcription for chunk ${i + 1} completed`);
+        } catch (error) {
+          console.error(`Error processing chunk ${i + 1}:`, error);
+          failedChunks.push(i + 1);
+          // Push an empty string to maintain the correct order
+          chunkResults.push("");
+        }
       }
 
-      // Combine results
-      transcriptionResult = combineTranscriptions(chunkResults);
+      // Check if we have at least one successful transcription
+      if (chunkResults.some(result => result.trim() !== "")) {
+        // Combine results from successful chunks
+        transcriptionResult = combineTranscriptions(chunkResults);
+        
+        // Add a note if some chunks failed
+        if (failedChunks.length > 0) {
+          const failedChunksStr = failedChunks.join(', ');
+          transcriptionResult += `\n\n[Note: Some parts of the audio could not be transcribed.]`;
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Failed to transcribe any part of the audio file' },
+          { status: 500 }
+        );
+      }
     } else {
       // Process the entire audio file as a single piece
       console.log(`Processing audio file as a single chunk (${audioBlob.size} bytes)`);
@@ -106,13 +126,6 @@ export async function POST(req: NextRequest) {
         case 'assemblyai-universal-2':
           transcriptionResponse = await transcribeWithAssemblyAI(audioUrl, apiKey, language);
           break;
-        // Remove or uncomment the local whisper case
-        // case 'whisper-large-v3-local':
-        //   transcriptionResponse = await transcribeWithLocalWhisper(audioUrl, language);
-        //   break;
-        // case 'speechmatics':
-        //   transcriptionResponse = await transcribeWithSpeechmatics(audioUrl, apiKey, language);
-        //   break;
         case 'gladia':
           transcriptionResponse = await transcribeWithGladia(audioUrl, apiKey, language);
           break;
@@ -135,7 +148,6 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
 // Helper function to intelligently combine transcriptions
 // This could be enhanced with more sophisticated text processing
 function combineTranscriptions(transcriptions: string[]): string {

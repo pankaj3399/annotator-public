@@ -38,6 +38,12 @@ const Footer = () => {
                 >
                   Blog
                 </a>
+                <a
+                  className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50 transition-colors"
+                  href="https://www.blolabel.ai/blogs/privacy-policy-for-blolabel"
+                >
+                  Privacy Policy
+                </a>
               </nav>
             </div>
             <div className="space-y-2">

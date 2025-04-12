@@ -43,6 +43,7 @@ import MultiCombobox from '@/components/ui/multi-combobox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getTestTemplateTasks, createTestTasks } from '@/app/actions/task';
 import { getTeams } from '@/app/actions/team';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Option {
   value: string;
@@ -91,6 +92,7 @@ function AuthPageContent() {
     resume: '',
     nda: '',
     team_id: teamParam || '',
+    termsAccepted: false,
   });
 
   // Determine if team selection should be disabled
@@ -304,7 +306,10 @@ function AuthPageContent() {
       });
     }
   };
-
+  const handleCheckboxChange = (checked: boolean) => {
+    setFormData({ ...formData, termsAccepted: checked });
+  };
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -333,7 +338,14 @@ function AuthPageContent() {
       });
       return;
     }
-
+    if (!formData.termsAccepted) {
+      toast({
+        variant: 'destructive',
+        title: 'Terms and Conditions Required',
+        description: 'Please accept the Terms and Conditions to continue.',
+      });
+      return;
+    }
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -353,6 +365,7 @@ function AuthPageContent() {
                 linkedin: '',
                 resume: '',
                 nda: '',
+                termsAccepted: formData.termsAccepted,
               }),
       });
 
@@ -729,10 +742,36 @@ function AuthPageContent() {
                 ? 'col-span-2'
                 : ''
             }
+          > <div className="flex items-center space-x-2 mb-4">
+          <Checkbox 
+            id="terms" 
+            checked={formData.termsAccepted}
+            onCheckedChange={handleCheckboxChange}
+            required
+          />
+          <label
+            htmlFor="terms"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            <Button type='submit' className='w-full'>
-              Sign Up
-            </Button>
+            I agree to the{' '}
+            <a 
+              href="https://www.blolabel.ai/blogs/terms-and-conditions-for-blolabel"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline"
+            >
+              Terms and Conditions
+            </a>
+          </label>
+        </div>
+        <Button 
+          type="submit" 
+          className="w-full"
+          disabled={!formData.termsAccepted}
+        >
+          Sign Up
+        </Button>
+
           </div>
         </form>
 

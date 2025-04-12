@@ -20,7 +20,7 @@ export interface ChunkResult {
 export async function chunkAudioFile(
   audioBlob: Blob,
   // Production values (uncommented)
-  maxChunkSizeInBytes: number = 10 * 1024 * 1024, // Default 10MB chunks
+  maxChunkSizeInBytes: number = 25 * 1024 * 1024, // Default 25MB chunks
   overlapBytes: number = 44100 * 2 * 2 * 3, // ~3 seconds of 16-bit stereo audio at 44.1kHz
 
   // Testing values (commented out as in your original code)
