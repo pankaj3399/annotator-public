@@ -1,3 +1,4 @@
+// auth.ts
 import { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -6,6 +7,7 @@ import { User } from "./models/User";
 import { Team } from "./models/Team"; // Import Team model
 import { InvitedUsers } from "./models/InvitedUsers"; // Import InvitedUsers model
 import saltAndHashPassword from "./utils/password";
+import { auth } from "google-auth-library";
 
 interface JWTToken {
   id?: string;
