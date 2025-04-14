@@ -17,6 +17,8 @@
     "postbuild": "next-sitemap"
   },
   "dependencies": {
+    "@100mslive/roomkit-react": "^0.3.33",
+    "@100mslive/server-sdk": "^0.3.0",
     "@ai-sdk/anthropic": "^0.0.55",
     "@ai-sdk/google": "^0.0.55",
     "@ai-sdk/groq": "^0.0.1",

@@ -584,6 +584,12 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/benchmark-proposals"),
           icon: List,
         },
+        {
+          href: `/projects/training/${projectId}`,          label: "Training",
+          active: pathname === `/projects/training/${projectId}`,
+          icon: GraduationCap, // Choose appropriate icon
+          visibleTo: ["project manager"], // *** ONLY VISIBLE TO PROJECT MANAGER ***
+      },
       ],
     }
   ];
