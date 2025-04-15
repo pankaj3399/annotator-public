@@ -43,13 +43,6 @@ export interface ITraining extends Document {
   updated_at: Date;
 }
 
-// Define Mongoose Schemas
-const recordedVideoSchema = new Schema<IRecordedVideo>({
-    url: { type: String, default: null },
-    uploadedAt: { type: Date, default: null },
-    duration: { type: Number, default: null },
-}, { _id: false });
-
 const participantSchema = new Schema<IParticipant>({
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     joinedAt: { type: Date, default: null },
@@ -67,7 +60,6 @@ const webinarSessionSchema = new Schema<IWebinarSession>({
     enum: ["scheduled", "live", "completed", "cancelled"],
     default: "scheduled",
   },
-  recordedVideo: { type: recordedVideoSchema, default: () => ({}) }, // Default to empty object
   participants: [participantSchema],
   instructor: { type: Schema.Types.ObjectId, ref: "User", required: true },
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
