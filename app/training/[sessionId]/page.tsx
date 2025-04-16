@@ -20,7 +20,6 @@ export default function WebinarPage() {
     const [error, setError] = useState<string | null>(null);
 
     const { data: session, status: authStatus } = useSession();
-
     useEffect(() => {
         // Ensure sessionId is valid before proceeding
         if (!sessionId) {
@@ -28,38 +27,58 @@ export default function WebinarPage() {
             setIsLoadingToken(false);
             return;
         }
-
+    
         if (authStatus === 'loading') return; // Wait for auth check
-
+    
         if (authStatus === 'unauthenticated') {
             setError("Authentication required. Please log in.");
             setIsLoadingToken(false);
             return;
         }
-
+    
         if (authStatus === 'authenticated' && session?.user) {
             const user = session.user as { id: string; role: string; }; // Adjust type as needed
             const requiredRole = user.role === 'project manager' || user.role === 'annotator';
-
+    
             if (!requiredRole) {
                 setError(`Access Denied: Role (${user.role}) not permitted.`);
                 setIsLoadingToken(false);
                 return;
             }
-
+    
             setIsLoadingToken(true); // Start loading token
             setError(null);
-
-            fetch('/api/hms/token', {
+    
+            // Fetch with timeout implementation
+            const fetchWithTimeout = (url: string, options: RequestInit, timeout: number = 30000) => {
+                return Promise.race([
+                    fetch(url, options),
+                    new Promise<Response>((_, reject) => 
+                        setTimeout(() => reject(new Error(`Request timed out after ${timeout}ms`)), timeout)
+                    )
+                ]);
+            };
+    
+            // Use the timeout-enabled fetch
+            fetchWithTimeout('/api/hms/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id, userRole: user.role, webinarSessionId: sessionId }),
-            })
+            }, 60000) // 60 second timeout
             .then(async (res) => {
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || `Failed to get join token (${res.status})`);
-                if (!data.authToken) throw new Error("Invalid token received from server.");
-                setAuthToken(data.authToken);
+                // First check if the response can be parsed as JSON
+                const contentType = res.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || `Failed to get join token (${res.status})`);
+                    if (!data.authToken) throw new Error("Invalid token received from server.");
+                    setAuthToken(data.authToken);
+                } else {
+                    // Handle non-JSON responses (like HTML error pages)
+                    const text = await res.text();
+                    console.error("Non-JSON response:", text);
+                    throw new Error(`Server returned non-JSON response (${res.status})`);
+                }
             })
             .catch((err: any) => {
                 console.error("Token fetch error:", err);
@@ -67,8 +86,8 @@ export default function WebinarPage() {
             })
             .finally(() => setIsLoadingToken(false)); // Finish loading attempt
         }
-
-    }, [sessionId, session, authStatus]); // Dependencies
+    
+    }, [sessionId, session, authStatus]);// Dependencies
 
     // --- Render logic ---
     if (authStatus === 'loading' || isLoadingToken) {
