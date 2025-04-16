@@ -12,7 +12,6 @@ import { Terminal, Info } from "lucide-react";
 import { Suspense } from 'react';
 import { authOptions } from '@/auth'; // Adjust path
 import { CreateWebinarForm } from '@/components/training/CreateWebinarForm'; // Adjust path
-import { InviteAnnotatorForm } from '@/components/training/InviteAnnotatorForm'; // Adjust path
 import { TrainingWebinarList } from '@/components/training/TrainingWebinarList'; // Adjust path
 
 interface ProjectTrainingPageProps {
@@ -184,14 +183,7 @@ export default async function ProjectTrainingPage({ params }: ProjectTrainingPag
                              instructorId={user.id!} // User ID is guaranteed non-null here
                         />
                         <Separator />
-                         {/* Only show invite form if training document exists */}
-                         {trainingIdString ? (
-                            // Ensure InviteAnnotatorForm can handle trainingId potentially being null if needed,
-                            // or ensure trainingData guarantees invitedAnnotators exists if trainingId exists
-                            <InviteAnnotatorForm trainingId={trainingIdString} />
-                         ) : (
-                            <p className="text-sm text-muted-foreground">Invite annotators after creating the first webinar.</p>
-                         )}
+                       
                     </CardContent>
                 </Card>
             )}
@@ -201,7 +193,7 @@ export default async function ProjectTrainingPage({ params }: ProjectTrainingPag
                  <h2 className="mb-4 text-2xl font-semibold tracking-tight">Webinar Sessions</h2>
                 {trainingData?.webinars && trainingData.webinars.length > 0 ? (
                      <Suspense fallback={<div className="text-center p-4">Loading webinars...</div>}>
-                        <TrainingWebinarList webinars={trainingData.webinars} />
+                        <TrainingWebinarList webinars={trainingData.webinars}  trainingId={trainingData._id} />
                      </Suspense>
                 ) : (
                     // Show appropriate message if no webinars exist

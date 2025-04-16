@@ -3,6 +3,14 @@ import nodemailer from 'nodemailer';
 import { connectToDatabase } from './db';
 import NotificationTemplate from '@/models/NotificationTemplate';
 
+export interface WebinarDetails {
+  title: string;
+  description: string;
+  scheduledAt: string;
+  invitedBy: string;
+}
+
+
 // Email transporter configuration
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -253,3 +261,42 @@ export async function getNotificationTemplatesByProject(projectId: string) {
     };
   }
 }
+
+export const getWebinarInvitationTemplate = (
+  webinarDetails: WebinarDetails,
+  customMessage?: string
+): string => {
+  const scheduledDate = webinarDetails.scheduledAt 
+      ? new Date(webinarDetails.scheduledAt).toLocaleString() 
+      : 'To be announced';
+      
+  return `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #333; text-align: center;">Webinar Training Invitation</h2>
+    
+    <div style="background-color: #f5f5f5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+      <h3 style="margin-top: 0; color: #4F46E5;">${webinarDetails.title}</h3>
+      ${webinarDetails.description ? `<p>${webinarDetails.description}</p>` : ''}
+      <p><strong>Invited by:</strong> ${webinarDetails.invitedBy}</p>
+    </div>
+    
+    ${customMessage ? `<div style="margin: 20px 0; padding: 15px; border-left: 4px solid #4F46E5;"><p><strong>Message from ${webinarDetails.invitedBy}:</strong></p><p>${customMessage}</p></div>` : ''}
+    
+    <p>You have been invited to participate in this training webinar. You'll be able to access the webinar through the platform when it's time.</p>
+    
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'}/training" 
+         style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+        Go to Training Portal
+      </a>
+    </div>
+    
+    <p>If you have any questions, please contact your project manager.</p>
+    <p>Thank you!</p>
+    
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eaeaea; text-align: center; color: #666; font-size: 12px;">
+      <p>This is an automated message, please do not reply directly to this email.</p>
+    </div>
+  </div>
+`;
+};
