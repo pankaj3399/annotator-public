@@ -7,6 +7,7 @@ import { connectToDatabase } from '@/lib/db'; // Adjust path
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth'; // Adjust path
+import { getWebinarInvitationTemplate, sendEmail, WebinarDetails } from '@/lib/email';
 
 // --- 100ms API Configuration ---
 const HMS_API_BASE_URL = process.env.HMS_API_BASE_URL || "https://api.100ms.live/v2";
@@ -24,6 +25,14 @@ interface CreateWebinarArgs {
     instructorId: string; // Logged-in PM's user ID
 }
 
+interface MultiAnnotatorInviteArgs {
+    trainingId: string;
+    webinarId: string;
+    annotatorIds: string[];
+    emails: string[];
+    customMessage?: string;
+    webinarDetails: WebinarDetails;
+}
 /**
  * Server Action to create a 100ms room and add a WebinarSession.
  * If trainingId is provided, it adds to that Training document.
@@ -252,5 +261,110 @@ export async function inviteAnnotatorAction(
     } catch (error: any) {
         console.error("[Action Catch] Error inviting annotator:", error);
         return { success: false, message: "Failed to invite annotator due to a server error." };
+    }
+}
+
+export async function inviteMultipleAnnotatorsAction(
+    args: MultiAnnotatorInviteArgs
+): Promise<{ success: boolean; message: string; invitedCount?: number }> {
+    console.log("[Action Start] inviteMultipleAnnotatorsAction triggered with args:", {
+        trainingId: args.trainingId,
+        webinarId: args.webinarId,
+        annotatorCount: args.annotatorIds.length,
+        emailCount: args.emails.length
+    });
+
+    const session = await getServerSession(authOptions);
+    if (session?.user?.role !== 'project manager') {
+        console.warn("[Action Denied] User is not a project manager.");
+        return { success: false, message: "Permission denied." };
+    }
+
+    // Validate training ID
+    if (!mongoose.Types.ObjectId.isValid(args.trainingId)) {
+        console.warn("[Action Warn] Invalid trainingId format:", args.trainingId);
+        return { success: false, message: "Invalid Training ID format." };
+    }
+
+    // Validate annotator IDs
+    const validAnnotatorIds = args.annotatorIds.filter(id => 
+        mongoose.Types.ObjectId.isValid(id)
+    );
+
+    if (validAnnotatorIds.length === 0) {
+        console.warn("[Action Warn] No valid annotator IDs provided.");
+        return { success: false, message: "No valid annotator IDs provided." };
+    }
+
+    try {
+        await connectToDatabase();
+        console.log("[Action Info] Database connected for multi-invite.");
+
+        // Convert valid IDs to ObjectIds
+        const annotatorObjectIds = validAnnotatorIds.map(id => new Types.ObjectId(id));
+
+        // Update training document to add annotators
+        const updateResult = await Training.updateOne(
+            { _id: new Types.ObjectId(args.trainingId) },
+            { $addToSet: { invitedAnnotators: { $each: annotatorObjectIds } } }
+        );
+
+        console.log("[Action Info] Multi-invite update result:", updateResult);
+
+        if (updateResult.matchedCount === 0) {
+            console.warn(`[Action Warn] Training not found for ID ${args.trainingId} during multi-invite.`);
+            return { success: false, message: "Training not found." };
+        }
+
+        // Get training document with project for revalidation path
+        interface TrainingWithProject { project: Types.ObjectId }
+        const trainingDoc = await Training.findById(args.trainingId, { project: 1 }).lean<TrainingWithProject>();
+        
+        // Send emails to all annotators
+        if (args.emails && args.emails.length > 0) {
+            console.log(`[Action Info] Preparing to send ${args.emails.length} invitation emails`);
+            
+            // Generate HTML template
+            const emailHtml = getWebinarInvitationTemplate(
+                args.webinarDetails,
+                args.customMessage
+            );
+            
+            // Send email to all recipients at once
+            const emailResult = await sendEmail({
+                to: args.emails,
+                subject: `Training Webinar Invitation: ${args.webinarDetails.title}`,
+                html: emailHtml,
+                from: process.env.FROM_EMAIL || 'noreply@yourdomain.com'
+            });
+            
+            if (!emailResult.success) {
+                console.warn("[Action Warn] Failed to send invitation emails:", emailResult.error);
+                // We don't fail the entire action if emails fail, but log the issue
+            } else {
+                console.log(`[Action Success] Invitation emails sent successfully. MessageId: ${emailResult.messageId}`);
+            }
+        }
+        
+        // Revalidate page
+        if (trainingDoc && trainingDoc.project) {
+            const revalidationPath = `/projects/${trainingDoc.project.toString()}/training`;
+            console.log(`[Action Info] Revalidating path: ${revalidationPath}`);
+            revalidatePath(revalidationPath, 'page');
+        } else {
+            console.warn(`[Action Warn] Could not determine projectId for revalidation from trainingId ${args.trainingId}`);
+        }
+        
+        return { 
+            success: true, 
+            message: `Successfully invited ${validAnnotatorIds.length} annotator${validAnnotatorIds.length !== 1 ? 's' : ''} to the training.`,
+            invitedCount: validAnnotatorIds.length
+        };
+    } catch (error: any) {
+        console.error("[Action Catch] Error in inviteMultipleAnnotatorsAction:", error);
+        return { 
+            success: false, 
+            message: error.message || "Failed to invite annotators due to a server error." 
+        };
     }
 }

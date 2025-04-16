@@ -31,7 +31,7 @@ export function StatusUpdateButton({
     
     setIsLoading(true);
     try {
-      const response = await fetch('/api/training/webinar/status', {
+      const response = await fetch('/api/hms/webinar/status', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

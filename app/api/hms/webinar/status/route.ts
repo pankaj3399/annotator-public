@@ -1,4 +1,4 @@
-// src/app/api/training/webinar/status/route.ts
+// src/app/api/hms/webinar/status/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Training } from '@/models/Training';
