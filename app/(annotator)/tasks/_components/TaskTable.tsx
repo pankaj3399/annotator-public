@@ -1,3 +1,4 @@
+//app/%28annotator%29/tasks/_components/TaskTable.tsx
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -25,7 +26,18 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination"
 
-export default function TaskTable({ tasks }: { tasks: task[] }) {
+// Add these props to allow passing the tab and type information
+interface TaskTableProps {
+  tasks: task[];
+  activeTab?: string;
+  taskType?: string;
+}
+
+export default function TaskTable({ 
+  tasks,
+  activeTab = 'all',
+  taskType = 'core'
+}: TaskTableProps) {
   const [dialog, setDialog] = useState(false)
   const [feedback, setFeedback] = useState('')
   const [pageSize, setPageSize] = useState(10)
@@ -108,7 +120,22 @@ export default function TaskTable({ tasks }: { tasks: task[] }) {
           {currentTasks.map((task) => (
             <TableRow
               key={task._id}
-              onClick={() => router.push(`/task/${task._id}`)}
+              onClick={() => {
+                // Build the URL with necessary parameters
+                const params = new URLSearchParams();
+                
+                // Add tab and type for proper navigation
+                params.set('tab', activeTab);
+                params.set('type', taskType);
+                
+                // Add project ID if available
+                if (task.project) {
+                  params.set('projectId', task.project);
+                }
+                
+                // Navigate to the task with context preserved
+                router.push(`/task/${task._id}?${params.toString()}`);
+              }}
               className="cursor-pointer hover:bg-gray-50"
             >
               <TableCell className="font-medium">{task.name}</TableCell>
@@ -152,7 +179,10 @@ export default function TaskTable({ tasks }: { tasks: task[] }) {
               <PaginationItem>
                 <PaginationPrevious
                   href={`?page=${currentPage - 1}`}
-                  onClick={() => handlePageChange(currentPage - 1)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) handlePageChange(currentPage - 1);
+                  }}
                   className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>
@@ -168,7 +198,10 @@ export default function TaskTable({ tasks }: { tasks: task[] }) {
                     <PaginationItem key={pageNumber}>
                       <PaginationLink
                         href={`?page=${pageNumber}`}
-                        onClick={() => handlePageChange(pageNumber)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handlePageChange(pageNumber);
+                        }}
                         isActive={pageNumber === currentPage}
                       >
                         {pageNumber}
@@ -187,7 +220,10 @@ export default function TaskTable({ tasks }: { tasks: task[] }) {
               <PaginationItem>
                 <PaginationNext
                   href={`?page=${currentPage + 1}`}
-                  onClick={() => handlePageChange(currentPage + 1)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) handlePageChange(currentPage + 1);
+                  }}
                   className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
                 />
               </PaginationItem>

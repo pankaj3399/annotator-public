@@ -71,6 +71,13 @@ const Header = () => {
       >
         Blogs
       </Button>
+      <Link href={'https://docs.blolabel.ai/'}>
+        {' '}
+        <Button className='text-base dark:text-[#ECECEC] p-0' variant='link'>
+          Docs
+        </Button>
+      </Link>
+
       {session && (
         <Button
           className='text-base dark:text-[#ECECEC] p-0'

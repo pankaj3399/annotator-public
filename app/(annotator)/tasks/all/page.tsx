@@ -1,3 +1,4 @@
+//app/%28annotator%29/tasks/all/page.tsx
 'use client';
 import { getTasksByProject, getTasksOfAnnotator } from '@/app/actions/task';
 import { SheetMenu } from '@/components/admin-panel/sheet-menu';
@@ -99,16 +100,32 @@ export default function ProjectDashboard() {
                 </TabsList>
               </div>
               <TabsContent value='all'>
-                <TaskTable tasks={filteredTasks.all} />
+                <TaskTable 
+                  tasks={filteredTasks.all} 
+                  activeTab="all"
+                  taskType={taskType}
+                />
               </TabsContent>
               <TabsContent value='submitted'>
-                <TaskTable tasks={filteredTasks.submitted} />
+                <TaskTable 
+                  tasks={filteredTasks.submitted} 
+                  activeTab="submitted"
+                  taskType={taskType}
+                />
               </TabsContent>
               <TabsContent value='newTask'>
-                <TaskTable tasks={filteredTasks.newTask} />
+                <TaskTable 
+                  tasks={filteredTasks.newTask} 
+                  activeTab="newTask"
+                  taskType={taskType}
+                />
               </TabsContent>
               <TabsContent value='rejected'>
-                <TaskTable tasks={filteredTasks.rejected} />
+                <TaskTable 
+                  tasks={filteredTasks.rejected} 
+                  activeTab="rejected"
+                  taskType={taskType}
+                />
               </TabsContent>
             </Tabs>
           </>

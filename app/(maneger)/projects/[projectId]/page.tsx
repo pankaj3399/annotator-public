@@ -1,3 +1,4 @@
+// app/(maneger)/projects/[projectId]/page.tsx
 'use client';
 import { Project } from '@/app/(maneger)/page';
 import {
@@ -12,7 +13,8 @@ import { TemplateCopier } from '@/components/template-copier';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import Loader from '@/components/ui/NewLoader/Loader';
+import Loader from '@/components/ui/NewLoader/Loader'; // <<< KEEP ORIGINAL LOADER IMPORT
+import { DataLoadingSpinner } from '@/components/ui/DataLoadingSpinner'; // <<< ADDED LOADER IMPORT
 import {
   Table,
   TableBody,
@@ -37,7 +39,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'; // <<< Keep original useState/useEffect import
 import { getAllAnnotators } from '@/app/actions/annotator';
 import { changeAnnotator } from '@/app/actions/task';
 import {
@@ -56,6 +58,7 @@ import {
 } from '@/components/ui/popover';
 import ProjectLabelManager from '@/components/LabelManager';
 
+// --- KEEP ORIGINAL INTERFACES ---
 interface Model {
   _id: string;
   user: string;
@@ -73,6 +76,7 @@ type CreateTemplateInput = {
 };
 
 export default function ProjectDashboard() {
+  // --- KEEP ORIGINAL STATE VARIABLES ---
   const [templates, setTemplates] = useState<template[]>([]);
   const [project, setProject] = useState<Project>();
   const pathName = usePathname();
@@ -88,13 +92,15 @@ export default function ProjectDashboard() {
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast();
+  const [isDataLoading, setIsDataLoading] = useState(true); // <<< ADDED LOADER STATE
 
+  // --- KEEP ORIGINAL useEffect for Annotators/Models ---
   useEffect(() => {
     if (session) {
       const fetchAnnotators = async () => {
         try {
           const annotatorsData = JSON.parse(await getAllAnnotators());
-          setAnnotators(annotatorsData);
+          setAnnotators(annotatorsData); // Assuming this state update is okay on its own
         } catch (error: any) {
           toast({
             variant: 'destructive',
@@ -104,10 +110,11 @@ export default function ProjectDashboard() {
         }
       };
       fetchAnnotators();
-      fetchAIModels(projectId);
+      fetchAIModels(projectId); // Assuming this state update is okay on its own
     }
-  }, [session]);
+  }, [session, projectId]); // Added projectId dependency as it was used
 
+  // --- KEEP ORIGINAL handleAssignUser ---
   async function handleAssignUser(
     annotatorId: string,
     taskId: string,
@@ -118,7 +125,6 @@ export default function ProjectDashboard() {
       const res = JSON.parse(
         await changeAnnotator(taskId, annotatorId, ai, isReviewer)
       );
-      // Note: We don't need to update tasks state here since this is in the template context
       return res;
     } catch (error: any) {
       toast({
@@ -130,41 +136,60 @@ export default function ProjectDashboard() {
     }
   }
 
+  // --- MODIFIED useEffect for Project Fetch (to add loading state) ---
   useEffect(() => {
-    if (session) {
+    let isMounted = true; // Prevent state update on unmounted component
+    if (session && projectId) {
+      setIsDataLoading(true); // <<< SET LOADING TRUE
       fetch('/api/projects?projectId=' + projectId)
         .then((res) => res.json())
         .then((data) => {
-          if (data.success) {
-            setProject(data.project);
-            if (data.project.name) {
-              setNewTemplateName(data.project.name);
+          if (isMounted) { // Check if component is still mounted
+            if (data.success) {
+              setProject(data.project);
+              if (data.project.name) {
+                setNewTemplateName(data.project.name);
+              }
+              if (data.project.templates) setTemplates(data.project.templates);
+            } else {
+               // Keep original error handling structure if any, or add toast
+               toast({ variant: 'destructive', title: 'Failed to load project', description: data.error || 'Unknown error' });
             }
-            if (data.project.templates) setTemplates(data.project.templates);
           }
         })
-        .catch((error) =>
-          toast({
-            variant: 'destructive',
-            title: 'Uh oh! Something went wrong.',
-            description: error.message,
-          })
-        );
+        .catch((error) => {
+          if (isMounted) { // Check if component is still mounted
+            toast({
+              variant: 'destructive',
+              title: 'Uh oh! Something went wrong.',
+              description: error.message,
+            });
+          }
+        })
+        .finally(() => {
+          if (isMounted) { // Check if component is still mounted
+            setIsDataLoading(false); // <<< SET LOADING FALSE
+          }
+        });
+    } else {
+       // If session or projectId is not available, ensure loading is false
+       if (isMounted) setIsDataLoading(false);
     }
-  }, [session, projectId, toast]);
+    // Cleanup function to set isMounted to false when the component unmounts
+    return () => { isMounted = false; };
+  }, [session, projectId, toast]); // Keep original dependencies + toast
+
+  // --- KEEP ORIGINAL fetchAIModels ---
   const fetchAIModels = async (projectid: string) => {
-    if (session) {
+    if (session) { // Keep original session check inside
       try {
         const response = await getAIModels(projectid);
-
         if (typeof response === 'string') {
-          const parsedResponse = JSON.parse(response); // Parse the string to an object
-
+          const parsedResponse = JSON.parse(response);
           if (parsedResponse.error) {
             console.error('Error fetching AI models:', parsedResponse.error);
             return;
           }
-
           setModels(parsedResponse.models);
         } else {
           console.error('Unexpected response format:', response);
@@ -175,12 +200,23 @@ export default function ProjectDashboard() {
     }
   };
 
+  // --- KEEP ORIGINAL Session Check ---
   if (!session) {
-    return <Loader />;
+    return <Loader />; // Use original Loader
   }
 
-  if (session?.user?.role === 'annotator') router.push('/tasks');
+  // --- KEEP ORIGINAL Role Check ---
+  if (session?.user?.role === 'annotator') {
+     router.push('/tasks');
+     return <Loader />; // Use original Loader during redirect
+  }
 
+  // <<< ADDED Data Loading Check >>>
+  if (isDataLoading) {
+      return <DataLoadingSpinner message="Loading project details..." />;
+  }
+
+  // --- KEEP ORIGINAL handler functions ---
   const handleTemplateClick = (temp: template) => {
     setTemplate(temp);
     setIsDialogOpen(true);
@@ -188,13 +224,11 @@ export default function ProjectDashboard() {
 
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const defaultTemplate: CreateTemplateInput = {
       name: newTemplateName.trim(),
       project: projectId,
       type: newTemplateType.trim() as 'test' | 'training' | 'core',
     };
-
     const template: template = JSON.parse(
       await upsertTemplate(
         projectId as string,
@@ -203,7 +237,6 @@ export default function ProjectDashboard() {
         true
       )
     );
-
     router.push(`/template?Id=${template._id}`);
   };
 
@@ -234,10 +267,10 @@ export default function ProjectDashboard() {
 
   async function handleVisibility(e: React.MouseEvent, _id: string) {
     e.stopPropagation();
-    const res = await UpdateVisibilityTemplate(
-      _id,
-      !templates.find((template) => template._id === _id)?.private
-    );
+    const currentTemplate = templates.find((template) => template._id === _id); // Keep safety find
+    const newVisibility = !currentTemplate?.private; // Keep safe access
+
+    const res = await UpdateVisibilityTemplate(_id, newVisibility);
     if (!res.success) {
       toast({
         variant: 'destructive',
@@ -248,22 +281,23 @@ export default function ProjectDashboard() {
       setTemplates(
         templates.map((template) =>
           template._id === _id
-            ? { ...template, private: !template.private }
+            ? { ...template, private: newVisibility } // Keep calculated newVisibility
             : template
         )
       );
     }
   }
 
+  // --- KEEP ORIGINAL RETURN JSX ---
   return (
     <div className='min-h-screen'>
       <header className='bg-white'>
         <div className='max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center'>
           <h1 className='text-3xl font-bold text-gray-900 tracking-tight'>
-            Project - {project?.name}
+            Project - {project?.name} {/* Keep original optional chaining */}
           </h1>{' '}
           <div className='hidden sm:block'>
-            {project && ( // Only render when project exists
+            {project && ( // Keep original conditional render
               <ProjectLabelManager
                 projectId={projectId}
                 project={project}
@@ -310,7 +344,8 @@ export default function ProjectDashboard() {
         </form>
 
         {/* Templates Table */}
-        {templates.length === 0 ? (
+        {/* Keep original conditional rendering */}
+        {templates.length === 0 && !isDataLoading ? ( // Add !isDataLoading check here
           <div className='text-center py-10'>
             <h2 className='text-xl font-semibold text-gray-900'>
               No Template yet
@@ -321,78 +356,81 @@ export default function ProjectDashboard() {
             <Suggesion />
           </div>
         ) : (
-          <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Template Name</TableHead>
-                  <TableHead>Created Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className='text-right'>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.map((template) => (
-                  <TableRow
-                    key={template._id}
-                    onClick={() => handleTemplateClick(template)}
-                    className='cursor-pointer hover:bg-gray-50'
-                  >
-                    <TableCell className='font-medium'>
-                      {template.name}
-                    </TableCell>
-                    <TableCell>
-                      <div className='flex items-center text-sm text-gray-500'>
-                        <CalendarIcon className='mr-2 h-4 w-4' />
-                        {format(parseISO(template.created_at), 'PPP')}
-                      </div>
-                    </TableCell>
-                    <TableCell className='font-medium'>
-                      {template.type}
-                    </TableCell>
-
-                    <TableCell className='text-right'>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => handleVisibility(e, template._id)}
-                      >
-                        {template.private ? (
-                          <EyeOff className='h-4 w-4' />
-                        ) : (
-                          <Eye className='h-4 w-4' />
-                        )}
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => handleCopyTemplate(e, template)}
-                      >
-                        <Copy className='h-4 w-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => handleEditTemplate(e, template._id)}
-                      >
-                        <Edit2Icon className='h-4 w-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={(e) => handleDeleteTemplate(e, template._id)}
-                      >
-                        <Trash2Icon className='h-4 w-4' />
-                      </Button>
-                    </TableCell>
+          !isDataLoading && ( // Wrap table rendering in !isDataLoading check
+            <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Template Name</TableHead>
+                    <TableHead>Created Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className='text-right'>Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {templates.map((template) => (
+                    <TableRow
+                      key={template._id}
+                      onClick={() => handleTemplateClick(template)}
+                      className='cursor-pointer hover:bg-gray-50'
+                    >
+                      <TableCell className='font-medium'>
+                        {template.name}
+                      </TableCell>
+                      <TableCell>
+                        <div className='flex items-center text-sm text-gray-500'>
+                          <CalendarIcon className='mr-2 h-4 w-4' />
+                           {/* Keep original formatting, add safe check */}
+                          {template.created_at ? format(parseISO(template.created_at), 'PPP') : 'N/A'}
+                        </div>
+                      </TableCell>
+                      <TableCell className='font-medium'>
+                        {template.type}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={(e) => handleVisibility(e, template._id)}
+                        >
+                          {template.private ? (
+                            <EyeOff className='h-4 w-4' />
+                          ) : (
+                            <Eye className='h-4 w-4' />
+                          )}
+                        </Button>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={(e) => handleCopyTemplate(e, template)}
+                        >
+                          <Copy className='h-4 w-4' />
+                        </Button>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={(e) => handleEditTemplate(e, template._id)}
+                        >
+                          <Edit2Icon className='h-4 w-4' />
+                        </Button>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={(e) => handleDeleteTemplate(e, template._id)}
+                        >
+                          <Trash2Icon className='h-4 w-4' />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )
         )}
 
         {/* Dialogs */}
+        {/* Keep original dialog rendering */}
         {project && template && (
           <TaskDialog
             onConfigure={fetchAIModels}
@@ -416,6 +454,7 @@ export default function ProjectDashboard() {
   );
 }
 
+// --- KEEP ORIGINAL Suggesion Component ---
 export function Suggesion() {
   const [templates, setTemplates] = useState<template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -465,6 +504,7 @@ export function Suggesion() {
   }, []);
 
   function onclick(template: template) {
+    // Keep original navigation logic
     router.push(`/preview?projectId=${projectId}&templateId=${template._id}`);
   }
 
