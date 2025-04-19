@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getAllAnnotators } from '@/app/actions/annotator';
+import { getReadyToWorkStats, getUserStats } from '@/app/actions/stats';
 import { SheetMenu } from '@/components/admin-panel/sheet-menu';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns'; // Added isValid
 import {
   CalendarIcon,
   Save,
@@ -21,6 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   DollarSign,
+  LineChart as LineChartIcon,
+  CheckCircle2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MultiCombobox from '@/components/ui/multi-combobox';
@@ -32,6 +35,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   Select,
@@ -45,13 +49,18 @@ import { domains, languages, locations } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { Transfer } from '@/components/transferDialog';
 import { DeleteUserButton } from '@/components/DeleteUserButton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DailyExpertsStats } from '@/components/ProjectManagerDashboard/DailyExpertsStats'; // Using this based on your last code
+import { ActiveUsersChart } from '@/components/ProjectManagerDashboard/ActiveUsersChart';
 
+// --- Interfaces ---
 interface User {
   _id: string;
   name: string;
   email: string;
   permission: string[];
   lastLogin: Date;
+  createdAt: Date;
   domain: string[];
   lang: string[];
   location: string;
@@ -62,72 +71,149 @@ interface Option {
   label: string;
 }
 
+type Granularity = 'daily' | 'weekly' | 'monthly';
+
+interface ChartDataPoint {
+  date: string;
+  newExperts: number;
+  cumulativeExperts: number;
+}
+interface ReadyWorkDataPoint {
+  name: 'Active' | 'Not Active';
+  value: number;
+}
+interface StatError {
+  error: string;
+}
+
+// --- Constants ---
 const permissionMapping: { [key: string]: string } = {
   canReview: 'Can Review',
   noPermission: 'No Permission',
   'Can Review': 'canReview',
   'No Permission': 'noPermission',
 };
-
 const permissions = ['No Permission', 'Can Review'];
-const permissionOptions: Option[] = permissions.map((permission) => ({
-  value: permission,
-  label: permission,
+const permissionOptions: Option[] = permissions.map((p) => ({
+  value: p,
+  label: p,
 }));
-
 const PAGE_SIZES = [10, 20, 50, 100];
-
-const domainOptions: Option[] = domains.map((domain) => ({
-  value: domain.toLowerCase(),
-  label: domain,
+const domainOptions: Option[] = domains.map((d) => ({
+  value: d.toLowerCase(),
+  label: d,
+}));
+const languageOptions: Option[] = languages.map((l) => ({
+  value: l.toLowerCase(),
+  label: l,
+}));
+const locationOptions: Option[] = locations.map((l) => ({
+  value: l.toLowerCase(),
+  label: l.charAt(0).toUpperCase() + l.slice(1),
 }));
 
-const languageOptions: Option[] = languages.map((language) => ({
-  value: language.toLowerCase(),
-  label: language,
-}));
-
-const locationOptions: Option[] = locations.map((location) => ({
-  value: location.toLowerCase(),
-  label: location.charAt(0).toUpperCase() + location.slice(1),
-}));
-
+// --- Component ---
 export default function AnnotatorsPage() {
+  // --- State ---
   const [annotators, setAnnotators] = useState<User[]>([]);
+  const [isFetchingAnnotators, setIsFetchingAnnotators] = useState(true); // Loading state for table
   const [onOpen, setOnOpen] = useState(false);
   const [id, setId] = useState('');
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDomain, setSelectedDomain] = useState<string[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string[]>([]);
+  const [selectedLocation, setSelectedLocation] = useState<string[]>([]);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [reviewPermissionsState, setReviewPermissionsState] = useState<{
     [key: string]: string[];
   }>({});
-  const [selectedLocation, setSelectedLocation] = useState<string[]>([]);
-
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isChartDialogOpen, setIsChartDialogOpen] = useState(false);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [isLoadingChart, setIsLoadingChart] = useState(false);
+  const [chartError, setChartError] = useState<string | null>(null);
+  const [chartGranularity, setChartGranularity] =
+    useState<Granularity>('daily');
+  const [isReadyChartDialogOpen, setIsReadyChartDialogOpen] = useState(false);
+  const [readyWorkData, setReadyWorkData] = useState<ReadyWorkDataPoint[]>([]);
+  const [isLoadingReadyChart, setIsLoadingReadyChart] = useState(false);
+  const [readyChartError, setReadyChartError] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
 
-  const fetchAnnotators = async () => {
+  // --- Fetch Annotators ---
+  const fetchAnnotators = useCallback(async () => {
+    console.log('[AnnotatorsPage] Fetching annotators list...');
+    setIsFetchingAnnotators(true);
     try {
-      const data = JSON.parse(await getAllAnnotators());
-      const transformedData = data.map((annotator: User) => {
-        const currentPermissions = annotator.permission || ['noPermission'];
+      const rawData = await getAllAnnotators();
+      if (typeof rawData !== 'string' || !rawData.trim().startsWith('[')) {
+        console.error(
+          '[AnnotatorsPage] Invalid raw data from getAllAnnotators:',
+          rawData
+        );
+        throw new Error('Invalid data format for annotators.');
+      }
+      const data = JSON.parse(rawData);
+      if (!Array.isArray(data)) {
+        console.error(
+          '[AnnotatorsPage] Parsed annotator data is not an array:',
+          data
+        );
+        throw new Error('Expected an array of annotators.');
+      }
+      console.log(
+        `[AnnotatorsPage] Received ${data.length} raw annotator records.`
+      );
+
+      const transformedData = data.map((annotator: any): User => {
+        // Ensure dates are Date objects, provide defaults for missing/invalid values
+        let lastLoginDate = new Date(0);
+        if (annotator.lastLogin) {
+          const parsed = parseISO(annotator.lastLogin);
+          if (isValid(parsed)) lastLoginDate = parsed;
+          else
+            console.warn(
+              `[AnnotatorsPage] Invalid lastLogin date format for user ${annotator._id}: ${annotator.lastLogin}`
+            );
+        }
+
+        let createdAtDate = new Date(0);
+        if (annotator.createdAt) {
+          const parsed = parseISO(annotator.createdAt);
+          if (isValid(parsed)) createdAtDate = parsed;
+          else
+            console.warn(
+              `[AnnotatorsPage] Invalid createdAt date format for user ${annotator._id}: ${annotator.createdAt}`
+            );
+        }
+
+        const currentPermissions = Array.isArray(annotator.permission)
+          ? annotator.permission
+          : ['noPermission'];
         const transformedPermissions = currentPermissions.map(
-          (perm) => permissionMapping[perm] || 'No Permission'
+          (perm: string) => permissionMapping[perm] || 'No Permission'
         );
 
         return {
-          ...annotator,
+          _id: annotator._id || `unknown-${Math.random()}`, // Provide fallback ID if missing
+          name: annotator.name || 'Unknown Name',
+          email: annotator.email || 'Unknown Email',
           permission: transformedPermissions,
+          lastLogin: lastLoginDate,
+          createdAt: createdAtDate,
+          domain: Array.isArray(annotator.domain) ? annotator.domain : [],
+          lang: Array.isArray(annotator.lang) ? annotator.lang : [],
+          location: annotator.location || '',
         };
       });
 
       setAnnotators(transformedData);
-      setFilteredAnnotators(transformedData);
+      console.log(
+        `[AnnotatorsPage] Transformed ${transformedData.length} annotators.`
+      );
 
       const initialPermissionsState = transformedData.reduce(
         (acc: { [key: string]: string[] }, user: User) => {
@@ -136,263 +222,607 @@ export default function AnnotatorsPage() {
         },
         {}
       );
-
       setReviewPermissionsState(initialPermissionsState);
-    } catch (error) {
-      console.error('Error fetching annotators:', error);
+    } catch (error: any) {
+      console.error(
+        '[AnnotatorsPage] Error fetching/processing annotators:',
+        error
+      );
+      const description =
+        error instanceof SyntaxError
+          ? 'Failed to parse annotator data. Check server logs.'
+          : error.message || 'Failed to fetch annotators';
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to fetch annotators',
+        title: 'Error Loading Experts',
+        description,
       });
+      setAnnotators([]); // Clear on error
+      setFilteredAnnotators([]);
+    } finally {
+      setIsFetchingAnnotators(false); // Done loading
     }
-  };
+  }, [toast]); // Add toast as dependency
 
   useEffect(() => {
     fetchAnnotators();
-  }, [toast]);
+  }, [fetchAnnotators]); // Depend on the memoized fetchAnnotators
 
-  const handleViewDetails = (user: User) => {
-    router.push(`/annotator/profileView/${user._id}`);
-  };
-
+  // --- Filtering Logic ---
   useEffect(() => {
+    // No need to log here every time annotators state changes, focus on filter values
+    console.log(
+      `[AnnotatorsPage] Filtering annotators based on: Search='${searchTerm}', Domain=${selectedDomain.length}, Lang=${selectedLanguage.length}, Loc=${selectedLocation.length}`
+    );
     const filtered = annotators.filter((user) => {
+      const nameLower = user.name?.toLowerCase() || '';
+      const emailLower = user.email?.toLowerCase() || '';
+      const searchTermLower = searchTerm.toLowerCase();
       const matchesSearch =
-        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        !searchTerm ||
+        nameLower.includes(searchTermLower) ||
+        emailLower.includes(searchTermLower); // Check if searchTerm exists
 
+      const userDomainsLower =
+        user.domain?.map((d) => d?.toLowerCase() ?? '') || [];
       const matchesDomain =
         selectedDomain.length === 0 ||
-        (user.domain &&
-          selectedDomain.some((selected) =>
-            user.domain
-              .map((d) => d.toLowerCase())
-              .includes(selected.toLowerCase())
-          ));
+        selectedDomain.some((selected) =>
+          userDomainsLower.includes(selected.toLowerCase())
+        );
 
+      const userLangsLower =
+        user.lang?.map((l) => l?.toLowerCase() ?? '') || [];
       const matchesLanguage =
         selectedLanguage.length === 0 ||
-        (user.lang &&
-          selectedLanguage.some((selected) =>
-            user.lang
-              .map((l) => l.toLowerCase())
-              .includes(selected.toLowerCase())
-          ));
+        selectedLanguage.some((selected) =>
+          userLangsLower.includes(selected.toLowerCase())
+        );
 
+      const userLocationLower = user.location?.toLowerCase() || '';
       const matchesLocation =
         selectedLocation.length === 0 ||
-        (user.location &&
-          selectedLocation.some(
-            (selected) => user.location.toLowerCase() === selected.toLowerCase()
-          ));
+        selectedLocation.some(
+          (selected) => userLocationLower === selected.toLowerCase()
+        );
 
       return (
         matchesSearch && matchesDomain && matchesLanguage && matchesLocation
       );
     });
-
+    console.log(
+      `[AnnotatorsPage] Filtering resulted in ${filtered.length} annotators.`
+    );
     setFilteredAnnotators(filtered);
-    setCurrentPage(1);
+    if (currentPage !== 1) {
+      // Reset page only if not already 1
+      setCurrentPage(1);
+    }
   }, [
     searchTerm,
     selectedDomain,
     selectedLanguage,
     selectedLocation,
     annotators,
-  ]);
+    currentPage,
+  ]); // Added currentPage to dependencies
+
+  // --- Fetch Chart Data ---
+  const fetchChartData = useCallback(async () => {
+    console.log(
+      `[AnnotatorsPage] Starting fetchChartData for granularity: ${chartGranularity}`
+    );
+    setIsLoadingChart(true);
+    setChartError(null);
+    setChartData([]);
+
+    try {
+      const filters = {
+        domain: selectedDomain,
+        lang: selectedLanguage,
+        location: selectedLocation,
+      };
+      console.log(
+        `[AnnotatorsPage] Fetching chart data with filters: ${JSON.stringify(filters)}`
+      );
+
+      const statsJson = await getUserStats(filters, chartGranularity);
+      console.log(
+        '[AnnotatorsPage] Raw response from getUserStats:',
+        statsJson
+      );
+
+      let stats: ChartDataPoint[] | StatError;
+      try {
+        stats = JSON.parse(statsJson);
+      } catch (e) {
+        console.error(
+          '[AnnotatorsPage] Failed to parse chart data JSON:',
+          statsJson,
+          e
+        );
+        throw new Error('Received invalid chart data format from server.');
+      }
+
+      console.log('[AnnotatorsPage] Parsed chart data/error object:', stats);
+
+      // Check for error structure returned from server action
+      if (
+        typeof stats === 'object' &&
+        stats !== null &&
+        'error' in stats &&
+        typeof stats.error === 'string'
+      ) {
+        console.error(
+          '[AnnotatorsPage] Server action returned error:',
+          stats.error
+        );
+        throw new Error(stats.error); // Use error message from server
+      }
+
+      if (!Array.isArray(stats)) {
+        console.error(
+          '[AnnotatorsPage] Parsed chart data is not an array:',
+          stats
+        );
+        throw new Error('Expected an array for chart data.');
+      }
+
+      // Filter out any potential invalid data points (optional but safer)
+      const validChartData = stats.filter(
+        (dp) =>
+          typeof dp.date === 'string' &&
+          typeof dp.newExperts === 'number' &&
+          typeof dp.cumulativeExperts === 'number'
+      );
+      if (validChartData.length !== stats.length) {
+        console.warn(
+          '[AnnotatorsPage] Filtered out invalid data points from chart data.'
+        );
+      }
+
+      console.log(
+        `[AnnotatorsPage] Setting ${validChartData.length} valid chart data points.`
+      );
+      setChartData(validChartData);
+    } catch (error: any) {
+      console.error(
+        '[AnnotatorsPage] Client-side error during fetchChartData:',
+        error
+      );
+      setChartError(error.message || 'Could not load chart data.');
+      setChartData([]); // Ensure data is cleared on error
+    } finally {
+      console.log('[AnnotatorsPage] Finished fetchChartData.');
+      setIsLoadingChart(false);
+    }
+  }, [selectedDomain, selectedLanguage, selectedLocation, chartGranularity]); // Dependencies
+
+  // --- Effect for Chart Data ---
+  useEffect(() => {
+    if (isChartDialogOpen) {
+      console.log(
+        '[AnnotatorsPage] Chart dialog opened/granularity changed, triggering fetchChartData.'
+      );
+      fetchChartData();
+    } else {
+      // Optional: log dialog close if needed
+      // console.log("[AnnotatorsPage] Chart dialog closed.");
+    }
+  }, [isChartDialogOpen, fetchChartData]); // Depends on dialog state and the memoized fetch function
+  const fetchReadyWorkData = useCallback(async () => {
+    console.log(`[AnnotatorsPage] Starting fetchReadyWorkData`);
+    setIsLoadingReadyChart(true);
+    setReadyChartError(null);
+    setReadyWorkData([]);
+
+    try {
+      const filters = {
+        domain: selectedDomain,
+        lang: selectedLanguage,
+        location: selectedLocation,
+      };
+      console.log(
+        `[AnnotatorsPage] Fetching readiness data with filters: ${JSON.stringify(filters)}`
+      );
+
+      const statsJson = await getReadyToWorkStats(filters); // Call the new action
+      console.log(
+        '[AnnotatorsPage] Raw response from getReadyToWorkStats:',
+        statsJson
+      );
+
+      let stats: ReadyWorkDataPoint[] | StatError = JSON.parse(statsJson);
+      console.log(
+        '[AnnotatorsPage] Parsed readiness data/error object:',
+        stats
+      );
+
+      if (typeof stats === 'object' && stats !== null && 'error' in stats) {
+        throw new Error(stats.error);
+      }
+      if (!Array.isArray(stats)) {
+        throw new Error('Expected an array for readiness data.');
+      }
+
+      console.log(
+        `[AnnotatorsPage] Setting ${stats.length} readiness data points.`
+      );
+      setReadyWorkData(stats);
+    } catch (error: any) {
+      console.error(
+        '[AnnotatorsPage] Client-side error during fetchReadyWorkData:',
+        error
+      );
+      setReadyChartError(error.message || 'Could not load readiness data.');
+      setReadyWorkData([]);
+    } finally {
+      console.log('[AnnotatorsPage] Finished fetchReadyWorkData.');
+      setIsLoadingReadyChart(false);
+    }
+  }, [selectedDomain, selectedLanguage, selectedLocation]); // Dependencies
+  useEffect(() => {
+    if (isReadyChartDialogOpen) {
+      console.log(
+        '[AnnotatorsPage] Readiness chart dialog opened, triggering fetchReadyWorkData.'
+      );
+      fetchReadyWorkData();
+    }
+  }, [isReadyChartDialogOpen, fetchReadyWorkData]);
+  // --- Handlers ---
+  const handleViewDetails = (user: User) => {
+    router.push(`/annotator/profileView/${user._id}`);
+  };
 
   const savePermissions = async (userId: string) => {
+    console.log(
+      `[AnnotatorsPage] Attempting to save permissions for user: ${userId}`
+    );
     const currentPermissions = reviewPermissionsState[userId] || [
       'No Permission',
     ];
     const backendPermissions = currentPermissions
       .filter((permission) => permission !== 'No Permission')
       .map((permission) => permissionMapping[permission] || permission);
+    console.log(
+      `[AnnotatorsPage] Permissions to save: ${JSON.stringify(backendPermissions)}`
+    );
 
     try {
       const response = await fetch(`/api/annotator`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
           permission: backendPermissions,
         }),
       });
-
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update permissions');
+        const errorData = await response.json().catch(() => ({
+          message: 'Failed to update permissions and parse error response.',
+        }));
+        console.error(
+          `[AnnotatorsPage] Save permission failed (${response.status}):`,
+          errorData
+        );
+        throw new Error(errorData.message || `HTTP error ${response.status}`);
       }
-
       const data = await response.json();
       toast({
         variant: 'default',
         title: 'Success!',
-        description: data.message || 'Permissions updated successfully',
+        description: data.message || 'Permissions updated.',
       });
-
-      setAnnotators((prevAnnotators) =>
-        prevAnnotators.map((annotator) =>
-          annotator._id === userId
-            ? { ...annotator, permission: reviewPermissionsState[userId] }
-            : annotator
-        )
+      console.log(
+        `[AnnotatorsPage] Permissions saved for ${userId}. Refreshing list.`
       );
+      fetchAnnotators(); // Refresh list for consistency
     } catch (error: any) {
+      console.error(
+        `[AnnotatorsPage] Error saving permissions for ${userId}:`,
+        error
+      );
       toast({
         variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
+        title: 'Save Failed',
         description: error.message || 'An unexpected error occurred.',
       });
     }
   };
 
   const handleExport = (exportFormat: string) => {
+    console.log(
+      `[AnnotatorsPage] Exporting ${filteredAnnotators.length} filtered annotators as ${exportFormat}`
+    );
     const dataToExport = filteredAnnotators.map((user) => ({
       name: user.name,
       email: user.email,
       permissions: user.permission.join(', '),
       domains: user.domain?.join(', ') || '',
-      languages: user.location,
-      location: user.lang?.join(', ') || '',
-      lastLogin: format(parseISO(user.lastLogin.toString()), 'PPPpp'),
+      languages: user.lang?.join(', ') || '',
+      location: user.location || '',
+      // Format dates safely, checking validity
+      lastLogin:
+        isValid(user.lastLogin) && user.lastLogin.getFullYear() > 1970
+          ? format(user.lastLogin, 'PPPpp')
+          : 'N/A',
+      createdAt:
+        isValid(user.createdAt) && user.createdAt.getFullYear() > 1970
+          ? format(user.createdAt, 'PPPpp')
+          : 'N/A',
     }));
+    const headers = [
+      'name',
+      'email',
+      'permissions',
+      'domains',
+      'languages',
+      'location',
+      'lastLogin',
+      'createdAt',
+    ];
 
-    if (exportFormat === 'json') {
-      const dataStr = JSON.stringify(dataToExport, null, 2);
-      const dataUri =
-        'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-      const exportFileDefaultName = 'annotators.json';
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-    } else {
-      const headers = [
-        'name',
-        'email',
-        'permissions',
-        'domains',
-        'languages',
-        'location',
-        'lastLogin',
-      ];
-      const csvContent = [
-        headers.join(','),
-        ...dataToExport.map((row) =>
-          headers
-            .map((header) => `"${row[header as keyof typeof row]}"`)
-            .join(',')
-        ),
-      ].join('\n');
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', 'annotators.csv');
-      link.click();
+    try {
+      if (exportFormat === 'json') {
+        const dataStr = JSON.stringify(dataToExport, null, 2);
+        const dataUri =
+          'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+        const link = document.createElement('a');
+        link.href = dataUri;
+        link.download = 'annotators.json';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // CSV
+        const csvContent = [
+          headers.join(','),
+          ...dataToExport.map((row) =>
+            headers
+              .map(
+                (header) =>
+                  `"${String(row[header as keyof typeof row] ?? '').replace(/"/g, '""')}"`
+              )
+              .join(',')
+          ),
+        ].join('\n');
+        const blob = new Blob([csvContent], {
+          type: 'text/csv;charset=utf-8;',
+        });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'annotators.csv';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href); // Clean up blob URL
+      }
+      console.log('[AnnotatorsPage] Export successful.');
+      setIsExportDialogOpen(false);
+    } catch (error) {
+      console.error('[AnnotatorsPage] Export failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Export Failed',
+        description: 'Could not generate the export file.',
+      });
     }
-
-    setIsExportDialogOpen(false);
   };
 
+  function handleTransfer(id: string) {
+    console.log(`[AnnotatorsPage] Opening transfer dialog for user: ${id}`);
+    setId(id);
+    setOnOpen((v) => !v);
+  }
+
+  const handleUserDeleted = (userId: string) => {
+    console.log(
+      `[AnnotatorsPage] User ${userId} reported as deleted. Refreshing list.`
+    );
+    fetchAnnotators(); // Re-fetch list after deletion
+    toast({
+      variant: 'default',
+      title: 'Success',
+      description: 'Expert removed.',
+    });
+  };
+
+  // --- Pagination Calculation ---
   const totalPages = Math.ceil(filteredAnnotators.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const currentAnnotators = filteredAnnotators.slice(startIndex, endIndex);
 
-  function handleTransfer(id:string){
-    setId(id)
-    setOnOpen(v=>!v)
-  }
-
-  const handleUserDeleted = (userId: string) => {
-    // Remove the deleted user from the state
-    setAnnotators((prevAnnotators) =>
-      prevAnnotators.filter((annotator) => annotator._id !== userId)
-    );
-    // Also update the filtered list
-    setFilteredAnnotators((prevFiltered) =>
-      prevFiltered.filter((annotator) => annotator._id !== userId)
-    );
-
-    toast({
-      variant: 'default',
-      title: 'Success',
-      description: 'Expert has been removed from the system',
-    });
-  };
-
+  // --- Render ---
+  console.log('[AnnotatorsPage] Rendering component...');
   return (
     <div className='min-h-screen'>
-      <header className='bg-white'>
-        <div className='max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center'>
-          <h1 className='text-3xl font-bold text-gray-900 tracking-tight'>
-            Experts
-          </h1>
-          <Transfer onOpen={onOpen} setOnOpen={setOnOpen} id={id}/>
-          <div className='flex gap-4'>
-            <Button
-              variant='outline'
-              size='sm'
-              onClick={() => setIsExportDialogOpen(true)}
+      {/* Header */}
+      <header className='bg-white shadow-sm sticky top-0 z-10'>
+        {' '}
+        {/* Added shadow and sticky */}
+        <div className='max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center'>
+          <h1 className='text-2xl font-semibold text-gray-900'>Experts</h1>
+          <Transfer onOpen={onOpen} setOnOpen={setOnOpen} id={id} />
+          <div className='flex items-center gap-2 sm:gap-3'>
+            {' '}
+            {/* Reduced gap slightly */}
+            <Dialog
+              open={isReadyChartDialogOpen}
+              onOpenChange={setIsReadyChartDialogOpen}
             >
-              <FileDown className='h-4 w-4 mr-2' />
-              Export
-            </Button>
+              <DialogTrigger asChild>
+                <Button variant='outline' size='sm'>
+                  <CheckCircle2 className='h-4 w-4 mr-1 sm:mr-2' />{' '}
+                  {/* New Icon */}
+                  <span className='hidden sm:inline'>Active Users</span>
+                  <span className='sm:hidden'>Ready?</span>{' '}
+                  {/* Shorter for mobile */}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className='max-w-lg'>
+                {' '}
+                {/* Slightly smaller dialog */}
+                <DialogHeader>
+                  <DialogTitle>Active and Inactive Users</DialogTitle>
+                  <DialogDescription>
+                    Proportion of filtered experts marked as "Ready to Work".
+                  </DialogDescription>
+                </DialogHeader>
+                <div className='mt-4 min-h-[350px] flex items-center justify-center'>
+                  <ActiveUsersChart
+                    data={readyWorkData}
+                    isLoading={isLoadingReadyChart}
+                    error={readyChartError}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+            {/* Chart Button & Dialog */}
+            <Dialog
+              open={isChartDialogOpen}
+              onOpenChange={setIsChartDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button variant='outline' size='sm'>
+                  <LineChartIcon className='h-4 w-4 mr-1 sm:mr-2' />
+                  <span className='hidden sm:inline'>Stats</span>{' '}
+                  {/* Show text on larger screens */}
+                  <span className='sm:hidden'>Stats</span>{' '}
+                  {/* Show text always for clarity */}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className='max-w-3xl sm:max-w-4xl'>
+                <DialogHeader>
+                  <DialogTitle>Expert Registration Trend</DialogTitle>
+                  <DialogDescription>
+                    New and cumulative experts over time (based on table
+                    filters).
+                  </DialogDescription>
+                </DialogHeader>
+                <Tabs
+                  value={chartGranularity}
+                  onValueChange={(value) =>
+                    setChartGranularity(value as Granularity)
+                  }
+                  className='w-full mt-4'
+                >
+                  <TabsList className='grid w-full grid-cols-3'>
+                    <TabsTrigger value='daily'>Daily</TabsTrigger>
+                    <TabsTrigger value='weekly'>Weekly</TabsTrigger>
+                    <TabsTrigger value='monthly'>Monthly</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <div className='mt-4 min-h-[400px] flex items-center justify-center'>
+                  {' '}
+                  {/* Centering content */}
+                  {/* ***** Ensure this Component Name/Import is Correct ***** */}
+                  <DailyExpertsStats
+                    data={chartData}
+                    isLoading={isLoadingChart}
+                    error={chartError}
+                    granularity={chartGranularity}
+                  />
+                </div>
+              </DialogContent>
+            </Dialog>
+            {/* Export Button & Dialog */}
+            <Dialog
+              open={isExportDialogOpen}
+              onOpenChange={setIsExportDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button variant='outline' size='sm'>
+                  <FileDown className='h-4 w-4 mr-1 sm:mr-2' />
+                  <span className='hidden sm:inline'>Export</span>
+                  <span className='sm:hidden'>Export</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Export Experts</DialogTitle>
+                  <DialogDescription>
+                    Choose format (reflects current table filters).
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className='justify-center sm:justify-end gap-2'>
+                  <Button variant='outline' onClick={() => handleExport('csv')}>
+                    Export as CSV
+                  </Button>
+                  <Button onClick={() => handleExport('json')}>
+                    Export as JSON
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            {/* Add Expert Button */}
             <SheetMenu />
           </div>
         </div>
       </header>
-      <main className='max-w-7xl mx-auto sm:px-6 lg:px-8'>
-        <div className='mb-6 mt-4 space-y-4'>
-          <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-            <div className='relative'>
-              <Input
-                type='text'
-                placeholder='Search by name or email...'
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className='pl-10'
-              />
-              <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5' />
-            </div>
 
-            <MultiCombobox
-              options={domainOptions}
-              value={selectedDomain}
-              onChange={setSelectedDomain}
-              placeholder='Select Domain'
-            />
-
-            <MultiCombobox
-              options={languageOptions}
-              value={selectedLanguage}
-              onChange={setSelectedLanguage}
-              placeholder='Select Language'
-            />
-
-            <MultiCombobox
-              options={locationOptions}
-              value={selectedLocation}
-              onChange={setSelectedLocation}
-              placeholder='Select Location'
-            />
+      {/* Main Content */}
+      <main className='max-w-7xl mx-auto sm:px-6 lg:px-8 py-6'>
+        {/* Filters */}
+        <div className='mb-6 grid grid-cols-1 md:grid-cols-4 gap-4'>
+          <div className='relative md:col-span-1'>
+            {' '}
+            {/* Search takes less space */}
+            <Input
+              type='text'
+              placeholder='Search name/email...'
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className='pl-9 text-sm'
+            />{' '}
+            {/* Smaller text */}
+            <Search className='absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4' />{' '}
+            {/* Adjusted icon pos */}
           </div>
+          <MultiCombobox
+            options={domainOptions}
+            value={selectedDomain}
+            onChange={setSelectedDomain}
+            placeholder='Filter Domain'
+          />
+          <MultiCombobox
+            options={languageOptions}
+            value={selectedLanguage}
+            onChange={setSelectedLanguage}
+            placeholder='Filter Language'
+          />
+          <MultiCombobox
+            options={locationOptions}
+            value={selectedLocation}
+            onChange={setSelectedLocation}
+            placeholder='Filter Location'
+          />
         </div>
 
-        {currentAnnotators.length === 0 ? (
+        {/* Table / Loading / No Results */}
+        {isFetchingAnnotators ? (
+          <div className='text-center py-10 text-gray-500'>
+            Loading experts...
+          </div>
+        ) : annotators.length === 0 ? ( // Check if initial fetch yielded nothing
           <div className='text-center py-10'>
-            <h2 className='text-xl font-semibold text-gray-900'>
-              No experts found
-            </h2>
-            <p className='mt-2 text-gray-600'>Try adjusting your filters</p>
+            <h2 className='text-xl font-semibold'>No Experts Found</h2>
+            <p className='mt-2 text-gray-600'>
+              No experts have been added to your team yet.
+            </p>
+            {/* Optionally add a link/button to add experts */}
+          </div>
+        ) : filteredAnnotators.length === 0 ? ( // Check if filters yield nothing
+          <div className='text-center py-10'>
+            <h2 className='text-xl font-semibold'>No Experts Match Filters</h2>
+            <p className='mt-2 text-gray-600'>
+              Try adjusting your search or filter criteria.
+            </p>
           </div>
         ) : (
-          <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
+          <div className='bg-white shadow-md rounded-lg overflow-x-auto'>
+            {' '}
+            {/* Allow horizontal scroll on small screens */}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -403,181 +833,214 @@ export default function AnnotatorsPage() {
                   <TableHead>Languages</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Last Login</TableHead>
-                  <TableHead>Action</TableHead>
+                  <TableHead className='text-right'>Actions</TableHead>
+                  {/* Align Actions */}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {currentAnnotators.map((user) => {
-                  const localReviewPermission = reviewPermissionsState[
-                    user._id
-                  ] || ['No Permission'];
-
+                  const localPerm = reviewPermissionsState[user._id] || [
+                    'No Permission',
+                  ];
+                  const lastLoginValid =
+                    isValid(user.lastLogin) &&
+                    user.lastLogin.getFullYear() > 1970;
                   return (
-                    <TableRow key={user._id} className='hover:bg-gray-50'>
-                      <TableCell className='font-medium'>{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
+                    <TableRow
+                      key={user._id}
+                      className='hover:bg-gray-50 text-sm'
+                    >
+                      {' '}
+                      {/* Smaller base text */}
+                      <TableCell className='font-medium whitespace-nowrap'>
+                        {user.name || 'N/A'}
+                      </TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {user.email || 'N/A'}
+                      </TableCell>
                       <TableCell>
-                        <div className='flex items-center'>
-                          <MultiCombobox
-                            options={permissionOptions}
-                            value={localReviewPermission}
-                            onChange={(value: string[]) => {
-                              setReviewPermissionsState((prevState) => ({
-                                ...prevState,
-                                [user._id]: value,
-                              }));
-                            }}
-                            placeholder='Select Permission'
+                        <MultiCombobox
+                          options={permissionOptions}
+                          value={localPerm}
+                          onChange={(v: string[]) =>
+                            setReviewPermissionsState((p) => ({
+                              ...p,
+                              [user._id]: v,
+                            }))
+                          }
+                          placeholder='Select'
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className='flex flex-wrap gap-1 max-w-[150px]'>
+                          {user.domain?.length > 0 ? (
+                            user.domain.map((d, i) => (
+                              <Badge
+                                key={i}
+                                variant='secondary'
+                                className='text-xs px-1.5 py-0.5'
+                              >
+                                {d}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className='text-xs text-gray-500 italic'>
+                              None
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className='flex flex-wrap gap-1 max-w-[150px]'>
+                          {user.lang?.length > 0 ? (
+                            user.lang.map((l, i) => (
+                              <Badge
+                                key={i}
+                                variant='outline'
+                                className='text-xs px-1.5 py-0.5'
+                              >
+                                {l}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className='text-xs text-gray-500 italic'>
+                              None
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className='font-medium whitespace-nowrap'>
+                        {user.location ? (
+                          user.location.charAt(0).toUpperCase() +
+                          user.location.slice(1)
+                        ) : (
+                          <span className='text-xs text-gray-500 italic'>
+                            N/A
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className='whitespace-nowrap'>
+                        {lastLoginValid ? (
+                          <div className='flex items-center text-gray-600'>
+                            <CalendarIcon className='mr-1.5 h-3.5 w-3.5 shrink-0' />
+                            {format(user.lastLogin, 'PP p')}
+                          </div>
+                        ) : (
+                          <span className='text-xs text-gray-500 italic'>
+                            Never
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        {' '}
+                        {/* Actions aligned right */}
+                        <div className='flex items-center justify-end space-x-1'>
+                          {' '}
+                          {/* Use flex end */}
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            className='h-7 w-7'
+                            onClick={() => handleTransfer(user._id)}
+                            title='Transfer'
+                          >
+                            <DollarSign className='h-4 w-4' />
+                          </Button>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            className='h-7 w-7 text-blue-600 hover:text-blue-700'
+                            onClick={() => savePermissions(user._id)}
+                            title='Save'
+                          >
+                            <Save className='h-4 w-4' />
+                          </Button>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            className='h-7 w-7'
+                            onClick={() => handleViewDetails(user)}
+                            title='View'
+                          >
+                            <User className='h-4 w-4' />
+                          </Button>
+                          <DeleteUserButton
+                            userId={user._id}
+                            userName={user.name}
+                            userEmail={user.email}
+                            onDeleted={() => handleUserDeleted(user._id)}
                           />
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex flex-wrap gap-1'>
-                          {user.domain?.map((domain, index) => (
-                            <Badge
-                              key={index}
-                              variant='secondary'
-                              className='text-xs'
-                            >
-                              {domain}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex flex-wrap gap-1'>
-                          {user.lang?.map((language, index) => (
-                            <Badge
-                              key={index}
-                              variant='outline'
-                              className='text-xs'
-                            >
-                              {language}
-                            </Badge>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className='font-medium'>
-                        {user.location
-                          ? user.location.charAt(0).toUpperCase() +
-                            user.location.slice(1)
-                          : ''}
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex items-center text-sm text-gray-500'>
-                          <CalendarIcon className='mr-2 h-4 w-4' />
-                          {format(parseISO(user.lastLogin.toString()), 'PPPpp')}
-                        </div>
-                      </TableCell>
-                      <TableCell className='flex items-center space-x-2'>
-                        <button
-                          className='flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 rounded-full shadow-md hover:bg-gray-300 transition-colors'
-                          onClick={()=>handleTransfer(user._id)}
-                          aria-label='Save Permissions'
-                        >
-                          <DollarSign className='h-5 w-5' />
-                        </button>
-                        <button
-                          className='flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600 transition-colors'
-                          onClick={() => savePermissions(user._id)}
-                          aria-label='Save Permissions'
-                        >
-                          <Save className='h-5 w-5' />
-                        </button>
-                        <button
-                          onClick={() => handleViewDetails(user)}
-                          className='flex items-center justify-center w-8 h-8 bg-gray-200 text-gray-700 rounded-full shadow-md hover:bg-gray-300 transition-colors'
-                          aria-label='View User'
-                        >
-                          <User className='h-5 w-5' />
-                        </button>
-                        <DeleteUserButton
-                          userId={user._id}
-                          userName={user.name}
-                          userEmail={user.email}
-                          onDeleted={() => handleUserDeleted(user._id)}
-                        />
                       </TableCell>
                     </TableRow>
                   );
                 })}
               </TableBody>
             </Table>
-
-            {/* Pagination Controls */}
-            <div className='flex items-center justify-between p-4 border-t'>
-              <div className='flex items-center space-x-4'>
+            {/* Pagination */}
+            <div className='flex items-center justify-between p-3 border-t text-sm'>
+              {' '}
+              {/* Reduced padding */}
+              <div className='flex items-center space-x-3'>
                 <Select
                   value={pageSize.toString()}
-                  onValueChange={(value) => setPageSize(Number(value))}
+                  onValueChange={(v) => {
+                    setPageSize(Number(v));
+                    setCurrentPage(1);
+                  }}
                 >
-                  <SelectTrigger className='w-[120px]'>
-                    <SelectValue placeholder='Page Size' />
-                  </SelectTrigger>
+                  <SelectTrigger className='w-[110px] h-8 text-xs'>
+                    <SelectValue />
+                  </SelectTrigger>{' '}
+                  {/* Smaller trigger */}
                   <SelectContent>
-                    {PAGE_SIZES.map((size) => (
-                      <SelectItem key={size} value={size.toString()}>
-                        {size} per page
+                    {PAGE_SIZES.map((s) => (
+                      <SelectItem
+                        key={s}
+                        value={s.toString()}
+                        className='text-xs'
+                      >
+                        {s} per page
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-
-                <div className='text-sm text-gray-700'>
-                  Showing {startIndex + 1} to{' '}
+                <div className='text-gray-600'>
+                  Showing {filteredAnnotators.length > 0 ? startIndex + 1 : 0}-
                   {Math.min(endIndex, filteredAnnotators.length)} of{' '}
-                  {filteredAnnotators.length} results
+                  {filteredAnnotators.length}
                 </div>
               </div>
-
-              <div className='flex items-center space-x-2'>
+              <div className='flex items-center space-x-1.5'>
                 <Button
                   variant='outline'
                   size='sm'
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.max(1, prev - 1))
-                  }
-                  disabled={currentPage === 1}
+                  className='h-8 px-2'
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || totalPages === 0}
                 >
-                  <ChevronLeft className='h-4 w-4 mr-1' />
-                  Previous
+                  <ChevronLeft className='h-4 w-4' />
                 </Button>
-                <div className='text-sm text-gray-700'>
-                  Page {currentPage} of {totalPages}
+                <div className='text-gray-600 font-medium'>
+                  Page {filteredAnnotators.length > 0 ? currentPage : 0} of{' '}
+                  {totalPages > 0 ? totalPages : 0}
                 </div>
                 <Button
                   variant='outline'
                   size='sm'
+                  className='h-8 px-2'
                   onClick={() =>
-                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage === totalPages || totalPages === 0}
                 >
-                  Next
-                  <ChevronRight className='h-4 w-4 ml-1' />
+                  <ChevronRight className='h-4 w-4' />
                 </Button>
               </div>
             </div>
           </div>
         )}
       </main>
-
-      {/* <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Export Experts</DialogTitle>
-            <DialogDescription>
-              Choose your preferred export format
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => handleExport('csv')}>
-              Export as CSV
-            </Button>
-            <Button onClick={() => handleExport('json')}>Export as JSON</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
     </div>
   );
 }

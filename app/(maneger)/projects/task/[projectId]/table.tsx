@@ -1,3 +1,4 @@
+//app/%28maneger%29/projects/task/%5BprojectId%5D/table.tsx
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
@@ -65,6 +66,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+
+// Updated interface with all navigation parameters
 interface TaskTableProps {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
@@ -77,7 +80,7 @@ interface TaskTableProps {
     annotatorId: string,
     taskId: string,
     ai: boolean,
-    isReviewer?: boolean
+    isReviewer?: boolean,
   ) => void;
   handleDeleteTemplate: (e: React.MouseEvent, _id: string) => void;
   router: any;
@@ -94,6 +97,12 @@ interface TaskTableProps {
   pageSize: number;
   onPageSizeChange: (size: number) => void;
   totalItems: number;
+  activeTab?: string;
+  taskType?: string;
+  statusFilter?: string;
+  expertFilter?: string;
+  reviewerFilter?: string;
+  inactiveTimeSort?: string;
 }
 
 export function TaskTable({
@@ -114,6 +123,12 @@ export function TaskTable({
   pageSize,
   onPageSizeChange,
   totalItems,
+  activeTab = 'all',
+  taskType = '',
+  statusFilter = '',
+  expertFilter = '',
+  reviewerFilter = '',
+  inactiveTimeSort = '',
 }: TaskTableProps) {
   const [dialog, setDialog] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -126,7 +141,6 @@ export function TaskTable({
   const pathName = usePathname();
 
   const projectId = pathName.split('/')[3];
-  // Filter reviewers to only show those with "canReview" permission
 
   const handleClick = (e: React.MouseEvent, feedback: string) => {
     e.stopPropagation();
@@ -195,6 +209,7 @@ export function TaskTable({
       toast.error('Failed to assign annotator');
     }
   };
+  
   const handleSelect = (task: Task) => {
     setSelectedTask((prev) =>
       prev.some((selectedTask) => selectedTask._id === task._id)
@@ -356,7 +371,27 @@ export function TaskTable({
                 <TableRow
                   key={task._id}
                   onClick={() => {
-                    router.push(`/task/${task._id}`);
+                    // Construct URL with all necessary context parameters
+                    const params = new URLSearchParams();
+                    
+                    // Basic navigation context
+                    params.set('tab', activeTab || 'all');
+                    params.set('projectId', projectId);
+                    if (taskType) {
+                      params.set('type', taskType);
+                    }
+                    
+                    // Add all filter parameters
+                    if (statusFilter) params.set('status', statusFilter);
+                    if (expertFilter) params.set('expert', expertFilter);
+                    if (reviewerFilter) params.set('reviewer', reviewerFilter);
+                    
+                    // Add sorting parameter
+                    if (inactiveTimeSort && inactiveTimeSort !== 'none') {
+                      params.set('inactiveTimeSort', inactiveTimeSort);
+                    }
+                    
+                    router.push(`/task/${task._id}?${params.toString()}`);
                   }}
                   className='cursor-pointer hover:bg-gray-50'
                 >
