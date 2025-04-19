@@ -1,0 +1,247 @@
+// app/actions/stats.ts
+'use server';
+
+import { authOptions } from "@/auth";
+import { connectToDatabase } from "@/lib/db";
+import { User as UserModel } from "@/models/User"; // Renamed import
+import { getServerSession } from "next-auth";
+import { Types } from 'mongoose'; // Import Types for ObjectId
+
+// --- Interfaces (keep as before) ---
+interface DailyStat { date: string; newExperts: number; cumulativeExperts: number; }
+interface Filters { domain?: string[]; lang?: string[]; location?: string[]; }
+type Granularity = 'daily' | 'weekly' | 'monthly';
+interface StatError { error: string; }
+interface LeanUser { _id: Types.ObjectId; email: string; team_id?: Types.ObjectId; }
+interface ReadyWorkDataPoint {
+    name: 'Active' | 'Not Active';
+    value: number; // The count
+}
+export async function getUserStats(
+    filters: Filters = {},
+    granularity: Granularity = 'daily'
+): Promise<string> {
+    console.log(`[getUserStats] Starting for granularity: ${granularity}`);
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user?.email) { /* ... */ return JSON.stringify({ error: 'You must be logged in' } as StatError); }
+        const userEmail = session.user.email;
+        console.log(`[getUserStats] Session found for email: ${userEmail}`);
+
+        await connectToDatabase();
+        console.log("[getUserStats] Database connected.");
+
+        const currentUser = await UserModel.findOne({ email: userEmail })
+                                    .select('team_id email _id')
+                                    .lean<LeanUser | null>();
+
+        if (!currentUser) { /* ... */ return JSON.stringify([]); }
+        if (!currentUser.team_id) { /* ... */ return JSON.stringify([]); }
+        const teamId: Types.ObjectId = currentUser.team_id;
+        console.log(`[getUserStats] User belongs to Team ID: ${teamId}`);
+
+        // --- Build Match Stage ---
+        const matchStage: any = {
+            role: 'annotator',
+            team_id: teamId,
+            // ***** FIX: Use correct field name *****
+            created_at: { $exists: true }
+        };
+
+        // Optional filters
+        if (filters.domain && filters.domain.length > 0) { matchStage.domain = { $in: filters.domain.map(d => new RegExp(`^${d}$`, 'i')) }; }
+        if (filters.lang && filters.lang.length > 0) { matchStage.lang = { $in: filters.lang.map(l => new RegExp(`^${l}$`, 'i')) }; }
+        if (filters.location && filters.location.length > 0) { matchStage.location = { $in: filters.location.map(loc => new RegExp(`^${loc}$`, 'i')) }; }
+        console.log('[getUserStats] Initial Match Stage:', JSON.stringify(matchStage));
+
+        // --- Define Grouping/Formatting based on Granularity ---
+        let groupStageId: any;
+        let projectDateFormat: any;
+        let sortFields: Record<string, 1 | -1> = { "_id": 1 };
+
+        switch (granularity) {
+            case 'weekly':
+                // ***** FIX: Use correct field name *****
+                groupStageId = { year: { $isoWeekYear: "$created_at_date" }, week: { $isoWeek: "$created_at_date" } };
+                projectDateFormat = { /* ... same format string ... */
+                    $concat: [ { $toString: "$_id.year" }, "-W", { $toString: { $cond: { if: { $lt: ["$_id.week", 10] }, then: { $concat: ["0", { $toString: "$_id.week" }] }, else: { $toString: "$_id.week" } } } }]
+                };
+                sortFields = { "_id.year": 1, "_id.week": 1 };
+                break;
+            case 'monthly':
+                 // ***** FIX: Use correct field name *****
+                groupStageId = { year: { $year: "$created_at_date" }, month: { $month: "$created_at_date" } };
+                projectDateFormat = { /* ... same format string ... */
+                     $dateToString: { format: "%Y-%m", date: { $dateFromParts: { 'year': "$_id.year", 'month': "$_id.month", 'day': 1 } } }
+                };
+                sortFields = { "_id.year": 1, "_id.month": 1 };
+                break;
+            default: // daily
+                 // ***** FIX: Use correct field name *****
+                groupStageId = { $dateToString: { format: "%Y-%m-%d", date: "$created_at_date" } };
+                projectDateFormat = "$_id";
+                sortFields = { "_id": 1 };
+                break;
+        }
+        console.log(`[getUserStats] Granularity '${granularity}' stage setup complete.`);
+
+        // --- Aggregation Pipeline ---
+        console.log('[getUserStats] Running aggregation pipeline...');
+        const aggregationResult = await UserModel.aggregate([
+            { $match: matchStage },
+            {
+                $project: {
+                    // ***** FIX: Use correct field name and rename projected field *****
+                    created_at_date: { // Project to a consistent name
+                         $cond: {
+                           // Check original field name
+                           if: { $eq: [{ $type: "$created_at" }, "date"] },
+                           then: "$created_at",
+                           else: { $toDate: "$created_at" }
+                         }
+                     }
+                }
+            },
+            {
+                // ***** FIX: Match on the projected field name *****
+                $match: {
+                    created_at_date: { $ne: null, $type: "date" }
+                }
+             },
+            {
+                $group: {
+                    _id: groupStageId, // Group uses the fields derived from created_at_date
+                    newExperts: { $sum: 1 }
+                }
+            },
+            { $sort: sortFields },
+            {
+                $project: {
+                    _id: 0,
+                    date: projectDateFormat, // Create the final date string
+                    newExperts: 1
+                }
+            }
+        ]);
+
+        // Log the raw result from aggregation
+        console.log('[getUserStats] Raw Aggregation Result Count:', aggregationResult.length);
+        if (aggregationResult.length > 0) {
+             console.log('[getUserStats] Raw Aggregation Result Sample (first 3):', JSON.stringify(aggregationResult.slice(0, 3)));
+        } else {
+             console.log('[getUserStats] Aggregation returned no results.');
+        }
+
+        // --- Calculate Cumulative Experts ---
+        let cumulativeCount = 0;
+        const statsWithCumulative = aggregationResult.map(stat => {
+            cumulativeCount += stat.newExperts;
+            return { date: stat.date, newExperts: stat.newExperts, cumulativeExperts: cumulativeCount };
+        });
+        console.log('[getUserStats] Stats with Cumulative Count:', statsWithCumulative.length);
+         if (statsWithCumulative.length > 0) {
+             console.log('[getUserStats] Stats with Cumulative Sample (first 3):', JSON.stringify(statsWithCumulative.slice(0,3)));
+         }
+
+        console.log("[getUserStats] Function finished successfully.");
+        return JSON.stringify(statsWithCumulative);
+
+    } catch (error) {
+        console.error(`[getUserStats ERROR] Failed during stats calculation (granularity: ${granularity}):`, error);
+        let errorMessage = `Failed to fetch ${granularity} stats.`;
+        if (error instanceof Error) { errorMessage = error.message || errorMessage; }
+        return JSON.stringify({ error: errorMessage } as StatError);
+    }
+}
+
+// *** NEW Function: getReadyToWorkStats ***
+export async function getReadyToWorkStats(filters: Filters = {}): Promise<string> {
+    console.log("[getReadyToWorkStats] Starting function...");
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session || !session.user?.email) {
+            console.warn("[getReadyToWorkStats] Auth check failed.");
+            return JSON.stringify({ error: 'You must be logged in' } as StatError);
+        }
+        const userEmail = session.user.email;
+        console.log(`[getReadyToWorkStats] Session found for: ${userEmail}`);
+
+        await connectToDatabase();
+        console.log("[getReadyToWorkStats] DB connected.");
+
+        const currentUser = await UserModel.findOne({ email: userEmail })
+            .select('team_id email _id')
+            .lean<LeanUser | null>();
+
+        if (!currentUser) { /* ... */ return JSON.stringify([]); }
+        if (!currentUser.team_id) { /* ... */ return JSON.stringify([]); }
+        const teamId = currentUser.team_id;
+        console.log(`[getReadyToWorkStats] User Team ID: ${teamId}`);
+
+        // --- Build Base Match Stage (including filters) ---
+        const matchStage: any = {
+            role: 'annotator',
+            team_id: teamId,
+            // isReadyToWork field should exist based on schema default, but check just in case
+            // isReadyToWork: { $exists: true } // Usually not needed if schema has default
+        };
+
+        // Apply optional filters
+        if (filters.domain && filters.domain.length > 0) { matchStage.domain = { $in: filters.domain.map(d => new RegExp(`^${d}$`, 'i')) }; }
+        if (filters.lang && filters.lang.length > 0) { matchStage.lang = { $in: filters.lang.map(l => new RegExp(`^${l}$`, 'i')) }; }
+        if (filters.location && filters.location.length > 0) { matchStage.location = { $in: filters.location.map(loc => new RegExp(`^${loc}$`, 'i')) }; }
+        console.log('[getReadyToWorkStats] Match Stage:', JSON.stringify(matchStage));
+
+        // --- Aggregation Pipeline to Group by isReadyToWork ---
+        console.log('[getReadyToWorkStats] Running aggregation...');
+        const aggregationResult = await UserModel.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    // Group by the boolean value of isReadyToWork (or false if missing/null)
+                    _id: { $ifNull: ["$isReadyToWork", false] },
+                    count: { $sum: 1 }
+                }
+            },
+            {
+                $project: {
+                    _id: 0, // Remove the default _id
+                    status: "$_id", // Rename _id to status (true/false)
+                    value: "$count" // Rename count to value for recharts
+                }
+            }
+        ]);
+
+        console.log('[getReadyToWorkStats] Aggregation Result:', JSON.stringify(aggregationResult));
+
+        // --- Format the data for the Pie Chart ---
+        let readyCount = 0;
+        let notReadyCount = 0;
+
+        aggregationResult.forEach(item => {
+            if (item.status === true) {
+                readyCount = item.value;
+            } else {
+                // This captures both false and null/missing (grouped as false by $ifNull)
+                notReadyCount += item.value;
+            }
+        });
+
+        const formattedData: ReadyWorkDataPoint[] = [];
+        if (readyCount > 0) {
+            formattedData.push({ name: 'Active', value: readyCount });
+        }
+        if (notReadyCount > 0) {
+            formattedData.push({ name: 'Not Active', value: notReadyCount });
+        }
+
+        console.log('[getReadyToWorkStats] Formatted Data:', JSON.stringify(formattedData));
+        console.log("[getReadyToWorkStats] Function finished successfully.");
+        return JSON.stringify(formattedData);
+
+    } catch (error) {
+        console.error(`[getReadyToWorkStats ERROR] Failed during stats calculation:`, error);
+        let errorMessage = `Failed to fetch readiness stats.`;
+        if (error instanceof Error) { errorMessage = error.message || errorMessage; }
+        return JSON.stringify({ error: errorMessage } as StatError);
+    }}
