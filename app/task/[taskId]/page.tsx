@@ -198,30 +198,33 @@ const Page = () => {
         router.push(`/task/${newTaskId}?${params.toString()}`);
     }
   };
-
   const goBack = () => {
     if (session?.user?.role === 'project manager' || session?.user?.role === 'admin') {
       // Project manager goes back to project tasks, preserving context
       if (projectId) {
-         const params = new URLSearchParams();
-         params.set('tab', tabFilter); // Preserve tab
-         if (taskType) params.set('type', taskType); // Preserve type
-         // Add other relevant filters if needed
-         router.push(`/projects/task/${projectId}?${params.toString()}`);
+        const params = new URLSearchParams();
+        params.set('tab', tabFilter); // Preserve tab
+        if (taskType) params.set('type', taskType); // Preserve type
+        // Add other relevant filters if needed
+        router.push(`/projects/task/${projectId}?${params.toString()}`);
       } else if (task?.project) {
-        router.push(`/projects/task/${task.project}`); // Less context
+        // Use task.project as a fallback
+        const params = new URLSearchParams();
+        params.set('tab', tabFilter); // Preserve tab
+        if (taskType) params.set('type', taskType); // Preserve type
+        router.push('/projects/task/all');
       } else {
-        router.back(); // Fallback
+        // Last resort fallback
+        router.push('/projects');
       }
     } else {
-       // Annotator goes back to tasks list, preserving context
-       const params = new URLSearchParams();
-       params.set('tab', tabFilter); // Preserve tab
-       if (taskType) params.set('type', taskType); // Preserve type
-       router.push(`/tasks/all?${params.toString()}`);
+      // Annotator goes back to tasks list, preserving context
+      const params = new URLSearchParams();
+      params.set('tab', tabFilter); // Preserve tab
+      if (taskType) params.set('type', taskType); // Preserve type
+      router.push(`/tasks/all?${params.toString()}`);
     }
   };
-
   const isReviewer = task?.reviewer === session?.user?.id;
   const isAnnotator = task?.annotator === session?.user?.id;
   const isProjectManager = session?.user?.role === 'project manager' || session?.user?.role === 'admin';
@@ -277,17 +280,6 @@ const Page = () => {
               <ChevronLeft className='mr-1 h-4 w-4' />
               Previous
             </Button>
-
-            {/* Task Counter */}
-             {!navLoading && taskIds.length > 0 && currentIndex !== -1 ? (
-              <div className='flex items-center justify-center text-sm px-3 py-1.5 bg-gray-100 rounded-md border border-gray-200 min-w-[70px] text-center font-medium text-gray-700'>
-                {currentIndex + 1} / {taskIds.length}
-              </div>
-             ) : (
-                <div className='flex items-center justify-center text-sm px-3 py-1.5 bg-gray-100 rounded-md border border-gray-200 min-w-[70px] text-center font-medium text-gray-400 italic'>
-                  {navLoading ? '...' : '- / -'}
-                </div>
-             )}
 
             <Button
               variant='outline'

@@ -24,7 +24,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import jsonToCsvExport from 'json-to-csv-export';
-import { CalendarIcon, FileDown, FileText, PlusCircle, Trash2Icon } from 'lucide-react';
+import { CalendarIcon, FileDown, FileText, Filter, PlusCircle, Trash2Icon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -34,7 +34,6 @@ import {
   parseAndAddSelectedItemsToArray,
 } from './export';
 import { Badge } from '@/components/ui/badge';
-import { Filter } from 'lucide-react';
 
 export interface Project {
   _id: string;
@@ -62,13 +61,12 @@ export default function ProjectDashboard() {
   const [exportItems, setExportItems] = useState<ExportItem[]>([]);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
-  const [projectLabels, setProjectLabels] = useState<Record<string, string[]>>(
-    {}
-  );
+  const [projectLabels, setProjectLabels] = useState<Record<string, string[]>>({});
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -79,25 +77,30 @@ export default function ProjectDashboard() {
       if (session?.user?.role === 'annotator') router.push('/tasks');
       if (session?.user?.role === 'system admin') router.push('/admin/');
       if (session?.user?.role === 'agency owner') router.push('/agencyOwner');
+      
+      setIsLoading(true);
       fetch('/api/projects')
         .then((res) => res.json())
         .then((data) => {
           if (data.success) {
             setProjects(data.projects);
           }
+          setIsLoading(false);
         })
-        .catch((error) =>
+        .catch((error) => {
           toast({
             variant: 'destructive',
             title: 'Uh oh! Something went wrong.',
             description: error.message,
-          })
-        );
+          });
+          setIsLoading(false);
+        });
     }
   }, [session, router, toast]);
 
   useEffect(() => {
     if (session) {
+      setIsLoading(true);
       fetch('/api/projects')
         .then((res) => res.json())
         .then((data) => {
@@ -115,19 +118,23 @@ export default function ProjectDashboard() {
             setAvailableLabels(Array.from(allLabels));
             setProjects(data.projects);
           }
+          setIsLoading(false);
         })
-        .catch((error) =>
+        .catch((error) => {
           toast({
             variant: 'destructive',
             title: 'Error loading project labels',
             description: error.message,
-          })
-        );
+          });
+          setIsLoading(false);
+        });
     }
   }, [session]);
+  
   useEffect(() => {
     setFilteredProjects(getFilteredProjects());
   }, [selectedLabels, projects, projectLabels]);
+  
   // Add this filtering function:
   const getFilteredProjects = () => {
     if (selectedLabels.length === 0) return projects;
@@ -141,6 +148,7 @@ export default function ProjectDashboard() {
 
   const fetchProjects = async (labels: string[] = []) => {
     try {
+      setIsLoading(true);
       const queryParams = new URLSearchParams();
 
       if (labels.length > 0) {
@@ -160,6 +168,7 @@ export default function ProjectDashboard() {
         });
         setAvailableLabels(Array.from(allLabels));
       }
+      setIsLoading(false);
     } catch (error: unknown) {
       // Properly type the error and provide a fallback message
       const errorMessage =
@@ -169,6 +178,7 @@ export default function ProjectDashboard() {
         title: 'Error loading projects',
         description: errorMessage,
       });
+      setIsLoading(false);
     }
   };
 
@@ -177,6 +187,7 @@ export default function ProjectDashboard() {
       fetchProjects();
     }
   }, [session]);
+  
   const toggleLabel = (label: string) => {
     const newLabels = selectedLabels.includes(label)
       ? selectedLabels.filter((l) => l !== label)
@@ -186,7 +197,8 @@ export default function ProjectDashboard() {
     fetchProjects(newLabels);
   };
 
-  if (!session) {
+  // Show loader for both session loading and project data loading
+  if (!session || isLoading) {
     return <Loader />;
   }
 
@@ -204,6 +216,7 @@ export default function ProjectDashboard() {
 
   const handleCreateProject = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     fetch(`/api/projects`, {
       method: 'POST',
       headers: {
@@ -225,31 +238,45 @@ export default function ProjectDashboard() {
           setFilteredProjects([...projects, data.project]);
           setNewProjectName('');
         }
+        setIsLoading(false);
       })
-      .catch((error) =>
+      .catch((error) => {
         toast({
           variant: 'destructive',
           title: 'Uh oh! Something went wrong.',
           description: error.message,
-        })
-      );
+        });
+        setIsLoading(false);
+      });
   };
 
   const handledownload = async (e: React.MouseEvent, project: Project) => {
     e.stopPropagation();
-    const res = JSON.parse(await getAllAcceptedTasks(project._id));
-    if (res.length === 0) {
+    setIsLoading(true);
+    try {
+      const res = JSON.parse(await getAllAcceptedTasks(project._id));
+      if (res.length === 0) {
+        toast({
+          variant: 'destructive',
+          title: 'No submitted tasks found',
+        });
+        setIsLoading(false);
+        return;
+      }
+      const extractedElements = extractElementDetails(JSON.parse(res[0].content));
+      setRes(res);
+      setName(project.name);
+      setExportItems(extractedElements);
+      setOpen(true);
+    } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'No submitted tasks found',
+        title: 'Error downloading project data',
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
       });
-      return;
+    } finally {
+      setIsLoading(false);
     }
-    const extractedElements = extractElementDetails(JSON.parse(res[0].content));
-    setRes(res);
-    setName(project.name);
-    setExportItems(extractedElements);
-    setOpen(true);
   };
 
   const handleExport = (format: string) => {
@@ -283,6 +310,7 @@ export default function ProjectDashboard() {
 
   const confirmDeleteProject = () => {
     if (projectToDelete) {
+      setIsLoading(true);
       fetch(`/api/projects`, {
         method: 'DELETE',
         headers: {
@@ -306,14 +334,16 @@ export default function ProjectDashboard() {
               title: 'Project deleted successfully',
             });
           }
+          setIsLoading(false);
         })
-        .catch((error) =>
+        .catch((error) => {
           toast({
             variant: 'destructive',
             title: 'Uh oh! Something went wrong.',
             description: error.message,
-          })
-        );
+          });
+          setIsLoading(false);
+        });
       setDeleteConfirmOpen(false);
       setProjectToDelete(null);
     }
@@ -349,8 +379,16 @@ export default function ProjectDashboard() {
                 onChange={(e) => setNewProjectName(e.target.value)}
                 className='flex-grow'
               />
-              <Button type='submit'>
-                <PlusCircle className='mr-2 h-4 w-4' /> Create Project
+              <Button type='submit' disabled={isLoading}>
+                {isLoading ? (
+                  <span className="flex items-center">
+                    <Loader /> Creating...
+                  </span>
+                ) : (
+                  <>
+                    <PlusCircle className='mr-2 h-4 w-4' /> Create Project
+                  </>
+                )}
               </Button>
             </div>
           </form>
@@ -364,13 +402,12 @@ export default function ProjectDashboard() {
               </p>
             </div>
           ) : (
-            <div className='bg-white shadow-sm rounded-lg overflow-h_idden'>
+            <div className='bg-white shadow-sm rounded-lg overflow-hidden'>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Project Name</TableHead>
                     <TableHead>Labels</TableHead>
-
                     <TableHead>Created Date</TableHead>
                     <TableHead className='text-right'>Actions</TableHead>
                   </TableRow>
@@ -405,21 +442,22 @@ export default function ProjectDashboard() {
                         </div>
                       </TableCell>
                       <TableCell className='text-right'>
-                      <Button
-    variant='ghost'
-    size='sm'
-    onClick={(e) => {
-      e.stopPropagation(); // Prevent row click
-      router.push(`/projects/${project._id}/guidelines`);
-    }}
-  >
-    <FileText className='h-4 w-4' />
-    <span className='sr-only'>guidelines</span>
-  </Button>
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent row click
+                            router.push(`/projects/${project._id}/guidelines`);
+                          }}
+                        >
+                          <FileText className='h-4 w-4' />
+                          <span className='sr-only'>guidelines</span>
+                        </Button>
                         <Button
                           variant='ghost'
                           size='sm'
                           onClick={(e) => handledownload(e, project)}
+                          disabled={isLoading}
                         >
                           <FileDown className='h-4 w-4' />
                           <span className='sr-only'>download</span>
@@ -428,6 +466,7 @@ export default function ProjectDashboard() {
                           variant='ghost'
                           size='sm'
                           onClick={(e) => handleDeleteProject(e, project._id)}
+                          disabled={isLoading}
                         >
                           <Trash2Icon className='h-4 w-4' />
                           <span className='sr-only'>Delete</span>

@@ -1,3 +1,4 @@
+//app/actions/aiModel.ts
 'use server'
 import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
@@ -6,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
 import { Anthropic } from "@anthropic-ai/sdk";
+import { getProviderAIModels } from "./providerAIModel";
 
 export async function addModel(provider: string, projectId: string, model: string, apiKey: string, name: string, systemPrompt?: string) {
   await connectToDatabase();
@@ -151,5 +153,69 @@ export async function generateAiResponse(provider: string, model: string, prompt
     throw error instanceof Error
       ? error
       : new Error("Failed to generate AI response");
+  }
+}
+
+export async function importProviderModelToProject(
+  projectId: string,
+  providerModelId: string,
+  customName?: string,
+  customPrompt?: string
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      return { success: false, error: "Unauthorized" }
+    }
+    
+    await connectToDatabase()
+    
+    // Fetch the provider models
+    const result = await getProviderAIModels()
+    
+    if (!result.success) {
+      return { success: false, error: "Failed to fetch provider models" }
+    }
+    
+    // Find the specific model
+    const providerModel = result.models?.find(model => model.id === providerModelId)
+    
+    if (!providerModel) {
+      return { success: false, error: "Provider model not found" }
+    }
+    
+    // Check if this model is already in the project
+    const existingModel = await AImodel.findOne({
+      user: session.user.id,
+      projectid: projectId,
+      model: providerModel.model,
+      provider: providerModel.provider
+    })
+    
+    if (existingModel) {
+      return { success: false, error: "This model is already added to the project" }
+    }
+    
+    // Create the project model
+    const newModel = await AImodel.create({
+      user: session.user.id,
+      projectid: projectId,
+      name: customName || providerModel.name,
+      model: providerModel.model,
+      provider: providerModel.provider,
+      enabled: true,
+      apiKey: providerModel.apiKey,
+      systemPrompt: customPrompt || providerModel.systemPrompt || ""
+    })
+    
+    return { 
+      success: true, 
+      message: "Model imported successfully", 
+      model: JSON.stringify(newModel)
+    }
+  } catch (error: any) {
+    console.error("Error importing provider model:", error)
+    return { success: false, error: error.message }
   }
 }
