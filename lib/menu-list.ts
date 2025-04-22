@@ -31,7 +31,7 @@ import { BookIcon } from "@/components/BookIcon";
 import { TemplateIcon } from "@/components/TemplateIcon";
 
 // Define user roles - using space-separated strings to match what's in your system
-export type UserRole = "project manager" | "annotator" | "agency owner" | "system admin";
+export type UserRole = "project manager" | "annotator" | "agency owner" | "system admin" | "data scientist";
 
 type Submenu = {
   href: string;
@@ -58,6 +58,51 @@ type Group = {
 export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   const projectId = pathname.split("/")[pathname.split("/").length - 1];
   const fpath = pathname.split("/")[1];
+
+  // For data scientist role - showing only home and profile
+  if (userRole === "data scientist") {
+    return [
+      {
+        groupLabel: "",
+        menus: [
+          {
+            href: "/landing",
+            label: "Home",
+            active: pathname.includes("/landing"),
+            icon: Home,
+            submenus: [],
+          }
+        ],
+      },{
+        groupLabel: "",
+        menus: [
+          {
+            href: "/dataScientist/dashboard",
+            label: "Dashboard",
+            active: pathname.includes("/dataScientist/dashboard"),
+            icon: LayoutGrid,
+            submenus: [],
+          },
+          {href: `/data`,
+            label: "Data",
+            active: pathname.includes(`/data/`),
+            icon: Database,
+            }
+        ],
+      },
+      {
+        groupLabel: "User",
+        menus: [
+          {
+            href: "/projects/profile",
+            label: "Profile",
+            active: pathname.includes("/projects/profile"),
+            icon: User,
+          }
+        ],
+      }
+    ];
+  }
 
   // For agency owner role
   if (userRole === "agency owner") {
@@ -383,6 +428,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/dashboard"),
             icon: LayoutGrid,
             submenus: [],
+            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
           {
             href: "/annotator",
@@ -398,6 +444,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/chat"),
             icon: MessageCircle,
             submenus: [],
+            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
           {
             href: "/wishlist",
@@ -405,6 +452,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/wishlist"),
             icon: Heart,
             submenus: [],
+            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
           {
             href: "/providerKeys",
@@ -424,6 +472,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             label: "Projects",
             active: pathname === "/",
             icon: Folder,
+            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
         ],
       },
@@ -493,6 +542,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/dashboard/"),
           icon: LayoutGrid,
           submenus: [],
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
         {
           href: "/annotator",
@@ -508,6 +558,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/chat"),
           icon: MessageCircle,
           submenus: [],
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
         {
           href: "/wishlist",
@@ -515,6 +566,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/wishlist"),
           icon: Heart,
           submenus: [],
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
         {
           href: "/providerKeys",
@@ -534,6 +586,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           label: "Projects",
           active: pathname === "/",
           icon: Folder,
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
 
         // Only include Guidelines if we have a valid projectId
@@ -570,26 +623,29 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             !pathname.includes("/guidelines") &&
             !pathname.includes("/data"),
           icon: SquarePen,
-
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
         {
           href: `/projects/task/${projectId}`,
           label: "Tasks",
           active: pathname.includes("/task"),
           icon: ClipboardList,
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
         {
           href: `/projects/benchmark-proposals/${projectId}`,
           label: "Benchmark Proposals",
           active: pathname.includes("/benchmark-proposals"),
           icon: List,
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
         {
-          href: `/projects/training/${projectId}`,          label: "Training",
+          href: `/projects/training/${projectId}`,          
+          label: "Training",
           active: pathname === `/projects/training/${projectId}`,
           icon: GraduationCap, // Choose appropriate icon
           visibleTo: ["project manager"], // *** ONLY VISIBLE TO PROJECT MANAGER ***
-      },
+        },
       ],
     }
   ];
