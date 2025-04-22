@@ -19,10 +19,12 @@ export async function POST(req: Request) {
       domain = [],
       lang = [],
       location = null,
-      linkedin,
-      resume,
-      nda,
-      team_id = null // Add team_id field with null default
+      invitationCode = null,
+      linkedin = null,
+      resume = null,
+      nda = null,
+      team_id = null, // Add team_id field with null default
+      termsAccepted = false
     } = await req.json();
 
     // Validate required fields
@@ -31,6 +33,17 @@ export async function POST(req: Request) {
         {
           error: "Missing required fields",
           details: "Name, email, password, and role are required",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate terms accepted
+    if (!termsAccepted) {
+      return NextResponse.json(
+        {
+          error: "Terms and Conditions not accepted",
+          details: "You must accept the Terms and Conditions to register",
         },
         { status: 400 }
       );
@@ -54,6 +67,28 @@ export async function POST(req: Request) {
         {
           error: "User already exists",
           message: "An account with this email already exists",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Role-specific validation
+    if (role === 'data scientist' && (!phone || !location)) {
+      return NextResponse.json(
+        {
+          error: "Missing required fields for Data Scientist",
+          details: "Phone number and country are required for Data Scientist",
+        },
+        { status: 400 }
+      );
+    }
+
+    if ((role === 'annotator' || role === 'agency owner') && 
+        (domain.length === 0 || lang.length === 0 || !location)) {
+      return NextResponse.json(
+        {
+          error: "Missing required fields",
+          details: "Domain, language, and location are required for this role",
         },
         { status: 400 }
       );
@@ -94,8 +129,9 @@ export async function POST(req: Request) {
       password: hashedPassword,
       role,
       phone,
-      domain: Array.isArray(domain) ? domain : [],
-      lang: Array.isArray(lang) ? lang : [],
+      // For data scientists, initialize these as empty arrays even if not provided
+      domain: role === 'data scientist' ? [] : (Array.isArray(domain) ? domain : []),
+      lang: role === 'data scientist' ? [] : (Array.isArray(lang) ? lang : []),
       location,
       linkedin,
       resume,
@@ -103,7 +139,7 @@ export async function POST(req: Request) {
       team_id,
       permission: [],
       lastLogin: new Date(),
-      invitation: null,
+      invitation: invitationCode ? invitationCode : null, // Set to null if empty string or falsy
     };
 
     // Create new user using the model
@@ -119,6 +155,7 @@ export async function POST(req: Request) {
     }
 
     // Check for pending invitations for this email and mark them as accepted
+    // Only for annotators, not data scientists
     if (role === 'annotator') {
       const pendingInvitations = await InvitedUsers.find({
         email: email.toLowerCase(),
@@ -135,7 +172,6 @@ export async function POST(req: Request) {
             updated_at: new Date()
           }
         );
-
       }
     }
 
