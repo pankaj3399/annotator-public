@@ -252,7 +252,7 @@ export default function BenchmarkProposalsPage() {
       proposal.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       proposal.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       proposal.domain.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      proposal.user.name.toLowerCase().includes(searchQuery.toLowerCase());
+      proposal.user?.name.toLowerCase().includes(searchQuery.toLowerCase());
 
     switch (activeTab) {
       case 'pending':
@@ -339,7 +339,7 @@ export default function BenchmarkProposalsPage() {
                           ? ` - ${proposal.customDomain}`
                           : ''}
                       </TableCell>
-                      <TableCell>{proposal.user.name}</TableCell>
+                      <TableCell>{proposal.user?.name}</TableCell>
                       <TableCell>
                         {format(parseISO(proposal.created_at), 'PPP')}
                       </TableCell>
@@ -388,7 +388,7 @@ export default function BenchmarkProposalsPage() {
                   <CardHeader>
                     <CardTitle>{selectedProposal.name}</CardTitle>
                     <CardDescription>
-                      Submitted by {selectedProposal.user.name} on{' '}
+                      Submitted by {selectedProposal.user?.name} on{' '}
                       {format(parseISO(selectedProposal.created_at), 'PPP')}
                     </CardDescription>
                   </CardHeader>

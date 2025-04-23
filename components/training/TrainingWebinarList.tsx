@@ -117,9 +117,7 @@ export function TrainingWebinarList({ webinars: initialWebinars, trainingId }: T
                                     size="sm"
                                     onClick={() => openInviteModal(webinar)}
                                 >
-                                    <Mail className="mr-2 h-4 w-4" /> Invite Annotators
-                                </Button>
-                            )}
+                                    <Mail className="mr-2 h-4 w-4" /> Invite Experts
 
                             {/* Status update button for project managers */}
                             {isProjectManager && (
