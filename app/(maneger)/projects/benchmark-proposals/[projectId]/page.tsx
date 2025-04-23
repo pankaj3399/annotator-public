@@ -228,6 +228,7 @@ export default function BenchmarkProposalsPage() {
       },
       approved: { color: 'bg-green-200 text-green-700', icon: CheckCircle },
       rejected: { color: 'bg-red-200 text-red-700', icon: XCircle },
+      orphaned: { color: 'bg-red-200 text-red-700', icon: XCircle },
     };
 
     const config = statusConfig[status];
