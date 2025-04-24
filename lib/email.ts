@@ -285,7 +285,7 @@ export const getWebinarInvitationTemplate = (
     <p>You have been invited to participate in this training webinar. You'll be able to access the webinar through the platform when it's time.</p>
     
     <div style="text-align: center; margin: 30px 0;">
-      <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://blolabel.com'}training" 
+      <a href="${process.env.NEXT_AUTH_URL  || 'https://blolabel.com'}training" 
          style="background-color: #4F46E5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
         Go to Training Portal
       </a>
