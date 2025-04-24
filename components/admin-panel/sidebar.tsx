@@ -1,14 +1,14 @@
-import Link from "next/link";
-import { PanelsTopLeft } from "lucide-react";
+import Link from 'next/link';
+import { PanelsTopLeft } from 'lucide-react';
 
-import { cn } from "@/lib/utils";
-import { useStore } from "@/hooks/use-store";
-import { Button } from "@/components/ui/button";
-import { Menu } from "@/components/admin-panel/menu";
-import { useSidebarToggle } from "@/hooks/use-sidebar-toggle";
-import { SidebarToggle } from "./sidebar-toggle";
-import Image from "next/image";
-import image from "@/public/static/image.png";
+import { cn } from '@/lib/utils';
+import { useStore } from '@/hooks/use-store';
+import { Button } from '@/components/ui/button';
+import { Menu } from '@/components/admin-panel/menu';
+import { useSidebarToggle } from '@/hooks/use-sidebar-toggle';
+import { SidebarToggle } from './sidebar-toggle';
+import Image from 'next/image';
+import image from '@/public/static/image.png';
 
 export function Sidebar() {
   const sidebar = useStore(useSidebarToggle, (state) => state);
@@ -18,21 +18,21 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed top-0 left-0 z-20 h-screen -translate-x-full lg:translate-x-0 transition-[width] ease-in-out duration-300",
-        sidebar?.isOpen === false ? "w-[90px]" : "w-72"
+        'fixed top-0 left-0 z-20 h-screen -translate-x-full lg:translate-x-0 transition-[width] ease-in-out duration-300 bg-white border-r border-gray-200',
+        sidebar?.isOpen === false ? 'w-[90px]' : 'w-72'
       )}
     >
       <SidebarToggle isOpen={sidebar?.isOpen} setIsOpen={sidebar?.setIsOpen} />
-      <div className="relative h-full flex flex-col px-3 py-4 overflow-y-auto shadow-md dark:shadow-zinc-800">
+      <div className='relative h-full flex flex-col px-3 py-4 overflow-y-auto shadow-md dark:shadow-zinc-800'>
         <Button
           className={cn(
-            "transition-transform ease-in-out duration-300 mb-1",
-            sidebar?.isOpen === false ? "translate-x-1" : "translate-x-0"
+            'transition-transform ease-in-out duration-300 mb-1',
+            sidebar?.isOpen === false ? 'translate-x-1' : 'translate-x-0'
           )}
-          variant="link"
+          variant='link'
           asChild
         >
-          <div className="flex items-center gap-2">
+          <div className='flex items-center gap-2'>
             {/* <PanelsTopLeft className="w-6 h-6 mr-1" />
             <h1
               className={cn(
@@ -44,13 +44,13 @@ export function Sidebar() {
             >
               Annotator
             </h1> */}
-            <div className="w-[170px] h-[100px] overflow-hidden">
+            <div className='w-[170px] h-[100px] overflow-hidden'>
               <Image
                 src={image}
-                alt="Logo"
+                alt='Logo'
                 width={700}
                 height={700}
-                className="object-cover object-center translate-y-7"
+                className='object-cover object-center translate-y-7'
               />
             </div>
             {/* <Image src={"/image.png"} alt="logo" width={120} height={120} /> */}

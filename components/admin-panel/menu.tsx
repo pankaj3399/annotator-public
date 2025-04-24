@@ -37,9 +37,9 @@ export function Menu({ isOpen }: MenuProps) {
         {menuList.map(({ groupLabel, menus }, index) => (
           <li className={cn("w-full", groupLabel ? "pt-5" : "")} key={index}>
             {(isOpen && groupLabel) || isOpen === undefined ? (
-              <p className="text-sm font-medium text-muted-foreground px-4 pb-2 max-w-[248px] truncate">
-                {groupLabel}
-              </p>
+            <p className="text-xs font-medium text-gray-500 px-4 pb-1 max-w-[248px] truncate">
+            {groupLabel}
+          </p>
             ) : !isOpen && isOpen !== undefined && groupLabel ? (
               <TooltipProvider>
                 <Tooltip delayDuration={100}>
