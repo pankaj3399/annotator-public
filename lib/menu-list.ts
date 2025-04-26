@@ -104,9 +104,9 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: LayoutDashboard,
             submenus: [],
           },
-          {href: `/data`,
+          {href: `projects/data`,
             label: "Data",
-            active: pathname.includes(`/data/`),
+            active: pathname.includes(`projects/data/`),
             icon: Database,
             }
         ],
@@ -115,9 +115,9 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
         groupLabel: "User",
         menus: [
           {
-            href: "/projects/profile",
+            href: "/profile",
             label: "Profile",
-            active: pathname.includes("/projects/profile"),
+            active: pathname.includes("/profile"),
             icon: CircleUser,
           }
         ],
@@ -210,10 +210,10 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     ];
   }
 
-  // Common project-related menu items for PM
+  // Common project-related menu items for PM - with updated group names
   const projectManagerCommonGroups: Group[] = [
     {
-      groupLabel: "Sourcing",
+      groupLabel: "Resources",
       menus: [
         {
           href: `/projects/job-list/${projectId}`,
@@ -249,7 +249,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       visibleTo: ["project manager"], // Only PM can see analytics
     },
     {
-      groupLabel: "Project settings",
+      groupLabel: "Settings & Configuration",
       menus: [
         {
           href: `/projects/ai-config/${projectId}`,
@@ -379,9 +379,9 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
         groupLabel: "User",
         menus: [
           {
-            href: "/tasks/profile",
+            href: "/profile",
             label: "Profile",
-            active: pathname.includes("/tasks/profile"),
+            active: pathname.includes("/profile"),
             icon: CircleUser,
           },
           // {
@@ -443,6 +443,11 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: Home,
             submenus: [],
           },
+        ],
+      },
+      {
+        groupLabel: "Project Management",
+        menus: [
           {
             href: "/dashboard",
             label: "Dashboard",
@@ -451,6 +456,18 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             submenus: [],
             visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
+          {
+            href: "/",
+            label: "Projects",
+            active: pathname === "/",
+            icon: FolderOpen,
+            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+          },
+        ],
+      },
+      {
+        groupLabel: "Expert Management",
+        menus: [
           {
             href: "/annotator",
             label: "Expert",
@@ -475,6 +492,11 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             submenus: [],
             visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
+        ],
+      },
+      {
+        groupLabel: "Settings",
+        menus: [
           {
             href: "/providerKeys",
             label: "Provider Keys",
@@ -483,17 +505,19 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             submenus: [],
             visibleTo: ["project manager"],
           },
-        ],
-      },
-      {
-        groupLabel: "Contents",
-        menus: [
           {
-            href: "/",
-            label: "Projects",
-            active: pathname === "/",
-            icon: FolderOpen,
-            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+            href: "/bank",
+            label: "Payment Center",
+            active: pathname.includes("/bank"),
+            icon: CreditCard,
+            submenus: [],
+            visibleTo: ["project manager"],
+          },
+          {
+            href: "/profile",
+            label: "Profile",
+            active: pathname.includes("/profile"),
+            icon: CircleUser,
           },
         ],
       },
@@ -523,23 +547,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
       },
-      {
-        groupLabel: "User",
-        menus: [
-          {
-            href: "/projects/profile",
-            label: "Profile",
-            active: pathname.includes("/projects/profile"),
-            icon: CircleUser,
-          },
-          // {
-          //   href: "/bank",
-          //   label: "Bank Settings",
-          //   active: pathname.includes("/bank"),
-          //   icon: Landmark,
-          // },
-        ],
-      },
     ];
 
     return filterMenusByRole(homeMenu, userRole);
@@ -547,69 +554,10 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
 
   // Default menu structure for project context
   const defaultMenu: Group[] = [
-    {
-      groupLabel: "",
-      menus: [
-        {
-          href: "/landing",
-          label: "Home",
-          active: pathname.includes("/landing"),
-          icon: Home,
-          submenus: [],
-        },
-        {
-          href: `/dashboard/${projectId}`,
-          label: "Dashboard",
-          active: pathname.includes("/dashboard/"),
-          icon: LayoutDashboard,
-          submenus: [],
-          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-        },
-        {
-          href: "/annotator",
-          label: "Expert",
-          active: pathname.includes("/annotator"),
-          icon: User,
-          submenus: [],
-          visibleTo: ["project manager"],
-        },
-        {
-          href: "/chat",
-          label: "Chat",
-          active: pathname.includes("/chat"),
-          icon: MessageSquare,
-          submenus: [],
-          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-        },
-        {
-          href: "/wishlist",
-          label: userRole === "project manager" ? "Wishlist" : "Buy me this!",
-          active: pathname.includes("/wishlist"),
-          icon: Heart,
-          submenus: [],
-          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-        },
-        {
-          href: "/providerKeys",
-          label: "Provider Keys",
-          active: pathname.includes("/providerKeys"),
-          icon: Key,
-          submenus: [],
-          visibleTo: ["project manager"], // Only visible to project managers
-        },
-      ],
-    },
-    {
-      groupLabel: "Contents",
-      menus: [
-        {
-          href: "/",
-          label: "Projects",
-          active: pathname === "/",
-          icon: FolderOpen,
-          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-        },
 
+    {
+      groupLabel: "Project",
+      menus: [
         // Only include Guidelines if we have a valid projectId
         ...(projectId &&
           !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ?
@@ -622,9 +570,9 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
           // Add the new data route here
           {
-            href: `/data`,
+            href: `/projects/data`,
             label: "Data",
-            active: pathname.includes(`/data/`),
+            active: pathname.includes(`/projects/data/`),
             icon: Database,
             visibleTo: ["project manager" as UserRole],
           }] : []),
@@ -677,24 +625,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     defaultMenu.push(...projectManagerCommonGroups);
   }
 
-  // Add User group
-  defaultMenu.push({
-    groupLabel: "User",
-    menus: [
-      {
-        href: "/projects/profile",
-        label: "Profile",
-        active: pathname.includes("/projects/profile"),
-        icon: CircleUser,
-      },
-      // {
-      //   href: "/bank",
-      //   label: "Bank Settings",
-      //   active: pathname.includes("/bank"),
-      //   icon: Landmark,
-      // },
-    ],
-  });
 
   // This conditional check is for a specific analytics view within the annotator path
   if (
