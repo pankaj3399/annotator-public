@@ -33,17 +33,6 @@ export function Sidebar() {
           asChild
         >
           <div className='flex items-center gap-2'>
-            {/* <PanelsTopLeft className="w-6 h-6 mr-1" />
-            <h1
-              className={cn(
-                "font-bold text-lg whitespace-nowrap transition-[transform,opacity,display] ease-in-out duration-300",
-                sidebar?.isOpen === false
-                  ? "-translate-x-96 opacity-0 hidden"
-                  : "translate-x-0 opacity-100"
-              )}
-            >
-              Annotator
-            </h1> */}
             <div className='w-[170px] h-[100px] overflow-hidden'>
               <Image
                 src={image}
@@ -53,7 +42,6 @@ export function Sidebar() {
                 className='object-cover object-center translate-y-7'
               />
             </div>
-            {/* <Image src={"/image.png"} alt="logo" width={120} height={120} /> */}
           </div>
         </Button>
         <Menu isOpen={sidebar?.isOpen} />

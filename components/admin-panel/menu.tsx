@@ -1,5 +1,3 @@
-"use client";
-
 import { Ellipsis, LogOut, ChevronDown, ChevronRight, ArrowLeft, LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -55,6 +53,17 @@ export function Menu({ isOpen }: MenuProps) {
     return list as MenuGroup[]; // Explicit casting
   }, [pathname, userRole]);
 
+  // Update "Contents" to "Projects" if needed
+  const updatedMenuList = useMemo(() => {
+    return menuList.map(group => {
+      // Convert "Contents" to "Projects" if needed
+      if (group.groupLabel === "Contents") {
+        return { ...group, groupLabel: "Projects" };
+      }
+      return group;
+    });
+  }, [menuList]);
+
   // Track expanded sections
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({});
 
@@ -66,17 +75,6 @@ export function Menu({ isOpen }: MenuProps) {
   // Check if on projects route
   const isOnProjectsRoute = pathname === "/projects" || pathname.startsWith("/projects/");
   
-  // Check if in tasks route with task-specific content
-  const isInTasksContext = pathname.includes("/tasks/");
-  const isTaskSpecificRoute = pathname.includes("/tasks/all") || 
-                              pathname.includes("/tasks/review") || 
-                              pathname.includes("/tasks/benchmark-arena");
-
-  // Check route type for role-specific highlighting
-  const isDataScientistRoute = pathname.includes("/dataScientist/");
-  const isAgencyOwnerRoute = pathname.includes("/agencyOwner/");
-  const isAdminRoute = pathname.includes("/admin/");
-
   // Toggle section expansion
   const toggleSection = (groupLabel: string) => {
     setExpandedSections(prev => ({
@@ -89,84 +87,34 @@ export function Menu({ isOpen }: MenuProps) {
   useEffect(() => {
     const initialState: {[key: string]: boolean} = {};
     
-    // Detect task-related routes that should open the Projects accordion
-    const isTaskRelatedRoute = pathname.includes("/tasks/all") || 
-                               pathname.includes("/tasks/review") || 
-                               pathname.includes("/tasks/benchmark-arena");
-    
-    // Only expand Projects accordion when on actual project routes or task-related routes,
-    // but not when on general routes like wishlist
-    if ((isOnProjectsRoute && !pathname.includes("/wishlist")) || 
-        pathname.includes("/templates") || 
-        pathname.includes("/guidelines") || 
-        pathname.includes("/data") || 
-        pathname.includes("/task/") ||
-        pathname.includes("/benchmark-proposals/") ||
-        pathname.includes("/training/") ||
-        (pathname === "/" && !pathname.includes("/tasks/wishlist")) ||
-        isTaskRelatedRoute) {
-      initialState["Projects"] = true;
-    }
-    
-    // Don't auto-expand Projects when on wishlist
-    if (pathname.includes("/wishlist")) {
-      initialState["Projects"] = false;
-    }
-    
-    // Auto-expand based on user role and route context
-    if (userRole === "data scientist" && isDataScientistRoute) {
-      initialState[""] = true; // Expand the unnamed group for data scientists
-    }
-    
-    if (userRole === "agency owner" && isAgencyOwnerRoute) {
-      initialState[""] = true; // Expand the unnamed group for agency owners
-    }
-    
-    if (userRole === "system admin" && isAdminRoute) {
-      initialState[""] = true; // Expand the unnamed group for system admins
-    }
-    
-    // For annotators and project managers in tasks context
-    if (isInTasksContext) {
-      // For tasks-specific routes, open the Projects accordion
-      if (isTaskSpecificRoute) {
-        initialState["Projects"] = true;
+    // For project context, always expand the Project group
+    if (inProjectContext) {
+      initialState["Project"] = true;
+      
+      // Check for specific project sections
+      if (pathname.includes("/job-list") || pathname.includes("/job-applications")) {
+        initialState["Resources"] = true;
       }
       
-      // Check if viewing courses
-      if (pathname.includes("/viewCourses") || pathname.includes("/myCourses")) {
-        initialState["AI Academy"] = true;
+      if (pathname.includes("/analytics/view") || pathname.includes("/leaderboard")) {
+        initialState["Analytics"] = true;
+      }
+      
+      if (pathname.includes("/ai-config") || pathname.includes("/settings") || pathname.includes("/notification")) {
+        initialState["Settings & Configuration"] = true;
       }
     }
     
-    // Check active items in each menu category
-    menuList.forEach((group) => {
+    // Always expand groups with active items
+    updatedMenuList.forEach((group) => {
       if (!group.groupLabel) return;
       
-      // Auto-expand sections with active items or active submenus
       const hasActiveItem = group.menus.some((item) => {
-        if (item.active) {
-          // If this is a project-related item that's active, ensure Project group is expanded
-          if (item.label === "Guidelines" || 
-              item.label === "Data" || 
-              item.label === "Templates" || 
-              item.label === "Tasks" || 
-              item.label === "Training" ||
-              item.label === "Benchmark Proposals" ||
-              item.label === "All Tasks") {
-            initialState["Projects"] = true;
-          }
-          return true;
-        }
+        if (item.active) return true;
         
         // Check submenus for active items
         if (item.submenus && item.submenus.some((submenu) => submenu.active)) {
           initialState[item.label] = true; // Also expand the parent item
-          
-          // If a project-related submenu is active, expand the Projects group
-          if (group.groupLabel === "Projects") {
-            initialState["Projects"] = true;
-          }
           return true;
         }
         
@@ -178,106 +126,26 @@ export function Menu({ isOpen }: MenuProps) {
       }
     });
     
-    // Role-specific section expansion for project managers
+    // Role-specific expansions
     if (userRole === "project manager") {
-      // Check if any Sourcing, Analytics, or Project Settings tabs have active items
-      if (pathname.includes("/job-list") || pathname.includes("/job-applications")) {
-        initialState["Sourcing"] = true;
-        
-        // If we're in a project context, also ensure the Projects accordion is open
-        if (inProjectContext || pathname.includes("/projects/")) {
-          initialState["Projects"] = true;
-        }
+      // Project Management section in home view
+      if (!inProjectContext && pathname === "/") {
+        initialState["Project Management"] = true;
       }
       
-      if (pathname.includes("/analytics/view") || pathname.includes("/leaderboard")) {
-        initialState["Analytics"] = true;
-        
-        // If we're in a project context, also ensure the Projects accordion is open
-        if (inProjectContext || pathname.includes("/projects/")) {
-          initialState["Projects"] = true;
-        }
+      // Expert Management section in home view
+      if (!inProjectContext && (pathname.includes("/annotator") || pathname.includes("/chat"))) {
+        initialState["Expert Management"] = true;
       }
       
-      if (pathname.includes("/ai-config") || pathname.includes("/settings") || pathname.includes("/notification")) {
-        initialState["Project settings"] = true;
-        
-        // If we're in a project context, also ensure the Projects accordion is open
-        if (inProjectContext || pathname.includes("/projects/")) {
-          initialState["Projects"] = true;
-        }
-      }
-      
-      // For training section
-      if (pathname.includes("/training/")) {
-        initialState["Projects"] = true;
-      }
-      
-      // For guidelines, data, templates, or tasks sections
-      if (pathname.includes("/guidelines/") || 
-          pathname.includes("/data/") || 
-          pathname.includes("/templates/") || 
-          pathname.includes("/task/") ||
-          pathname.includes("/benchmark-proposals/")) {
-        initialState["Projects"] = true;
-      }
-    }
-    
-    // Role-specific section expansion for annotators - ensure Projects opens for task-related routes
-    if (userRole === "annotator") {
-      if (pathname.includes("/tasks/all") || 
-          pathname.includes("/tasks/review") || 
-          pathname.includes("/tasks/benchmark-arena")) {
-        initialState["Projects"] = true;
-      }
-    }
-    
-    // Role-specific expansions for annotators
-    if (userRole === "annotator") {
-      if (pathname.includes("/tasks/all") || pathname.includes("/tasks/review")) {
-        initialState["Contents"] = true;
-      }
-      
-      if (pathname.includes("/tasks/benchmark-arena")) {
-        initialState["Contents"] = true;
+      // Settings section in home view
+      if (!inProjectContext && pathname.includes("/providerKeys")) {
+        initialState["Settings"] = true;
       }
     }
     
     setExpandedSections(initialState);
-  }, [pathname, userRole, isOnProjectsRoute, isInTasksContext, isDataScientistRoute, isAgencyOwnerRoute, isAdminRoute, menuList]);
-
-  // Update "Contents" to "Projects" if needed and handle special case for Projects
-  const updatedMenuList = useMemo(() => {
-    return menuList.map(group => {
-      // Convert "Contents" to "Projects"
-      if (group.groupLabel === "Contents") {
-        // Create a modified group with Projects as the groupLabel
-        const modifiedGroup = { ...group, groupLabel: "Projects" };
-        
-        // Filter out the redundant "Projects" item from the menus array or
-        // ensure it's not marked as active when we're on a non-projects path
-        modifiedGroup.menus = modifiedGroup.menus.map(menu => {
-          if (menu.label === "Projects") {
-            // Keep the item but ensure it's not incorrectly marked as active
-            // Only mark active if we're specifically on the projects routes and not on wishlist
-            const shouldBeActive = pathname === "/" || 
-                                   pathname === "/projects" || 
-                                   (pathname.startsWith("/projects/") && 
-                                    !pathname.includes("/wishlist"));
-            
-            return {
-              ...menu,
-              active: shouldBeActive
-            };
-          }
-          return menu;
-        });
-        
-        return modifiedGroup;
-      }
-      return group;
-    });
-  }, [menuList, pathname]);
+  }, [pathname, userRole, updatedMenuList, inProjectContext]);
 
   return (
     <nav className="mt-8 h-full w-full">
@@ -348,85 +216,8 @@ export function Menu({ isOpen }: MenuProps) {
                     // Determine if this menu item has active submenus
                     const hasActiveSubmenu = item.submenus?.some(submenu => submenu.active) || false;
                     
-                    // Determine if this item should be highlighted based on role-specific routes and the exact path
-                    // Important: Make sure only one item is highlighted based on the current path
-                    let isHighlighted = false;
-                    
-                    // Check if this is the correct item to highlight for the current path
-                    if (item.active && !pathname.includes("/wishlist")) {
-                      isHighlighted = true;
-                    } else if (hasActiveSubmenu) {
-                      isHighlighted = true;
-                    }
-                    
-                    // Handle "Buy me this!" highlighting specifically
-                    if (item.label === "Buy me this!" && pathname.includes("/wishlist")) {
-                      isHighlighted = true;
-                    }
-                    
-                    // Role-specific highlight logic - but only if not on wishlist
-                    if (!pathname.includes("/wishlist")) {
-                      if (userRole === "data scientist" && item.label === "Dashboard" && isDataScientistRoute) {
-                        isHighlighted = true;
-                      } else if (userRole === "agency owner" && item.label === "Dashboard" && isAgencyOwnerRoute) {
-                        isHighlighted = true;
-                      } else if (userRole === "annotator" && item.label === "All Tasks" && pathname.includes("/tasks/all")) {
-                        isHighlighted = true;
-                      } else if (userRole === "project manager" && item.label === "Training" && pathname.includes("/training/")) {
-                        isHighlighted = true;
-                      }
-                    }
-                    
-                    // Project-related items highlighting - only if not on wishlist
-                    if (!pathname.includes("/wishlist")) {
-                      if (item.label === "Guidelines" && pathname.includes("/guidelines/")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "Data" && pathname.includes("/data/")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "Templates" && 
-                          pathname.includes(`/projects/`) && 
-                          !pathname.includes("/task") &&
-                          !pathname.includes("/ai-config") &&
-                          !pathname.includes("/analytics/view") &&
-                          !pathname.includes("/settings") &&
-                          !pathname.includes("/notification") &&
-                          !pathname.includes("/leaderboard") &&
-                          !pathname.includes("/job-list") &&
-                          !pathname.includes("/job-applications") &&
-                          !pathname.includes("/guidelines") &&
-                          !pathname.includes("/data")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "Tasks" && pathname.includes("/task/")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "All Tasks" && pathname.includes("/tasks/all")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "Review Tasks" && pathname.includes("/tasks/review")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "Benchmark Arena" && pathname.includes("/benchmark-arena")) {
-                        isHighlighted = true;
-                      }
-                      
-                      if (item.label === "Benchmark Proposals" && pathname.includes("/benchmark-proposals/")) {
-                        isHighlighted = true;
-                      }
-                    }
-                    
-                    // Special case for Projects tab to avoid conflict with Buy me this!
-                    if (item.label === "Projects" && pathname.includes("/wishlist")) {
-                      isHighlighted = false;
-                    }
+                    // Determine if this item should be highlighted
+                    let isHighlighted = item.active || hasActiveSubmenu;
                     
                     const Icon = item.icon;
                     
@@ -494,48 +285,35 @@ export function Menu({ isOpen }: MenuProps) {
                         {/* Submenu items */}
                         {item.submenus && item.submenus.length > 0 && expandedSections[item.label] && isOpen !== false && (
                           <div className="pl-8 space-y-1">
-                            {item.submenus.map((submenu, submenuIndex) => {
-                              // Additional role-specific active check for submenus
-                              let isSubmenuActive = submenu.active;
-                              
-                              // Role-specific submenu highlighting
-                              if (userRole === "project manager" && 
-                                  item.label === "Analytics" && 
-                                  submenu.label === "Overview" && 
-                                  pathname.includes("/analytics/view")) {
-                                isSubmenuActive = true;
-                              }
-                              
-                              return (
-                                <TooltipProvider key={submenuIndex} disableHoverableContent>
-                                  <Tooltip delayDuration={100}>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant={isSubmenuActive ? "secondary" : "ghost"}
-                                        className="w-full justify-start h-10 mb-1"
-                                        asChild
-                                      >
-                                        <Link href={submenu.href}>
-                                          <p
-                                            className={cn(
-                                              "max-w-[200px] truncate",
-                                              !isOpen
-                                                ? "-translate-x-96 opacity-0"
-                                                : "translate-x-0 opacity-100"
-                                            )}
-                                          >
-                                            {submenu.label}
-                                          </p>
-                                        </Link>
-                                      </Button>
-                                    </TooltipTrigger>
-                                    {!isOpen && (
-                                      <TooltipContent side="right">{submenu.label}</TooltipContent>
-                                    )}
-                                  </Tooltip>
-                                </TooltipProvider>
-                              );
-                            })}
+                            {item.submenus.map((submenu, submenuIndex) => (
+                              <TooltipProvider key={submenuIndex} disableHoverableContent>
+                                <Tooltip delayDuration={100}>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant={submenu.active ? "secondary" : "ghost"}
+                                      className="w-full justify-start h-10 mb-1"
+                                      asChild
+                                    >
+                                      <Link href={submenu.href}>
+                                        <p
+                                          className={cn(
+                                            "max-w-[200px] truncate",
+                                            !isOpen
+                                              ? "-translate-x-96 opacity-0"
+                                              : "translate-x-0 opacity-100"
+                                          )}
+                                        >
+                                          {submenu.label}
+                                        </p>
+                                      </Link>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  {!isOpen && (
+                                    <TooltipContent side="right">{submenu.label}</TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
                           </div>
                         )}
                       </div>
