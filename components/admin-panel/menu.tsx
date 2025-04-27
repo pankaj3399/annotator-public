@@ -1,4 +1,3 @@
-//menu.tsx
 import {
   Ellipsis,
   LogOut,
@@ -102,6 +101,16 @@ export function Menu({ isOpen }: MenuProps) {
     console.log('--- Menu useEffect Start --- Pathname:', pathname); // For debugging
     const initialState: { [key: string]: boolean } = {};
 
+    // Sections that should be open by default
+    const defaultOpenSections = [
+      'Expert Management',
+      'Analytics',
+      'Settings',
+      'AI Academy',
+      'Task Management',
+      'Settings & Configuration',
+    ];
+
     // Iterate through the menu structure to determine initial expansion states
     updatedMenuList.forEach((group) => {
       group.menus.forEach((item) => {
@@ -135,6 +144,11 @@ export function Menu({ isOpen }: MenuProps) {
           initialState[group.groupLabel] = true; // Expand the group like "Project Management" etc.
         }
       });
+    });
+
+    // --- Apply Auto-expand for specified sections ---
+    defaultOpenSections.forEach((section) => {
+      initialState[section] = true;
     });
 
     // --- Apply Role/Context Specific Defaults (Only if not already expanded by active state) ---
@@ -198,14 +212,23 @@ export function Menu({ isOpen }: MenuProps) {
 
   return (
     <nav className='mt-8 h-full w-full'>
-      {/* Project title and back link (for project context) */}
       {inProjectContext && userRole !== 'data scientist' && (
         <div className='mb-6 px-4'>
-          <div className='flex items-center text-sm text-blue-500 mt-1'>
-            <Link href='/' className='flex items-center ml-1'>
-              <ArrowLeft className='h-3 w-3 mr-1' />
-              <span className='hover:underline'>Back to all projects</span>
-            </Link>
+          <div className='flex items-center justify-between'>
+            <div className='flex items-center text-sm text-blue-500 mt-1'>
+              <Link
+                href={`/projects/pipeline/${projectId}`}
+                className='flex items-center ml-1'
+              >
+                <span className='hover:underline'>Pipeline</span>
+              </Link>
+            </div>
+            <div className='flex items-center text-sm text-blue-500 mt-1'>
+              <Link href='/' className='flex items-center'>
+                <ArrowLeft className='h-3 w-3 mr-1' />
+                <span className='hover:underline'>Back to all projects</span>
+              </Link>
+            </div>
           </div>
         </div>
       )}
@@ -234,17 +257,16 @@ export function Menu({ isOpen }: MenuProps) {
                   <div className='flex items-center flex-grow mr-2'>
                     {' '}
                     {/* Wrap icon and text */}
-                    {group.groupIcon &&
-                      ( // Render icon if it exists and sidebar is open
-                        <group.groupIcon
-                          className={cn(
-                            'h-4 w-4 mr-2', // Basic icon styling
-                            expandedSections[group.groupIcon || '']
-                              ? 'text-gray-800'
-                              : 'text-gray-500' // Match text color based on expansion
-                          )}
-                        />
-                      )}
+                    {group.groupIcon && ( // Render icon if it exists and sidebar is open
+                      <group.groupIcon
+                        className={cn(
+                          'h-4 w-4 mr-2', // Basic icon styling
+                          expandedSections[group.groupIcon || '']
+                            ? 'text-gray-800'
+                            : 'text-gray-500' // Match text color based on expansion
+                        )}
+                      />
+                    )}
                     <p
                       className={cn(
                         'text-sm font-medium max-w-[180px] truncate', // Adjust max-width if needed
@@ -256,7 +278,7 @@ export function Menu({ isOpen }: MenuProps) {
                       {group.groupLabel}
                     </p>
                   </div>
-              
+
                   {group.groupLabel &&
                     (expandedSections[group.groupLabel] ? (
                       <ChevronDown
