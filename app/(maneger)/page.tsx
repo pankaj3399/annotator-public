@@ -212,7 +212,7 @@ export default function ProjectDashboard() {
   };
 
   const handleProjectClick = (projectId: string) => {
-    router.push(`/projects/${projectId}`);
+    router.push(`/projects/pipeline/${projectId}`);
   };
 
   const handleCreateProject = (e: React.FormEvent) => {

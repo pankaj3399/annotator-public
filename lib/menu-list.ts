@@ -271,6 +271,63 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       icon: FileText,
     },
     {
+      groupLabel: "Data",
+      menus: [
+        {
+          href: `/projects/data`,
+          label: "Connector",
+          active: pathname.includes(`/projects/data/`),
+          icon: Link,
+          visibleTo: ["project manager" as UserRole],
+        },  {
+          href: `/dataScientist/notebook`,
+          label: "Notebook",
+          active: pathname.includes(`/dataScientist/notebook`), // Active state for Notebook
+          icon: NotebookText,
+        },
+      ],
+      visibleTo: ["project manager"],
+    },
+    {
+      groupLabel: "UI Builder",
+      menus: [
+        {
+          href: `/projects/template/test/${projectId}`,
+          label: "Create Test",
+          active: pathname.includes("/template/test"),
+          icon: TestTube,
+        },
+        {
+          href: `/projects/template/training/${projectId}`,
+          label: "Create Training",
+          active: pathname.includes("/template/training"),
+          icon: GraduationCap,
+        },
+        {
+          href: `/projects/template/core/${projectId}`,
+          label: "Create Production",
+          active: pathname.includes("/template/core"),
+          icon: Rocket,
+        },
+      ],
+      visibleTo: ["project manager"], // Only PM can see analytics
+    },
+ {
+    groupLabel: "Task Management",
+    menus: [
+
+      {
+        href: `/projects/task/${projectId}`,
+        label: "Tasks",
+        active: pathname.includes("/task"),
+        icon: CheckSquare,
+        visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+      },
+ 
+    ],
+    visibleTo: ["project manager"],
+  },
+    {
       groupLabel: "Resources",
       menus: [
         {
@@ -303,6 +360,14 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/leaderboard"),
           icon: Activity,
         },
+        {
+          href: "/dashboard",
+          label: "Dashboard",
+          active: pathname.includes("/dashboard"),
+          icon: LayoutDashboard,
+          submenus: [],
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+        },
       ],
       visibleTo: ["project manager"], // Only PM can see analytics
     },
@@ -329,31 +394,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
         },
       ],
       visibleTo: ["project manager"], // Only PM can see project settings
-    },
-    {
-      groupLabel: "UI Builder",
-      menus: [
-        {
-          href: `/projects/ui-builder/test/${projectId}`,
-          label: "Create Test",
-          active: pathname.includes("/test"),
-          icon: TestTube,
-        },
-        {
-          href: `/projects/ui-builder/training/${projectId}`,
-          label: "Create Training",
-          active: pathname.includes("/training"),
-          icon: GraduationCap,
-        },
-        
-        {
-          href: `/projects/ui-builder/production/${projectId}`,
-          label: "Create Production",
-          active: pathname.includes("/production"),
-          icon: Rocket,
-        },
-      ],
-      visibleTo: ["project manager"], // Only PM can see analytics
     }
   ];
 
@@ -531,14 +571,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       {
         groupLabel: "Project Management",
         menus: [
-          {
-            href: "/dashboard",
-            label: "Dashboard",
-            active: pathname.includes("/dashboard"),
-            icon: LayoutDashboard,
-            submenus: [],
-            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-          },
+        
           {
             href: "/",
             label: "Projects",
@@ -650,43 +683,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       groupLabel: "Project",
       menus: [
        
-      // Only include Guidelines if we have a valid projectId
-      ...(projectId &&
-        !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId) ?
-        [
-          // Add the new data route here
-          {
-            href: `/projects/data`,
-            label: "Data",
-            active: pathname.includes(`/projects/data/`),
-            icon: Database,
-            visibleTo: ["project manager" as UserRole],
-          }] : []),
-      {
-        href: `/projects/${projectId}`,
-        label: "Templates",
-        active:
-          pathname.includes(`/projects/${projectId}`) &&
-          !pathname.includes("/task") &&
-          !pathname.includes("/ai-config") &&
-          !pathname.includes("/analytics/view") &&
-          !pathname.includes("/settings") &&
-          !pathname.includes("/notification") &&
-          !pathname.includes("/leaderboard") &&
-          !pathname.includes("/job-list") &&
-          !pathname.includes("/job-applications") &&
-          !pathname.includes("/guidelines") &&
-          !pathname.includes("/data"),
-        icon: FilePlus,
-        visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-      },
-      {
-        href: `/projects/task/${projectId}`,
-        label: "Tasks",
-        active: pathname.includes("/task"),
-        icon: CheckSquare,
-        visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-      },
+
       {
         href: `/projects/benchmark-proposals/${projectId}`,
         label: "Benchmark Proposals",
