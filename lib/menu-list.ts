@@ -55,6 +55,8 @@ import {
   Rocket,
   UserX2Icon,
   User2Icon,
+  BookA,
+  UserCheck,
 
 } from "lucide-react";
 
@@ -250,7 +252,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           href: `/projects/guidelines/${projectId}`,
           label: "Guidelines",
           active: pathname.includes(`/projects/guidelines/${projectId}`),
-          icon: FileText,
+          icon: BookA,
         },
 
         {
@@ -263,7 +265,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           href: `/projects/discussion/${projectId}`,
           label: "Discussion",
           active: pathname.includes(`/projects/discussion/${projectId}`),
-          icon: FileType,
+          icon: MessageSquare,
         },
         
       ],
@@ -327,6 +329,24 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     ],
     visibleTo: ["project manager"],
   },
+  
+  {
+    groupLabel: "Project Management",
+    menus: [
+    {
+      href: `/projects/benchmark-proposals/${projectId}`,
+      label: "Benchmark Proposals",
+      active: pathname.includes("/benchmark-proposals"),
+      icon: TrendingUp,
+    },
+    {
+      href: `/projects/training/${projectId}`,
+      label: "Kickoff Session",
+      active: pathname === `/projects/training/${projectId}`,
+      icon: GraduationCap,
+    }
+    ]
+  },
     {
       groupLabel: "Resources",
       menus: [
@@ -341,6 +361,18 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           label: "Job Applicants",
           active: pathname.includes("/job-applications"),
           icon: UserPlus,
+        },
+        {
+          href: `/projects/job-list/create/${projectId}}`,
+          label: "Post Job",
+          active: pathname.includes("/job-list/create"),
+          icon: UserPlus,
+        },
+        {
+          href: `/onboarded-annotator/${projectId}`,
+          label: "Onboarded Experts",
+          active: pathname.includes("/onboarded-annotator"),
+          icon: UserCheck,
         },
       ],
       visibleTo: ["project manager"], // Only PM can see sourcing
@@ -360,14 +392,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/leaderboard"),
           icon: Activity,
         },
-        {
-          href: "/dashboard",
-          label: "Dashboard",
-          active: pathname.includes("/dashboard"),
-          icon: LayoutDashboard,
-          submenus: [],
-          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-        },
+    
       ],
       visibleTo: ["project manager"], // Only PM can see analytics
     },
@@ -573,6 +598,13 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
         menus: [
         
           {
+            href: "/dashboard",
+            label: "Dashboard",
+            active: pathname.includes("/dashboard"),
+            icon: LayoutDashboard,
+            submenus: [],
+            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+          },{
             href: "/",
             label: "Projects",
             active: pathname === "/",
@@ -679,27 +711,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   // Default menu structure for project context
   const defaultMenu: Group[] = [
 
-    {
-      groupLabel: "Project",
-      menus: [
-       
-
-      {
-        href: `/projects/benchmark-proposals/${projectId}`,
-        label: "Benchmark Proposals",
-        active: pathname.includes("/benchmark-proposals"),
-        icon: TrendingUp,
-        visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-      },
-      {
-        href: `/projects/training/${projectId}`,
-        label: "Kickoff Session",
-        active: pathname === `/projects/training/${projectId}`,
-        icon: GraduationCap,
-        visibleTo: ["project manager"], // *** ONLY VISIBLE TO PROJECT MANAGER ***
-      },
-      ],
-    }
   ];
 
   // Always include project-specific groups for project managers when a valid project ID is present

@@ -5,10 +5,49 @@ import {
   ChevronRight,
   ArrowLeft,
   LucideIcon,
+  FileText,
+  Database,
+  GraduationCap,
+  ClipboardList,
+  Users,
+  BarChart,
+  Settings,
+  FolderOpen,
+  Rocket,
+  Bell,
+  TestTube,
+  TrendingUp,
+  Heart,
+  BookOpen,
+  Bot,
+  User,
+  CircleUser,
+  Link,
+  NotebookText,
+  FileType,
+  FileType2,
+  // Additional icons for distinct accordion group headers
+  Folders,
+  Book,
+  LineChart,
+  BookMarked,
+  FileCode,
+  Wrench,
+  PersonStanding,
+  LayoutDashboard,
+  Library,
+  Briefcase,
+  Cog,
+  UserCog,
+  School,
+  BookText,
+  FolderKanban,
+  FolderCode,
 } from 'lucide-react';
-import Link from 'next/link';
+import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +59,7 @@ import {
 import { getMenuList, UserRole } from '@/lib/menu-list';
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
+import { TemplateIcon } from '../TemplateIcon';
 
 // Define more explicit types to ensure TypeScript understands the structure
 type Submenu = {
@@ -41,6 +81,7 @@ type MenuGroup = {
   groupLabel: string;
   menus: MenuItem[];
   groupIcon?: LucideIcon | any; // Using 'any' for icon to match existing code
+  icon?: LucideIcon | any; // Some groups use 'icon' instead of 'groupIcon'
 };
 
 interface MenuProps {
@@ -84,10 +125,6 @@ export function Menu({ isOpen }: MenuProps) {
   const inProjectContext =
     pathSegments.includes('projects') && projectId !== 'projects';
 
-  // Check if on projects route
-  const isOnProjectsRoute =
-    pathname === '/projects' || pathname.startsWith('/projects/');
-
   // Toggle section expansion
   const toggleSection = (groupLabel: string) => {
     setExpandedSections((prev) => ({
@@ -96,119 +133,57 @@ export function Menu({ isOpen }: MenuProps) {
     }));
   };
 
-  // Initialize expandedSections based on active items, route and user role
+  // Initialize all accordions to be expanded by default
   useEffect(() => {
     console.log('--- Menu useEffect Start --- Pathname:', pathname); // For debugging
     const initialState: { [key: string]: boolean } = {};
-
-    // Sections that should be open by default
-    const defaultOpenSections = [
-      'Expert Management',
-      'Analytics',
-      'Settings',
-      'AI Academy',
-      'Task Management',
-      'Settings & Configuration',
-    ];
-
-    // Iterate through the menu structure to determine initial expansion states
+  
+    // Make ALL groups expanded by default
     updatedMenuList.forEach((group) => {
+      // If the group has a groupLabel, make it expanded by default
+      if (group.groupLabel) {
+        initialState[group.groupLabel] = true;
+      }
+      
+      // Also expand each menu item that has submenus (like "Data" accordion)
       group.menus.forEach((item) => {
-        let itemShouldBeExpanded = false;
-        let groupShouldBeExpanded = false;
-
-        // Check 1: Does the item have submenus, and is ANY of them active?
-        if (item.submenus && item.submenus.some((submenu) => submenu.active)) {
-          console.log(`Item "${item.label}" has an active submenu.`); // Debug log
-          itemShouldBeExpanded = true; // Mark the parent item ("Data") for expansion
-          groupShouldBeExpanded = true; // Mark its group for expansion
-        }
-        // Check 2: Is the item active itself? (Covers non-accordion items OR accordion items whose active state depends on children)
-        else if (item.active) {
-          console.log(`Item "${item.label}" is active.`); // Debug log
-          // If it's an accordion header (has submenus), it should be expanded when active.
-          // If it's a direct link, it doesn't have an individual expansion state, but its group should expand.
-          if (item.submenus) {
-            itemShouldBeExpanded = true;
-          }
-          groupShouldBeExpanded = true; // Active item means its group should expand
-        }
-
-        // Apply expansion state to initialState if determined
-        if (itemShouldBeExpanded) {
-          console.log(`Setting initialState["${item.label}"] = true`); // Debug log
-          initialState[item.label] = true; // e.g., initialState["Data"] = true
-        }
-        if (groupShouldBeExpanded && group.groupLabel) {
-          console.log(`Setting initialState["${group.groupLabel}"] = true`); // Debug log
-          initialState[group.groupLabel] = true; // Expand the group like "Project Management" etc.
+        if (item.submenus && item.submenus.length > 0) {
+          initialState[item.label] = true;
         }
       });
     });
-
-    // --- Apply Auto-expand for specified sections ---
-    defaultOpenSections.forEach((section) => {
-      initialState[section] = true;
-    });
-
-    // --- Apply Role/Context Specific Defaults (Only if not already expanded by active state) ---
-    // Example: Project context defaults (keep only relevant ones)
-    if (inProjectContext) {
-      if (!initialState['Project']) {
-        // Avoid overriding if already set by active item/submenu
-        console.log(
-          "Setting default: initialState['Project'] = true (Context)"
-        ); // Debug log
-        initialState['Project'] = true;
-      }
-      // Add other context-based defaults here if needed, checking !initialState[...] first
-      if (userRole !== 'data scientist') {
-        // Example: Non-data scientists might need Resources expanded
-        if (
-          (pathname.includes('/job-list') ||
-            pathname.includes('/job-applications')) &&
-          !initialState['Resources']
-        ) {
-          initialState['Resources'] = true;
-        }
-        if (
-          (pathname.includes('/analytics/view') ||
-            pathname.includes('/leaderboard')) &&
-          !initialState['Analytics']
-        ) {
-          initialState['Analytics'] = true;
-        }
-        if (
-          (pathname.includes('/ai-config') ||
-            pathname.includes('/settings') ||
-            pathname.includes('/notification')) &&
-          !initialState['Settings & Configuration']
-        ) {
-          initialState['Settings & Configuration'] = true;
-        }
-      }
-    }
-
-    // Example: Role-specific defaults (outside project context)
-    if (userRole === 'project manager' && !inProjectContext) {
-      if (pathname === '/' && !initialState['Project Management']) {
-        initialState['Project Management'] = true;
-      }
-      if (
-        (pathname.includes('/annotator') || pathname.includes('/chat')) &&
-        !initialState['Expert Management']
-      ) {
-        initialState['Expert Management'] = true;
-      }
-      if (pathname.includes('/providerKeys') && !initialState['Settings']) {
-        initialState['Settings'] = true;
-      }
-    }
-    // Add other role/context defaults as needed...
-
+  
     console.log('--- Menu useEffect End --- Final initialState:', initialState); // Debug log
     setExpandedSections(initialState); // Update the state
-  }, [pathname, userRole, updatedMenuList, inProjectContext]); // Dependencies remain the same
+  }, [pathname, userRole, updatedMenuList, inProjectContext]);
+
+  // Get the appropriate icon for a group based on its label
+  const getGroupIcon = (group: MenuGroup) => {
+    // First check if the group already has an icon defined
+    if (group.icon) return group.icon;
+    if (group.groupIcon) return group.groupIcon;
+    
+    // If no icon is defined, assign one based on the group label
+    // Using different icons than what's used in the child menu items
+    switch (group.groupLabel) {
+      case 'Knowledge': return Book; // Different from FileText, FileType2, FileType
+      case 'Data': return Database; // Already different from Link and NotebookText
+      case 'UI Builder': return TemplateIcon; // Using the custom TemplateIcon component
+      case 'Task Management': return Briefcase; // Different from CheckSquare
+      case 'Resources': return PersonStanding; // Different from FileSpreadsheet, UserPlus
+      case 'Analytics': return LineChart; // Different from PieChart, Activity
+      case 'Settings & Configuration': return Cog; // Different from Bot, Settings, Bell
+      case 'Project Management': return FolderKanban; // Different from LayoutDashboard, FolderOpen
+      case 'Expert Management': return UserCog; // Different from User, User2Icon, MessageSquare, Heart
+      case 'Settings': return Wrench; // Different from Key, CreditCard, CircleUser
+      case 'AI Academy': return School; // Different from GraduationCap, BookOpen, BookIcon
+      case 'Contents': 
+      case 'Projects': return Folders; // Different from FolderOpen, CheckSquare, CheckCircle, TrendingUp
+      case 'Project': return FolderCode; // Different from TrendingUp, GraduationCap
+      case 'User': return User; // Different but related to CircleUser
+      default: return FolderOpen; // Default fallback icon
+    }
+  };
 
   return (
     <nav className='mt-8 h-full w-full'>
@@ -216,18 +191,18 @@ export function Menu({ isOpen }: MenuProps) {
         <div className='mb-6 px-4'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center text-sm text-blue-500 mt-1'>
-              <Link
+              <NextLink
                 href={`/projects/pipeline/${projectId}`}
                 className='flex items-center ml-1'
               >
                 <span className='hover:underline'>Pipeline</span>
-              </Link>
+              </NextLink>
             </div>
             <div className='flex items-center text-sm text-blue-500 mt-1'>
-              <Link href='/' className='flex items-center'>
+              <NextLink href='/' className='flex items-center'>
                 <ArrowLeft className='h-3 w-3 mr-1' />
                 <span className='hover:underline'>Back to all projects</span>
-              </Link>
+              </NextLink>
             </div>
           </div>
         </div>
@@ -238,6 +213,9 @@ export function Menu({ isOpen }: MenuProps) {
           // Skip empty groups
           if (group.menus.length === 0) return null;
 
+          // Get the appropriate icon component for this group
+          const GroupIcon = getGroupIcon(group);
+
           return (
             <li
               className={cn('w-full', group.groupLabel ? 'pt-5' : '')}
@@ -247,7 +225,7 @@ export function Menu({ isOpen }: MenuProps) {
               {(isOpen && group.groupLabel) || isOpen === undefined ? (
                 <div
                   className={cn(
-                    'flex items-center justify-between px-4 pb-1',
+                    'flex items-center justify-between px-3 pb-1 mb-2',
                     group.groupLabel ? 'cursor-pointer hover:text-gray-900' : ''
                   )}
                   onClick={() =>
@@ -257,11 +235,12 @@ export function Menu({ isOpen }: MenuProps) {
                   <div className='flex items-center flex-grow mr-2'>
                     {' '}
                     {/* Wrap icon and text */}
-                    {group.groupIcon && ( // Render icon if it exists and sidebar is open
-                      <group.groupIcon
+                    {/* Always render an icon for groups with groupLabel */}
+                    {group.groupLabel && (
+                      <GroupIcon
                         className={cn(
-                          'h-4 w-4 mr-2', // Basic icon styling
-                          expandedSections[group.groupIcon || '']
+                          'h-5 w-5 mr-2', // Basic icon styling
+                          expandedSections[group.groupLabel]
                             ? 'text-gray-800'
                             : 'text-gray-500' // Match text color based on expansion
                         )}
@@ -348,7 +327,7 @@ export function Menu({ isOpen }: MenuProps) {
                                 }
                               >
                                 {!item.submenus?.length ? (
-                                  <Link href={item.href}>
+                                  <NextLink href={item.href}>
                                     <div className='flex items-center w-full'>
                                       <span
                                         className={cn(
@@ -368,7 +347,7 @@ export function Menu({ isOpen }: MenuProps) {
                                         {item.label}
                                       </p>
                                     </div>
-                                  </Link>
+                                  </NextLink>
                                 ) : (
                                   <div className='flex items-center justify-between w-full'>
                                     <div className='flex items-center'>
@@ -436,25 +415,25 @@ export function Menu({ isOpen }: MenuProps) {
                                           asChild
                                         >
                                           {/* --- Start of Modified Link Content --- */}
-                                          <Link
+                                          <NextLink
                                             href={submenu.href}
                                             className='flex items-center w-full'
                                           >
-                                            {' '}
-                                            {/* Make Link flex container */}
-                                            {/* Render Icon if it exists */}
-                                            {SubmenuIcon && (
-                                              <span
-                                                className={cn(
-                                                  !isOpen ? '' : 'mr-2'
-                                                )}
-                                              >
-                                                {' '}
-                                                {/* Adjust margin as needed */}
-                                                <SubmenuIcon size={16} />{' '}
-                                                {/* Adjust size as needed */}
-                                              </span>
-                                            )}
+                                            {/* Always render an icon for submenus */}
+                                            <span
+                                              className={cn(
+                                                !isOpen ? '' : 'mr-2'
+                                              )}
+                                            >
+                                              {' '}
+                                              {/* Adjust margin as needed */}
+                                              {SubmenuIcon ? (
+                                                <SubmenuIcon size={16} />
+                                              ) : (
+                                                <ChevronRight size={16} />
+                                              )}
+                                              {' '}
+                                            </span>
                                             {/* Render Label */}
                                             <p
                                               className={cn(
@@ -466,7 +445,7 @@ export function Menu({ isOpen }: MenuProps) {
                                             >
                                               {submenu.label}
                                             </p>
-                                          </Link>
+                                          </NextLink>
                                           {/* --- End of Modified Link Content --- */}
                                         </Button>
                                       </TooltipTrigger>
