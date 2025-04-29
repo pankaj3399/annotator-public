@@ -12,8 +12,11 @@ import {
   FolderIcon,
   AlertCircle,
   RefreshCw,
-  ChevronLeft
+  ChevronLeft,
+  Send,
+  ExternalLink
 } from 'lucide-react';
+import { sendCSVToJupyterLite, setupJupyterListener } from '@/lib/jupyterCommunication';
 
 // Define interfaces for our data structures
 interface StorageConnection {
@@ -46,6 +49,8 @@ const DataAnalysisComponent = () => {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [jupyterReady, setJupyterReady] = useState<boolean>(false);
+  const [jupyterMode, setJupyterMode] = useState<'repl' | 'lab'>('repl');
   
   // Cloud storage states
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -63,6 +68,10 @@ const DataAnalysisComponent = () => {
   const s3Connections = connections.filter(conn => conn.storageType === 's3');
   const googleDriveConnections = connections.filter(conn => conn.storageType === 'googleDrive');
   const hasConnections = s3Connections.length > 0 || googleDriveConnections.length > 0;
+  
+  // JupyterLite URLs
+  const jupyterReplUrl = '/jupyterlite/repl/index.html?kernel=python&toolbar=1';
+  const jupyterLabUrl = '/jupyterlite/lab/index.html';
   
   // Fetch storage connections on component mount
   useEffect(() => {
@@ -96,6 +105,53 @@ const DataAnalysisComponent = () => {
     
     fetchConnections();
   }, []);
+  
+  // Setup JupyterLite communication
+  useEffect(() => {
+    // Set up message listener for communication with JupyterLite
+    const cleanup = setupJupyterListener((data) => {
+      console.log('Received message from JupyterLite:', data);
+      // You can handle specific messages here if needed
+    });
+    
+    // Add a load event listener to detect when JupyterLite is ready
+    const handleIframeLoad = () => {
+      console.log('JupyterLite iframe loaded');
+      setJupyterReady(true);
+    };
+    
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener('load', handleIframeLoad);
+    }
+    
+    return () => {
+      cleanup();
+      if (iframe) {
+        iframe.removeEventListener('load', handleIframeLoad);
+      }
+    };
+  }, []);
+  
+  // Send data to JupyterLite when CSV content changes
+  useEffect(() => {
+    if (jupyterReady && csvContent && iframeRef.current) {
+      sendCSVToJupyterLite(
+        iframeRef.current, 
+        csvContent, 
+        file?.name || selectedCloudFile?.name || 'data.csv'
+      ).catch(err => {
+        console.error('Error sending CSV to JupyterLite:', err);
+        setError('Failed to send data to JupyterLite');
+      });
+    }
+  }, [jupyterReady, csvContent, file, selectedCloudFile]);
+  
+  // Toggle between JupyterLite modes (REPL vs Lab)
+  const toggleJupyterMode = () => {
+    setJupyterMode(prev => prev === 'repl' ? 'lab' : 'repl');
+    setJupyterReady(false); // Reset ready state since we're changing the iframe source
+  };
   
   // Handle file selection from local device
   const handleFileUpload = () => {
@@ -285,6 +341,25 @@ const DataAnalysisComponent = () => {
     }
   };
   
+  // Handle manual send to JupyterLite
+  const handleSendToJupyter = () => {
+    if (!csvContent || !iframeRef.current) {
+      setError('No data to send to JupyterLite');
+      return;
+    }
+    
+    try {
+      sendCSVToJupyterLite(
+        iframeRef.current, 
+        csvContent, 
+        file?.name || selectedCloudFile?.name || 'data.csv'
+      );
+    } catch (err) {
+      console.error('Error sending to JupyterLite:', err);
+      setError(err instanceof Error ? err.message : 'Failed to send data to JupyterLite');
+    }
+  };
+  
   // Handle copy to clipboard
   const handleCopyToClipboard = async () => {
     try {
@@ -408,41 +483,82 @@ const DataAnalysisComponent = () => {
                 <div className="mt-5">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="text-sm font-medium text-gray-800">CSV Preview</h4>
-                    <button 
-                      onClick={handleCopyToClipboard}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded ${copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} text-xs font-medium transition-colors`}
-                    >
-                      {copied ? (
-                        <>
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          Copy CSV
-                        </>
-                      )}
-                    </button>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={handleSendToJupyter}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-xs font-medium transition-colors"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        Send to Jupyter
+                      </button>
+                      <button 
+                        onClick={handleCopyToClipboard}
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded ${copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} text-xs font-medium transition-colors`}
+                      >
+                        {copied ? (
+                          <>
+                            <CheckCircle className="h-3.5 w-3.5" />
+                            Copied!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            Copy CSV
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {csvContent.slice(0, 500)}
                     {csvContent.length > 500 ? '...' : ''}
                   </div>
                   <p className="text-xs text-gray-500 mt-1 italic">
-                    Copy the CSV data and paste it directly into the Jupyter notebook on the right
+                    CSV data will be automatically sent to Jupyter when loaded
                   </p>
                 </div>
               )}
+              
+              {/* JupyterLite Mode Switch */}
+              <div className="mt-6 border-t pt-4">
+                <h4 className="text-sm font-medium text-gray-800 mb-2">Jupyter Settings</h4>
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Mode:</span>
+                    <div className="relative inline-block w-32">
+                      <select 
+                        value={jupyterMode}
+                        onChange={(e) => setJupyterMode(e.target.value as 'repl' | 'lab')}
+                        className="block w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm appearance-none pr-8"
+                      >
+                        <option value="repl">REPL Console</option>
+                        <option value="lab">JupyterLab</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => window.open(jupyterMode === 'repl' ? jupyterReplUrl : jupyterLabUrl, '_blank')}
+                    className="inline-flex items-center justify-center gap-1 px-3 py-2 mt-1 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open in New Tab
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           
-          {/* Main Jupyter Area - Using JupyterLite iframe as described in the article */}
+          {/* Main Jupyter Area */}
           <div className="flex-grow">
             <div className="bg-white rounded-xl shadow-sm p-5 h-full min-h-[700px] border border-gray-100">
               <iframe
                 ref={iframeRef}
-                src="https://jupyterlite.github.io/demo/repl/index.html?kernel=python&toolbar=1"
+                src={jupyterMode === 'repl' ? jupyterReplUrl : jupyterLabUrl}
                 width="100%"
                 height="100%"
                 style={{ border: 'none', minHeight: '700px', borderRadius: '0.5rem' }}

@@ -14,7 +14,9 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node scripts/seed.mjs",
-    "postbuild": "next-sitemap"
+    "postbuild": "next-sitemap",
+    "build:jupyterlite": "node scripts/build-jupyterlite.cjs"
+
   },
   "dependencies": {
     "@100mslive/roomkit-react": "^0.3.33",
