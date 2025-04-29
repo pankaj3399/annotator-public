@@ -1,0 +1,25 @@
+{
+    "LiteBuildConfig": {
+      "output_dir": "public/jupyterlite",
+      "contents": ["notebooks"],
+      "piplite_urls": [
+        "https://files.pythonhosted.org/packages/34/0a/3c9edcf4eb78f5b917f4401f1f598d2704a74e46d39cc211d17e5f9d582e/pandas-1.3.5-cp310-cp310-emscripten_3_1_14_wasm32.whl",
+        "https://files.pythonhosted.org/packages/a0/15/32a2cbf39b603fee70c2548c034cc32d5eaac2ed72c03fb77f82e2a30897/numpy-1.22.2-cp310-cp310-emscripten_3_1_14_wasm32.whl",
+        "https://files.pythonhosted.org/packages/fb/cd/38fc8a58114322458e169b1b9877c5eef9fa7a10c6b0a15d54235c566c8c/matplotlib-3.5.1-cp310-cp310-emscripten_3_1_14_wasm32.whl"
+      ],
+      "federated_extensions": [
+        "@jupyterlab/cell-toolbar-extension",
+        "@jupyter-widgets/jupyterlab-manager"
+      ],
+      "settings_overrides": {
+        "@jupyterlab/apputils-extension:themes": {
+          "theme": "JupyterLab Light"
+        },
+        "@jupyterlab/notebook-extension:tracker": {
+          "codeCellConfig": {
+            "lineNumbers": true
+          }
+        }
+      }
+    }
+  }

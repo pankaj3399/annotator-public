@@ -12,8 +12,13 @@ import {
   FolderIcon,
   AlertCircle,
   RefreshCw,
-  ChevronLeft
+  ChevronLeft,
+  Send,
+  ExternalLink,
+  Menu,
+  X
 } from 'lucide-react';
+import { sendCSVToJupyterLite, setupJupyterListener } from '@/lib/jupyterCommunication';
 
 // Define interfaces for our data structures
 interface StorageConnection {
@@ -46,6 +51,9 @@ const DataAnalysisComponent = () => {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [jupyterReady, setJupyterReady] = useState<boolean>(false);
+  const [jupyterMode, setJupyterMode] = useState<'repl' | 'lab'>('repl');
+  const [showPreview, setShowPreview] = useState<boolean>(false);
   
   // Cloud storage states
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
@@ -63,6 +71,10 @@ const DataAnalysisComponent = () => {
   const s3Connections = connections.filter(conn => conn.storageType === 's3');
   const googleDriveConnections = connections.filter(conn => conn.storageType === 'googleDrive');
   const hasConnections = s3Connections.length > 0 || googleDriveConnections.length > 0;
+  
+  // JupyterLite URLs
+  const jupyterReplUrl = '/jupyterlite/repl/index.html?kernel=python&toolbar=1';
+  const jupyterLabUrl = '/jupyterlite/lab/index.html';
   
   // Fetch storage connections on component mount
   useEffect(() => {
@@ -96,6 +108,53 @@ const DataAnalysisComponent = () => {
     
     fetchConnections();
   }, []);
+  
+  // Setup JupyterLite communication
+  useEffect(() => {
+    // Set up message listener for communication with JupyterLite
+    const cleanup = setupJupyterListener((data) => {
+      console.log('Received message from JupyterLite:', data);
+      // You can handle specific messages here if needed
+    });
+    
+    // Add a load event listener to detect when JupyterLite is ready
+    const handleIframeLoad = () => {
+      console.log('JupyterLite iframe loaded');
+      setJupyterReady(true);
+    };
+    
+    const iframe = iframeRef.current;
+    if (iframe) {
+      iframe.addEventListener('load', handleIframeLoad);
+    }
+    
+    return () => {
+      cleanup();
+      if (iframe) {
+        iframe.removeEventListener('load', handleIframeLoad);
+      }
+    };
+  }, []);
+  
+  // Send data to JupyterLite when CSV content changes
+  useEffect(() => {
+    if (jupyterReady && csvContent && iframeRef.current) {
+      sendCSVToJupyterLite(
+        iframeRef.current, 
+        csvContent, 
+        file?.name || selectedCloudFile?.name || 'data.csv'
+      ).catch(err => {
+        console.error('Error sending CSV to JupyterLite:', err);
+        setError('Failed to send data to JupyterLite');
+      });
+    }
+  }, [jupyterReady, csvContent, file, selectedCloudFile]);
+  
+  // Toggle between JupyterLite modes (REPL vs Lab)
+  const toggleJupyterMode = () => {
+    setJupyterMode(prev => prev === 'repl' ? 'lab' : 'repl');
+    setJupyterReady(false); // Reset ready state since we're changing the iframe source
+  };
   
   // Handle file selection from local device
   const handleFileUpload = () => {
@@ -284,7 +343,7 @@ const DataAnalysisComponent = () => {
       setLoading(false);
     }
   };
-  
+
   // Handle copy to clipboard
   const handleCopyToClipboard = async () => {
     try {
@@ -294,6 +353,11 @@ const DataAnalysisComponent = () => {
     } catch (err) {
       setError("Failed to copy to clipboard");
     }
+  };
+  
+  // Toggle CSV preview panel
+  const togglePreview = () => {
+    setShowPreview(!showPreview);
   };
   
   // Utility function to get file icon
@@ -320,42 +384,34 @@ const DataAnalysisComponent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 flex flex-col">
       <header className="bg-white border-b p-4 shadow-sm">
         <div className="container mx-auto">
           <h1 className="text-xl font-bold text-gray-800">Data Analysis Workspace</h1>
         </div>
       </header>
 
-      <main className="container mx-auto py-8 px-4">
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar for file selection */}
-          <div className="w-full md:w-72 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm p-5 mb-5 border border-gray-100">
-              <h3 className="text-lg font-medium mb-4 text-gray-800">Data Files</h3>
+      {/* Control Panel Header */}
+      <div className="bg-white border-b shadow-sm py-2">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Source Selection Buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleFileUpload}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors"
+              >
+                <Upload className="h-4 w-4" />
+                <span>Upload</span>
+              </button>
               
-              {/* Source Selection Buttons */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <button
-                  onClick={handleFileUpload}
-                  className="flex flex-col items-center justify-center border border-gray-200 rounded-lg p-3 hover:bg-gray-50 hover:border-indigo-300 transition-colors"
-                >
-                  <div className="bg-indigo-100 p-2 rounded-full mb-2">
-                    <Upload className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <span className="text-sm font-medium">Local Upload</span>
-                </button>
-                
-                <button
-                  onClick={openCloudFileBrowser}
-                  className="flex flex-col items-center justify-center border border-gray-200 rounded-lg p-3 hover:bg-gray-50 hover:border-indigo-300 transition-colors"
-                >
-                  <div className="bg-indigo-100 p-2 rounded-full mb-2">
-                    <Database className="h-5 w-5 text-indigo-600" />
-                  </div>
-                  <span className="text-sm font-medium">Cloud Storage</span>
-                </button>
-              </div>
+              <button
+                onClick={openCloudFileBrowser}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors"
+              >
+                <Database className="h-4 w-4" />
+                <span>Cloud Storage</span>
+              </button>
               
               {/* Hidden File Input */}
               <input 
@@ -365,305 +421,330 @@ const DataAnalysisComponent = () => {
                 onChange={handleFileChange}
                 accept=".csv,.xlsx,.xls,.txt,.json"
               />
-              
-              {/* Selected File Display */}
-              {loading ? (
-                <div className="border-2 border-dashed border-indigo-300 bg-indigo-50 rounded-lg p-6 text-center mb-4">
-                  <div className="flex flex-col items-center">
-                    <Loader className="h-8 w-8 text-indigo-500 animate-spin mb-3" />
-                    <p className="text-sm text-indigo-600 font-medium">Loading your file...</p>
-                  </div>
-                </div>
-              ) : (csvContent ? (
-                <div className="border border-indigo-100 bg-indigo-50 rounded-lg p-3 mb-4">
-                  <div className="flex items-center">
-                    <div className="mr-3 p-2 bg-indigo-100 rounded-md">
-                      <FileText className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <div className="overflow-hidden flex-1">
-                      <p className="text-sm font-medium truncate text-gray-800">
-                        {file?.name || selectedCloudFile?.name || "CSV Data"}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {file ? formatFileSize(file.size) : selectedCloudFile?.size ? formatFileSize(selectedCloudFile.size) : `${csvContent.length} characters`}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  onClick={handleFileUpload}
-                  className="border-2 border-dashed border-gray-300 hover:border-indigo-300 hover:bg-indigo-50/30 rounded-lg p-6 text-center cursor-pointer transition-all duration-200 mb-4"
-                >
-                  <div className="bg-indigo-100 p-3 rounded-full inline-flex mb-3">
-                    <Upload className="h-6 w-6 text-indigo-600" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-700 mb-1">Upload your CSV file</p>
-                  <p className="text-xs text-gray-500">Click to browse or drag and drop</p>
-                </div>
-              ))}
-              
-              {/* CSV Preview and Actions */}
-              {csvContent && (
-                <div className="mt-5">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-sm font-medium text-gray-800">CSV Preview</h4>
-                    <button 
-                      onClick={handleCopyToClipboard}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded ${copied ? 'bg-green-100 text-green-700' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} text-xs font-medium transition-colors`}
-                    >
-                      {copied ? (
-                        <>
-                          <CheckCircle className="h-3.5 w-3.5" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3.5 w-3.5" />
-                          Copy CSV
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
-                    {csvContent.slice(0, 500)}
-                    {csvContent.length > 500 ? '...' : ''}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1 italic">
-                    Copy the CSV data and paste it directly into the Jupyter notebook on the right
-                  </p>
-                </div>
-              )}
             </div>
-          </div>
-          
-          {/* Main Jupyter Area - Using JupyterLite iframe as described in the article */}
-          <div className="flex-grow">
-            <div className="bg-white rounded-xl shadow-sm p-5 h-full min-h-[700px] border border-gray-100">
-              <iframe
-                ref={iframeRef}
-                src="https://jupyterlite.github.io/demo/repl/index.html?kernel=python&toolbar=1"
-                width="100%"
-                height="100%"
-                style={{ border: 'none', minHeight: '700px', borderRadius: '0.5rem' }}
-                allow="clipboard-read; clipboard-write"
-              ></iframe>
+            
+            {/* File Preview Button (shows when file is loaded) */}
+            {csvContent && (
+              <button
+                onClick={togglePreview}
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 hover:bg-gray-50 rounded-md text-sm font-medium transition-colors"
+              >
+                <FileText className="h-4 w-4" />
+                <span>{showPreview ? 'Hide Preview' : 'Show Preview'}</span>
+              </button>
+            )}
+            
+            {/* Selected File Display */}
+            {loading ? (
+              <div className="flex items-center gap-2 ml-auto px-3 py-1.5 bg-indigo-50 rounded-md">
+                <Loader className="h-4 w-4 text-indigo-500 animate-spin" />
+                <span className="text-sm text-indigo-600">Loading...</span>
+              </div>
+            ) : csvContent ? (
+              <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center px-3 py-1.5 bg-indigo-50 rounded-md">
+                  <FileText className="h-4 w-4 text-indigo-600 mr-2" />
+                  <span className="text-sm font-medium text-gray-800 truncate max-w-xs">
+                    {file?.name || selectedCloudFile?.name || "CSV Data"}
+                  </span>
+                </div>
+                
+                      
+                <button
+                  onClick={handleCopyToClipboard}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    copied
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      <span>Copy CSV</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : null}
+            
+            {/* Jupyter Mode Selector */}
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center">
+                <span className="text-sm text-gray-600 mr-2">Mode:</span>
+                <select
+                  value={jupyterMode}
+                  onChange={(e) => setJupyterMode(e.target.value as 'repl' | 'lab')}
+                  className="text-sm border border-gray-300 rounded px-2 py-1.5 bg-white"
+                >
+                  <option value="repl">REPL Console</option>
+                  <option value="lab">JupyterLab</option>
+                </select>
+              </div>
+              
+              <button
+                onClick={() => window.open(jupyterMode === 'repl' ? jupyterReplUrl : jupyterLabUrl, '_blank')}
+                className="flex items-center gap-1.5 px-2 py-1.5 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <ExternalLink className="h-4 w-4" />
+                <span>Open in New Tab</span>
+              </button>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* CSV Preview Panel (conditional) */}
+      {showPreview && csvContent && (
+        <div className="bg-white border-b shadow-sm py-3">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-sm font-medium text-gray-800">CSV Preview</h4>
+              <button onClick={togglePreview} className="text-gray-500 hover:text-gray-700">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
+              {csvContent.slice(0, 500)}
+              {csvContent.length > 500 ? '...' : ''}
+            </div>
+            <p className="text-xs text-gray-500 mt-1 italic">
+              CSV data will be automatically sent to Jupyter when loaded
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Jupyter Area - Now taking full width */}
+      <div className="flex-grow container mx-auto px-4 py-4">
+        <div className="bg-white rounded-xl shadow-sm p-5 h-full min-h-[700px] border border-gray-100">
+          <iframe
+            ref={iframeRef}
+            src={jupyterMode === 'repl' ? jupyterReplUrl : jupyterLabUrl}
+            width="100%"
+            height="100%"
+            style={{ border: 'none', minHeight: '700px', borderRadius: '0.5rem' }}
+            allow="clipboard-read; clipboard-write"
+          ></iframe>
+        </div>
+      </div>
         
-        {/* Cloud File Browser Dialog */}
-        {isDialogOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-lg max-w-lg w-full">
-              <div className="p-5">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium">Select CSV File</h3>
-                  <button 
-                    onClick={closeCloudFileBrowser}
-                    className="text-gray-500 hover:text-gray-700"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+      {/* Cloud File Browser Dialog */}
+      {isDialogOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg max-w-lg w-full">
+            <div className="p-5">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium">Select CSV File</h3>
+                <button 
+                  onClick={closeCloudFileBrowser}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              {!hasConnections ? (
+                <div className="flex flex-col items-center justify-center py-6">
+                  <Database className="h-10 w-10 text-gray-400 mb-4" />
+                  <h3 className="text-lg font-medium text-center">
+                    No storage connected
+                  </h3>
+                  <p className="text-sm text-gray-500 text-center mt-2 mb-4">
+                    You need to set up at least one storage provider first.
+                  </p>
                 </div>
-                
-                {!hasConnections ? (
-                  <div className="flex flex-col items-center justify-center py-6">
-                    <Database className="h-10 w-10 text-gray-400 mb-4" />
-                    <h3 className="text-lg font-medium text-center">
-                      No storage connected
-                    </h3>
-                    <p className="text-sm text-gray-500 text-center mt-2 mb-4">
-                      You need to set up at least one storage provider first.
-                    </p>
+              ) : (
+                <>
+                  {/* Tab Selection */}
+                  <div className="flex border-b mb-4">
+                    <button
+                      onClick={() => handleTabChange('s3')}
+                      className={`px-4 py-2 font-medium text-sm ${
+                        activeTabValue === 's3'
+                          ? 'text-indigo-600 border-b-2 border-indigo-600'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                      disabled={s3Connections.length === 0}
+                    >
+                      Amazon S3
+                    </button>
+                    <button
+                      onClick={() => handleTabChange('googleDrive')}
+                      className={`px-4 py-2 font-medium text-sm ${
+                        activeTabValue === 'googleDrive'
+                          ? 'text-indigo-600 border-b-2 border-indigo-600'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                      disabled={googleDriveConnections.length === 0}
+                    >
+                      Google Drive
+                    </button>
                   </div>
-                ) : (
-                  <>
-                    {/* Tab Selection */}
-                    <div className="flex border-b mb-4">
+                  
+                  {/* Connection Selection */}
+                  <div className="mb-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-medium">
+                        Select {activeTabValue === 's3' ? 'S3 Bucket' : 'Google Drive Account'}
+                      </label>
                       <button
-                        onClick={() => handleTabChange('s3')}
-                        className={`px-4 py-2 font-medium text-sm ${
-                          activeTabValue === 's3'
-                            ? 'text-indigo-600 border-b-2 border-indigo-600'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                        disabled={s3Connections.length === 0}
+                        onClick={fetchCloudFiles}
+                        disabled={cloudLoading}
+                        className="p-1 rounded-md hover:bg-gray-100"
                       >
-                        Amazon S3
-                      </button>
-                      <button
-                        onClick={() => handleTabChange('googleDrive')}
-                        className={`px-4 py-2 font-medium text-sm ${
-                          activeTabValue === 'googleDrive'
-                            ? 'text-indigo-600 border-b-2 border-indigo-600'
-                            : 'text-gray-500 hover:text-gray-700'
-                        }`}
-                        disabled={googleDriveConnections.length === 0}
-                      >
-                        Google Drive
+                        <RefreshCw className="h-4 w-4 text-gray-500" />
                       </button>
                     </div>
-                    
-                    {/* Connection Selection */}
-                    <div className="mb-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-medium">
-                          Select {activeTabValue === 's3' ? 'S3 Bucket' : 'Google Drive Account'}
-                        </label>
-                        <button
-                          onClick={fetchCloudFiles}
-                          disabled={cloudLoading}
-                          className="p-1 rounded-md hover:bg-gray-100"
-                        >
-                          <RefreshCw className="h-4 w-4 text-gray-500" />
-                        </button>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      value={activeConnectionId}
+                      onChange={(e) => handleConnectionChange(e.target.value)}
+                    >
+                      {(activeTabValue === 's3' ? s3Connections : googleDriveConnections).map((conn) => (
+                        <option key={conn._id} value={conn._id}>
+                          {activeTabValue === 's3'
+                            ? conn.s3Config?.bucketName || conn._id
+                            : conn.googleDriveConfig?.email || conn._id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Error Alert */}
+                  {authError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
+                      <div className="flex">
+                        <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+                        <span>{authError}</span>
                       </div>
-                      <select
-                        className="w-full p-2 border rounded-md"
-                        value={activeConnectionId}
-                        onChange={(e) => handleConnectionChange(e.target.value)}
-                      >
-                        {(activeTabValue === 's3' ? s3Connections : googleDriveConnections).map((conn) => (
-                          <option key={conn._id} value={conn._id}>
-                            {activeTabValue === 's3'
-                              ? conn.s3Config?.bucketName || conn._id
-                              : conn.googleDriveConfig?.email || conn._id}
-                          </option>
+                    </div>
+                  )}
+                  
+                  {/* Navigation Path */}
+                  <div className="flex items-center mb-2">
+                    <button
+                      onClick={handleNavigateBack}
+                      disabled={pathHistory.length === 0 || cloudLoading}
+                      className="p-1 rounded-md hover:bg-gray-100 mr-2 disabled:opacity-50"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <div className="text-sm bg-gray-100 py-1 px-2 rounded flex-1 overflow-x-auto whitespace-nowrap">
+                      {activeTabValue === 'googleDrive' && currentPath === '/' ? 'Root' : currentPath || '/'}
+                    </div>
+                  </div>
+                  
+                  {/* File Listing */}
+                  <div className="border rounded-md h-64 overflow-y-auto">
+                    {cloudLoading ? (
+                      <div className="flex items-center justify-center h-full">
+                        <Loader className="h-6 w-6 animate-spin text-indigo-500" />
+                      </div>
+                    ) : files.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+                        <FileIcon className="h-8 w-8 mb-2" />
+                        <p className="text-center">No files found in this location</p>
+                      </div>
+                    ) : (
+                      <ul className="divide-y">
+                        {files.map((file) => (
+                          <li
+                            key={file.id}
+                            className={`flex items-center p-2.5 hover:bg-gray-50 cursor-pointer ${
+                              selectedCloudFile && selectedCloudFile.id === file.id
+                                ? 'bg-indigo-50'
+                                : ''
+                            }`}
+                            onClick={() => handleCloudFileSelect(file)}
+                          >
+                            <div className="mr-3">{getFileIcon(file)}</div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{file.name}</p>
+                              {file.type === 'file' && (
+                                <p className="text-xs text-gray-500">
+                                  {formatFileSize(file.size)}
+                                  {file.lastModified
+                                    ? ` • ${new Date(file.lastModified).toLocaleDateString()}`
+                                    : ''}
+                                </p>
+                              )}
+                            </div>
+                          </li>
                         ))}
-                      </select>
-                    </div>
-                    
-                    {/* Error Alert */}
-                    {authError && (
-                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
-                        <div className="flex">
-                          <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
-                          <span>{authError}</span>
-                        </div>
-                      </div>
+                      </ul>
                     )}
-                    
-                    {/* Navigation Path */}
-                    <div className="flex items-center mb-2">
-                      <button
-                        onClick={handleNavigateBack}
-                        disabled={pathHistory.length === 0 || cloudLoading}
-                        className="p-1 rounded-md hover:bg-gray-100 mr-2 disabled:opacity-50"
-                      >
-                        <ChevronLeft className="h-4 w-4" />
-                      </button>
-                      <div className="text-sm bg-gray-100 py-1 px-2 rounded flex-1 overflow-x-auto whitespace-nowrap">
-                        {activeTabValue === 'googleDrive' && currentPath === '/' ? 'Root' : currentPath || '/'}
+                  </div>
+                  
+                  {/* Selected File Info */}
+                  {selectedCloudFile && (
+                    <div className="mt-4">
+                      <p className="text-sm font-medium">Selected file:</p>
+                      <div className="flex items-center gap-2 p-2 mt-1 bg-gray-50 rounded border">
+                        {getFileIcon(selectedCloudFile)}
+                        <span className="text-sm truncate flex-1">{selectedCloudFile.name}</span>
                       </div>
                     </div>
-                    
-                    {/* File Listing */}
-                    <div className="border rounded-md h-64 overflow-y-auto">
-                      {cloudLoading ? (
-                        <div className="flex items-center justify-center h-full">
-                          <Loader className="h-6 w-6 animate-spin text-indigo-500" />
-                        </div>
-                      ) : files.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
-                          <FileIcon className="h-8 w-8 mb-2" />
-                          <p className="text-center">No files found in this location</p>
-                        </div>
-                      ) : (
-                        <ul className="divide-y">
-                          {files.map((file) => (
-                            <li
-                              key={file.id}
-                              className={`flex items-center p-2.5 hover:bg-gray-50 cursor-pointer ${
-                                selectedCloudFile && selectedCloudFile.id === file.id
-                                  ? 'bg-indigo-50'
-                                  : ''
-                              }`}
-                              onClick={() => handleCloudFileSelect(file)}
-                            >
-                              <div className="mr-3">{getFileIcon(file)}</div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{file.name}</p>
-                                {file.type === 'file' && (
-                                  <p className="text-xs text-gray-500">
-                                    {formatFileSize(file.size)}
-                                    {file.lastModified
-                                      ? ` • ${new Date(file.lastModified).toLocaleDateString()}`
-                                      : ''}
-                                  </p>
-                                )}
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    
-                    {/* Selected File Info */}
-                    {selectedCloudFile && (
-                      <div className="mt-4">
-                        <p className="text-sm font-medium">Selected file:</p>
-                        <div className="flex items-center gap-2 p-2 mt-1 bg-gray-50 rounded border">
-                          {getFileIcon(selectedCloudFile)}
-                          <span className="text-sm truncate flex-1">{selectedCloudFile.name}</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Dialog Footer */}
-                    <div className="mt-6 flex justify-end gap-2">
-                      <button
-                        onClick={closeCloudFileBrowser}
-                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={importSelectedCloudFile}
-                        disabled={!selectedCloudFile || selectedCloudFile.type === 'folder' || cloudLoading || Boolean(authError)}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium disabled:bg-indigo-300"
-                      >
-                        Import Selected CSV
-                      </button>
-                    </div>
-                  </>
-                )}
+                  )}
+                  
+                  {/* Dialog Footer */}
+                  <div className="mt-6 flex justify-end gap-2">
+                    <button
+                      onClick={closeCloudFileBrowser}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={importSelectedCloudFile}
+                      disabled={!selectedCloudFile || selectedCloudFile.type === 'folder' || cloudLoading || Boolean(authError)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium disabled:bg-indigo-300"
+                    >
+                      Import Selected CSV
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Error message */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg max-w-md animate-fade-in">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">{error}</p>
+            </div>
+            <div className="ml-auto pl-3">
+              <div className="-mx-1.5 -my-1.5">
+                <button
+                  onClick={() => setError(null)}
+                  className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
-        )}
-        
-        {/* Error message */}
-        {error && (
-          <div className="fixed bottom-4 right-4 bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg max-w-md animate-fade-in">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-red-800">{error}</p>
-              </div>
-              <div className="ml-auto pl-3">
-                <div className="-mx-1.5 -my-1.5">
-                  <button
-                    onClick={() => setError(null)}
-                    className="inline-flex bg-red-50 rounded-md p-1.5 text-red-500 hover:bg-red-100 focus:outline-none"
-                  >
-                    <span className="sr-only">Dismiss</span>
-                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 };
