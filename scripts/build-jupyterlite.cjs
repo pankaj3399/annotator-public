@@ -1,125 +1,100 @@
-const { execSync } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+// scripts/build-jupyterlite.js - Optimized for Vercel
+import { execSync } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
-// Create directories if they don't exist
-const scriptsDir = path.join(__dirname);
-const projectRoot = path.join(scriptsDir, '..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const projectRoot = path.join(__dirname, '..');
 const publicDir = path.join(projectRoot, 'public');
 const jupyterLiteDir = path.join(publicDir, 'jupyterlite');
 
-// Ensure public directory exists
-if (!fs.existsSync(publicDir)) {
-  console.log('Creating public directory...');
-  fs.mkdirSync(publicDir, { recursive: true });
+// Create output directory
+if (!fs.existsSync(jupyterLiteDir)) {
+  fs.mkdirSync(jupyterLiteDir, { recursive: true });
 }
 
-// Check if Python and JupyterLite are installed
+// Create minimized config file for JupyterLite
+const configPath = path.join(projectRoot, 'jupyter_lite_config.json');
+const config = {
+  "LiteBuildConfig": {
+    "output_dir": "public/jupyterlite",
+    "skip_unused_packages": true,
+    "piplite_wheels": [
+      "numpy",
+      "pandas",
+      "matplotlib"
+    ],
+    "federated_extensions": [
+      "@jupyterlab/cell-toolbar-extension"
+    ],
+    "ignore_sys_prefix": true,
+    "include_source": false,
+    "mathjax_dir": "",
+    "no_libsass": true,
+    "no_mathjax_dir": true
+  }
+};
+
+fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+
+// Check for Python
 try {
-  console.log('Checking for Python installation...');
-  execSync('python --version', { stdio: 'inherit' });
-} catch (error) {
+  console.log('Building JupyterLite (optimized for Vercel)...');
+  
+  // Use Python if available
+  const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+  
   try {
-    console.log('Trying with python3...');
-    execSync('python3 --version', { stdio: 'inherit' });
-  } catch (error) {
-    console.error('\nError: Python is not installed or not in PATH');
-    console.error('Please install Python 3.7+ and try again.\n');
-    process.exit(1);
+    // Install JupyterLite if needed
+    execSync(`${pythonCmd} -m pip install jupyterlite`, { stdio: 'inherit' });
+    
+    // Build JupyterLite with optimized config
+    execSync(`${pythonCmd} -m jupyter lite build --config ${configPath}`, { stdio: 'inherit' });
+    
+    console.log('JupyterLite build completed successfully!');
+  } catch (err) {
+    console.error('Error building JupyterLite:', err);
+    
+    // Fallback to iframe if build fails
+    createIframeFallback();
   }
+} catch (err) {
+  console.error('Python not available, using iframe fallback');
+  createIframeFallback();
 }
 
-// Instead of building JupyterLite directly, copy from the demo site
-console.log('Creating JupyterLite directory structure...');
-
-const createDirectories = [
-  jupyterLiteDir,
-  path.join(jupyterLiteDir, 'repl'),
-  path.join(jupyterLiteDir, 'lab')
-];
-
-createDirectories.forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
-
-// Create a simple redirect index file
-const indexHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>JupyterLite</title>
-  <meta http-equiv="refresh" content="0;URL='./repl/index.html'" />
-</head>
-<body>
-  <p>Redirecting to JupyterLite REPL...</p>
-  <p>If you are not redirected automatically, follow this <a href="./repl/index.html">link to JupyterLite REPL</a>.</p>
-</body>
-</html>
-`;
-
-fs.writeFileSync(path.join(jupyterLiteDir, 'index.html'), indexHtml);
-
-// Create an iframe HTML that embeds the JupyterLite demo site
-const replHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>JupyterLite REPL</title>
-  <style>
-    body, html {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+// Create fallback if build fails
+function createIframeFallback() {
+  console.log('Creating iframe fallback...');
+  
+  // Create directory structure
+  ['repl', 'lab'].forEach(dir => {
+    const dirPath = path.join(jupyterLiteDir, dir);
+    if (!fs.existsSync(dirPath)) {
+      fs.mkdirSync(dirPath, { recursive: true });
     }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-  </style>
-</head>
-<body>
-  <iframe src="https://jupyterlite.github.io/demo/repl/index.html?kernel=python&toolbar=1" allowfullscreen></iframe>
-</body>
-</html>
-`;
-
-const labHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>JupyterLite Lab</title>
-  <style>
-    body, html {
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-  </style>
-</head>
-<body>
-  <iframe src="https://jupyterlite.github.io/demo/lab/index.html" allowfullscreen></iframe>
-</body>
-</html>
-`;
-
-fs.writeFileSync(path.join(jupyterLiteDir, 'repl/index.html'), replHtml);
-fs.writeFileSync(path.join(jupyterLiteDir, 'lab/index.html'), labHtml);
-
-console.log('\nJupyterLite setup complete!');
-console.log(`Files are available in: ${jupyterLiteDir}`);
-console.log('\nYou can access JupyterLite at:');
-console.log('- REPL: /jupyterlite/repl/index.html');
-console.log('- Lab: /jupyterlite/lab/index.html');
+  });
+  
+  // Create HTML files
+  const indexHtml = `<!DOCTYPE html>
+<html><head><meta http-equiv="refresh" content="0;URL='./repl/index.html'" /></head>
+<body><p>Redirecting to JupyterLite...</p></body></html>`;
+  
+  fs.writeFileSync(path.join(jupyterLiteDir, 'index.html'), indexHtml);
+  
+  // Create REPL and Lab HTML files that use iframes as a fallback
+  const replHtml = `<!DOCTYPE html>
+<html><head><title>JupyterLite REPL</title><style>body, iframe {margin:0; padding:0; height:100%; width:100%; border:none; overflow:hidden;}</style></head>
+<body><iframe src="https://jupyterlite.github.io/demo/repl/index.html?kernel=python&toolbar=1"></iframe></body></html>`;
+  
+  const labHtml = `<!DOCTYPE html>
+<html><head><title>JupyterLite Lab</title><style>body, iframe {margin:0; padding:0; height:100%; width:100%; border:none; overflow:hidden;}</style></head>
+<body><iframe src="https://jupyterlite.github.io/demo/lab/index.html"></iframe></body></html>`;
+  
+  fs.writeFileSync(path.join(jupyterLiteDir, 'repl/index.html'), replHtml);
+  fs.writeFileSync(path.join(jupyterLiteDir, 'lab/index.html'), labHtml);
+  
+  console.log('Fallback created successfully');
+}
