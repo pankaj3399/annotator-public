@@ -65,6 +65,7 @@ export type Editor = {
   device: DeviceTypes;
   previewMode: boolean;
   pageId: string;
+  showPropertyPanel: boolean; 
 };
 
 export type HistoryState = {
@@ -98,6 +99,7 @@ const initialEditorState: EditorState['editor'] = {
   previewMode: false,
   liveMode: false,
   pageId: '',
+  showPropertyPanel: false,
 };
 
 const initialHistoryState: HistoryState = {
@@ -381,6 +383,18 @@ const editorReducer = (
         },
       };
       return funnelPageIdState;
+
+      case 'TOGGLE_PROPERTY_PANEL':
+        console.log('TOGGLE_PROPERTY_PANEL action triggered');
+        const togglePropertyPanelState = {
+          ...state,
+          editor: {
+            ...state.editor,
+            showPropertyPanel: !state.editor.showPropertyPanel,
+          },
+        };
+        console.log('Property panel visibility toggled to:', !state.editor.showPropertyPanel);
+        return togglePropertyPanelState;
 
     default:
       return state;

@@ -15,7 +15,7 @@ import {
 import { EditorBtns } from '@/lib/constants';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, Loader2 } from 'lucide-react';
+import { Plus, Minus, Loader2, X } from 'lucide-react';
 import TranscriptionFormatTip from '@/components/LandingPage/TranscriptionFormatTip';
 
 type ElementContent = {
@@ -1397,6 +1397,7 @@ const PropertyPanel = () => {
       <div className='font-medium flex items-center gap-2'>
         <span className='bg-primary/5 p-2 rounded-md'>{element.name}</span>
       </div>
+      
       {showProperties()}
     </div>
   );

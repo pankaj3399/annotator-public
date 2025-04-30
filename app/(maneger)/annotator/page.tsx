@@ -641,7 +641,7 @@ export default function AnnotatorsPage() {
       <header className='bg-white shadow-sm sticky top-0 z-10'>
         {' '}
         {/* Added shadow and sticky */}
-        <div className='max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center'>
+        <div className='max-w-7xl mx-auto py-4 px-4 flex justify-between items-center'>
           <h1 className='text-2xl font-semibold text-gray-900'>Experts</h1>
           <Transfer onOpen={onOpen} setOnOpen={setOnOpen} id={id} />
           <div className='flex items-center gap-2 sm:gap-3'>
@@ -762,7 +762,7 @@ export default function AnnotatorsPage() {
       </header>
 
       {/* Main Content */}
-      <main className='max-w-7xl mx-auto sm:px-6 lg:px-8 py-6'>
+      <main className='max-w-7xl mx-auto px-2 py-6'>
         {/* Filters */}
         <div className='mb-6 grid grid-cols-1 md:grid-cols-4 gap-4'>
           <div className='relative md:col-span-1'>
@@ -872,7 +872,7 @@ export default function AnnotatorsPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className='flex flex-wrap gap-1 max-w-[150px]'>
+                        <div className='flex flex-wrap gap-1 max-w-[100px]'>
                           {user.domain?.length > 0 ? (
                             user.domain.map((d, i) => (
                               <Badge
@@ -891,7 +891,7 @@ export default function AnnotatorsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className='flex flex-wrap gap-1 max-w-[150px]'>
+                        <div className='flex flex-wrap gap-1 max-w-[120px]'>
                           {user.lang?.length > 0 ? (
                             user.lang.map((l, i) => (
                               <Badge
