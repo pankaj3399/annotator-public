@@ -6,11 +6,12 @@ import { EditorBtns } from '@/lib/constants'
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import { useUploadThing } from '@/utils/uploadthing'
 import clsx from 'clsx'
-import { Send, Trash } from 'lucide-react'
-import React, { useEffect, useRef } from 'react'
+import { Send, Trash, Settings, X } from 'lucide-react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useReactMediaRecorder } from "react-media-recorder"
 import ReactPlayer from 'react-player'
 import { toast } from 'sonner'
+import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel'
 
 type Props = {
   element: EditorElement
@@ -18,6 +19,11 @@ type Props = {
 
 const RecordVideoComponent = (props: Props) => {
   const { dispatch, state } = useEditor()
+  // Local state to track if settings panel is visible for this specific element
+  const [showSettings, setShowSettings] = useState(false)
+  // Refs to detect clicks outside
+  const componentRef = useRef<HTMLDivElement>(null)
+  
   const [elementContent, setElementContent] = React.useState({
     src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
   })
@@ -25,6 +31,28 @@ const RecordVideoComponent = (props: Props) => {
   
   const { status, startRecording, stopRecording, mediaBlobUrl, previewStream } = useReactMediaRecorder({ video: true })
   const videoRef = useRef<HTMLVideoElement>(null)
+
+  // Handle clicks outside the component to maintain selection
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only handle this logic if settings are showing
+      if (!showSettings) return;
+      
+      // Check if the click was outside our component
+      if (componentRef.current && !componentRef.current.contains(event.target as Node)) {
+        // Close settings when clicking outside the entire component
+        setShowSettings(false);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
 
   useEffect(() => {
     if (videoRef.current && previewStream) {
@@ -53,12 +81,40 @@ const RecordVideoComponent = (props: Props) => {
     })
   }
 
-  const handleDeleteElement = () => {
+  const handleDeleteElement = (e: React.MouseEvent) => {
+    e.stopPropagation()
     dispatch({
       type: 'DELETE_ELEMENT',
       payload: { elementDetails: props.element },
     })
   }
+
+  const handleToggleSettings = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent the click from bubbling
+    
+    // First select the element
+    dispatch({
+      type: 'CHANGE_CLICKED_ELEMENT',
+      payload: {
+        elementDetails: props.element,
+      },
+    })
+    
+    // Toggle settings visibility
+    setShowSettings(prev => !prev)
+  }
+
+  // Handle clicks on the property panel to prevent closing
+  const handlePropertyPanelClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Ensure element stays selected
+    dispatch({
+      type: 'CHANGE_CLICKED_ELEMENT',
+      payload: {
+        elementDetails: props.element,
+      },
+    });
+  };
 
   const { startUpload } = useUploadThing("videoUploader", {
     onClientUploadComplete: (data) => {
@@ -105,6 +161,7 @@ const RecordVideoComponent = (props: Props) => {
 
   return (
     <div
+      ref={componentRef}
       style={props.element.styles}
       draggable
       onDragStart={(e) => handleDragStart(e, 'recordVideo')}
@@ -120,9 +177,16 @@ const RecordVideoComponent = (props: Props) => {
     >
       {isSelected && !isLiveMode && (
         <div className="absolute -top-[25px] right-[0px]">
-          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
+          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-t-lg !text-white flex items-center gap-2">
+            <Settings
+              className={clsx("cursor-pointer hover:text-blue-200", {
+                "text-blue-200": showSettings
+              })}
+              size={16}
+              onClick={handleToggleSettings}
+            />
             <Trash
-              className="cursor-pointer"
+              className="cursor-pointer hover:text-red-200"
               size={16}
               onClick={handleDeleteElement}
             />
@@ -181,6 +245,27 @@ const RecordVideoComponent = (props: Props) => {
             width={defaultWidth}
             height={defaultHeight}
           />
+        </div>
+      )}
+
+      {/* Inline Property Panel */}
+      {isSelected && showSettings && !isLiveMode && (
+        <div 
+          className="absolute left-0 right-0 mt-2 z-50 bg-white border rounded-md shadow-lg"
+          onClick={handlePropertyPanelClick}
+        >
+          <div className="flex items-center justify-between p-3 border-b">
+            <h3 className="font-medium">Video Recorder Settings</h3>
+            <button 
+              onClick={handleToggleSettings}
+              className="p-1 hover:bg-gray-100 rounded-full"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="p-4">
+            <PropertyPanel />
+          </div>
         </div>
       )}
     </div>

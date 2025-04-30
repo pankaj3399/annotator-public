@@ -650,33 +650,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
       },
-      {
-        groupLabel: "Settings",
-        menus: [
-          {
-            href: "/providerKeys",
-            label: "Provider Keys",
-            active: pathname.includes("/providerKeys"),
-            icon: Key,
-            submenus: [],
-            visibleTo: ["project manager"],
-          },
-          {
-            href: "/bank",
-            label: "Payment Center",
-            active: pathname.includes("/bank"),
-            icon: CreditCard,
-            submenus: [],
-            visibleTo: ["project manager"],
-          },
-          {
-            href: "/profile",
-            label: "Profile",
-            active: pathname.includes("/profile"),
-            icon: CircleUser,
-          },
-        ],
-      },
+
       {
         groupLabel: "AI Academy",
         menus: [
@@ -700,6 +674,32 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/myCourses"),
             icon: BookIcon,
             visibleTo: ["annotator"],
+          },
+        ],
+      },      {
+        groupLabel: "Settings",
+        menus: [
+          {
+            href: "/providerKeys",
+            label: "Provider Keys",
+            active: pathname.includes("/providerKeys"),
+            icon: Key,
+            submenus: [],
+            visibleTo: ["project manager"],
+          },
+          {
+            href: "/bank",
+            label: "Payment Center",
+            active: pathname.includes("/bank"),
+            icon: CreditCard,
+            submenus: [],
+            visibleTo: ["project manager"],
+          },
+          {
+            href: "/profile",
+            label: "Profile",
+            active: pathname.includes("/profile"),
+            icon: CircleUser,
           },
         ],
       },

@@ -11,9 +11,10 @@ import { toast } from '@/hooks/use-toast'
 import { EditorBtns } from '@/lib/constants'
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
-import { Trash } from 'lucide-react'
+import { Trash, Settings, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel'
 
 type Props = {
   element: EditorElement
@@ -22,6 +23,10 @@ type Props = {
 const DynamicCheckbox = (props: Props) => {
   const { dispatch, state, subaccountId, funnelId, pageDetails } = useEditor()
   const [name, setName] = React.useState(props.element.name)
+  // Local state to track if settings panel is visible for this specific element
+  const [showSettings, setShowSettings] = useState(false)
+  // Refs to detect clicks outside
+  const componentRef = useRef<HTMLDivElement>(null)
 
   const router = useRouter()
   const { time } = useTimer()
@@ -55,6 +60,27 @@ const DynamicCheckbox = (props: Props) => {
   const [newCheckbox, setNewCheckbox] = useState('')
   const [title, setTitle] = useState(ques)
 
+  // Handle clicks outside the component to maintain selection
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only handle this logic if settings are showing
+      if (!showSettings) return;
+      
+      // Check if the click was outside our component
+      if (componentRef.current && !componentRef.current.contains(event.target as Node)) {
+        // Close settings when clicking outside the entire component
+        setShowSettings(false);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
 
   const handleDragStart = (e: React.DragEvent, type: EditorBtns) => {
     if (type === null) return
@@ -71,9 +97,37 @@ const DynamicCheckbox = (props: Props) => {
     })
   }
 
+  const handleToggleSettings = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent the click from bubbling
+    
+    // First select the element
+    dispatch({
+      type: 'CHANGE_CLICKED_ELEMENT',
+      payload: {
+        elementDetails: props.element,
+      },
+    })
+    
+    // Toggle settings visibility
+    setShowSettings(prev => !prev)
+  }
+
+  // Handle clicks on the property panel to prevent closing
+  const handlePropertyPanelClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Ensure element stays selected
+    dispatch({
+      type: 'CHANGE_CLICKED_ELEMENT',
+      payload: {
+        elementDetails: props.element,
+      },
+    });
+  };
+
   const styles = props.element.styles
 
-  const handleDeleteElement = () => {
+  const handleDeleteElement = (e: React.MouseEvent) => {
+    e.stopPropagation()
     dispatch({
       type: 'DELETE_ELEMENT',
       payload: { elementDetails: props.element },
@@ -145,9 +199,12 @@ const DynamicCheckbox = (props: Props) => {
     }
   }
 
+  const isSelected = state.editor.selectedElement.id === props.element.id
+  const isLiveMode = state.editor.liveMode
 
   return (
     <div
+      ref={componentRef}
       style={styles}
       draggable
       onDragStart={(e) => handleDragStart(e, 'dynamicCheckbox')}
@@ -155,16 +212,13 @@ const DynamicCheckbox = (props: Props) => {
       className={clsx(
         'p-[2px] w-full m-[5px] relative text-[16px] transition-all flex items-center justify-center',
         {
-          '!border-blue-500':
-            state.editor.selectedElement.id === props.element.id,
-
-          '!border-solid': state.editor.selectedElement.id === props.element.id,
-          'border-dashed border-[1px] border-slate-300': !state.editor.liveMode,
+          '!border-blue-500': isSelected,
+          '!border-solid': isSelected,
+          'border-dashed border-[1px] border-slate-300': !isLiveMode,
         }
       )}
     >
-      {state.editor.selectedElement.id === props.element.id &&
-        !state.editor.liveMode && (
+      {isSelected && !isLiveMode && (
           <div className="absolute -top-[23px] -left-[1px]  flex ">
           {/* <Badge className=" rounded-none rounded-t-lg">
             {state.editor.selectedElement.name}
@@ -177,10 +231,10 @@ const DynamicCheckbox = (props: Props) => {
               },
             })} />
         </div>
-        )}
+      )}
 
       <div className="flex space-x-6 p-4 mx-auto">
-        {!state.editor.liveMode && (
+        {!isLiveMode && (
           <>
             <div className="space-y-2">
               <h2 className="text-lg font-semibold mb-2">Select Checkbox Type</h2>
@@ -241,7 +295,7 @@ const DynamicCheckbox = (props: Props) => {
             </div>
           </>)}
 
-        <div className="  pt-4">
+        <div className="pt-4">
           {title && <h2 className="text-xl font-semibold mb-3">{title}</h2>}
 
           {checkboxes.length > 0 ? (
@@ -275,18 +329,46 @@ const DynamicCheckbox = (props: Props) => {
           <Button onClick={handleSubmit} className='mt-4' disabled={pageDetails.submitted}>{pageDetails.submitted ? "Submitted" : "Submit"}</Button>
         </div>
 
-
-        {state.editor.selectedElement.id === props.element.id &&
-          !state.editor.liveMode && (
-            <div className="absolute bg-primary px-2.5 py-1 text-xs font-bold  -top-[25px] -right-[1px] rounded-none rounded-t-lg !text-white">
+        {isSelected && !isLiveMode && (
+          <div className="absolute -top-[25px] right-[0px]">
+            <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-t-lg !text-white flex items-center gap-2">
+              <Settings
+                className={clsx("cursor-pointer hover:text-blue-200", {
+                  "text-blue-200": showSettings
+                })}
+                size={16}
+                onClick={handleToggleSettings}
+              />
               <Trash
-                className="cursor-pointer"
+                className="cursor-pointer hover:text-red-200"
                 size={16}
                 onClick={handleDeleteElement}
               />
             </div>
-          )}
+          </div>
+        )}
       </div>
+
+      {/* Inline Property Panel */}
+      {isSelected && showSettings && !isLiveMode && (
+        <div 
+          className="absolute left-0 right-0 mt-2 z-50 bg-white border rounded-md shadow-lg"
+          onClick={handlePropertyPanelClick}
+        >
+          <div className="flex items-center justify-between p-3 border-b">
+            <h3 className="font-medium">Checkbox Group Settings</h3>
+            <button 
+              onClick={handleToggleSettings}
+              className="p-1 hover:bg-gray-100 rounded-full"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="p-4">
+            <PropertyPanel />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

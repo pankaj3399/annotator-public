@@ -43,6 +43,7 @@ import {
   BookText,
   FolderKanban,
   FolderCode,
+  LayoutTemplate,
 } from 'lucide-react';
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -168,7 +169,7 @@ export function Menu({ isOpen }: MenuProps) {
     switch (group.groupLabel) {
       case 'Knowledge': return Book; // Different from FileText, FileType2, FileType
       case 'Data': return Database; // Already different from Link and NotebookText
-      case 'UI Builder': return TemplateIcon; // Using the custom TemplateIcon component
+      case 'UI Builder': return LayoutTemplate; // Using the custom TemplateIcon component
       case 'Task Management': return Briefcase; // Different from CheckSquare
       case 'Resources': return PersonStanding; // Different from FileSpreadsheet, UserPlus
       case 'Analytics': return LineChart; // Different from PieChart, Activity

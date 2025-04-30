@@ -64,3 +64,8 @@ export type EditorAction =
         pageId: string
       }
     }
+  // Add toggle property panel action
+  | {
+      type: 'TOGGLE_PROPERTY_PANEL'
+      payload: {}
+    }

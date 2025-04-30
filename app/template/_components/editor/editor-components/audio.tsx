@@ -2,10 +2,11 @@
 
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider'
 import clsx from 'clsx'
-import { Trash } from 'lucide-react'
-import React from 'react'
+import { Trash, Settings, X } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
 import AudioPlayer from 'react-h5-audio-player'
 import 'react-h5-audio-player/lib/styles.css'
+import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel'
 
 type Props = {
   element: EditorElement
@@ -13,6 +14,10 @@ type Props = {
 
 const AudioComponent = (props: Props) => {
   const { dispatch, state } = useEditor()
+  // Local state to track if settings panel is visible for this specific element
+  const [showSettings, setShowSettings] = useState(false)
+  // Refs to detect clicks outside
+  const componentRef = useRef<HTMLDivElement>(null)
 
   const [elementContent, setElementContent] = React.useState({
     src: !Array.isArray(props.element.content) ? props.element.content?.src || '' : ''
@@ -24,15 +29,54 @@ const AudioComponent = (props: Props) => {
     })
   }, [props.element])
 
-  const handleDeleteElement = () => {
+  // Handle clicks outside the component to maintain selection
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only handle this logic if settings are showing
+      if (!showSettings) return;
+      
+      // Check if the click was outside our component
+      if (componentRef.current && !componentRef.current.contains(event.target as Node)) {
+        // Close settings when clicking outside the entire component
+        setShowSettings(false);
+      }
+    };
+
+    // Add event listener
+    document.addEventListener('mousedown', handleClickOutside);
+    
+    // Clean up
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSettings]);
+
+  const handleDeleteElement = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent the click from bubbling
     dispatch({
       type: 'DELETE_ELEMENT',
       payload: { elementDetails: props.element },
     })
   }
 
+  const handleToggleSettings = (e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent the click from bubbling
+    
+    // First select the element
+    dispatch({
+      type: 'CHANGE_CLICKED_ELEMENT',
+      payload: {
+        elementDetails: props.element,
+      },
+    })
+    
+    // Toggle settings visibility
+    setShowSettings(prev => !prev)
+  }
+
   const handleOnClickBody = (e: React.MouseEvent) => {
     e.stopPropagation()
+    // Always select this element when clicked
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
       payload: {
@@ -44,38 +88,81 @@ const AudioComponent = (props: Props) => {
   const isSelected = state.editor.selectedElement.id === props.element.id
   const isLiveMode = state.editor.liveMode
 
+  // Handle clicks on the property panel to prevent closing
+  const handlePropertyPanelClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Ensure element stays selected
+    dispatch({
+      type: 'CHANGE_CLICKED_ELEMENT',
+      payload: {
+        elementDetails: props.element,
+      },
+    });
+  };
+
   return (
-    <div
-      style={props.element.styles}
-      className={clsx(
-        'p-[2px] w-full m-[5px] relative text-[16px] transition-all flex items-center justify-center',
-        {
-          '!border-blue-500': isSelected,
-          '!border-solid': isSelected,
-          'border-dashed border-[1px] border-slate-300': !isLiveMode,
-        }
-      )}
-      onClick={handleOnClickBody}
-    >
-      {isSelected && !isLiveMode && (
-        <div className="absolute -top-[25px] right-[0px]">
-          <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-none rounded-t-lg !text-white">
-            <Trash
-              className="cursor-pointer"
-              size={16}
-              onClick={handleDeleteElement}
-            />
+    <div className="relative mb-8" ref={componentRef}>
+      <div
+        style={props.element.styles}
+        className={clsx(
+          'p-[2px] w-full m-[5px] relative text-[16px] transition-all flex items-center justify-center',
+          {
+            '!border-blue-500': isSelected,
+            '!border-solid': isSelected,
+            'border-dashed border-[1px] border-slate-300': !isLiveMode,
+          }
+        )}
+        onClick={handleOnClickBody}
+      >
+        {isSelected && !isLiveMode && (
+          <div className="absolute -top-[25px] right-[0px]">
+            <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-t-lg !text-white flex items-center gap-2">
+              <Settings
+                className={clsx("cursor-pointer hover:text-blue-200", {
+                  "text-blue-200": showSettings
+                })}
+                size={16}
+                onClick={handleToggleSettings}
+              />
+              <Trash
+                className="cursor-pointer hover:text-red-200"
+                size={16}
+                onClick={handleDeleteElement}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="w-full">
+          <AudioPlayer
+            autoPlay={false}
+            src={elementContent.src}
+            className="w-full"
+          />
+        </div>
+      </div>
+
+      {/* Inline Property Panel */}
+      {isSelected && showSettings && !isLiveMode && (
+        <div 
+          className="absolute left-0 right-0 mt-2 z-50 bg-white border rounded-md shadow-lg"
+          onClick={handlePropertyPanelClick}
+        >
+          <div className="flex items-center justify-between p-3 border-b">
+            <h3 className="font-medium">Element Settings</h3>
+            <button 
+              onClick={handleToggleSettings}
+              className="p-1 hover:bg-gray-100 rounded-full"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="p-4">
+            {/* Using PropertyPanel without passing the element prop */}
+            <PropertyPanel />
           </div>
         </div>
       )}
-
-      <div className="w-full">
-        <AudioPlayer
-          autoPlay={false}
-          src={elementContent.src}
-          className="w-full"
-        />
-      </div>
     </div>
   )
 }
