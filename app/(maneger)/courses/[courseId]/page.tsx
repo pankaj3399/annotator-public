@@ -16,6 +16,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { PlayCircle, Clock, User, Calendar, Tag, Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from '@/components/ui/switch';
+import Loader from '@/components/ui/NewLoader/Loader';
 
 const VIDEO_THUMBNAIL = '/videoThumbnail.jpg';
 const DEFAULT_THUMBNAIL = '/courseThumbnail.jpg';
@@ -176,9 +177,7 @@ const CourseDetails = () => {
 
   if (!course) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+    <Loader/>
     );
   }
 

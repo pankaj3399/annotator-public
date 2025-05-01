@@ -14,8 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getAllJobs } from "@/app/actions/job";
 import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { PlusCircle, Pencil } from "lucide-react";
+import Loader from "@/components/ui/NewLoader/Loader";
 
 interface Job {
   _id: string;
@@ -92,12 +93,7 @@ const JobListingPage = () => {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex h-[400px] items-center justify-center">
-              <div className="flex flex-col items-center space-y-2">
-                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
-                <p className="text-sm text-muted-foreground">Loading jobs...</p>
-              </div>
-            </div>
+            <Loader/>
           ) : (
             <div className="rounded-md border">
               <Table>

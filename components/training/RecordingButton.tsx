@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Video, Loader2 } from 'lucide-react';
 import ReactPlayer from 'react-player/lazy';
 import { useToast } from "@/components/ui/use-toast";
+import Loader from '../ui/NewLoader/Loader';
 
 interface RecordingButtonProps {
   webinarId: string;
@@ -105,11 +106,7 @@ export function RecordingButton({ webinarId, isCompleted }: RecordingButtonProps
               )}
             </div>
           ) : (
-            <div className="flex aspect-video items-center justify-center p-4">
-              <p className="text-center text-muted-foreground">
-                {loadError || 'Loading recording...'}
-              </p>
-            </div>
+          <Loader/>
           )}
         </DialogContent>
       </Dialog>

@@ -215,7 +215,7 @@ export default function TemplatesByType() {
   }
 
   if (isDataLoading) {
-    return <DataLoadingSpinner message="Loading template details..." />;
+    return <Loader />;
   }
 
   const handleTemplateClick = (temp: template) => {

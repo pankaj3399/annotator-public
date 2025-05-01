@@ -48,6 +48,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getTestTemplateTasks, createTestTasks } from '@/app/actions/task';
 import { getTeams } from '@/app/actions/team';
 import { Checkbox } from '@/components/ui/checkbox';
+import Loader from '@/components/ui/NewLoader/Loader';
 
 interface Option {
   value: string;
@@ -854,9 +855,7 @@ export default function AuthPageComponent() {
   return (
     <Suspense
       fallback={
-        <div className='h-screen flex items-center justify-center'>
-          Loading...
-        </div>
+        <Loader/>
       }
     >
       <AuthPageContent />

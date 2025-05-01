@@ -198,7 +198,6 @@ export default function ProjectDashboard() {
     fetchProjects(newLabels);
   };
 
-  // Show loader for both session loading and project data loading
   if (!session || isLoading) {
     return <Loader />;
   }

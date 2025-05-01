@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import ApproveButton from "@/components/ApproveButton";
 import { getWishlists } from "@/app/actions/stripe";
+import Loader from "@/components/ui/NewLoader/Loader";
 
 export default function PMWishlistsPage() {
   const [wishlists, setWishlists] = useState([]);
@@ -39,7 +40,7 @@ export default function PMWishlistsPage() {
 
   // If the data is loading, show a loading indicator
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div> <Loader/> </div>;
   }
 
   // If there's an error fetching the data, show the error message

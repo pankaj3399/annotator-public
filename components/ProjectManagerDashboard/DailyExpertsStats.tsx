@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 // *** Import necessary date-fns functions ***
 import { format, parse, parseISO, isValid } from 'date-fns';
+import Loader from '../ui/NewLoader/Loader';
 
 type Granularity = 'daily' | 'weekly' | 'monthly';
 
@@ -92,7 +93,7 @@ const formatLabel = (label: string | undefined | null, granularity: Granularity)
 // Ensure the export name matches how you import it in AnnotatorsPage.tsx
 export function DailyExpertsStats({ data, isLoading, error, granularity }: UserActivityChartProps) {
   if (isLoading) {
-    return <div className="flex justify-center items-center h-64 text-gray-500 animate-pulse">Loading chart data...</div>;
+    return <Loader/>;
   }
 
   if (error) {

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import Loader from '../ui/NewLoader/Loader';
 
 interface ReadyWorkDataPoint {
     name: 'Active' | 'Not Active';
@@ -34,7 +35,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 
 export function ActiveUsersChart({ data, isLoading, error }: ReadyToWorkChartProps) {
     if (isLoading) {
-        return <div className="flex justify-center items-center h-64 text-gray-500 animate-pulse">Loading readiness data...</div>;
+        return <Loader/>;
     }
 
     if (error) {

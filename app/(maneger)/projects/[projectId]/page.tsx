@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import Loader from '@/components/ui/NewLoader/Loader'; // <<< KEEP ORIGINAL LOADER IMPORT
-import { DataLoadingSpinner } from '@/components/ui/DataLoadingSpinner'; // <<< ADDED LOADER IMPORT
 import {
   Table,
   TableBody,
@@ -213,7 +212,7 @@ export default function ProjectDashboard() {
 
   // <<< ADDED Data Loading Check >>>
   if (isDataLoading) {
-      return <DataLoadingSpinner message="Loading project details..." />;
+      return <Loader/>;
   }
 
   // --- KEEP ORIGINAL handler functions ---

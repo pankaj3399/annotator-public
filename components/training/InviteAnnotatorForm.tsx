@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getAllAnnotators } from '@/app/actions/annotator';
 import { inviteMultipleAnnotatorsAction } from '@/app/actions/training';
+import Loader from '../ui/NewLoader/Loader';
 
 // Define the structure of the user object returned WITHIN the JSON string
 interface AnnotatorUser {
@@ -217,7 +218,7 @@ export function InviteAnnotatorForm({
             >
               {isLoadingList ? (
                 <>
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' /> Loading...
+                  <Loader />
                 </>
               ) : selectedAnnotators.length > 0 ? (
                 `${selectedAnnotators.length} annotator${

@@ -34,6 +34,7 @@ import {
   generateAIResponseWithAttachments,
   getProviderAIModels,
 } from '@/app/actions/providerAIModel';
+import Loader from './ui/NewLoader/Loader';
 
 interface FileAttachment {
   fileName: string;
@@ -160,11 +161,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
   };
 
   if (loading) {
-    return (
-      <div className='flex justify-center py-4'>
-        <Loader2 className='h-6 w-6 animate-spin text-muted-foreground' />
-      </div>
-    );
+    return <Loader />;
   }
 
   if (aiModels.length === 0) {
@@ -936,13 +933,7 @@ const ProjectGuidelines = () => {
   };
 
   if (loading) {
-    return (
-      <Card className='w-full'>
-        <CardContent className='p-6 flex justify-center items-center h-64'>
-          <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
-        </CardContent>
-      </Card>
-    );
+    return <Loader />;
   }
   const FileInput = () => (
     <>

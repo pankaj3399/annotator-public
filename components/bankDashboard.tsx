@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 import { usePlaidLink } from "react-plaid-link"
 import { Input } from "./ui/input"
 import { Label } from "./ui/label"
+import Loader from "./ui/NewLoader/Loader"
 
 
 export default function BankDashboard() {
@@ -118,7 +119,7 @@ export default function BankDashboard() {
                 </CardHeader>
                 <CardContent>
                     {loading ? (
-                        <div>Loading bank data...</div>
+                        <Loader/> 
                     ) : bankData ? (
                         <div>
                             <h2 className="text-xl font-bold mb-2">Account Information</h2>
