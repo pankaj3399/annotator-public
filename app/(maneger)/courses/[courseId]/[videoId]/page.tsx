@@ -8,11 +8,10 @@ import '@vidstack/react/player/styles/default/layouts/audio.css';
 import '@vidstack/react/player/styles/default/layouts/video.css';
 import { MediaPlayer, MediaProvider } from '@vidstack/react';
 import { DefaultVideoLayout, defaultLayoutIcons } from '@vidstack/react/player/layouts/default';
-import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Loader2 } from 'lucide-react'
 import { useSession } from "next-auth/react"
+import Loader from '@/components/ui/NewLoader/Loader';
 
 interface Video {
   _id: string;
@@ -34,12 +33,6 @@ interface Course {
   created_at: string;
   updated_at: string;
 }
-
-const Loader = () => (
-  <div className="flex justify-center items-center min-h-screen">
-    <Loader2 className="h-8 w-8 animate-spin" />
-  </div>
-);
 
 const VideoPlayerPage: React.FC = () => {
   const { data: session, status } = useSession();
@@ -89,7 +82,7 @@ const VideoPlayerPage: React.FC = () => {
   }
 
   if (!selectedVideo) {
-    <Loader></Loader>
+    <Loader/>
   }
 
   return (

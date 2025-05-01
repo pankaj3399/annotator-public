@@ -7,7 +7,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { Loader2, LogIn, WifiOff, AlertCircle } from "lucide-react"; // Use Lucide icons
+import { AlertCircle } from "lucide-react"; // Use Lucide icons
+import Loader from '@/components/ui/NewLoader/Loader';
 
 export default function WebinarPage() {
     const params = useParams();
@@ -92,9 +93,8 @@ export default function WebinarPage() {
     // --- Render logic ---
     if (authStatus === 'loading' || isLoadingToken) {
         return (
-            <div className="flex h-screen w-screen items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            </div>
+                <Loader/>
+           
         );
     }
 

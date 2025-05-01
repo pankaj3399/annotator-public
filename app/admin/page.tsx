@@ -40,6 +40,7 @@ import { Badge } from '@/components/ui/badge';
 
 // Import the server action to get teams
 import { getTeams } from '@/app/actions/team';
+import Loader from '@/components/ui/NewLoader/Loader';
 
 interface Team {
   _id: string;
@@ -308,7 +309,7 @@ const CustomFieldsPage = () => {
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading custom fields...</div>;
+    return <div className="flex justify-center items-center h-64"> <Loader/> </div>;
   }
 
   return (

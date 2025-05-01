@@ -1,5 +1,5 @@
 import { UploadDropzone } from "@/utils/uploadthing";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText} from "lucide-react";
 import { toast } from "sonner";
 
 interface FileUploadProps {

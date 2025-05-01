@@ -13,7 +13,7 @@ import { template } from '@/app/template/page';
 import { SheetMenu } from '@/components/admin-panel/sheet-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Filter, Loader2 } from 'lucide-react';
+import { Filter } from 'lucide-react';
 import Loader from '@/components/ui/NewLoader/Loader'; // <<< KEEP ORIGINAL LOADER IMPORT
 import { DataLoadingSpinner } from '@/components/ui/DataLoadingSpinner'; // <<< ADDED LOADER IMPORT
 import {
@@ -207,7 +207,7 @@ export default function Component() {
 
   // <<< ADDED Data Loading Check >>>
   if (isDataLoading) {
-    return <DataLoadingSpinner message='Loading tasks...' />;
+    return <Loader/>;
   }
 
   // --- KEEP ORIGINAL fetchTask function ---

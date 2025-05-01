@@ -13,6 +13,7 @@ import { Suspense } from 'react';
 import { authOptions } from '@/auth'; // Adjust path
 import { CreateWebinarForm } from '@/components/training/CreateWebinarForm'; // Adjust path
 import { TrainingWebinarList } from '@/components/training/TrainingWebinarList'; // Adjust path
+import Loader from '@/components/ui/NewLoader/Loader';
 
 interface ProjectTrainingPageProps {
     params: { projectId: string };
@@ -192,7 +193,7 @@ export default async function ProjectTrainingPage({ params }: ProjectTrainingPag
             <div className="mt-8">
                  <h2 className="mb-4 text-2xl font-semibold tracking-tight">Webinar Sessions</h2>
                 {trainingData?.webinars && trainingData.webinars.length > 0 ? (
-                     <Suspense fallback={<div className="text-center p-4">Loading webinars...</div>}>
+                     <Suspense fallback={<div className="text-center p-4"><Loader/></div>}>
                         <TrainingWebinarList webinars={trainingData.webinars}  trainingId={trainingData._id} />
                      </Suspense>
                 ) : (
