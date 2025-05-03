@@ -57,12 +57,11 @@ import {
   User2Icon,
   BookA,
   UserCheck,
-
 } from "lucide-react";
 
 import { BookIcon } from "@/components/BookIcon";
 
-// Define user roles - using space-separated strings to match what's in your system
+// Define user roles
 export type UserRole = "project manager" | "annotator" | "agency owner" | "system admin" | "data scientist";
 
 type Submenu = {
@@ -88,12 +87,38 @@ type Group = {
   icon?: LucideIcon | any;
 };
 
-// Modified function to accept user role
-export function getMenuList(pathname: string, userRole: UserRole): Group[] {
-  const projectId = pathname.split("/")[pathname.split("/").length - 1];
-  const fpath = pathname.split("/")[1];
+// Check if we're in a notebook context
+function isNotebookPath(pathname: string): boolean {
+  return pathname.includes('/dataScientist/notebook');
+}
 
-  // For data scientist role - showing only home and profile
+// Get project ID from URL query parameters (for notebook pages)
+function getProjectIdFromQuery(): string | null {
+  if (typeof window !== 'undefined') {
+    try {
+      const url = new URL(window.location.href);
+      return url.searchParams.get('projectId');
+    } catch (e) {
+      console.error('Error parsing URL:', e);
+    }
+  }
+  return null;
+}
+
+export function getMenuList(pathname: string, userRole: UserRole): Group[] {
+  // Extract projectId from pathname or query parameters
+  let projectId = pathname.split("/")[pathname.split("/").length - 1];
+  const fpath = pathname.split("/")[1];
+  
+  // For notebook pages, try to get projectId from query
+  if (isNotebookPath(pathname)) {
+    const queryProjectId = getProjectIdFromQuery();
+    if (queryProjectId) {
+      projectId = queryProjectId;
+    }
+  }
+
+  // For data scientist role
   if (userRole === "data scientist") {
     return [
       {
@@ -115,33 +140,27 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             label: "Dashboard",
             active: pathname.includes("/dataScientist/dashboard"),
             icon: LayoutDashboard,
-            // Note: no submenus here unless Dashboard itself needs them
           },
-          // --- Start of Changes ---
           {
-            // href: "#", // Or keep original href, Menu.tsx click handles expansion
-            href: "/projects/data", // Let's keep original, but it won't navigate directly if submenus exist
-            label: "Data", // This is the Accordion Title
-            // Accordion is active if any of its children are active
+            href: "/projects/data", 
+            label: "Data", 
             active: pathname.includes("/projects/data") || pathname.includes("/dataScientist/notebook"),
-            icon: Database, // Icon for the Accordion
-            submenus: [ // Define the submenu items
+            icon: Database,
+            submenus: [
               {
                 href: `/projects/data`,
                 label: "Connector",
-                active: pathname.includes(`/projects/data`), // Active state for Connector
+                active: pathname.includes(`/projects/data`),
                 icon: Link,
-
               },
               {
                 href: `/dataScientist/notebook`,
                 label: "Notebook",
-                active: pathname.includes(`/dataScientist/notebook`), // Active state for Notebook
+                active: pathname.includes(`/dataScientist/notebook`),
                 icon: NotebookText,
               },
             ],
           }
-          // --- End of Changes ---
         ],
       },
       {
@@ -243,7 +262,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     ];
   }
 
-  // Common project-related menu items for PM - with updated group names
+  // Common project-related menu items for PM
   const projectManagerCommonGroups: Group[] = [
     {
       groupLabel: "Knowledge",
@@ -254,7 +273,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes(`/projects/guidelines/${projectId}`),
           icon: BookA,
         },
-
         {
           href: `/projects/summary/${projectId}`,
           label: "Summary",
@@ -267,9 +285,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes(`/projects/discussion/${projectId}`),
           icon: MessageSquare,
         },
-        
       ],
-      visibleTo: ["project manager"], // Only PM can see sourcing
+      visibleTo: ["project manager"],
       icon: FileText,
     },
     {
@@ -281,10 +298,11 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes(`/projects/data/`),
           icon: Link,
           visibleTo: ["project manager" as UserRole],
-        },  {
+        },  
+        {
           href: `/dataScientist/notebook`,
           label: "Notebook",
-          active: pathname.includes(`/dataScientist/notebook`), // Active state for Notebook
+          active: pathname.includes(`/dataScientist/notebook`),
           icon: NotebookText,
         },
       ],
@@ -312,41 +330,38 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: Rocket,
         },
       ],
-      visibleTo: ["project manager"], // Only PM can see analytics
-    },
- {
-    groupLabel: "Task Management",
-    menus: [
-
-      {
-        href: `/projects/task/${projectId}`,
-        label: "Tasks",
-        active: pathname.includes("/task"),
-        icon: CheckSquare,
-        visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-      },
- 
-    ],
-    visibleTo: ["project manager"],
-  },
-  
-  {
-    groupLabel: "Project Management",
-    menus: [
-    {
-      href: `/projects/benchmark-proposals/${projectId}`,
-      label: "Benchmark Proposals",
-      active: pathname.includes("/benchmark-proposals"),
-      icon: TrendingUp,
+      visibleTo: ["project manager"],
     },
     {
-      href: `/projects/training/${projectId}`,
-      label: "Kickoff Session",
-      active: pathname === `/projects/training/${projectId}`,
-      icon: GraduationCap,
-    }
-    ]
-  },
+      groupLabel: "Task Management",
+      menus: [
+        {
+          href: `/projects/task/${projectId}`,
+          label: "Tasks",
+          active: pathname.includes("/task"),
+          icon: CheckSquare,
+          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+        },
+      ],
+      visibleTo: ["project manager"],
+    },
+    {
+      groupLabel: "Project Management",
+      menus: [
+        {
+          href: `/projects/benchmark-proposals/${projectId}`,
+          label: "Benchmark Proposals",
+          active: pathname.includes("/benchmark-proposals"),
+          icon: TrendingUp,
+        },
+        {
+          href: `/projects/training/${projectId}`,
+          label: "Kickoff Session",
+          active: pathname === `/projects/training/${projectId}`,
+          icon: GraduationCap,
+        }
+      ]
+    },
     {
       groupLabel: "Resources",
       menus: [
@@ -363,7 +378,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: UserPlus,
         },
         {
-          href: `/projects/job-list/create/${projectId}}`,
+          href: `/projects/job-list/create/${projectId}`,
           label: "Post Job",
           active: pathname.includes("/job-list/create"),
           icon: UserPlus,
@@ -375,7 +390,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: UserCheck,
         },
       ],
-      visibleTo: ["project manager"], // Only PM can see sourcing
+      visibleTo: ["project manager"],
     },
     {
       groupLabel: "Analytics",
@@ -392,9 +407,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes("/leaderboard"),
           icon: Activity,
         },
-    
       ],
-      visibleTo: ["project manager"], // Only PM can see analytics
+      visibleTo: ["project manager"],
     },
     {
       groupLabel: "Settings & Configuration",
@@ -418,7 +432,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: Bell,
         },
       ],
-      visibleTo: ["project manager"], // Only PM can see project settings
+      visibleTo: ["project manager"],
     }
   ];
 
@@ -456,7 +470,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: Heart,
             submenus: [],
           },
-
         ],
       },
       {
@@ -532,12 +545,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             active: pathname.includes("/profile"),
             icon: CircleUser,
           },
-          // {
-          //   href: "/tasks/bank",
-          //   label: "Bank Settings",
-          //   active: pathname.includes("/tasks/bank"),
-          //   icon: Landmark,
-          // },
         ],
       },
     ];
@@ -596,7 +603,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       {
         groupLabel: "Project Management",
         menus: [
-        
           {
             href: "/dashboard",
             label: "Dashboard",
@@ -604,7 +610,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: LayoutDashboard,
             submenus: [],
             visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
-          },{
+          },
+          {
             href: "/",
             label: "Projects",
             active: pathname === "/",
@@ -650,7 +657,6 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
       },
-
       {
         groupLabel: "AI Academy",
         menus: [
@@ -676,7 +682,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             visibleTo: ["annotator"],
           },
         ],
-      },      {
+      },      
+      {
         groupLabel: "Settings",
         menus: [
           {
@@ -708,17 +715,22 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     return filterMenusByRole(homeMenu, userRole);
   }
 
-  // Default menu structure for project context
-  const defaultMenu: Group[] = [
+  // Special case: For notebook pages that need project context
+  if (isNotebookPath(pathname)) {
+    // If we have a valid project ID from query params, show the same menu as projects
+    if (projectId && projectId !== "notebook") {
+      return filterMenusByRole(projectManagerCommonGroups, userRole);
+    }
+  }
 
-  ];
+  // Default menu structure for project context
+  const defaultMenu: Group[] = [];
 
   // Always include project-specific groups for project managers when a valid project ID is present
   if (userRole === "project manager" && projectId &&
     !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId)) {
     defaultMenu.push(...projectManagerCommonGroups);
   }
-
 
   // This conditional check is for a specific analytics view within the annotator path
   if (
@@ -735,7 +747,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: PieChart,
         },
       ],
-      visibleTo: ["project manager"], // Only PM can see analytics
+      visibleTo: ["project manager"],
     });
   }
 
