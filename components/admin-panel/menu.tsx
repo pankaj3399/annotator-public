@@ -67,22 +67,22 @@ type Submenu = {
   href: string;
   label: string;
   active?: boolean;
-  icon?: LucideIcon | any; // Using 'any' for icon to match existing code
+  icon?: LucideIcon | any; 
 };
 
 type MenuItem = {
   href: string;
   label: string;
   active: boolean;
-  icon: LucideIcon | any; // Using 'any' for icon to match existing code
+  icon: LucideIcon | any;
   submenus?: Submenu[];
 };
 
 type MenuGroup = {
   groupLabel: string;
   menus: MenuItem[];
-  groupIcon?: LucideIcon | any; // Using 'any' for icon to match existing code
-  icon?: LucideIcon | any; // Some groups use 'icon' instead of 'groupIcon'
+  groupIcon?: LucideIcon | any;
+  icon?: LucideIcon | any;
 };
 
 interface MenuProps {
@@ -98,16 +98,72 @@ export function Menu({ isOpen }: MenuProps) {
   // Get user role from session data
   const userRole = (session?.user?.role as UserRole) || 'annotator'; // Default to annotator if no role found
 
-  // Memoize menuList to prevent recreation on every render and cast to our type
+  // Store current project ID when it's available
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+
+  // Extract project ID from URL with different route patterns
+  useEffect(() => {
+    const pathSegments = pathname.split('/');
+    
+    // Check for pipeline page (main entry point to a project)
+    if (pathSegments.includes('pipeline')) {
+      const pipelineIndex = pathSegments.indexOf('pipeline');
+      if (pipelineIndex + 1 < pathSegments.length) {
+        const projectId = pathSegments[pipelineIndex + 1];
+        if (projectId) {
+          console.log('Setting project ID from pipeline page:', projectId);
+          setCurrentProjectId(projectId);
+        }
+      }
+    } 
+    // Handle template pages (like /projects/template/test/projectId)
+    else if (pathSegments.includes('template')) {
+      const templateIndex = pathSegments.indexOf('template');
+      if (templateIndex + 2 < pathSegments.length) {
+        const projectId = pathSegments[templateIndex + 2];
+        if (projectId) {
+          console.log('Setting project ID from template page:', projectId);
+          setCurrentProjectId(projectId);
+        }
+      }
+    }
+    // Handle other project routes like guidelines, summary, etc.
+    else if (pathSegments.includes('projects') && pathSegments.length >= 4) {
+      // Path format like: /projects/section/projectId
+      const projectsIndex = pathSegments.indexOf('projects');
+      if (projectsIndex + 2 < pathSegments.length) {
+        const projectId = pathSegments[projectsIndex + 2];
+        if (projectId) {
+          console.log('Setting project ID from projects page:', projectId);
+          setCurrentProjectId(projectId);
+        }
+      }
+    }
+    // Check for project ID in query string (for notebook and data pages)
+    else if (pathname.includes('/dataScientist/notebook') || pathname.includes('/projects/data')) {
+      // Extract from URL query parameters
+      try {
+        const url = new URL(window.location.href);
+        const projectId = url.searchParams.get('projectId');
+        if (projectId) {
+          console.log('Setting project ID from query parameter:', projectId);
+          setCurrentProjectId(projectId);
+        }
+      } catch (e) {
+        console.error('Error extracting projectId from URL:', e);
+      }
+    }
+  }, [pathname]);
+
+  // Memoize menuList
   const menuList = useMemo(() => {
     const list = getMenuList(pathname, userRole);
-    return list as MenuGroup[]; // Explicit casting
+    return list as MenuGroup[];
   }, [pathname, userRole]);
 
   // Update "Contents" to "Projects" if needed
   const updatedMenuList = useMemo(() => {
     return menuList.map((group) => {
-      // Convert "Contents" to "Projects" if needed
       if (group.groupLabel === 'Contents') {
         return { ...group, groupLabel: 'Projects' };
       }
@@ -123,8 +179,10 @@ export function Menu({ isOpen }: MenuProps) {
   // Check if in a project context
   const pathSegments = pathname.split('/');
   const projectId = pathSegments[pathSegments.length - 1];
-  const inProjectContext =
-    pathSegments.includes('projects') && projectId !== 'projects';
+  const inProjectContext = 
+    pathSegments.includes('projects') || 
+    pathname.includes('/dataScientist/notebook') ||
+    currentProjectId !== null;
 
   // Toggle section expansion
   const toggleSection = (groupLabel: string) => {
@@ -136,7 +194,8 @@ export function Menu({ isOpen }: MenuProps) {
 
   // Initialize all accordions to be expanded by default
   useEffect(() => {
-    console.log('--- Menu useEffect Start --- Pathname:', pathname); // For debugging
+    console.log('--- Menu useEffect Start --- Pathname:', pathname); 
+    console.log('Current Project ID:', currentProjectId);
     const initialState: { [key: string]: boolean } = {};
   
     // Make ALL groups expanded by default
@@ -154,8 +213,8 @@ export function Menu({ isOpen }: MenuProps) {
       });
     });
   
-    console.log('--- Menu useEffect End --- Final initialState:', initialState); // Debug log
-    setExpandedSections(initialState); // Update the state
+    console.log('--- Menu useEffect End --- Final initialState:', initialState);
+    setExpandedSections(initialState);
   }, [pathname, userRole, updatedMenuList, inProjectContext]);
 
   // Get the appropriate icon for a group based on its label
@@ -165,35 +224,62 @@ export function Menu({ isOpen }: MenuProps) {
     if (group.groupIcon) return group.groupIcon;
     
     // If no icon is defined, assign one based on the group label
-    // Using different icons than what's used in the child menu items
     switch (group.groupLabel) {
-      case 'Knowledge': return Book; // Different from FileText, FileType2, FileType
-      case 'Data': return Database; // Already different from Link and NotebookText
-      case 'UI Builder': return LayoutTemplate; // Using the custom TemplateIcon component
-      case 'Task Management': return Briefcase; // Different from CheckSquare
-      case 'Resources': return PersonStanding; // Different from FileSpreadsheet, UserPlus
-      case 'Analytics': return LineChart; // Different from PieChart, Activity
-      case 'Settings & Configuration': return Cog; // Different from Bot, Settings, Bell
-      case 'Project Management': return FolderKanban; // Different from LayoutDashboard, FolderOpen
-      case 'Expert Management': return UserCog; // Different from User, User2Icon, MessageSquare, Heart
-      case 'Settings': return Wrench; // Different from Key, CreditCard, CircleUser
-      case 'AI Academy': return School; // Different from GraduationCap, BookOpen, BookIcon
+      case 'Knowledge': return Book;
+      case 'Data': return Database;
+      case 'UI Builder': return LayoutTemplate;
+      case 'Task Management': return Briefcase;
+      case 'Resources': return PersonStanding;
+      case 'Analytics': return LineChart;
+      case 'Settings & Configuration': return Cog;
+      case 'Project Management': return FolderKanban;
+      case 'Expert Management': return UserCog;
+      case 'Settings': return Wrench;
+      case 'AI Academy': return School;
       case 'Contents': 
-      case 'Projects': return Folders; // Different from FolderOpen, CheckSquare, CheckCircle, TrendingUp
-      case 'Project': return FolderCode; // Different from TrendingUp, GraduationCap
-      case 'User': return User; // Different but related to CircleUser
-      default: return FolderOpen; // Default fallback icon
+      case 'Projects': return Folders;
+      case 'Project': return FolderCode;
+      case 'User': return User;
+      default: return FolderOpen;
     }
   };
 
+  // Function to get proper href with project ID for data-related links
+  const getHrefWithProjectId = (href: string, label: string) => {
+    // If this is a data-related link and we have a project ID
+    if (currentProjectId) {
+      if (label === 'Connector') {
+        return `/projects/data?projectId=${currentProjectId}`;
+      } else if (label === 'Notebook') {
+        return `/dataScientist/notebook?projectId=${currentProjectId}`;
+      }
+      
+      // For other project-related paths, ensure they use the current project ID
+      if (href.includes('/projects/') && !href.includes('/projects/data')) {
+        // Replace the project ID in the path if it exists
+        const pathParts = href.split('/');
+        const projectIdPosition = pathParts.length - 1;
+        if (projectIdPosition > 0) {
+          pathParts[projectIdPosition] = currentProjectId;
+          return pathParts.join('/');
+        }
+      }
+    }
+    return href;
+  };
+
+  // Always use the stored project ID for the Pipeline link
+  const backToProjectsHref = currentProjectId ? 
+    `/projects/pipeline/${currentProjectId}` : '/';
+
   return (
     <nav className='mt-8 h-full w-full'>
-      {inProjectContext && userRole !== 'data scientist' && (
+      {inProjectContext && userRole !== 'data scientist' && currentProjectId && (
         <div className='mb-6 px-4'>
           <div className='flex items-center justify-between'>
             <div className='flex items-center text-sm text-blue-500 mt-1'>
               <NextLink
-                href={`/projects/pipeline/${projectId}`}
+                href={`/projects/pipeline/${currentProjectId}`}
                 className='flex items-center ml-1'
               >
                 <span className='hover:underline'>Pipeline</span>
@@ -234,22 +320,19 @@ export function Menu({ isOpen }: MenuProps) {
                   }
                 >
                   <div className='flex items-center flex-grow mr-2'>
-                    {' '}
-                    {/* Wrap icon and text */}
-                    {/* Always render an icon for groups with groupLabel */}
                     {group.groupLabel && (
                       <GroupIcon
                         className={cn(
-                          'h-5 w-5 mr-2', // Basic icon styling
+                          'h-5 w-5 mr-2',
                           expandedSections[group.groupLabel]
                             ? 'text-gray-800'
-                            : 'text-gray-500' // Match text color based on expansion
+                            : 'text-gray-500'
                         )}
                       />
                     )}
                     <p
                       className={cn(
-                        'text-sm font-medium max-w-[180px] truncate', // Adjust max-width if needed
+                        'text-sm font-medium max-w-[180px] truncate',
                         expandedSections[group.groupLabel || '']
                           ? 'text-gray-900'
                           : 'text-gray-500'
@@ -311,6 +394,9 @@ export function Menu({ isOpen }: MenuProps) {
                     let isHighlighted = item.active || hasActiveSubmenu;
 
                     const Icon = item.icon;
+                    
+                    // Get the proper href with project ID if needed
+                    const menuHref = getHrefWithProjectId(item.href, item.label);
 
                     return (
                       <div className='w-full' key={menuIndex}>
@@ -328,7 +414,7 @@ export function Menu({ isOpen }: MenuProps) {
                                 }
                               >
                                 {!item.submenus?.length ? (
-                                  <NextLink href={item.href}>
+                                  <NextLink href={menuHref}>
                                     <div className='flex items-center w-full'>
                                       <span
                                         className={cn(
@@ -398,6 +484,9 @@ export function Menu({ isOpen }: MenuProps) {
                               {item.submenus.map((submenu, submenuIndex) => {
                                 // Get the icon component from the submenu object
                                 const SubmenuIcon = submenu.icon;
+                                
+                                // Add project ID to submenu hrefs if needed
+                                const submenuHref = getHrefWithProjectId(submenu.href, submenu.label);
 
                                 return (
                                   <TooltipProvider
@@ -412,46 +501,38 @@ export function Menu({ isOpen }: MenuProps) {
                                               ? 'secondary'
                                               : 'ghost'
                                           }
-                                          className='w-full justify-start h-10 mb-1' // Keep justify-start
+                                          className='w-full justify-start h-10 mb-1'
                                           asChild
                                         >
-                                          {/* --- Start of Modified Link Content --- */}
                                           <NextLink
-                                            href={submenu.href}
+                                            href={submenuHref}
                                             className='flex items-center w-full'
                                           >
-                                            {/* Always render an icon for submenus */}
                                             <span
                                               className={cn(
                                                 !isOpen ? '' : 'mr-2'
                                               )}
                                             >
-                                              {' '}
-                                              {/* Adjust margin as needed */}
                                               {SubmenuIcon ? (
                                                 <SubmenuIcon size={16} />
                                               ) : (
                                                 <ChevronRight size={16} />
                                               )}
-                                              {' '}
                                             </span>
-                                            {/* Render Label */}
                                             <p
                                               className={cn(
-                                                'max-w-[180px] truncate', // Adjust max-width if needed due to icon
-                                                !isOpen // This condition might not be relevant here as submenus only show when open
-                                                  ? 'opacity-0 invisible' // Keep consistent hiding logic if needed
+                                                'max-w-[180px] truncate',
+                                                !isOpen
+                                                  ? 'opacity-0 invisible'
                                                   : 'opacity-100 visible'
                                               )}
                                             >
                                               {submenu.label}
                                             </p>
                                           </NextLink>
-                                          {/* --- End of Modified Link Content --- */}
                                         </Button>
                                       </TooltipTrigger>
-                                      {/* Tooltip logic remains the same */}
-                                      {!isOpen && ( // Tooltip should only show when sidebar is collapsed
+                                      {!isOpen && (
                                         <TooltipContent side='right'>
                                           {submenu.label}
                                         </TooltipContent>
