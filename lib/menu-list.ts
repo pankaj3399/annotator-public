@@ -104,7 +104,106 @@ function getProjectIdFromQuery(): string | null {
   }
   return null;
 }
-
+function getAnnotatorMenu(pathname: string): Group[] {
+  return [
+    {
+      groupLabel: "",
+      menus: [
+        {
+          href: "/landing",
+          label: "Home",
+          active: pathname.includes("/landing"),
+          icon: Home,
+          submenus: [],
+        },
+        {
+          href: "/tasks/annotatorDashboard",
+          label: "Dashboard",
+          active: pathname.includes("/annotatorDashboard"),
+          icon: LayoutDashboard,
+          submenus: [],
+        },
+        {
+          href: "/tasks/chat",
+          label: "Chat",
+          active: pathname.includes("/chat"),
+          icon: MessageSquare,
+          submenus: [],
+        },
+        {
+          href: "/tasks/wishlist",
+          label: "Buy me this!",
+          active: pathname.includes("/wishlist"),
+          icon: Heart,
+          submenus: [],
+        },
+      ],
+    },
+    {
+      groupLabel: "AI Academy",
+      menus: [
+        {
+          href: "/tasks/viewCourses",
+          label: "All Courses",
+          active: pathname.includes("/viewCourses"),
+          icon: BookOpen,
+          submenus: [],
+        },
+        {
+          href: "/tasks/myCourses",
+          label: "My Courses",
+          active: pathname.includes("/myCourses"),
+          icon: BookIcon,
+          submenus: [],
+        },
+      ],
+    },
+    {
+      groupLabel: "Projects", // Changed from "Contents" to be more descriptive
+      menus: [
+        {
+          href: "/tasks",
+          label: "All Projects",
+          active: pathname.includes("/tasks") && 
+            !pathname.includes("/tasks/all") &&
+            !pathname.includes("/viewCourses") &&
+            !pathname.includes("/annotatorDashboard") &&
+            !pathname.includes("/tasks/benchmark-arena"),
+          icon: FolderOpen,
+        },
+        {
+          href: "/tasks/all",
+          label: "All Tasks",
+          active: pathname === "/tasks/all",
+          icon: CheckSquare,
+        },
+        {
+          href: "/tasks/review",
+          label: "Review Tasks",
+          active: pathname.includes("/tasks/review"),
+          icon: CheckCircle,
+        },
+        {
+          href: "/tasks/benchmark-arena",
+          label: "Benchmark Arena",
+          icon: TrendingUp,
+          active: pathname.includes("/tasks/benchmark-arena")
+        }
+      ],
+    },
+    {
+      groupLabel: "User",
+      menus: [
+        {
+          href: "/profile",
+          label: "Profile",
+          active: pathname.includes("/profile"),
+          icon: CircleUser,
+        },
+      ],
+    },
+  ];
+}
 export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   // Extract projectId from pathname or query parameters
   let projectId = pathname.split("/")[pathname.split("/").length - 1];
@@ -261,6 +360,16 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
       },
     ];
   }
+
+  if (userRole === "annotator" && (
+    pathname.includes('/projects/') || 
+    pathname.includes('/dataScientist/') ||
+    pathname.includes('/task/') ||
+    (pathname.split('/').length > 3 && !pathname.includes('/tasks/'))
+  )) {
+  // Return the annotator-specific menu
+  return getAnnotatorMenu(pathname);
+}
 
   // Common project-related menu items for PM
   const projectManagerCommonGroups: Group[] = [

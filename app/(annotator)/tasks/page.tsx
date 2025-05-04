@@ -21,7 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, ClipboardList, GraduationCap } from 'lucide-react';
+import { CalendarIcon, ClipboardList, GraduationCap, MessageCircleIcon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -288,19 +288,21 @@ export default function ProjectDashboard() {
   };
   const handleTrainingClick = (projectId: string) => {
     router.push(`/projects/training/${projectId}`);
- };
+  };
+  const handleDiscussionClick = (projectId: string) => {
+    router.push(`/projects/discussion/${projectId}`);
+  };
+  if (!session) {
+    return <Loader />; // Or redirect to login
+  }
 
- if (!session) {
-   return <Loader />; // Or redirect to login
- }
-
- if (isLoading) {
-   return (
-     <div className='flex items-center justify-center min-h-screen'>
-       <Loader />
-     </div>
-   );
- }
+  if (isLoading) {
+    return (
+      <div className='flex items-center justify-center min-h-screen'>
+        <Loader />
+      </div>
+    );
+  }
 
   if (!session) {
     return <Loader />;
@@ -419,18 +421,29 @@ export default function ProjectDashboard() {
                                 Take Test
                               </Button>
                             )}
-                             
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={(e) => {
-      e.stopPropagation(); // Prevent potential row click
-      handleTrainingClick(project._id); // Call the navigation handler
-    }}
-  >
-    <GraduationCap className="mr-2 h-4 w-4" />
-    Training
-  </Button>
+
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent potential row click
+                                handleTrainingClick(project._id); // Call the navigation handler
+                              }}
+                            >
+                              <GraduationCap className='mr-2 h-4 w-4' />
+                              Training
+                            </Button>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={(e) => {
+                                e.stopPropagation(); // Prevent potential row click
+                                handleDiscussionClick(project._id); // Call the navigation handler
+                              }}
+                            >
+                              <MessageCircleIcon className='mr-2 h-4 w-4' />
+                              Discussion
+                            </Button>
 
                             {hasLLMBenchmark && (
                               <Button
