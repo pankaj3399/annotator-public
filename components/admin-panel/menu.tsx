@@ -276,7 +276,7 @@ export function Menu({ isOpen }: MenuProps) {
     <nav className='mt-8 h-full w-full'>
       {inProjectContext && userRole !== 'data scientist' && currentProjectId && (
         <div className='mb-6 px-4'>
-          <div className='flex items-center justify-between'>
+         {userRole === 'project manager' &&  <div className='flex items-center justify-between'>
             <div className='flex items-center text-sm text-blue-500 mt-1'>
               <NextLink
                 href={`/projects/pipeline/${currentProjectId}`}
@@ -291,7 +291,7 @@ export function Menu({ isOpen }: MenuProps) {
                 <span className='hover:underline'>Back to all projects</span>
               </NextLink>
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
