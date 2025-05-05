@@ -82,3 +82,66 @@ export async function GET(req: Request) {
     );
   }
 }
+
+// POST - Create a new discussion
+export async function POST(req: Request) {
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Connect to database
+    await connectToDatabase();
+
+    // Parse request body
+    const { title, content, project, tags, visibility } = await req.json();
+
+    // Validate required fields
+    if (!title || !content || !project) {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Create new discussion
+    const newDiscussion = new Discussion({
+      title,
+      content,
+      project,
+      author: session.user.id,
+      tags: tags || [],
+      visibility: visibility || 'public',
+      likes: [],
+      comments: [],
+      created_at: new Date(),
+      updated_at: new Date()
+    });
+
+    // Save the discussion
+    await newDiscussion.save();
+
+    // Populate the author and project fields for the response
+    const populatedDiscussion = await Discussion.findById(newDiscussion._id)
+      .populate('author', 'name role team_id')
+      .populate('project', 'name');
+
+    // Add computed fields for UI
+    const discussion = populatedDiscussion.toObject();
+    discussion.likeCount = discussion.likes.length;
+    discussion.commentCount = discussion.comments.length;
+
+    return NextResponse.json({
+      success: true,
+      discussion
+    });
+  } catch (error) {
+    console.error('Error creating discussion:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
