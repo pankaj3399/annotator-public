@@ -30,6 +30,23 @@ const nextConfig = {
     ];
   },
 
+  async headers() {
+    const defaultAllowedOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://www.blolabel.ai'
+      : 'http://localhost:3000';
+
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: defaultAllowedOrigin,
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
