@@ -1,14 +1,6 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 
-// --- CORS Configuration ---
-const ALLOWED_ORIGINS = new Set([
-  'https://www.blolabel.ai',
-  'https://annotator-public-amber.vercel.app',
-  'https://annotator-public.vercel.app',
-  ...(process.env.NODE_ENV === 'development' ? ['http://localhost:3000'] : [])
-]);
-
 // --- Security Headers Helper ---
 function addSecurityHeaders(response: NextResponse): void {
   // Delete any existing security headers first to prevent conflicts
@@ -54,97 +46,31 @@ function addSecurityHeaders(response: NextResponse): void {
   }
 }
 
-// --- CORS Headers Helper ---
-function applyCorsHeaders(response: NextResponse, requestOrigin: string | null): void {
-  // First delete any existing CORS headers to prevent conflicts
-  response.headers.delete('Access-Control-Allow-Origin');
-  response.headers.delete('Access-Control-Allow-Methods');
-  response.headers.delete('Access-Control-Allow-Headers');
-  response.headers.delete('Access-Control-Allow-Credentials');
-  response.headers.delete('Access-Control-Max-Age');
-  
-  // Prevent caching to ensure middleware is always executed
-  response.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
-  
-  // Match origins explicitly for critical domains
-  switch (requestOrigin) {
-    case 'https://annotator-public-amber.vercel.app':
-    case 'https://annotator-public.vercel.app':
-    case 'https://www.blolabel.ai':
-      response.headers.set('Access-Control-Allow-Origin', requestOrigin);
-      response.headers.set('Access-Control-Allow-Credentials', 'true');
-      break;
-    default:
-      // For other origins or development mode
-      if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) {
-        response.headers.set('Access-Control-Allow-Origin', requestOrigin);
-        response.headers.set('Access-Control-Allow-Credentials', 'true');
-      } else if (process.env.NODE_ENV === 'development' && requestOrigin) {
-        response.headers.set('Access-Control-Allow-Origin', requestOrigin);
-        response.headers.set('Access-Control-Allow-Credentials', 'true');
-      }
-      // If origin is not allowed, no CORS headers will be set
-      break;
-  }
-}
-
-// --- Configure Preflight Response ---
-function handlePreflightRequest(req: NextRequest): NextResponse {
-  const requestOrigin = req.headers.get('Origin');
+// --- Simplified OPTIONS handler with no CORS ---
+function handleOptionsRequest(): NextResponse {
   const preflightResponse = new NextResponse(null, { status: 204 });
   
   // Prevent caching preflight responses
   preflightResponse.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
   
-  // Match origins explicitly for critical domains
-  switch (requestOrigin) {
-    case 'https://annotator-public-amber.vercel.app':
-    case 'https://annotator-public.vercel.app':
-    case 'https://www.blolabel.ai':
-      preflightResponse.headers.set('Access-Control-Allow-Origin', requestOrigin);
-      preflightResponse.headers.set('Access-Control-Allow-Credentials', 'true');
-      preflightResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      preflightResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
-      preflightResponse.headers.set('Access-Control-Max-Age', '86400');
-      break;
-    default:
-      // For other origins or development mode
-      if (requestOrigin && ALLOWED_ORIGINS.has(requestOrigin)) {
-        preflightResponse.headers.set('Access-Control-Allow-Origin', requestOrigin);
-        preflightResponse.headers.set('Access-Control-Allow-Credentials', 'true');
-        preflightResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        preflightResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
-        preflightResponse.headers.set('Access-Control-Max-Age', '86400');
-      } else if (process.env.NODE_ENV === 'development' && requestOrigin) {
-        preflightResponse.headers.set('Access-Control-Allow-Origin', requestOrigin);
-        preflightResponse.headers.set('Access-Control-Allow-Credentials', 'true');
-        preflightResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        preflightResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version');
-        preflightResponse.headers.set('Access-Control-Max-Age', '86400');
-      }
-      // If origin is not allowed, no CORS headers will be set
-      break;
-  }
-  
+  // Only add security headers, no CORS headers
   addSecurityHeaders(preflightResponse);
   return preflightResponse;
 }
 
 // --- Main Middleware Logic ---
 export async function middleware(req: NextRequest): Promise<NextResponse> {
-  const requestOrigin = req.headers.get('Origin');
   const { pathname, searchParams } = req.nextUrl;
 
-  // Handle preflight requests
+  // Handle OPTIONS requests
   if (req.method === 'OPTIONS') {
-    return handlePreflightRequest(req);
+    return handleOptionsRequest();
   }
 
   // Create response for standard requests
   const response = NextResponse.next();
   
-  // Apply security and CORS headers
-  applyCorsHeaders(response, requestOrigin);
+  // Apply security headers
   addSecurityHeaders(response);
 
   // Authentication and authorization logic
@@ -212,7 +138,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     if (!token && !isPublicRoute) {
       const redirectResponse = NextResponse.redirect(new URL("/landing", req.url));
       addSecurityHeaders(redirectResponse);
-      applyCorsHeaders(redirectResponse, requestOrigin);
       return redirectResponse;
     }
 
