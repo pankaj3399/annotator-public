@@ -1,9 +1,10 @@
-"use server";
-import { authOptions } from "@/auth";
-import { connectToDatabase } from "@/lib/db";
-import { Wishlist } from "@/models/Wishlist";
-import { getServerSession } from "next-auth";
-import Stripe from "stripe";
+'use server';
+import { authOptions } from '@/auth';
+import { connectToDatabase } from '@/lib/db';
+import Course from '@/models/Courses';
+import { Wishlist } from '@/models/Wishlist';
+import { getServerSession } from 'next-auth';
+import Stripe from 'stripe';
 
 interface PaymentData {
   name: string;
@@ -14,16 +15,21 @@ export async function stripe(data: any) {
   try {
     const authSession = await getServerSession(authOptions);
     if (!authSession?.user?.id) {
-      return { error: "You need to be logged in to make a payment" };
+      return { error: 'You need to be logged in to make a payment' };
     }
 
     // Ensure data contains necessary information
-    if (!data?.name || !data?.price || !data?.id || !data?.type) {
-      return { error: "Missing required data fields" };
+    if (!data?.name || !data?.id || !data?.type) {
+      return { error: 'Missing required data fields' };
     }
 
+    let course;
+    if (data.type === 'course') {
+      course = await Course.findById(data.id);
+      data.price = parseFloat(course.price);
+    }
     const metadata = {
-      ...(data.type === "product"
+      ...(data.type === 'product'
         ? {
             wishlistId: data.id,
             itemId: data.itemId,
@@ -39,7 +45,7 @@ export async function stripe(data: any) {
     };
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-      apiVersion: "2024-12-18.acacia",
+      apiVersion: '2024-12-18.acacia',
     });
 
     // Create Stripe session
@@ -47,7 +53,7 @@ export async function stripe(data: any) {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: 'usd',
             product_data: {
               name: data.name,
             },
@@ -56,25 +62,25 @@ export async function stripe(data: any) {
           quantity: 1,
         },
       ],
-      mode: "payment",
+      mode: 'payment',
       success_url:
-        data.type === "product"
+        data.type === 'product'
           ? `${process.env.NEXTAUTH_URL}wishlist?payment=success`
           : `${process.env.NEXTAUTH_URL}tasks/myCourses`,
       cancel_url:
-        data.type === "product"
+        data.type === 'product'
           ? `${process.env.NEXTAUTH_URL}wishlist?payment=cancelled`
           : `${process.env.NEXTAUTH_URL}tasks/viewCourses?payment=cancelled`,
       metadata: metadata,
       payment_intent_data: {
         shipping: {
-          name: "Rahul Sharma",
+          name: 'John Doe',
           address: {
-            line1: "123 MG Road, Koramangala",
-            city: "Bangalore",
-            state: "Karnataka",
-            postal_code: "560034",
-            country: "IN",
+            line1: '123 Main St',
+            city: 'San Francisco',
+            state: 'California',
+            postal_code: '94105',
+            country: 'US',
           },
         },
       },
@@ -86,8 +92,8 @@ export async function stripe(data: any) {
       success: true,
     };
   } catch (error) {
-    console.error("Error in stripe function:", error);
-    return { error: "An error occurred while processing the payment" };
+    console.error('Error in stripe function:', error);
+    return { error: 'An error occurred while processing the payment' };
   }
 }
 
@@ -97,13 +103,13 @@ export async function getWishlists() {
 
     // Populate expert field and return the data
     const wishlists = await Wishlist.find().populate({
-      path: "expert",
-      select: "name email",
+      path: 'expert',
+      select: 'name email',
     });
 
     return JSON.parse(JSON.stringify(wishlists));
   } catch (e) {
-    console.error("Error in getWishlists function:", e);
-    throw new Error("Failed to fetch wishlists");
+    console.error('Error in getWishlists function:', e);
+    throw new Error('Failed to fetch wishlists');
   }
 }
