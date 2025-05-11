@@ -24,9 +24,17 @@ export async function stripe(data: any) {
     }
 
     let course;
+    let dbWishlist;
     if (data.type === 'course') {
       course = await Course.findById(data.id);
       data.price = parseFloat(course.price);
+    } else if (data.type === 'product') {
+      dbWishlist = await Wishlist.findById(data.id);
+      // data.itemId
+      const item = (dbWishlist.items || []).find(
+        (it: any) => it._id === data.itemId
+      );
+      data.price = parseFloat(item.catalog_details.price) || 0;
     }
     const metadata = {
       ...(data.type === 'product'
