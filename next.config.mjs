@@ -1,3 +1,5 @@
+// next.config.js
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
@@ -15,7 +17,6 @@ const nextConfig = {
   images: {
     domains: ['via.placeholder.com', 'cdn.sanity.io', 'annotator-public.s3.ap-south-1.amazonaws.com'],
   },
-  // Add these new configurations
   experimental: {
     serverActions: true,
   },
@@ -26,8 +27,25 @@ const nextConfig = {
         destination: '/api/upload/:path*',
       }
     ];
-  }
+  },
+
+  async headers() {
+    const defaultAllowedOrigin = process.env.NODE_ENV === 'production'
+      ? 'https://www.blolabel.ai'
+      : 'http://localhost:3000';
+
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: defaultAllowedOrigin,
+          },
+        ],
+      },
+    ];
+  },
 };
 
-// Keep export default since we're using ES modules
 export default nextConfig;
