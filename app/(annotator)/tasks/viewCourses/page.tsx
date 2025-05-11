@@ -113,7 +113,6 @@ export default function CoursePage() {
       const stripeData = {
         id: course._id.toString(),
         name: course.name,
-        price: parseFloat(course.price),
         type: 'course',
       };
       console.log(stripeData);
