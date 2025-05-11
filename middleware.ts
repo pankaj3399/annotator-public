@@ -1,5 +1,5 @@
-import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 // Define allowed origins list
 const allowedOrigins = [
@@ -9,49 +9,39 @@ const allowedOrigins = [
 ];
 
 export async function middleware(req: NextRequest) {
-  // Get the origin from request headers
   const origin = req.headers.get('origin');
-  
-  // Handle CORS before doing anything else
-  // Create response to modify
   const response = NextResponse.next();
   
-  // Only set specific origin if it's in our allowlist
+  // Override any existing CORS headers
+  // CRITICAL: Remove wildcard CORS header if present
+  response.headers.delete('Access-Control-Allow-Origin');
+  
+  // Set specific origin if in allowlist
   if (origin && allowedOrigins.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin);
   } else if (process.env.NODE_ENV === 'development') {
-    // Allow localhost in development
+    // In development, allow localhost origin
     response.headers.set('Access-Control-Allow-Origin', origin || '');
-  } else {
-    // No wildcard - remove existing header if present
-    response.headers.delete('Access-Control-Allow-Origin');
   }
   
-  // Handle preflight requests
+  // Handle OPTIONS preflight requests
   if (req.method === 'OPTIONS') {
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    response.headers.set('Access-Control-Max-Age', '86400');
     return response;
   }
   
-  // Original middleware code continues below
-  console.log("Middleware running for path:", req.nextUrl.pathname);
+  // Continue with original middleware logic
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const pathname = req.nextUrl.pathname;
 
-  // Handle storing team parameter for Google sign-in
+  // Handle team parameter for Google sign-in
   if (pathname === "/auth/signup") {
-    console.log("Processing signup route");
     const teamParam = req.nextUrl.searchParams.get('team');
-    console.log("Team parameter in URL:", teamParam);
-    
     if (teamParam) {
-      console.log("Setting team cookie:", teamParam);
-      // Store the team parameter in a cookie
       response.cookies.set('signup_team_id', teamParam, { 
         path: '/',
-        maxAge: 600, // 10 minutes
+        maxAge: 600, 
         httpOnly: true,
         sameSite: 'lax',
       });
@@ -61,13 +51,8 @@ export async function middleware(req: NextRequest) {
 
   // Check for Google callback
   if (pathname.startsWith('/api/auth/callback/google')) {
-    console.log("Processing Google callback");
-    // Check for team parameter in URL
     const teamParam = req.nextUrl.searchParams.get('team');
-    console.log("Team parameter in Google callback URL:", teamParam);
-    
     if (teamParam) {
-      console.log("Setting team cookie from callback:", teamParam);
       response.cookies.set('signup_team_id', teamParam, { 
         path: '/',
         maxAge: 600,
@@ -78,12 +63,9 @@ export async function middleware(req: NextRequest) {
     }
   }
   
-  // Clear the team cookie after successful authentication
+  // Clear team cookie after authentication
   if (pathname === "/dashboard" && token) {
-    console.log("User redirected to dashboard, checking for team cookie");
-    
     if (req.cookies.has('signup_team_id')) {
-      console.log("Clearing team cookie after successful authentication");
       response.cookies.delete('signup_team_id');
       return response;
     }
@@ -104,7 +86,6 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/auth");
 
   if (!token && !isPublicRoute) {
-    console.log("Redirecting unauthenticated user to landing page");
     return NextResponse.redirect(new URL("/landing", req.url));
   }
 
@@ -112,5 +93,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Ensure it runs on all routes, not just API routes
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
