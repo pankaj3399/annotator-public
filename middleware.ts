@@ -1,7 +1,41 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Define allowed origins list
+const allowedOrigins = [
+  'https://annotator-public-amber.vercel.app',
+  'https://annotator-public.vercel.app',
+  'https://www.blolabel.ai'
+];
+
 export async function middleware(req: NextRequest) {
+  // Get the origin from request headers
+  const origin = req.headers.get('origin');
+  
+  // Handle CORS before doing anything else
+  // Create response to modify
+  const response = NextResponse.next();
+  
+  // Only set specific origin if it's in our allowlist
+  if (origin && allowedOrigins.includes(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+  } else if (process.env.NODE_ENV === 'development') {
+    // Allow localhost in development
+    response.headers.set('Access-Control-Allow-Origin', origin || '');
+  } else {
+    // No wildcard - remove existing header if present
+    response.headers.delete('Access-Control-Allow-Origin');
+  }
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    response.headers.set('Access-Control-Max-Age', '86400');
+    return response;
+  }
+  
+  // Original middleware code continues below
   console.log("Middleware running for path:", req.nextUrl.pathname);
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
   const pathname = req.nextUrl.pathname;
@@ -15,7 +49,6 @@ export async function middleware(req: NextRequest) {
     if (teamParam) {
       console.log("Setting team cookie:", teamParam);
       // Store the team parameter in a cookie
-      const response = NextResponse.next();
       response.cookies.set('signup_team_id', teamParam, { 
         path: '/',
         maxAge: 600, // 10 minutes
@@ -35,7 +68,6 @@ export async function middleware(req: NextRequest) {
     
     if (teamParam) {
       console.log("Setting team cookie from callback:", teamParam);
-      const response = NextResponse.next();
       response.cookies.set('signup_team_id', teamParam, { 
         path: '/',
         maxAge: 600,
@@ -52,7 +84,6 @@ export async function middleware(req: NextRequest) {
     
     if (req.cookies.has('signup_team_id')) {
       console.log("Clearing team cookie after successful authentication");
-      const response = NextResponse.next();
       response.cookies.delete('signup_team_id');
       return response;
     }
@@ -77,7 +108,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/landing", req.url));
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
