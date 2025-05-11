@@ -5,6 +5,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { ProfileCompletionProvider } from '@/components/ProfileCompletionProvider';
+import CookieBanner from '@/components/CookieBanner';
 
 const geistSans = localFont({
   src: './fonts/GeistVF.woff',
@@ -39,6 +40,7 @@ export default function RootLayout({
           {' '}
           <ProfileCompletionProvider>
             {children}
+            <CookieBanner/>
             <Sooner />
             <Toaster />{' '}
           </ProfileCompletionProvider>
