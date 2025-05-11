@@ -11,7 +11,7 @@ function addSecurityHeaders(response: NextResponse): void {
   response.headers.delete('Referrer-Policy');
   response.headers.delete('Permissions-Policy');
   response.headers.delete('Strict-Transport-Security');
-  
+
   // Now set our own headers
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
@@ -26,14 +26,14 @@ function addSecurityHeaders(response: NextResponse): void {
   let cspDirectives = [
     "default-src 'self'",
     "script-src 'self'" +
-      (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : "") +
-      " 'unsafe-inline'" + // Allows inline scripts (needed for Next.js/React hydration/dev)
-      " https://www.googletagmanager.com https://www.google-analytics.com",
+    (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : "") +
+    " 'unsafe-inline'" + // Allows inline scripts (needed for Next.js/React hydration/dev)
+    " https://www.googletagmanager.com https://www.google-analytics.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // 'unsafe-inline' for styles
     "img-src 'self' data: https: *.blolabel.ai",
     "font-src 'self' https://fonts.gstatic.com",
     "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com",
-    "frame-src 'self'",
+    "frame-src 'self' https://*.github.io",
     "object-src 'none'",
     "form-action 'self'",
     "frame-ancestors 'self'",
@@ -49,10 +49,10 @@ function addSecurityHeaders(response: NextResponse): void {
 // --- Simplified OPTIONS handler with no CORS ---
 function handleOptionsRequest(): NextResponse {
   const preflightResponse = new NextResponse(null, { status: 204 });
-  
+
   // Prevent caching preflight responses
   preflightResponse.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
-  
+
   // Only add security headers, no CORS headers
   addSecurityHeaders(preflightResponse);
   return preflightResponse;
@@ -69,7 +69,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
   // Create response for standard requests
   const response = NextResponse.next();
-  
+
   // Apply security headers
   addSecurityHeaders(response);
 
@@ -79,7 +79,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     console.error("[Middleware] CRITICAL: NEXTAUTH_SECRET is not set.");
     return response;
   }
-  
+
   try {
     const token = await getToken({ req, secret: nextAuthSecret });
 
@@ -88,10 +88,10 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       const teamParam = searchParams.get('team');
       if (teamParam) {
         response.cookies.set('signup_team_id', teamParam, {
-          path: '/', 
-          maxAge: 600, 
-          httpOnly: true, 
-          sameSite: 'lax', 
+          path: '/',
+          maxAge: 600,
+          httpOnly: true,
+          sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production',
         });
       }
@@ -102,10 +102,10 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       const teamParam = searchParams.get('team');
       if (teamParam) {
         response.cookies.set('signup_team_id', teamParam, {
-          path: '/', 
-          maxAge: 600, 
-          httpOnly: true, 
-          sameSite: 'lax', 
+          path: '/',
+          maxAge: 600,
+          httpOnly: true,
+          sameSite: 'lax',
           secure: process.env.NODE_ENV === 'production',
         });
       }
@@ -114,10 +114,10 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     // Clear team cookie after successful authentication
     if (pathname === "/dashboard" && token) {
       if (req.cookies.has('signup_team_id')) {
-        response.cookies.delete({ 
-          name: 'signup_team_id', 
-          path: '/', 
-          secure: process.env.NODE_ENV === 'production' 
+        response.cookies.delete({
+          name: 'signup_team_id',
+          path: '/',
+          secure: process.env.NODE_ENV === 'production'
         });
       }
     }
@@ -125,7 +125,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     // Define public routes that don't require authentication
     const publicPageAndApiRoutes = ["/auth/login", "/auth/signup", "/landing", "/blogs", "/jobs"];
     const isNextAuthApiRoute = pathname.startsWith('/api/auth/');
-    
+
     const isPublicRoute =
       isNextAuthApiRoute ||
       publicPageAndApiRoutes.includes(pathname) ||
