@@ -23,22 +23,42 @@ function addSecurityHeaders(response: NextResponse): void {
   ];
   response.headers.set('Permissions-Policy', permissions.join(', '));
 
-  let cspDirectives = [
-    "default-src 'self'",
-    "script-src 'self'" +
+let cspDirectives = [
+  "default-src 'self'",
+  "script-src 'self'" +
     (process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : "") +
-    " 'unsafe-inline'" + // Allows inline scripts (needed for Next.js/React hydration/dev)
+    " 'unsafe-inline'" + 
     " https://www.googletagmanager.com https://www.google-analytics.com",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // 'unsafe-inline' for styles
-    "img-src 'self' data: https: *.blolabel.ai",
-    "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com",
-    "frame-src 'self' https://*.github.io",
-    "object-src 'none'",
-    "form-action 'self'",
-    "frame-ancestors 'self'",
-    "upgrade-insecure-requests"
-  ];
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", 
+  
+  // Image sources - keep the wildcard https: for maximum compatibility 
+  "img-src 'self' data: https: *.blolabel.ai *.github.io",
+  
+  "font-src 'self' https://fonts.gstatic.com",
+  
+  // Connect sources for APIs
+  "connect-src 'self' https://www.google-analytics.com https://region1.google-analytics.com " +
+    "https://*.googleapis.com https://*.openai.com https://*.anthropic.com https://*.deepgram.com " +
+    "https://*.assemblyai.com https://*.azure.microsoft.com https://*.gladia.io https://*.groq.com " +
+    "https://*.speechmatics.com https://*.deepl.com https://api.mymemory.translated.net " +
+    "https://libretranslate.de https://translate.argosopentech.com",
+  
+  // Frame sources for embedded content
+  "frame-src 'self' https://*.github.io https://jupyterlite.github.io/ " +
+    "https://discord.gg https://www.facebook.com https://twitter.com https://www.linkedin.com " + 
+    "https://www.instagram.com https://api.whatsapp.com",
+  
+  "object-src 'none'",
+  
+  // Form actions
+  "form-action 'self' https://www.facebook.com https://twitter.com https://www.linkedin.com " +
+    "https://api.whatsapp.com https://discord.gg",
+  
+  // Frame ancestors
+  "frame-ancestors 'self'",
+  
+  "upgrade-insecure-requests"
+];
   response.headers.set('Content-Security-Policy', cspDirectives.join('; '));
 
   if (process.env.NODE_ENV === 'production') {
