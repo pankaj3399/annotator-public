@@ -11,8 +11,8 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const GOOGLE_REDIRECT_URI =redirectUri
 // Modify these lines
-const FRONTEND_REDIRECT_SUCCESS = `${nextAuthUrl}/data?status=success`;
-const FRONTEND_REDIRECT_ERROR =  `${nextAuthUrl}/data?status=error`;
+const FRONTEND_REDIRECT_SUCCESS = `${nextAuthUrl}/projects/data?status=success`;
+const FRONTEND_REDIRECT_ERROR =  `${nextAuthUrl}/projects/data?status=error`;
 // Create OAuth client
 function getOAuthClient() {
   return new google.auth.OAuth2(

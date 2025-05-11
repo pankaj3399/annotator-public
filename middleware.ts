@@ -1,85 +1,137 @@
 import { getToken } from "next-auth/jwt";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  console.log("Middleware running for path:", req.nextUrl.pathname);
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
-  const pathname = req.nextUrl.pathname;
+// --- Security Headers Helper ---
+function addSecurityHeaders(response: NextResponse): void {
+  // Delete any existing security headers first to prevent conflicts
+  response.headers.delete('Content-Security-Policy');
+  response.headers.delete('X-Content-Type-Options');
+  response.headers.delete('X-Frame-Options');
+  response.headers.delete('X-XSS-Protection');
+  response.headers.delete('Referrer-Policy');
+  response.headers.delete('Permissions-Policy');
+  response.headers.delete('Strict-Transport-Security');
 
-  // Handle storing team parameter for Google sign-in
-  if (pathname === "/auth/signup") {
-    console.log("Processing signup route");
-    const teamParam = req.nextUrl.searchParams.get('team');
-    console.log("Team parameter in URL:", teamParam);
-    
-    if (teamParam) {
-      console.log("Setting team cookie:", teamParam);
-      // Store the team parameter in a cookie
-      const response = NextResponse.next();
-      response.cookies.set('signup_team_id', teamParam, { 
-        path: '/',
-        maxAge: 600, // 10 minutes
-        httpOnly: true,
-        sameSite: 'lax',
-      });
-      return response;
-    }
-  }
+  // Now set our own headers
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  response.headers.set('Referrer-Policy', 'no-referrer');
 
-  // Check for Google callback
-  if (pathname.startsWith('/api/auth/callback/google')) {
-    console.log("Processing Google callback");
-    // Check for team parameter in URL
-    const teamParam = req.nextUrl.searchParams.get('team');
-    console.log("Team parameter in Google callback URL:", teamParam);
-    
-    if (teamParam) {
-      console.log("Setting team cookie from callback:", teamParam);
-      const response = NextResponse.next();
-      response.cookies.set('signup_team_id', teamParam, { 
-        path: '/',
-        maxAge: 600,
-        httpOnly: true,
-        sameSite: 'lax',
-      });
-      return response;
-    }
-  }
-  
-  // Clear the team cookie after successful authentication
-  if (pathname === "/dashboard" && token) {
-    console.log("User redirected to dashboard, checking for team cookie");
-    
-    if (req.cookies.has('signup_team_id')) {
-      console.log("Clearing team cookie after successful authentication");
-      const response = NextResponse.next();
-      response.cookies.delete('signup_team_id');
-      return response;
-    }
-  }
-
-  const publicRoutes = [
-    "/auth/login",
-    "/auth/signup",
-    "/landing",
-    "/blogs",
-    "/jobs",
+  const permissions = [
+    'geolocation=()', 'microphone=()', 'camera=()', 'payment=()', 'usb=()',
   ];
-  const isPublicRoute =
-    publicRoutes.includes(pathname) ||
-    pathname.startsWith("/blogs/") ||
-    pathname.startsWith("/jobs/") ||
-    pathname.startsWith("/benchmark-arena") ||
-    pathname.startsWith("/auth");
+  response.headers.set('Permissions-Policy', permissions.join(', '));
 
-  if (!token && !isPublicRoute) {
-    console.log("Redirecting unauthenticated user to landing page");
-    return NextResponse.redirect(new URL("/landing", req.url));
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   }
-
-  return NextResponse.next();
 }
 
+// --- Simplified OPTIONS handler with no CORS ---
+function handleOptionsRequest(): NextResponse {
+  const preflightResponse = new NextResponse(null, { status: 204 });
+
+  // Prevent caching preflight responses
+  preflightResponse.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+
+  // Only add security headers, no CORS headers
+  addSecurityHeaders(preflightResponse);
+  return preflightResponse;
+}
+
+// --- Main Middleware Logic ---
+export async function middleware(req: NextRequest): Promise<NextResponse> {
+  const { pathname, searchParams } = req.nextUrl;
+
+  // Handle OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return handleOptionsRequest();
+  }
+
+  // Create response for standard requests
+  const response = NextResponse.next();
+
+  // Apply security headers
+  addSecurityHeaders(response);
+
+  // Authentication and authorization logic
+  const nextAuthSecret = process.env.NEXTAUTH_SECRET;
+  if (!nextAuthSecret) {
+    console.error("[Middleware] CRITICAL: NEXTAUTH_SECRET is not set.");
+    return response;
+  }
+
+  try {
+    const token = await getToken({ req, secret: nextAuthSecret });
+
+    // Handle team parameter for Google sign-in
+    if (pathname === "/auth/signup") {
+      const teamParam = searchParams.get('team');
+      if (teamParam) {
+        response.cookies.set('signup_team_id', teamParam, {
+          path: '/',
+          maxAge: 600,
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        });
+      }
+    }
+
+    // Check for Google callback
+    if (pathname.startsWith('/api/auth/callback/google')) {
+      const teamParam = searchParams.get('team');
+      if (teamParam) {
+        response.cookies.set('signup_team_id', teamParam, {
+          path: '/',
+          maxAge: 600,
+          httpOnly: true,
+          sameSite: 'lax',
+          secure: process.env.NODE_ENV === 'production',
+        });
+      }
+    }
+
+    // Clear team cookie after successful authentication
+    if (pathname === "/dashboard" && token) {
+      if (req.cookies.has('signup_team_id')) {
+        response.cookies.delete({
+          name: 'signup_team_id',
+          path: '/',
+          secure: process.env.NODE_ENV === 'production'
+        });
+      }
+    }
+
+    // Define public routes that don't require authentication
+    const publicPageAndApiRoutes = ["/auth/login", "/auth/signup", "/landing", "/blogs", "/jobs"];
+    const isNextAuthApiRoute = pathname.startsWith('/api/auth/');
+
+    const isPublicRoute =
+      isNextAuthApiRoute ||
+      publicPageAndApiRoutes.includes(pathname) ||
+      pathname.startsWith("/blogs/") ||
+      pathname.startsWith("/jobs/") ||
+      pathname.startsWith("/benchmark-arena") ||
+      pathname.startsWith("/auth");
+
+    // Redirect unauthenticated users to landing
+    if (!token && !isPublicRoute) {
+      const redirectResponse = NextResponse.redirect(new URL("/landing", req.url));
+      addSecurityHeaders(redirectResponse);
+      return redirectResponse;
+    }
+
+    return response;
+  } catch (error) {
+    console.error("[Middleware] Authentication error:", error);
+    // Fall back to treating as unauthenticated on error
+    return response;
+  }
+}
+
+// --- Middleware Configuration ---
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
