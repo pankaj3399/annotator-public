@@ -49,7 +49,6 @@ import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 
-
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -67,7 +66,7 @@ type Submenu = {
   href: string;
   label: string;
   active?: boolean;
-  icon?: LucideIcon | any; 
+  icon?: LucideIcon | any;
 };
 
 type MenuItem = {
@@ -104,7 +103,14 @@ export function Menu({ isOpen }: MenuProps) {
   // Extract project ID from URL with different route patterns
   useEffect(() => {
     const pathSegments = pathname.split('/');
-    
+    if (pathname.includes('/payments-manager') || 
+      pathname.includes('/settings/payments') || 
+      pathname.includes('/payments/history')) {
+    // Clear any previously set projectId for payment pages
+    setCurrentProjectId(null);
+    return; // Exit early - don't process other project ID extraction logic
+  }
+
     // Check for pipeline page (main entry point to a project)
     if (pathSegments.includes('pipeline')) {
       const pipelineIndex = pathSegments.indexOf('pipeline');
@@ -115,7 +121,7 @@ export function Menu({ isOpen }: MenuProps) {
           setCurrentProjectId(projectId);
         }
       }
-    } 
+    }
     // Handle template pages (like /projects/template/test/projectId)
     else if (pathSegments.includes('template')) {
       const templateIndex = pathSegments.indexOf('template');
@@ -140,7 +146,10 @@ export function Menu({ isOpen }: MenuProps) {
       }
     }
     // Check for project ID in query string (for notebook and data pages)
-    else if (pathname.includes('/dataScientist/notebook') || pathname.includes('/projects/data')) {
+    else if (
+      pathname.includes('/dataScientist/notebook') ||
+      pathname.includes('/projects/data')
+    ) {
       // Extract from URL query parameters
       try {
         const url = new URL(window.location.href);
@@ -178,11 +187,15 @@ export function Menu({ isOpen }: MenuProps) {
 
   // Check if in a project context
   const pathSegments = pathname.split('/');
-  const projectId = pathSegments[pathSegments.length - 1];
-  const inProjectContext = 
-    pathSegments.includes('projects') || 
-    pathname.includes('/dataScientist/notebook') ||
-    currentProjectId !== null;
+  const isPaymentRelatedPath =
+    pathname.includes('/payments-manager') ||
+    pathname.includes('/payments/history') ||
+    pathname.includes('/settings/payments');
+  const inProjectContext =
+    !isPaymentRelatedPath &&
+    (pathSegments.includes('projects') ||
+      pathname.includes('/dataScientist/notebook') ||
+      currentProjectId !== null);
 
   // Toggle section expansion
   const toggleSection = (groupLabel: string) => {
@@ -194,17 +207,17 @@ export function Menu({ isOpen }: MenuProps) {
 
   // Initialize all accordions to be expanded by default
   useEffect(() => {
-    console.log('--- Menu useEffect Start --- Pathname:', pathname); 
+    console.log('--- Menu useEffect Start --- Pathname:', pathname);
     console.log('Current Project ID:', currentProjectId);
     const initialState: { [key: string]: boolean } = {};
-  
+
     // Make ALL groups expanded by default
     updatedMenuList.forEach((group) => {
       // If the group has a groupLabel, make it expanded by default
       if (group.groupLabel) {
         initialState[group.groupLabel] = true;
       }
-      
+
       // Also expand each menu item that has submenus (like "Data" accordion)
       group.menus.forEach((item) => {
         if (item.submenus && item.submenus.length > 0) {
@@ -212,7 +225,7 @@ export function Menu({ isOpen }: MenuProps) {
         }
       });
     });
-  
+
     console.log('--- Menu useEffect End --- Final initialState:', initialState);
     setExpandedSections(initialState);
   }, [pathname, userRole, updatedMenuList, inProjectContext]);
@@ -222,25 +235,40 @@ export function Menu({ isOpen }: MenuProps) {
     // First check if the group already has an icon defined
     if (group.icon) return group.icon;
     if (group.groupIcon) return group.groupIcon;
-    
+
     // If no icon is defined, assign one based on the group label
     switch (group.groupLabel) {
-      case 'Knowledge': return Book;
-      case 'Data': return Database;
-      case 'UI Builder': return LayoutTemplate;
-      case 'Task Management': return Briefcase;
-      case 'Resources': return PersonStanding;
-      case 'Analytics': return LineChart;
-      case 'Settings & Configuration': return Cog;
-      case 'Project Management': return FolderKanban;
-      case 'Expert Management': return UserCog;
-      case 'Settings': return Wrench;
-      case 'AI Academy': return School;
-      case 'Contents': 
-      case 'Projects': return Folders;
-      case 'Project': return FolderCode;
-      case 'User': return User;
-      default: return FolderOpen;
+      case 'Knowledge':
+        return Book;
+      case 'Data':
+        return Database;
+      case 'UI Builder':
+        return LayoutTemplate;
+      case 'Task Management':
+        return Briefcase;
+      case 'Resources':
+        return PersonStanding;
+      case 'Analytics':
+        return LineChart;
+      case 'Settings & Configuration':
+        return Cog;
+      case 'Project Management':
+        return FolderKanban;
+      case 'Expert Management':
+        return UserCog;
+      case 'Settings':
+        return Wrench;
+      case 'AI Academy':
+        return School;
+      case 'Contents':
+      case 'Projects':
+        return Folders;
+      case 'Project':
+        return FolderCode;
+      case 'User':
+        return User;
+      default:
+        return FolderOpen;
     }
   };
 
@@ -253,7 +281,7 @@ export function Menu({ isOpen }: MenuProps) {
       } else if (label === 'Notebook') {
         return `/dataScientist/notebook?projectId=${currentProjectId}`;
       }
-      
+
       // For other project-related paths, ensure they use the current project ID
       if (href.includes('/projects/') && !href.includes('/projects/data')) {
         // Replace the project ID in the path if it exists
@@ -269,31 +297,38 @@ export function Menu({ isOpen }: MenuProps) {
   };
 
   // Always use the stored project ID for the Pipeline link
-  const backToProjectsHref = currentProjectId ? 
-    `/projects/pipeline/${currentProjectId}` : '/';
+  const backToProjectsHref = currentProjectId
+    ? `/projects/pipeline/${currentProjectId}`
+    : '/';
 
   return (
     <nav className='mt-8 h-full w-full'>
-      {inProjectContext && userRole !== 'data scientist' && currentProjectId && (
-        <div className='mb-6 px-4'>
-         {userRole === 'project manager' &&  <div className='flex items-center justify-between'>
-            <div className='flex items-center text-sm text-blue-500 mt-1'>
-              <NextLink
-                href={`/projects/pipeline/${currentProjectId}`}
-                className='flex items-center ml-1'
-              >
-                <span className='hover:underline'>Pipeline</span>
-              </NextLink>
-            </div>
-            <div className='flex items-center text-sm text-blue-500 mt-1'>
-              <NextLink href='/' className='flex items-center'>
-                <ArrowLeft className='h-3 w-3 mr-1' />
-                <span className='hover:underline'>Back to all projects</span>
-              </NextLink>
-            </div>
-          </div>}
-        </div>
-      )}
+      {inProjectContext &&
+        userRole !== 'data scientist' &&
+        currentProjectId && (
+          <div className='mb-6 px-4'>
+            {userRole === 'project manager' && (
+              <div className='flex items-center justify-between'>
+                <div className='flex items-center text-sm text-blue-500 mt-1'>
+                  <NextLink
+                    href={`/projects/pipeline/${currentProjectId}`}
+                    className='flex items-center ml-1'
+                  >
+                    <span className='hover:underline'>Pipeline</span>
+                  </NextLink>
+                </div>
+                <div className='flex items-center text-sm text-blue-500 mt-1'>
+                  <NextLink href='/' className='flex items-center'>
+                    <ArrowLeft className='h-3 w-3 mr-1' />
+                    <span className='hover:underline'>
+                      Back to all projects
+                    </span>
+                  </NextLink>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       <ul className='flex flex-col min-h-[calc(100vh-48px-36px-16px-32px)] lg:min-h-[calc(100vh-32px-40px-32px)] items-start space-y-1 px-2'>
         {updatedMenuList.map((group, groupIndex) => {
@@ -394,9 +429,12 @@ export function Menu({ isOpen }: MenuProps) {
                     let isHighlighted = item.active || hasActiveSubmenu;
 
                     const Icon = item.icon;
-                    
+
                     // Get the proper href with project ID if needed
-                    const menuHref = getHrefWithProjectId(item.href, item.label);
+                    const menuHref = getHrefWithProjectId(
+                      item.href,
+                      item.label
+                    );
 
                     return (
                       <div className='w-full' key={menuIndex}>
@@ -484,9 +522,12 @@ export function Menu({ isOpen }: MenuProps) {
                               {item.submenus.map((submenu, submenuIndex) => {
                                 // Get the icon component from the submenu object
                                 const SubmenuIcon = submenu.icon;
-                                
+
                                 // Add project ID to submenu hrefs if needed
-                                const submenuHref = getHrefWithProjectId(submenu.href, submenu.label);
+                                const submenuHref = getHrefWithProjectId(
+                                  submenu.href,
+                                  submenu.label
+                                );
 
                                 return (
                                   <TooltipProvider
