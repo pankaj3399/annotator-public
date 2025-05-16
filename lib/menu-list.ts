@@ -57,6 +57,7 @@ import {
   User2Icon,
   BookA,
   UserCheck,
+  DollarSign,
 } from "lucide-react";
 
 import { BookIcon } from "@/components/BookIcon";
@@ -159,6 +160,19 @@ function getAnnotatorMenu(pathname: string): Group[] {
       ],
     },
     {
+      groupLabel: "Payments",
+      menus: [
+        {
+            href: "/payments-manager/history",
+          label: "Payment History",
+          active: pathname.includes("/payments-manager/history"),
+          icon: FileText,
+        },
+      
+      ],
+    },
+
+    {
       groupLabel: "Projects", // Changed from "Contents" to be more descriptive
       menus: [
         {
@@ -200,6 +214,26 @@ function getAnnotatorMenu(pathname: string): Group[] {
           active: pathname.includes("/profile"),
           icon: CircleUser,
         },
+         {
+      href: "/settings/payments",
+      label: "Payments",
+      active: pathname.includes("/settings/payments") || pathname.includes("/payments/"),
+      icon: DollarSign,
+      submenus: [
+        {
+          href: "/settings/payments",
+          label: "Bank Settings",
+          active: pathname.includes("/settings/payments") && !pathname.includes("/history"),
+          icon: CreditCard,
+        },
+        {
+          href: "/payments/history",
+          label: "Payment History",
+          active: pathname.includes("/payments/history"),
+          icon: FileText,
+        }
+      ],
+    },
       ],
     },
   ];
@@ -609,6 +643,18 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
       },
+          {
+      groupLabel: "Payments",
+      menus: [
+        {
+            href: "/payments-manager/history",
+          label: "Payment History",
+          active: pathname.includes("/payments-manager/history"),
+          icon: FileText,
+        },
+      
+      ],
+    },
       {
         groupLabel: "Contents",
         menus: [
@@ -693,7 +739,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
     projectId == "chat" ||
     projectId == "profile" ||
     projectId == "wishlist" ||
-    projectId == "bank" || projectId == "providerKeys" ||
+    projectId == "bank" || projectId == "providerKeys" || projectId=="history"||
     fpath == "courses"
   ) {
     const homeMenu: Group[] = [
@@ -792,6 +838,18 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           },
         ],
       },      
+          {
+      groupLabel: "Payments",
+      menus: [
+        {
+            href: "/payments-manager/history",
+          label: "Payment History",
+          active: pathname.includes("/payments-manager/history"),
+          icon: FileText,
+        },
+      
+      ],
+    },
       {
         groupLabel: "Settings",
         menus: [
@@ -811,6 +869,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             submenus: [],
             visibleTo: ["project manager"],
           },
+
           {
             href: "/profile",
             label: "Profile",
