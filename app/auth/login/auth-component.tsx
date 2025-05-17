@@ -20,7 +20,7 @@ export default function AuthComponent() {
   }, [])
 
   const benchmarkId = searchParams.get("benchmarkId")
-  let callbackUrl = "/"
+  let callbackUrl = "/dashboard"
   if (benchmarkId) {
     callbackUrl = benchmarkId === "1" ? "/benchmark-arena" : `/benchmark-arena/${benchmarkId}`
   }

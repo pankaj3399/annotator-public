@@ -316,10 +316,10 @@ export function Menu({ isOpen }: MenuProps) {
 
   return (
     <nav className='mt-8 h-full w-full'>
-      {inProjectContext && userRole !== 'data scientist' && (
+      {inProjectContext && userRole !== 'data scientist'  && pathname !== '/' && (
         <div className='mb-6 px-4'>
           {userRole === 'project manager' && (
-            <div className='flex items-center justify-between'>
+            <div className='flex items-center justify-around'>
               <div className='flex items-center text-sm text-blue-500 mt-1'>
                 <NextLink
                   href={backToProjectsHref} 

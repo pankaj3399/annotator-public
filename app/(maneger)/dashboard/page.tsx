@@ -57,7 +57,7 @@ export default function ProjectDashboard() {
 
   useEffect(() => {
     if (session) {
-      if (session?.user?.role === 'annotator') router.push('/tasks');
+      if (session?.user?.role === 'annotator') router.push('/tasks/annotatorDashboard');
       if (session?.user?.role === 'agency owner') router.push('/agencyOwner');
       if (session?.user?.role === 'system admin') router.push('/admin');
       if (session?.user?.role === 'data scientist') router.push('/dataScientist/dashboard');
