@@ -1,4 +1,3 @@
-// src/app/training/[sessionId]/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -7,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from "next-auth/react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { AlertCircle } from "lucide-react"; // Use Lucide icons
+import { AlertCircle, Camera, Mic } from "lucide-react"; // Added Camera and Mic icons
 import Loader from '@/components/ui/NewLoader/Loader';
 
 export default function WebinarPage() {
@@ -19,8 +18,40 @@ export default function WebinarPage() {
     const [authToken, setAuthToken] = useState<string | null>(null);
     const [isLoadingToken, setIsLoadingToken] = useState(true); // Start true
     const [error, setError] = useState<string | null>(null);
+    
+    // New state for media permissions
+    const [hasMediaPermissions, setHasMediaPermissions] = useState<boolean>(false);
+    const [isRequestingPermissions, setIsRequestingPermissions] = useState<boolean>(false);
+    const [permissionsError, setPermissionsError] = useState<string | null>(null);
 
     const { data: session, status: authStatus } = useSession();
+    
+    // Function to request media permissions
+    const requestMediaPermissions = async () => {
+        setIsRequestingPermissions(true);
+        setPermissionsError(null);
+        try {
+            // Request both camera and microphone permissions
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: true
+            });
+            
+            // If successful, set permissions granted
+            setHasMediaPermissions(true);
+            
+            // Clean up the stream (we don't need it running, just need the permissions)
+            stream.getTracks().forEach(track => track.stop());
+            
+        } catch (err: any) {
+            console.error('Permission error:', err);
+            setPermissionsError(err.message || 'Failed to access camera and microphone. Please grant permissions.');
+            setHasMediaPermissions(false);
+        } finally {
+            setIsRequestingPermissions(false);
+        }
+    };
+
     useEffect(() => {
         // Ensure sessionId is valid before proceeding
         if (!sessionId) {
@@ -92,10 +123,7 @@ export default function WebinarPage() {
 
     // --- Render logic ---
     if (authStatus === 'loading' || isLoadingToken) {
-        return (
-                <Loader/>
-           
-        );
+        return <Loader />;
     }
 
     if (error) { // Handles auth errors, permission errors, token fetch errors
@@ -113,10 +141,50 @@ export default function WebinarPage() {
         );
     }
 
-    if (authStatus === 'authenticated' && authToken) {
+    // Show permission request UI if authenticated with token but no media permissions yet
+    if (authStatus === 'authenticated' && authToken && !hasMediaPermissions) {
+        return (
+            <div className="flex h-screen w-screen items-center justify-center p-4">
+                <div className="max-w-lg p-6 border rounded-lg shadow-md bg-white">
+                    <h2 className="text-xl font-semibold mb-4">Camera & Microphone Access Required</h2>
+                    
+                    <div className="flex items-center space-x-2 mb-6">
+                        <Camera className="h-5 w-5 text-blue-500" />
+                        <Mic className="h-5 w-5 text-blue-500" />
+                        <p>This webinar requires access to your camera and microphone.</p>
+                    </div>
+                    
+                    {permissionsError && (
+                        <Alert variant="destructive" className="mb-4">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle>Permission Error</AlertTitle>
+                            <AlertDescription>{permissionsError}</AlertDescription>
+                        </Alert>
+                    )}
+                    
+                    <div className="flex flex-col space-y-3">
+                        <Button 
+                            onClick={requestMediaPermissions}
+                            disabled={isRequestingPermissions}
+                            className="w-full"
+                        >
+                            {isRequestingPermissions ? 'Requesting Access...' : 'Grant Camera & Microphone Access'}
+                        </Button>
+                        
+                        <div className="text-sm text-gray-500 mt-2">
+                            <p>If you previously denied permissions, you may need to reset them in your browser settings.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Only render HMS component if authenticated, has token, and media permissions granted
+    if (authStatus === 'authenticated' && authToken && hasMediaPermissions) {
         return (
             <div style={{ height: '100vh', width: '100vw' }}>
-                <HMSPrebuilt authToken={authToken}  />
+                <HMSPrebuilt authToken={authToken} />
             </div>
         );
     }
