@@ -116,7 +116,7 @@ export default function WebinarPage() {
     if (authStatus === 'authenticated' && authToken) {
         return (
             <div style={{ height: '100vh', width: '100vw' }}>
-                <HMSPrebuilt authToken={authToken} />
+                <HMSPrebuilt authToken={authToken}  />
             </div>
         );
     }
