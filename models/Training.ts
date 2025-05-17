@@ -21,6 +21,7 @@ export interface IWebinarSession extends Document {
   title: string;
   description?: string;
   roomId: string | null; // 100ms Room ID
+  sessionId?: string | null; 
   scheduledAt: Date | null;
   duration?: number; // Duration in minutes
   status: "scheduled" | "live" | "completed" | "cancelled";
@@ -53,6 +54,7 @@ const webinarSessionSchema = new Schema<IWebinarSession>({
   title: { type: String, required: true },
   description: { type: String, default: "" },
   roomId: { type: String, default: null, index: true }, // Index for faster webhook lookup
+  sessionId: { type: String, default: null, index: true },
   scheduledAt: { type: Date, default: null },
   duration: { type: Number, default: 60 },
   status: {

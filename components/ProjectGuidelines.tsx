@@ -80,6 +80,8 @@ interface Message {
   timestamp: string;
   attachments: Attachment[];
   isAiMessage?: boolean;
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 interface File extends Attachment {
@@ -98,6 +100,14 @@ interface AIConfig {
   model: string;
   apiKey: string;
   modelName?: string;
+}
+
+interface GuidelineData {
+  aiProvider?: string;
+  aiModel?: string;
+  description: string;
+  messages: Message[];
+  files: File[];
 }
 
 interface AIModelSelectorProps {
@@ -121,6 +131,16 @@ interface KnowledgeSidebarProps {
   setShowIframe: (show: boolean) => void;
   handleConnect: () => void;
   handleBackFromIframe: () => void;
+}
+
+// Interface for the AI Model Selector Bottom Sheet
+interface AIModelBottomSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (config: AIConfig) => void;
+  isLoading: boolean;
+  currentConfig: AIConfig | null;
+  isConfigured: boolean;
 }
 
 // New Sidebar Component for Knowledge Files
@@ -248,14 +268,19 @@ const KnowledgeSidebar: React.FC<KnowledgeSidebarProps> = ({
   );
 };
 
-// AIModelSelector component remains the same
-const AIModelSelector: React.FC<AIModelSelectorProps> = ({
+// New AI Model Bottom Sheet Component
+const AIModelBottomSheet: React.FC<AIModelBottomSheetProps> = ({
+  isOpen,
+  onClose,
   onSelect,
   isLoading,
+  currentConfig,
+  isConfigured
 }) => {
+  const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
   const [aiModels, setAiModels] = useState<AIModel[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -264,14 +289,15 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
         const response = await getProviderAIModels();
         if (response.success && response.models) {
           setAiModels(response.models);
-          if (response.models.length > 0 && !selectedModelId) {
-            const firstModel = response.models[0];
-            setSelectedModelId(firstModel.id);
-            onSelect({
-              provider: firstModel.provider,
-              model: firstModel.model,
-              apiKey: firstModel.apiKey,
-            });
+          
+          // Pre-select the current model if it exists
+          if (currentConfig?.provider && currentConfig?.model) {
+            const currentModel = response.models.find(
+              model => model.provider === currentConfig.provider && model.model === currentConfig.model
+            );
+            if (currentModel) {
+              setSelectedModel(currentModel);
+            }
           }
         } else {
           toast.error(response.error || 'Failed to fetch AI models');
@@ -283,80 +309,110 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
         setLoading(false);
       }
     };
-    fetchModels();
-  }, [selectedModelId, onSelect]); // Removed dependency on aiModels to prevent potential loop
+    
+    if (isOpen) {
+      fetchModels();
+    }
+  }, [isOpen, currentConfig]);
+
+  const handleSaveSettings = () => {
+    if (selectedModel) {
+      const config = {
+        provider: selectedModel.provider,
+        model: selectedModel.model,
+        apiKey: selectedModel.apiKey,
+        modelName: selectedModel.name,
+      };
+      onSelect(config);
+    }
+    onClose();
+  };
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
-    setSelectedModelId(id);
-    if (id) {
-      const selectedModel = aiModels.find((model) => model.id === id);
-      if (selectedModel) {
-        onSelect({
-          provider: selectedModel.provider,
-          model: selectedModel.model,
-          apiKey: selectedModel.apiKey,
-          modelName: selectedModel.name,
-        });
-      }
-    }
+    const model = aiModels.find(m => m.id === id) || null;
+    setSelectedModel(model);
   };
+  
+  return (
+    <div 
+      className={`fixed inset-x-0 bottom-0 w-full bg-background shadow-lg transform transition-transform duration-300 ease-in-out z-50 flex flex-col border-t rounded-t-lg ${
+        isOpen ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      {/* Bottom Sheet Content */}
+      <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <h2 className="text-xl font-semibold">AI Model Settings</h2>
+        <p className="text-muted-foreground mt-1 mb-6">
+          Select your preferred AI provider and model for guidelines assistance
+        </p>
+        
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : aiModels.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-muted-foreground mb-2">No AI models available</p>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/providerKeys')}
+            >
+              Configure AI Models
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <label className="text-sm font-medium w-24">AI Model:</label>
+                <select
+                  className="flex-1 p-2 border rounded bg-background"
+                  onChange={handleModelChange}
+                  value={selectedModel?.id || ""}
+                >
+                  <option value="">Select a model</option>
+                  {aiModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.provider} - {model.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {selectedModel && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium mb-2">Current Selection</h3>
+                <div className="rounded-md bg-muted/50 overflow-hidden">
+                  <div className="grid grid-cols-2 py-2 px-4 border-b">
+                    <div className="font-medium">Provider:</div>
+                    <div>{selectedModel.provider}</div>
+                  </div>
+                  <div className="grid grid-cols-2 py-2 px-4">
+                    <div className="font-medium">Model:</div>
+                    <div>{selectedModel.model}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (aiModels.length === 0) {
-    return (
-      <div className='text-center py-4'>
-        <p className='text-muted-foreground mb-2'>No AI models available</p>
-        <Button
-          variant='outline'
-          onClick={() => (window.location.href = '/settings/ai-models')}
+      {/* Bottom Sheet Footer */}
+      <div className="p-4 border-t space-y-2">
+        <Button 
+          className="w-full" 
+          disabled={!selectedModel || isLoading}
+          onClick={handleSaveSettings}
         >
-          Add New AI Model
+          {isConfigured ? 'Update AI Model' : 'Configure & Start AI'}
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onClose}>
+          Cancel
         </Button>
       </div>
-    );
-  }
-
-  return (
-    <div className='space-y-2'>
-      <label className='text-sm font-medium'>
-        Select AI Model <span className='text-red-500'>*</span>
-      </label>
-      <select
-        className='w-full p-2 border rounded'
-        value={selectedModelId}
-        onChange={handleModelChange}
-        disabled={isLoading}
-        required
-      >
-        <option value=''>Choose an AI Model</option>
-        {aiModels.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.name} ({model.provider} - {model.model})
-          </option>
-        ))}
-      </select>
-
-      {selectedModelId && (
-        <div className='rounded-md bg-muted p-3 text-sm'>
-          <p className='font-medium'>Selected Model Information:</p>
-          <ul className='mt-1 space-y-1 text-muted-foreground'>
-            <li>
-              Name: {aiModels.find((m) => m.id === selectedModelId)?.name}
-            </li>
-            <li>
-              Provider:{' '}
-              {aiModels.find((m) => m.id === selectedModelId)?.provider}
-            </li>
-            <li>
-              Model: {aiModels.find((m) => m.id === selectedModelId)?.model}
-            </li>
-          </ul>
-        </div>
-      )}
     </div>
   );
 };
@@ -372,6 +428,7 @@ const ProjectGuidelines = () => {
   const [projectName, setProjectName] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const [guidelineData, setGuidelineData] = useState<GuidelineData | null>(null);
 
   // Message and file handling states
   const [newMessage, setNewMessage] = useState('');
@@ -391,13 +448,15 @@ const ProjectGuidelines = () => {
     apiKey: '',
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [isAiConfigured, setIsAiConfigured] = useState(false);
   const [showAiSetupPrompt, setShowAiSetupPrompt] = useState(true);
   const [savedAiConfig, setSavedAiConfig] = useState<AIConfig | null>(null);
 
-  // Knowledge sidebar state - changed from dialog to sidebar
+  // Knowledge sidebar state
   const [knowledgeSidebarOpen, setKnowledgeSidebarOpen] = useState(false);
+  
+  // AI Model selector state - now a bottom sheet
+  const [aiBottomSheetOpen, setAiBottomSheetOpen] = useState(false);
   
   // Connected data sources (example data)
   const [dataSources, setDataSources] = useState<DataSource[]>([
@@ -443,40 +502,61 @@ const ProjectGuidelines = () => {
     if (messages.length > 0) {
       setShowAiSetupPrompt(false);
     }
-    if (aiMessages.length > 0) {
+    
+    // Check if the guideline has AI configured at base level
+    if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+      setIsAiConfigured(true);
+    } else if (aiMessages.length > 0) {
       setIsAiConfigured(true);
     }
 
-    const fetchAiConfig = async () => {
-      try {
-        const res = await fetch(`/api/projects/${projectId}/ai-config`);
-        if (!res.ok) {
-          console.log(`API endpoint returned ${res.status}: ${res.statusText}`);
+    // Try to find an associated AI model from the provider APIs
+    const findAssociatedAIModel = async () => {
+      if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+        try {
+          const response = await getProviderAIModels();
+          if (response.success && response.models) {
+            const matchingModel = response.models.find(
+              model => model.provider === guidelineData.aiProvider && model.model === guidelineData.aiModel
+            );
+            
+            if (matchingModel) {
+              const modelConfig: AIConfig = {
+                provider: matchingModel.provider,
+                model: matchingModel.model,
+                apiKey: matchingModel.apiKey,
+                modelName: matchingModel.name
+              };
+              
+              setAiConfig(modelConfig);
+              setSavedAiConfig(modelConfig);
+              setIsAiConfigured(true);
+              
+              // Store in localStorage as backup
+              try {
+                localStorage.setItem(`project_${projectId}_ai_config`, JSON.stringify(modelConfig));
+              } catch (localStorageError) {
+                console.log('Could not save to localStorage:', localStorageError);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching AI models:', error);
+          // Try to retrieve from localStorage
           try {
             const savedConfig = localStorage.getItem(`project_${projectId}_ai_config`);
             if (savedConfig) {
               const parsedConfig = JSON.parse(savedConfig);
               setSavedAiConfig(parsedConfig);
               setAiConfig(parsedConfig);
-              if (parsedConfig.provider && parsedConfig.model && parsedConfig.apiKey) {
-                setIsAiConfigured(true);
-              }
+              setIsAiConfigured(true);
             }
           } catch (localStorageError) {
             console.log('Could not load from localStorage:', localStorageError);
           }
-          return;
         }
-        const data = await res.json();
-        if (data.success && data.config) {
-          setSavedAiConfig(data.config);
-          setAiConfig(data.config);
-          if (data.config.provider && data.config.model && data.config.apiKey) {
-            setIsAiConfigured(true);
-          }
-        }
-      } catch (error) {
-        console.log('Error fetching AI config (may be a missing endpoint):', error);
+      } else {
+        // Try to retrieve from localStorage if not in database
         try {
           const savedConfig = localStorage.getItem(`project_${projectId}_ai_config`);
           if (savedConfig) {
@@ -492,8 +572,10 @@ const ProjectGuidelines = () => {
         }
       }
     };
-    fetchAiConfig();
-  }, [messages, projectId]);
+    
+    findAssociatedAIModel();
+    
+  }, [messages, projectId, guidelineData]);
 
   const fetchProjectDetails = async () => {
     try {
@@ -519,6 +601,13 @@ const ProjectGuidelines = () => {
       if (data.success) {
         setMessages(data.messages || []);
         setFiles(data.files || []);
+        setGuidelineData({
+          description: data.description || '',
+          messages: data.messages || [],
+          files: data.files || [],
+          aiProvider: data.aiProvider,
+          aiModel: data.aiModel
+        });
       } else {
         toast.error('Failed to load guidelines');
       }
@@ -607,7 +696,7 @@ const ProjectGuidelines = () => {
           toast.info('Configure AI assistant to get automated responses', {
             action: {
               label: 'Configure',
-              onClick: () => setAiModalOpen(true),
+              onClick: () => setAiBottomSheetOpen(true),
             },
           });
         }
@@ -655,23 +744,8 @@ const ProjectGuidelines = () => {
       );
 
       if (response) {
-        const aiResponseMessage = {
-          _id: `ai-response-${Date.now()}`,
-          sender: {
-            _id: 'ai-assistant',
-            name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
-            email: 'ai@assistant.com',
-            image: '/ai-assistant-avatar.png',
-          },
-          content: response,
-          timestamp: new Date().toISOString(),
-          attachments: [],
-          isAiMessage: true,
-        };
-        setMessages((prev) => [...prev, aiResponseMessage]);
-
-        // Save AI message to server
-        await fetch(`/api/projects/${projectId}/guidelines`, {
+        // First save to server to get the proper _id and timestamp
+        const saveResponse = await fetch(`/api/projects/${projectId}/guidelines`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -681,6 +755,49 @@ const ProjectGuidelines = () => {
             aiModel: aiConfig.model,
           }),
         });
+        
+        const saveData = await saveResponse.json();
+        
+        if (saveResponse.ok && saveData.success) {
+          // Use the server-returned message if available
+          const aiResponseMessage = saveData.message || {
+            _id: `ai-response-${Date.now()}`,
+            sender: {
+              _id: 'ai-assistant',
+              name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
+              email: 'ai@assistant.com',
+              image: '/ai-assistant-avatar.png',
+            },
+            content: response,
+            timestamp: new Date().toISOString(),
+            attachments: [],
+            isAiMessage: true,
+            aiProvider: aiConfig.provider,
+            aiModel: aiConfig.model,
+          };
+          
+          setMessages((prev) => [...prev, aiResponseMessage]);
+        } else {
+          // Fallback to local message if server save failed
+          const aiResponseMessage = {
+            _id: `ai-response-${Date.now()}`,
+            sender: {
+              _id: 'ai-assistant',
+              name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
+              email: 'ai@assistant.com',
+              image: '/ai-assistant-avatar.png',
+            },
+            content: response,
+            timestamp: new Date().toISOString(),
+            attachments: [],
+            isAiMessage: true,
+            aiProvider: aiConfig.provider,
+            aiModel: aiConfig.model,
+          };
+          
+          setMessages((prev) => [...prev, aiResponseMessage]);
+          console.error('Error saving AI message to server');
+        }
       }
     } catch (error) {
       console.error('Error generating AI response:', error);
@@ -690,88 +807,168 @@ const ProjectGuidelines = () => {
     }
   };
 
-  const configureAndTrainAI = async () => {
-    if (!aiConfig.apiKey || !aiConfig.provider || !aiConfig.model) {
-      toast.error('Please configure all AI settings');
+  // Save AI model to the guideline level in the database
+  const saveAIModelToGuideline = async (config: AIConfig) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/guidelines`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          aiConfig: {
+            provider: config.provider,
+            model: config.model
+          }
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        // Update local guideline data
+        setGuidelineData(prev => prev ? {
+          ...prev,
+          aiProvider: config.provider,
+          aiModel: config.model
+        } : null);
+        
+        return true;
+      } else {
+        console.error('Failed to save AI model to guideline:', data.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving AI model to guideline:', error);
+      return false;
+    }
+  };
+
+  // Configure and train the selected AI model
+  const configureAndTrainAI = async (config?: AIConfig) => {
+    const configToUse = config || aiConfig;
+    
+    if (!configToUse.apiKey || !configToUse.provider || !configToUse.model) {
+      toast.error('Please select a valid AI model');
       return;
     }
+    
     setIsGeneratingAI(true);
     try {
-      // Save config attempt (optional)
-      try {
-        const configResponse = await fetch(`/api/projects/${projectId}/ai-config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ config: aiConfig }),
-        });
-        if (!configResponse.ok) console.log(`Warning: Could not save AI config. Status: ${configResponse.status}`);
-      } catch (configError) {
-        console.log('Error saving AI config (endpoint may not exist):', configError);
+      // Save to database at guideline level
+      const savedToGuideline = await saveAIModelToGuideline(configToUse);
+      if (!savedToGuideline) {
+        console.log('Warning: Could not save AI model to guideline in database');
       }
-      // Local storage fallback
+      
+      // Save to local storage as backup
       try {
-        localStorage.setItem(`project_${projectId}_ai_config`, JSON.stringify(aiConfig));
+        localStorage.setItem(`project_${projectId}_ai_config`, JSON.stringify(configToUse));
       } catch (storageError) {
         console.log('Could not save to localStorage:', storageError);
       }
 
-      // Training prompt
-      const trainingPrompt = `
-        Project Name: ${projectName}
-        This AI will assist with project guidelines and answering questions related to this project.
-        The AI should maintain a professional and helpful tone, reference project details when relevant, assist with clarifying guidelines or requirements, and help team members understand project context.
-        Please introduce yourself as an AI assistant for the "${projectName}" project with a brief, professional message.
-      `;
+      // Update state with the new config
+      setAiConfig(configToUse);
+      setSavedAiConfig(configToUse);
+      setIsAiConfigured(true);
+      setShowAiSetupPrompt(false);
 
-      // Generate intro response
-      const response = await generateAIResponseWithAttachments(
-        aiConfig.provider,
-        aiConfig.model,
-        trainingPrompt,
-        projectId,
-        aiConfig.apiKey
-      );
+      // If this is the first setup, generate an intro response
+      if (!isAiConfigured || messages.length === 0) {
+        // Training prompt
+        const trainingPrompt = `
+          Project Name: ${projectName}
+          This AI will assist with project guidelines and answering questions related to this project.
+          The AI should maintain a professional and helpful tone, reference project details when relevant, assist with clarifying guidelines or requirements, and help team members understand project context.
+          Please introduce yourself as an AI assistant for the "${projectName}" project with a brief, professional message.
+        `;
 
-      if (response) {
-        const aiMessage = {
-          _id: `ai-intro-${Date.now()}`,
-          sender: {
-            _id: 'ai-assistant',
-            name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
-            email: 'ai@assistant.com',
-            image: '/ai-assistant-avatar.png',
-          },
-          content: response,
-          timestamp: new Date().toISOString(),
-          attachments: [],
-          isAiMessage: true,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-        setIsAiConfigured(true);
-        setShowAiSetupPrompt(false);
+        // Generate intro response
+        const response = await generateAIResponseWithAttachments(
+          configToUse.provider,
+          configToUse.model,
+          trainingPrompt,
+          projectId,
+          configToUse.apiKey
+        );
 
-        // Save intro message to server
-        await fetch(`/api/projects/${projectId}/guidelines`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: response,
-            isAiMessage: true,
-            aiProvider: aiConfig.provider,
-            aiModel: aiConfig.model,
-          }),
-        });
-        toast.success('AI assistant is ready to help with this project');
+        if (response) {
+          // Save intro message to server with aiProvider and aiModel fields
+          const messageResponse = await fetch(`/api/projects/${projectId}/guidelines`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: response,
+              isAiMessage: true,
+              aiProvider: configToUse.provider,
+              aiModel: configToUse.model,
+            }),
+          });
+          
+          if (messageResponse.ok) {
+            const messageData = await messageResponse.json();
+            if (messageData.success) {
+              // Use the server-returned message if available, otherwise create a local version
+              const aiMessage = messageData.message || {
+                _id: `ai-intro-${Date.now()}`,
+                sender: {
+                  _id: 'ai-assistant',
+                  name: `${configToUse.modelName || configToUse.provider} Assistant`,
+                  email: 'ai@assistant.com',
+                  image: '/ai-assistant-avatar.png',
+                },
+                content: response,
+                timestamp: new Date().toISOString(),
+                attachments: [],
+                isAiMessage: true,
+                aiProvider: configToUse.provider,
+                aiModel: configToUse.model,
+              };
+              
+              // Add message to the UI
+              setMessages((prev) => [...prev, aiMessage]);
+              toast.success('AI assistant is ready to help with this project');
+            }
+          } else {
+            // Fallback if server request failed
+            const aiMessage = {
+              _id: `ai-intro-${Date.now()}`,
+              sender: {
+                _id: 'ai-assistant',
+                name: `${configToUse.modelName || configToUse.provider} Assistant`,
+                email: 'ai@assistant.com',
+                image: '/ai-assistant-avatar.png',
+              },
+              content: response,
+              timestamp: new Date().toISOString(),
+              attachments: [],
+              isAiMessage: true,
+              aiProvider: configToUse.provider,
+              aiModel: configToUse.model,
+            };
+            
+            setMessages((prev) => [...prev, aiMessage]);
+            toast.success('AI assistant is ready to help with this project');
+          }
+        } else {
+          toast.error('Failed to train AI assistant');
+        }
       } else {
-        toast.error('Failed to train AI assistant');
+        toast.success(`Updated to ${configToUse.modelName || configToUse.model} as your AI assistant`);
       }
     } catch (error) {
-      console.error('Error training AI:', error);
+      console.error('Error configuring AI:', error);
       toast.error('Error setting up AI assistant');
     } finally {
       setIsGeneratingAI(false);
-      setAiModalOpen(false);
+      setAiBottomSheetOpen(false);
     }
+  };
+
+  // Handler for AI model selection from the bottom sheet
+  const handleSelectedAIModel = (config: AIConfig) => {
+    // Call the configure and train function with the selected config
+    configureAndTrainAI(config);
   };
 
   const handleFileUpload = async (files: FileList) => {
@@ -924,20 +1121,57 @@ const ProjectGuidelines = () => {
     return <Loader />;
   }
 
+  // Helper to get model info for display
+  const getModelDisplayInfo = (message: Message) => {
+    // First try the message-specific info
+    if (message.aiProvider && message.aiModel) {
+      return `${message.aiProvider} - ${message.aiModel}`;
+    }
+    
+    // Then try the guideline-level info
+    if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+      return `${guidelineData.aiProvider} - ${guidelineData.aiModel}`;
+    }
+    
+    // Fallback to saved config
+    if (savedAiConfig) {
+      return `${savedAiConfig.provider} - ${savedAiConfig.modelName || savedAiConfig.model}`;
+    }
+    
+    // Generic fallback
+    return 'AI Assistant';
+  };
+
   // Main Component Return
   return (
     <Card className='w-full'>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className='text-2xl'>Project Guidelines Assistant</CardTitle>
-          <p className="text-muted-foreground text-sm mt-1">Ask questions about guidelines using your preferred AI model</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Ask questions about guidelines using your preferred AI model
+            {isAiConfigured && (
+              <span className="ml-1">
+                (Currently using: <span className="font-medium">
+                  {guidelineData?.aiProvider && guidelineData?.aiModel 
+                    ? `${guidelineData.aiProvider} - ${guidelineData.aiModel}`
+                    : savedAiConfig?.provider && savedAiConfig?.modelName 
+                      ? `${savedAiConfig.provider} - ${savedAiConfig.modelName}` 
+                      : savedAiConfig?.provider && savedAiConfig?.model
+                        ? `${savedAiConfig.provider} - ${savedAiConfig.model}`
+                        : 'AI Assistant'
+                  }
+                </span>)
+              </span>
+            )}
+          </p>
         </div>
         <div className='flex gap-2'>
-          {/* AI Settings Button */}
+          {/* AI Settings Button - Now opens bottom sheet */}
           <Button
             size='sm'
             variant='outline'
-            onClick={() => setAiModalOpen(true)}
+            onClick={() => setAiBottomSheetOpen(true)}
           >
             <Settings className='h-4 w-4 mr-2' />
             AI Settings
@@ -966,8 +1200,11 @@ const ProjectGuidelines = () => {
                 <Bot className='h-16 w-16 mb-4 opacity-60' />
                 <h3 className='text-xl font-medium mb-2'>Configure AI Assistant</h3>
                 <p className='text-muted-foreground max-w-md mb-6'>
-                  To get started with project guidelines, configure an AI assistant that will help manage conversations and answer questions about this project.
+                  To get started with project guidelines, select an AI model that will help manage conversations and answer questions about this project.
                 </p>
+                <Button onClick={() => setAiBottomSheetOpen(true)}>
+                  Select AI Model
+                </Button>
               </div>
             ) : (
               // Chat Message Area
@@ -1040,7 +1277,12 @@ const ProjectGuidelines = () => {
                             </div>
                           )}
                           {/* Content */}
-                          <div className='whitespace-pre-wrap'>{message.content}</div>
+                        <div className='whitespace-pre-wrap'>{message.content}</div>
+                          {message.isAiMessage && (
+                            <div className="text-xs opacity-60 mt-1">
+                              Generated by {getModelDisplayInfo(message)}
+                            </div>
+                          )}
                           {/* Attachments */}
                           {message.attachments && message.attachments.length > 0 && (
                             <div className='mt-2 space-y-1'>
@@ -1163,7 +1405,7 @@ const ProjectGuidelines = () => {
         </div>
       </CardContent>
 
-      {/* Knowledge Files Sidebar - Replaced Dialog with Sidebar */}
+      {/* Knowledge Files Sidebar */}
       <KnowledgeSidebar 
         isOpen={knowledgeSidebarOpen}
         onClose={() => setKnowledgeSidebarOpen(false)}
@@ -1175,42 +1417,29 @@ const ProjectGuidelines = () => {
         handleBackFromIframe={handleBackFromIframe}
       />
 
-      {/* AI Configuration Dialog */}
-      <Dialog open={aiModalOpen} onOpenChange={setAiModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isAiConfigured ? 'AI Assistant Settings' : 'Configure AI Assistant'}</DialogTitle>
-            <DialogDescription>
-              {isAiConfigured ? 'Select or update the AI model for this project' : 'Set up an AI assistant to help with project discussions'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className='space-y-4 py-4'>
-            <AIModelSelector onSelect={setAiConfig} isLoading={isGeneratingAI} />
-             {savedAiConfig && (
-               <div className="text-sm text-muted-foreground mt-2">
-                  Currently using: {savedAiConfig.modelName || `${savedAiConfig.provider} - ${savedAiConfig.model}`}
-               </div>
-             )}
-          </div>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => setAiModalOpen(false)}>Cancel</Button>
-            <Button
-              onClick={configureAndTrainAI}
-              disabled={isGeneratingAI || !aiConfig.provider || !aiConfig.model || !aiConfig.apiKey}
-            >
-              {isGeneratingAI ? (
-                <><Loader2 className='h-4 w-4 mr-2 animate-spin' /> {isAiConfigured ? 'Updating...' : 'Setting up AI...'}</>
-              ) : (isAiConfigured ? 'Update AI Assistant' : 'Configure & Start AI')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* AI Model Bottom Sheet */}
+      <AIModelBottomSheet
+        isOpen={aiBottomSheetOpen}
+        onClose={() => setAiBottomSheetOpen(false)}
+        onSelect={handleSelectedAIModel}
+        isLoading={isGeneratingAI}
+        currentConfig={savedAiConfig}
+        isConfigured={isAiConfigured}
+      />
 
       {/* Add overlay when sidebar is open for small screens */}
       {knowledgeSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/30 z-40 lg:hidden" 
           onClick={() => setKnowledgeSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Add overlay when bottom sheet is open */}
+      {aiBottomSheetOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-40" 
+          onClick={() => setAiBottomSheetOpen(false)}
         />
       )}
     </Card>

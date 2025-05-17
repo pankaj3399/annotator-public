@@ -26,7 +26,7 @@ import { format, parseISO } from 'date-fns';
 import jsonToCsvExport from 'json-to-csv-export';
 import { CalendarIcon, FileDown, FileText, Filter, PlusCircle, Trash2Icon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getAllAcceptedTasks } from '../actions/task';
 import {
@@ -67,7 +67,7 @@ export default function ProjectDashboard() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
+const pathname = usePathname(); 
   const router = useRouter();
   const { data: session } = useSession();
   const { toast } = useToast();
@@ -135,6 +135,18 @@ export default function ProjectDashboard() {
   useEffect(() => {
     setFilteredProjects(getFilteredProjects());
   }, [selectedLabels, projects, projectLabels]);
+
+  useEffect(() => {
+  // Clear any stored project ID when on the main projects listing page
+  if (typeof window !== 'undefined') {
+    try {
+      console.log('On all projects page, clearing stored project ID');
+      localStorage.removeItem('currentProjectId');
+    } catch (e) {
+      console.error('Error accessing localStorage:', e);
+    }
+  }
+}, [pathname, session]); 
   
   // Add this filtering function:
   const getFilteredProjects = () => {
@@ -201,6 +213,8 @@ export default function ProjectDashboard() {
   if (!session || isLoading) {
     return <Loader />;
   }
+
+  
 
   const handleCheckboxChange = (itemName: string) => {
     setSelectedItems((prev) =>

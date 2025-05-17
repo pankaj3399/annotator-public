@@ -759,21 +759,6 @@ const PropertyPanel = () => {
               />
             </div>
 
-            <div className='space-y-2'>
-              <Label>Time Limit (seconds)</Label>
-              <Input
-                type='number'
-                value={
-                  !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.limit
-                    : ''
-                }
-                onChange={(e) =>
-                  handlePropertyChange('limit', parseInt(e.target.value))
-                }
-                placeholder='Enter time limit'
-              />
-            </div>
           </div>
         );
 

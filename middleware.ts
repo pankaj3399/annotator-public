@@ -19,7 +19,7 @@ function addSecurityHeaders(response: NextResponse): void {
   response.headers.set('Referrer-Policy', 'no-referrer');
 
   const permissions = [
-    'geolocation=()', 'microphone=()', 'camera=()', 'payment=()', 'usb=()',
+    'usb=()'
   ];
   response.headers.set('Permissions-Policy', permissions.join(', '));
 

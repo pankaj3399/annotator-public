@@ -49,25 +49,25 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     },
     {
       Component: <DynamicTextPlaceholder />,
-      label: 'Text',
+      label: 'Text (Dynamic) ',
       id: 'dynamicText',
       group: 'Dynamic Elements',
     },
     {
       Component: <InputTextPlaceholder />,
-      label: 'Text',
+      label: 'Text (Input)',
       id: 'inputText',
       group: 'Inputs',
     },
     {
       Component: <InputRecordAudioPlaceholder />,
-      label: 'Record Audio',
+      label: 'Record Audio (Input) ',
       id: 'inputRecordAudio',
       group: 'Inputs',
     },
     {
       Component: <InputRecordVideoPlaceholder />,
-      label: 'Record Video',
+      label: 'Record Video (Input)',
       id: 'inputRecordVideo',
       group: 'Inputs',
     },
@@ -79,7 +79,7 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     },
     {
       Component: <UploadInputPlaceholder />,
-      label: 'Upload',
+      label: 'Upload (Input)',
       id: 'UploadInput',
       group: 'Inputs',
     },
@@ -109,13 +109,13 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     },
     {
       Component: <DynamicVideoPlaceholder />,
-      label: 'Video',
+      label: 'Video (Dynamic)',
       id: 'dynamicVideo',
       group: 'Dynamic Elements',
     },
     {
       Component: <DynamicImagePlaceholder />,
-      label: 'Image',
+      label: 'Image (Dynamic)',
       id: 'dynamicImage',
       group: 'Dynamic Elements',
     },
@@ -127,7 +127,7 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     },
     {
       Component: <DynamicAudioPlaceholder />,
-      label: 'Audio',
+      label: 'Audio (Dynamic)',
       id: 'dynamicAudio',
       group: 'Dynamic Elements',
     },
@@ -163,7 +163,7 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     },
     {
       Component: <DynamicUploadPlaceholder />,
-      label: 'Upload File',
+      label: 'Upload File (Dynamic)',
       id: 'dynamicUpload',
       group: 'Dynamic Elements',
     },
