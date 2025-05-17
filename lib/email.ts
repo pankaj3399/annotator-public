@@ -300,3 +300,169 @@ export const getWebinarInvitationTemplate = (
   </div>
 `;
 };
+
+export async function sendCustomNotificationEmails(
+  annotatorIds: string[], 
+  projectId: string
+) {
+  try {
+    await connectToDatabase();
+    
+    if (!annotatorIds || annotatorIds.length === 0) {
+      return {
+        success: false,
+        message: "No annotators selected."
+      };
+    }
+
+    if (!projectId) {
+      return {
+        success: false,
+        message: "Project ID is required."
+      };
+    }
+
+    console.log(`Looking for template for project: ${projectId}`);
+    
+    // Get notification templates for the project
+    const templateResponse = await getNotificationTemplatesByProject(projectId);
+    
+    if (!templateResponse.success || !templateResponse.templates) {
+      return {
+        success: false,
+        message: "Failed to fetch notification templates."
+      };
+    }
+    
+    // Find the custom template - check for both potential names
+    const customTemplate = templateResponse.templates.find(
+      (template: any) => 
+        (template.triggerName === "custom" || 
+         template.triggerName === "custom_email_notification") && 
+        template.active
+    );
+    
+    if (!customTemplate) {
+      // Create a default template if none exists
+      console.log("No custom template found. Creating a default one.");
+      
+      try {
+        await connectToDatabase();
+        const defaultTemplate = new NotificationTemplate({
+          project: projectId,
+          triggerName: "custom_email_notification",
+          triggerTitle: "Notification from Project Manager",
+          triggerBody: "<p>You have received a notification regarding your project tasks.</p>",
+          active: true
+        });
+        
+        await defaultTemplate.save();
+        
+        return {
+          success: false,
+          message: "Created default template. Please try sending the email again."
+        };
+      } catch (templateError) {
+        console.error("Error creating default template:", templateError);
+        return {
+          success: false,
+          message: "No active custom template found and failed to create a default one."
+        };
+      }
+    }
+    
+    // Make sure the template has required fields
+    if (!customTemplate.triggerTitle || !customTemplate.triggerBody) {
+      return {
+        success: false,
+        message: "Template is missing title or body content."
+      };
+    }
+    
+    console.log(`Found template: ${customTemplate._id} with title: ${customTemplate.triggerTitle}`);
+    
+    // Get the User model
+    const User = (await import('@/models/User')).User;
+    
+    // Fetch annotators from database
+    const annotators = await User.find({ '_id': { $in: annotatorIds } });
+    
+    if (!annotators || annotators.length === 0) {
+      return {
+        success: false,
+        message: "No valid annotators found with the provided IDs."
+      };
+    }
+    
+    console.log(`Found ${annotators.length} annotators to email`);
+    
+    // Send emails to each annotator
+    const emailResults = await Promise.all(
+      annotators.map(async (annotator: any) => {
+        if (!annotator.email) {
+          console.log(`No email found for annotator: ${annotator._id}`);
+          return { 
+            annotatorId: annotator._id, 
+            success: false, 
+            reason: "No email address" 
+          };
+        }
+        
+        try {
+          console.log(`Sending email to: ${annotator.email}`);
+          
+          const emailResult = await sendEmail({
+            to: annotator.email,
+            subject: customTemplate.triggerTitle,
+            html: customTemplate.triggerBody,
+            from: process.env.FROM_EMAIL
+          });
+          
+          if (emailResult.success) {
+            console.log(`Email sent successfully to ${annotator.email}`);
+            return { 
+              annotatorId: annotator._id, 
+              email: annotator.email,
+              success: true 
+            };
+          } else {
+            console.error(`Failed to send email to ${annotator.email}:`, emailResult.error);
+            return { 
+              annotatorId: annotator._id, 
+              email: annotator.email,
+              success: false,
+              error: emailResult.error
+            };
+          }
+        } catch (emailError) {
+          console.error(`Error sending email to ${annotator.email}:`, emailError);
+          return { 
+            annotatorId: annotator._id, 
+            email: annotator.email,
+            success: false,
+            error: emailError instanceof Error ? emailError.message : "Unknown error"
+          };
+        }
+      })
+    );
+    
+    const successCount = emailResults.filter(result => result.success).length;
+    
+    console.log(`Completed sending emails: ${successCount} successful out of ${annotators.length}`);
+    
+    return {
+      success: true,
+      sentCount: successCount,
+      totalCount: annotators.length,
+      results: emailResults
+    };
+    
+  } catch (error) {
+    console.error("Error in sendCustomNotificationEmails:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Unknown error sending custom emails",
+      error
+    };
+  }
+}

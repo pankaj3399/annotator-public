@@ -135,6 +135,18 @@ export default function ProjectDashboard() {
   useEffect(() => {
     setFilteredProjects(getFilteredProjects());
   }, [selectedLabels, projects, projectLabels]);
+
+  useEffect(() => {
+  // Clear any stored project ID when on the main projects listing page
+  if (typeof window !== 'undefined') {
+    try {
+      console.log('On all projects page, clearing stored project ID');
+      localStorage.removeItem('currentProjectId');
+    } catch (e) {
+      console.error('Error accessing localStorage:', e);
+    }
+  }
+}, []); 
   
   // Add this filtering function:
   const getFilteredProjects = () => {
@@ -201,6 +213,8 @@ export default function ProjectDashboard() {
   if (!session || isLoading) {
     return <Loader />;
   }
+
+  
 
   const handleCheckboxChange = (itemName: string) => {
     setSelectedItems((prev) =>

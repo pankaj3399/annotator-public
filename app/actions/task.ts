@@ -876,15 +876,15 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
           console.warn(`No email found for user ${user._id}`);
           return { userId: user._id, success: false, reason: 'No email address' };
         }
-        
+
         const emailResult = await sendEmail({
           to: user.email,
           subject: 'Custom Email',
           html: triggerTemplate.triggerBody
         });
-        
-        return { 
-          userId: user._id, 
+
+        return {
+          userId: user._id,
           success: emailResult.success,
           messageId: emailResult.messageId
         };
@@ -905,31 +905,59 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
 export async function getCustomNotificationTemplatesByProject(projectId: string) {
   await connectToDatabase();
   const session = await getServerSession(authOptions);
-  const userId = session?.user.id;
+  const userId = session?.user?.id;
 
   if (!userId || !session) {
-    throw new Error("Unauthorized");
+    return {
+      success: false,
+      error: "Unauthorized"
+    };
   }
+
   try {
     if (!projectId) {
-      throw new Error('Project ID is required');
+      return {
+        success: false,
+        error: "Project ID is required"
+      };
     }
 
-    // Fetching only templates where triggerName is 'custom'
+    // Look for templates with either "custom" or "custom_email_notification" triggerName
     const customTemplates = await NotificationTemplate.findOne({
       project: projectId,
-      triggerName: "custom", // Filtering for custom templates
+      triggerName: { $in: ["custom", "custom_email_notification"] },
     });
+
+    if (!customTemplates) {
+      console.log(`No custom templates found for project ${projectId}. Creating default template.`);
+
+      // Create a default template if none exists
+      const defaultTemplate = new NotificationTemplate({
+        project: projectId,
+        triggerName: "custom_email_notification",
+        triggerTitle: "Notification from Project Manager",
+        triggerBody: "<p>You have received a notification regarding your project tasks.</p>",
+        active: true
+      });
+
+      const savedTemplate = await defaultTemplate.save();
+
+      return {
+        success: true,
+        templates: JSON.stringify(savedTemplate),
+        isNew: true
+      };
+    }
 
     return {
       success: true,
       templates: JSON.stringify(customTemplates),
     };
   } catch (error) {
-    console.error('Error fetching custom notification templates:', error);
+    console.error('Error in getCustomNotificationTemplatesByProject:', error);
     return {
       success: false,
-      error: 'Failed to fetch custom templates',
+      error: error instanceof Error ? error.message : 'Unknown error fetching custom templates',
     };
   }
 }
