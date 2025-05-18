@@ -1,5 +1,6 @@
 'use server'
 import nodemailer from 'nodemailer';
+import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { connectToDatabase } from './db';
 import NotificationTemplate from '@/models/NotificationTemplate';
 
@@ -9,20 +10,6 @@ export interface WebinarDetails {
   scheduledAt: string;
   invitedBy: string;
 }
-
-
-// Email transporter configuration
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
-};
 
 // Email sending interface
 export interface EmailOptions {
@@ -35,10 +22,36 @@ export interface EmailOptions {
   attachments?: any[];
 }
 
-// Core email sending function
-export const sendEmail = async (options: EmailOptions) => {
+// Nodemailer transporter configuration
+const createTransporter = () => {
+  return nodemailer.createTransporter({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
+};
+
+// SES client configuration
+const createSESClient = () => {
+  return new SESClient({
+    region: process.env.AWS_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+};
+
+const sendEmailWithNodemailer = async (options: EmailOptions) => {
+  console.log("📮 Starting nodemailer send");
+  
   try {
     const transporter = createTransporter();
+    console.log("📮 Transporter created successfully");
     
     const { to, subject, html, from, cc, bcc, attachments } = options;
     
@@ -47,38 +60,150 @@ export const sendEmail = async (options: EmailOptions) => {
     if (html instanceof Promise) {
       try {
         htmlContent = await html;
+        console.log("📮 HTML promise resolved, content length:", htmlContent.length);
       } catch (e) {
-        console.error("Error resolving HTML content from promise:", e);
+        console.error("❌ Error resolving HTML content from promise:", e);
         htmlContent = "Email content could not be loaded.";
       }
     } else {
       htmlContent = html;
+      console.log("📮 HTML content length:", htmlContent.length);
     }
     
-    const info = await transporter.sendMail({
+    const mailOptions = {
       from: from || process.env.FROM_EMAIL || 'noreply@yourdomain.com',
-      to,
-      cc,
-      bcc,
+      to: Array.isArray(to) ? to.join(', ') : to,
+      cc: Array.isArray(cc) ? cc.join(', ') : cc,
+      bcc: Array.isArray(bcc) ? bcc.join(', ') : bcc,
       subject,
       html: htmlContent,
       attachments,
+    };
+    
+    console.log("📮 Mail options:", {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      htmlLength: mailOptions.html.length
     });
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Email sent successfully via nodemailer");
+    console.log("✅ Message info:", info);
     
     return { 
       success: true, 
-      messageId: info.messageId 
+      messageId: info.messageId,
+      provider: 'nodemailer'
     };
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error("❌ Nodemailer sending error:", error);
+    console.error("❌ Error details:", {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      responseCode: error.responseCode
+    });
+    throw error;
+  }
+};
+// Send email using AWS SES
+const sendEmailWithSES = async (options: EmailOptions) => {
+  const sesClient = createSESClient();
+  
+  const { to, subject, html, from, cc, bcc } = options;
+  
+  // Handle case where html might be a promise
+  let htmlContent: string;
+  if (html instanceof Promise) {
+    try {
+      htmlContent = await html;
+    } catch (e) {
+      console.error("Error resolving HTML content from promise:", e);
+      htmlContent = "Email content could not be loaded.";
+    }
+  } else {
+    htmlContent = html;
+  }
+
+  // Prepare email addresses
+  const toAddresses = Array.isArray(to) ? to : [to];
+  const ccAddresses = cc ? (Array.isArray(cc) ? cc : [cc]) : undefined;
+  const bccAddresses = bcc ? (Array.isArray(bcc) ? bcc : [bcc]) : undefined;
+
+  const params = {
+    Source: from || process.env.FROM_EMAIL || 'noreply@yourdomain.com',
+    Destination: {
+      ToAddresses: toAddresses,
+      CcAddresses: ccAddresses,
+      BccAddresses: bccAddresses,
+    },
+    Message: {
+      Subject: {
+        Data: subject,
+        Charset: 'UTF-8',
+      },
+      Body: {
+        Html: {
+          Data: htmlContent,
+          Charset: 'UTF-8',
+        },
+      },
+    },
+  };
+
+  const command = new SendEmailCommand(params);
+  const result = await sesClient.send(command);
+  
+  return { 
+    success: true, 
+    messageId: result.MessageId,
+    provider: 'ses'
+  };
+};
+
+export const sendEmail = async (options: EmailOptions) => {
+  console.log("📬 Starting sendEmail function");
+  console.log("📬 Email options:", {
+    to: options.to,
+    subject: options.subject,
+    htmlLength: typeof options.html === 'string' ? options.html.length : 'Promise',
+    from: options.from,
+    provider: process.env.EMAIL_PROVIDER || 'nodemailer'
+  });
+  
+  try {
+    const emailProvider = process.env.EMAIL_PROVIDER?.toLowerCase() || 'nodemailer';
+    console.log("📬 Using email provider:", emailProvider);
+    
+    if (emailProvider === 'ses') {
+      console.log("📬 Sending via AWS SES...");
+      const result = await sendEmailWithSES(options);
+      console.log("📬 SES result:", result);
+      return result;
+    } else {
+      console.log("📬 Sending via nodemailer...");
+      const result = await sendEmailWithNodemailer(options);
+      console.log("📬 Nodemailer result:", result);
+      return result;
+    }
+  } catch (error) {
+    console.error('❌ Email sending error:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      statusCode: error.statusCode
+    });
     return { 
       success: false, 
-      error 
+      error,
+      provider: process.env.EMAIL_PROVIDER?.toLowerCase() || 'nodemailer'
     };
   }
 };
 
-// Password reset email template
+// Keep all your existing template functions unchanged
 export const getPasswordResetEmailTemplate = (resetLink: string): string => {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -97,7 +222,6 @@ export const getPasswordResetEmailTemplate = (resetLink: string): string => {
   `;
 };
 
-// Domain expert invitation email
 export const getInvitationEmailTemplate = (inviteLink: string, teamInfo: string, agencyOwnerName: string): string => {
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -122,7 +246,6 @@ export const getInvitationEmailTemplate = (inviteLink: string, teamInfo: string,
   `;
 };
 
-// Interface definitions for email templates
 interface AdminNotificationTemplateProps {
   email: string;
   invitationCode: string;
@@ -134,7 +257,6 @@ interface RequesterConfirmationTemplateProps {
   // Add any props needed for the requester template
 }
 
-// Admin notification template
 export const getAdminNotificationTemplate = ({
   email,
   invitationCode,
@@ -170,7 +292,6 @@ export const getAdminNotificationTemplate = ({
     `;
 };
 
-// Requester confirmation template
 export const getRequesterConfirmationTemplate = (
   props: RequesterConfirmationTemplateProps = {}
 ): string => {
@@ -192,7 +313,6 @@ export const getRequesterConfirmationTemplate = (
     `;
 };
 
-// Admin payment notification template
 export const getAdminPaymentNotificationTemplate = (data: {
   paymentIntentId: string;
   date: Date;
@@ -238,7 +358,6 @@ export const getAdminPaymentNotificationTemplate = (data: {
 </html>
 `;
 
-// Function to get notification templates by project
 export async function getNotificationTemplatesByProject(projectId: string) {
   await connectToDatabase();
   

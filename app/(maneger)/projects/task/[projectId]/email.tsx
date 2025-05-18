@@ -81,92 +81,102 @@ export function EmailConfirmationDialog({
     setIsPreviewDialogOpen(false)
   }
 
-
-  const handleSaveTemplate = async () => {
-    try {
-      onClose();
-      if (!template) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Custom template data is missing.",
-        });
-        return;
-      }
-  
-      // Create an updated template with the modified title and body
-      const updatedTemplate = {
-        ...template,
-        triggerTitle: emailTitle,
-        triggerBody: emailBody,
-      };
-  
-      // Call the API to update the custom template
-      const response = await fetch(
-        `/api/projects/${projectId}/notifications/${template._id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedTemplate),
-        }
-      );
-  
-      const data = await response.json();
-  
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to save changes.");
-      }
-  
-      toast({
-        title: "Success",
-        description: "Custom template updated successfully.",
-      });
-      setIsPreviewDialogOpen(true)
-
-    } catch (error) {
+const handleSaveTemplate = async () => {
+  try {
+    if (!template) {
       toast({
         variant: "destructive",
         title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to update custom template.",
+        description: "Custom template data is missing.",
       });
+      return;
     }
-  };
-  
+
+    if (!emailTitle.trim() || !emailBody.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter both email title and content.",
+      });
+      return;
+    }
+
+    // Create an updated template with the modified title and body
+    const updatedTemplate = {
+      triggerTitle: emailTitle,
+      triggerBody: emailBody,
+    };
+
+    // Call the API to update the custom template
+    const response = await fetch(
+      `/api/projects/${projectId}/notifications/${template._id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedTemplate),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Failed to save changes.");
+    }
+
+    toast({
+      title: "Success",
+      description: "Custom template updated successfully.",
+    });
+    setIsPreviewDialogOpen(true);
+
+  } catch (error) {
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: error instanceof Error ? error.message : "Failed to update custom template.",
+    });
+  }
+};
   
   const pathName = usePathname();
   const projectId = pathName.split("/")[3];
-
-
-  useEffect(()=>{
-    fetchTemplate(projectId)
-  },[])
-
-  const fetchTemplate = async (projectId: string) => {
-    try {
-      if (!projectId) {
-        throw new Error("Project ID is required");
-      }
-  
-      // Fetch the template from the server
-      const response = await getCustomNotificationTemplatesByProject(projectId);
-  
-      if (response.success && response.templates) {
-        const parsedTemplate = JSON.parse(response.templates);
-        setTemplate(parsedTemplate);
-        setEmailTitle(parsedTemplate.triggerTitle || "");
-        setEmailBody(parsedTemplate.triggerBody || "");
-      } else {
-        setTemplate(undefined); // If no template, set state to null
-        console.error("Failed to fetch custom template:", response.error || "Unknown error");
-      }
-    } catch (error) {
-      setTemplate(undefined); // Set state to null in case of any error
-      console.error("Error in fetchTemplate:", error);
+useEffect(() => {
+  if (isOpen && projectId) {
+    fetchTemplate(projectId);
+  }
+}, [isOpen, projectId]);
+const fetchTemplate = async (projectId: string) => {
+  try {
+    if (!projectId) {
+      console.error("Project ID is required");
+      return;
     }
-  };
 
+    // Fetch the template from the server
+    const response = await getCustomNotificationTemplatesByProject(projectId);
 
+    if (response.success && response.templates) {
+      const parsedTemplate = JSON.parse(response.templates);
+      setTemplate(parsedTemplate);
+      setEmailTitle(parsedTemplate.triggerTitle || "Custom Notification");
+      setEmailBody(parsedTemplate.triggerBody || "<p>Enter your email content here...</p>");
+    } else {
+      console.error("Failed to fetch custom template:", response.error || "Unknown error");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load custom template. Please try again.",
+      });
+    }
+  } catch (error) {
+    console.error("Error in fetchTemplate:", error);
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Failed to load template. Please refresh and try again.",
+    });
+  }
+};
   return (
     <div>
 

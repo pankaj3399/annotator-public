@@ -844,97 +844,172 @@ export async function sendNotificationEmail(taskId: string, action: string) {
 }
 
 export async function sendCustomNotificationEmail(userIds: string[], projectId: string) {
+  console.log("🚀 Starting sendCustomNotificationEmail");
+  console.log("📧 Input params:", { userIds, projectId });
+  
   try {
-    // Fetch notification templates for the project
-    const response = await getNotificationTemplatesByProject(projectId);
-    const { templates } = response;
-
-    if (!response.success || !templates) {
-      throw new Error("Failed to fetch notification templates.");
+    // Step 1: Fetch notification templates for the project
+    console.log("📁 Fetching custom notification template for project:", projectId);
+    const response = await getCustomNotificationTemplatesByProject(projectId);
+    console.log("📁 Template fetch response:", response);
+    
+    if (!response.success || !response.templates) {
+      console.error("❌ Failed to fetch custom notification template");
+      console.error("❌ Response:", response);
+      throw new Error("Failed to fetch custom notification template.");
     }
 
-    // Find the trigger template based on the custom action (since it's always 'custom' now)
-    const triggerTemplate = templates.find(
-      (template: any) =>
-        template.triggerName === "custom" && template.active
-    );
-
-    if (!triggerTemplate) {
-      throw new Error("No active template found for the 'custom' trigger.");
+    // Step 2: Parse the template
+    console.log("🔍 Parsing template data");
+    const template = JSON.parse(response.templates);
+    console.log("🔍 Parsed template:", template);
+    
+    if (!template.triggerTitle || !template.triggerBody) {
+      console.error("❌ Custom template is incomplete");
+      console.error("❌ Template triggerTitle:", template.triggerTitle);
+      console.error("❌ Template triggerBody:", template.triggerBody);
+      throw new Error("Custom template is incomplete - missing title or body.");
     }
 
-    // Fetch the users (annotators) by their IDs
+    // Step 3: Fetch the users by their IDs
+    console.log("👥 Fetching users with IDs:", userIds);
     const users = await User.find({ '_id': { $in: userIds } }).exec();
+    console.log("👥 Found users:", users);
+    
     if (!users || users.length === 0) {
+      console.error("❌ No users found with provided IDs");
       throw new Error("No users found with the provided IDs.");
     }
 
-    // Send emails to each user
+    // Step 4: Send emails to each user
+    console.log("📧 Starting email sending process");
     const results = await Promise.all(
-      users.map(async (user) => {
+      users.map(async (user, index) => {
+        console.log(`\n📧 Processing user ${index + 1}/${users.length}:`);
+        console.log(`📧 User ID: ${user._id}`);
+        console.log(`📧 User email: ${user.email}`);
+        
         if (!user.email) {
-          console.warn(`No email found for user ${user._id}`);
+          console.warn(`⚠️ No email found for user ${user._id}`);
           return { userId: user._id, success: false, reason: 'No email address' };
         }
         
-        const emailResult = await sendEmail({
-          to: user.email,
-          subject: 'Custom Email',
-          html: triggerTemplate.triggerBody
-        });
-        
-        return { 
-          userId: user._id, 
-          success: emailResult.success,
-          messageId: emailResult.messageId
-        };
+        try {
+          console.log(`📧 Attempting to send email to: ${user.email}`);
+          console.log(`📧 Email subject: ${template.triggerTitle}`);
+          console.log(`📧 Email body length: ${template.triggerBody?.length || 0} characters`);
+          
+          const emailResult = await sendEmail({
+            to: user.email,
+            subject: template.triggerTitle,
+            html: template.triggerBody
+          });
+          
+          console.log(`📧 Email result for ${user.email}:`, emailResult);
+          
+          return { 
+            userId: user._id, 
+            success: emailResult.success,
+            messageId: emailResult.messageId,
+            email: user.email,
+            error: emailResult.success ? undefined : emailResult.error
+          };
+        } catch (emailError) {
+          console.error(`❌ Failed to send email to ${user.email}:`, emailError);
+          return { 
+            userId: user._id, 
+            success: false, 
+            reason: emailError instanceof Error ? emailError.message : 'Unknown email error',
+            email: user.email,
+            error: emailError
+          };
+        }
       })
     );
 
-    console.log(`Notification emails sent successfully to ${results.filter(r => r.success).length} out of ${users.length} users`);
-    return { success: true, results };
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.length - successCount;
+
+    console.log("\n📊 Final email sending summary:");
+    console.log(`📊 Total users: ${users.length}`);
+    console.log(`📊 Successful sends: ${successCount}`);
+    console.log(`📊 Failed sends: ${failureCount}`);
+    console.log("📊 Detailed results:", results);
+
+    return { 
+      success: successCount > 0, 
+      results,
+      summary: {
+        total: users.length,
+        sent: successCount,
+        failed: failureCount
+      }
+    };
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(`Error in sending notification email: ${error.message}`);
-    } else {
-      console.error("Error in sending notification email:", error);
-    }
+    console.error("❌ Critical error in sendCustomNotificationEmail:", error);
+    console.error("❌ Error stack:", error.stack);
     throw error;
   }
 }
+
 export async function getCustomNotificationTemplatesByProject(projectId: string) {
+  console.log("🔍 Starting getCustomNotificationTemplatesByProject");
+  console.log("🔍 Project ID:", projectId);
+  
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const userId = session?.user.id;
 
   if (!userId || !session) {
+    console.error("❌ Unauthorized access - no session or user");
     throw new Error("Unauthorized");
   }
+  
   try {
     if (!projectId) {
+      console.error("❌ Project ID is required but not provided");
       throw new Error('Project ID is required');
     }
 
-    // Fetching only templates where triggerName is 'custom'
-    const customTemplates = await NotificationTemplate.findOne({
+    // Try to find existing custom template
+    console.log("🔍 Looking for existing custom template");
+    let customTemplate = await NotificationTemplate.findOne({
       project: projectId,
-      triggerName: "custom", // Filtering for custom templates
+      triggerName: "custom",
     });
+    console.log("🔍 Found existing template:", customTemplate);
 
-    return {
+    // If no custom template exists, create a default one
+    if (!customTemplate) {
+      console.log("🆕 No existing template found, creating default one");
+      customTemplate = await NotificationTemplate.create({
+        project: projectId,
+        triggerName: "custom",
+        triggerTitle: "Custom Notification",
+        triggerBody: "<p>Enter your custom email content here...</p>",
+        active: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      console.log("🆕 Created new template:", customTemplate);
+    }
+
+    const result = {
       success: true,
-      templates: JSON.stringify(customTemplates),
+      templates: JSON.stringify(customTemplate),
     };
+    console.log("✅ Returning result:", result);
+    return result;
   } catch (error) {
-    console.error('Error fetching custom notification templates:', error);
+    console.error('❌ Error fetching custom notification templates:', error);
+    console.error('❌ Error stack:', error.stack);
     return {
       success: false,
       error: 'Failed to fetch custom templates',
+      templates: null,
     };
   }
 }
-
-
 
 export async function getNotificationTemplatesByProject(projectId: string) {
   await connectToDatabase();
