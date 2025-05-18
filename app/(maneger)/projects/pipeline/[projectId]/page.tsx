@@ -105,11 +105,11 @@ export default function Pipeline() {
           path: `/projects/guidelines/${projectId}`,
           icon: FileText,
         },
-        {
-          name: 'Summary',
-          path: `/projects/summary/${projectId}`,
-          icon: FileType2,
-        },
+        // {
+        //   name: 'Summary',
+        //   path: `/projects/summary/${projectId}`,
+        //   icon: FileType2,
+        // },
         {
           name: 'Discussion',
           path: `/projects/discussion/${projectId}`,
@@ -178,11 +178,11 @@ export default function Pipeline() {
           path: `/projects/job-applications/${projectId}`,
           icon: UserPlus,
         },
-        {
-          name: 'Onboarded Experts',
-          path: `/onboarded-annotator/${projectId}`,
-          icon: UserCheck,
-        },
+        // {
+        //   name: 'Onboarded Experts',
+        //   path: `/onboarded-annotator/${projectId}`,
+        //   icon: UserCheck,
+        // },
       ],
     },
     {

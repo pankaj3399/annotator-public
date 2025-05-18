@@ -101,9 +101,24 @@ export function Menu({ isOpen }: MenuProps) {
   // Store current project ID when it's available
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
-  // Extract project ID from URL with different route patterns
+  // Project ID extraction logic
   useEffect(() => {
     const pathSegments = pathname.split('/');
+    
+    // First try to get stored project ID from localStorage (highest priority)
+    try {
+      const storedProjectId = localStorage.getItem('currentProjectId');
+      if (storedProjectId) {
+        // Only set it initially - we'll update it if we find a more current one
+        if (!currentProjectId) {
+          setCurrentProjectId(storedProjectId);
+        }
+      }
+    } catch (e) {
+      console.error('Error accessing localStorage:', e);
+    }
+    
+    // Then check for project ID in various URL patterns
     
     // Check for pipeline page (main entry point to a project)
     if (pathSegments.includes('pipeline')) {
@@ -111,19 +126,30 @@ export function Menu({ isOpen }: MenuProps) {
       if (pipelineIndex + 1 < pathSegments.length) {
         const projectId = pathSegments[pipelineIndex + 1];
         if (projectId) {
-          console.log('Setting project ID from pipeline page:', projectId);
           setCurrentProjectId(projectId);
+          try {
+            localStorage.setItem('currentProjectId', projectId);
+          } catch (e) {
+            console.error('Error storing in localStorage:', e);
+          }
         }
       }
     } 
-    // Handle template pages (like /projects/template/test/projectId)
+    // Handle template pages
     else if (pathSegments.includes('template')) {
       const templateIndex = pathSegments.indexOf('template');
+      
+      // Standard template URL pattern: /projects/template/[type]/[projectId]
       if (templateIndex + 2 < pathSegments.length) {
         const projectId = pathSegments[templateIndex + 2];
-        if (projectId) {
-          console.log('Setting project ID from template page:', projectId);
+        if (projectId && projectId !== 'create' && projectId !== 'test' && 
+            projectId !== 'training' && projectId !== 'core') {
           setCurrentProjectId(projectId);
+          try {
+            localStorage.setItem('currentProjectId', projectId);
+          } catch (e) {
+            console.error('Error storing in localStorage:', e);
+          }
         }
       }
     }
@@ -133,9 +159,13 @@ export function Menu({ isOpen }: MenuProps) {
       const projectsIndex = pathSegments.indexOf('projects');
       if (projectsIndex + 2 < pathSegments.length) {
         const projectId = pathSegments[projectsIndex + 2];
-        if (projectId) {
-          console.log('Setting project ID from projects page:', projectId);
+        if (projectId && projectId !== 'data') {
           setCurrentProjectId(projectId);
+          try {
+            localStorage.setItem('currentProjectId', projectId);
+          } catch (e) {
+            console.error('Error storing in localStorage:', e);
+          }
         }
       }
     }
@@ -146,13 +176,18 @@ export function Menu({ isOpen }: MenuProps) {
         const url = new URL(window.location.href);
         const projectId = url.searchParams.get('projectId');
         if (projectId) {
-          console.log('Setting project ID from query parameter:', projectId);
           setCurrentProjectId(projectId);
+          try {
+            localStorage.setItem('currentProjectId', projectId);
+          } catch (e) {
+            console.error('Error storing in localStorage:', e);
+          }
         }
       } catch (e) {
         console.error('Error extracting projectId from URL:', e);
       }
     }
+    
   }, [pathname]);
 
   // Memoize menuList
@@ -177,12 +212,7 @@ export function Menu({ isOpen }: MenuProps) {
   }>({});
 
   // Check if in a project context
-  const pathSegments = pathname.split('/');
-  const projectId = pathSegments[pathSegments.length - 1];
-  const inProjectContext = 
-    pathSegments.includes('projects') || 
-    pathname.includes('/dataScientist/notebook') ||
-    currentProjectId !== null;
+  const inProjectContext = currentProjectId !== null;
 
   // Toggle section expansion
   const toggleSection = (groupLabel: string) => {
@@ -194,8 +224,6 @@ export function Menu({ isOpen }: MenuProps) {
 
   // Initialize all accordions to be expanded by default
   useEffect(() => {
-    console.log('--- Menu useEffect Start --- Pathname:', pathname); 
-    console.log('Current Project ID:', currentProjectId);
     const initialState: { [key: string]: boolean } = {};
   
     // Make ALL groups expanded by default
@@ -213,7 +241,6 @@ export function Menu({ isOpen }: MenuProps) {
       });
     });
   
-    console.log('--- Menu useEffect End --- Final initialState:', initialState);
     setExpandedSections(initialState);
   }, [pathname, userRole, updatedMenuList, inProjectContext]);
 
@@ -244,54 +271,71 @@ export function Menu({ isOpen }: MenuProps) {
     }
   };
 
-  // Function to get proper href with project ID for data-related links
+  // Function to get proper href with project ID for any link
   const getHrefWithProjectId = (href: string, label: string) => {
-    // If this is a data-related link and we have a project ID
-    if (currentProjectId) {
-      if (label === 'Connector') {
-        return `/projects/data?projectId=${currentProjectId}`;
-      } else if (label === 'Notebook') {
-        return `/dataScientist/notebook?projectId=${currentProjectId}`;
-      }
-      
-      // For other project-related paths, ensure they use the current project ID
-      if (href.includes('/projects/') && !href.includes('/projects/data')) {
-        // Replace the project ID in the path if it exists
-        const pathParts = href.split('/');
-        const projectIdPosition = pathParts.length - 1;
-        if (projectIdPosition > 0) {
-          pathParts[projectIdPosition] = currentProjectId;
-          return pathParts.join('/');
+    // If we don't have a project ID, return the original href
+    if (!currentProjectId) return href;
+        
+    // Handle data-related links
+    if (label === 'Connector') {
+      return `/projects/data?projectId=${currentProjectId}`;
+    } else if (label === 'Notebook') {
+      return `/dataScientist/notebook?projectId=${currentProjectId}`;
+    }
+    
+    // Specifically handle template URLs (UI Builder section)
+    if (href.includes('/projects/template/')) {
+      // For UI Builder template links, use this format
+      const templateTypes = ['test', 'training', 'core'];
+      for (const type of templateTypes) {
+        if (href.includes(`/template/${type}/`)) {
+          return `/projects/template/${type}/${currentProjectId}`;
         }
       }
     }
+    
+    // For other project-related paths, ensure they use the current project ID
+    if (href.includes('/projects/') && !href.includes('/projects/data')) {
+      const pathParts = href.split('/');
+      
+      // Check if this is a projects path with a project ID at the end
+      // The pattern is typically /projects/something/projectId
+      if (pathParts.length >= 4) {
+        pathParts[pathParts.length - 1] = currentProjectId;
+        const newHref = pathParts.join('/');
+        return newHref;
+      }
+    }
+    
+    // If we don't match any pattern, return the original href
     return href;
   };
 
-  // Always use the stored project ID for the Pipeline link
-  const backToProjectsHref = currentProjectId ? 
-    `/projects/pipeline/${currentProjectId}` : '/';
+  // Always use the stored project ID for all links when in project context
+  const backToProjectsHref = currentProjectId ? `/projects/pipeline/${currentProjectId}` : '/';
 
   return (
     <nav className='mt-8 h-full w-full'>
-      {inProjectContext && userRole !== 'data scientist' && currentProjectId && (
+      {inProjectContext && userRole !== 'data scientist'  && pathname !== '/' && (
         <div className='mb-6 px-4'>
-         {userRole === 'project manager' &&  <div className='flex items-center justify-between'>
-            <div className='flex items-center text-sm text-blue-500 mt-1'>
-              <NextLink
-                href={`/projects/pipeline/${currentProjectId}`}
-                className='flex items-center ml-1'
-              >
-                <span className='hover:underline'>Pipeline</span>
-              </NextLink>
+          {userRole === 'project manager' && (
+            <div className='flex items-center justify-around'>
+              <div className='flex items-center text-sm text-blue-500 mt-1'>
+                <NextLink
+                  href={backToProjectsHref} 
+                  className='flex items-center ml-1'
+                >
+                  <span className='hover:underline'>Pipeline</span>
+                </NextLink>
+              </div>
+              <div className='flex items-center text-sm text-blue-500 mt-1'>
+                <NextLink href='/' className='flex items-center'>
+                  <ArrowLeft className='h-3 w-3 mr-1' />
+                  <span className='hover:underline'>Back to all projects</span>
+                </NextLink>
+              </div>
             </div>
-            <div className='flex items-center text-sm text-blue-500 mt-1'>
-              <NextLink href='/' className='flex items-center'>
-                <ArrowLeft className='h-3 w-3 mr-1' />
-                <span className='hover:underline'>Back to all projects</span>
-              </NextLink>
-            </div>
-          </div>}
+          )}
         </div>
       )}
 

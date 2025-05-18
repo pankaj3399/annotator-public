@@ -326,13 +326,7 @@ export default function ExpertsPage() {
                         )}
                       </div>
                     </div>
-                    
-                    {/* We could add action buttons here in the future if needed */}
-                    {user.status === 'pending' && (
-                      <Button variant="outline" size="sm">
-                        Resend Invitation
-                      </Button>
-                    )}
+
                   </div>
                 ))}
               </div>

@@ -7,6 +7,8 @@ import { connectToDatabase } from '@/lib/db'; // Adjust path
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth'; // Adjust path
+import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import {
   getWebinarInvitationTemplate,
   sendEmail,
@@ -16,9 +18,48 @@ import {
 // --- 100ms API Configuration ---
 const HMS_API_BASE_URL =
   process.env.HMS_API_BASE_URL || 'https://api.100ms.live/v2';
-const MANAGEMENT_TOKEN = process.env.HMS_MANAGEMENT_TOKEN;
+const APP_ACCESS_KEY = process.env.HMS_APP_ACCESS_KEY;
+const APP_SECRET = process.env.HMS_APP_SECRET;
 const TEMPLATE_ID = process.env.HMS_TEMPLATE_ID;
 // --- End Configuration ---
+
+// --- Generate HMS Management Token ---
+export async function generateManagementToken(): Promise<string> {
+  const APP_ACCESS_KEY = process.env.HMS_APP_ACCESS_KEY;
+  const APP_SECRET = process.env.HMS_APP_SECRET;
+
+  if (!APP_ACCESS_KEY || !APP_SECRET) {
+    throw new Error('HMS app credentials missing. Cannot generate token.');
+  }
+
+  const payload = {
+    access_key: APP_ACCESS_KEY,
+    type: 'management',
+    version: 2,
+    iat: Math.floor(Date.now() / 1000),
+    nbf: Math.floor(Date.now() / 1000)
+  };
+
+  return new Promise<string>((resolve, reject) => {
+    jwt.sign(
+      payload,
+      APP_SECRET,
+      {
+        algorithm: 'HS256',
+        expiresIn: '14d',
+        jwtid: uuidv4()
+      },
+      (err, token) => {
+        if (err || !token) {
+          reject(new Error("Failed to generate management token."));
+        } else {
+          resolve(token);
+        }
+      }
+    );
+  });
+}
+// --- End Token Generation ---
 
 interface CreateWebinarArgs {
   trainingId?: string; // Optional: Will be undefined/null if creating the first webinar
@@ -55,11 +96,11 @@ export async function createWebinarAction(
   }
 
   // Validate required ENV vars
-  if (!MANAGEMENT_TOKEN) {
-    console.error('[Action Error] Missing MANAGEMENT_TOKEN');
+  if (!APP_ACCESS_KEY || !APP_SECRET) {
+    console.error('[Action Error] Missing HMS app credentials');
     return {
       success: false,
-      message: 'Server config error: Missing API token.',
+      message: 'Server config error: Missing API credentials.',
     };
   }
   if (!TEMPLATE_ID) {
@@ -101,6 +142,10 @@ export async function createWebinarAction(
     await connectToDatabase();
     console.log('[Action Info] Database connected.');
 
+    // --- Generate fresh management token ---
+    const managementToken = await generateManagementToken();
+    console.log('[Action Info] Generated fresh HMS management token.');
+
     // --- Step 1: Create 100ms Room (Common for both paths) ---
     const roomPayload = {
       name: args.title || `Webinar ${newWebinarMongoId.toString()}`, // Use webinar title for room name
@@ -117,7 +162,7 @@ export async function createWebinarAction(
     const roomResponse = await fetch(`${HMS_API_BASE_URL}/rooms`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${MANAGEMENT_TOKEN}`,
+        Authorization: `Bearer ${managementToken}`, // Using fresh token instead of env var
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(roomPayload),
@@ -272,12 +317,15 @@ export async function createWebinarAction(
         `[Action Cleanup] Attempting to disable created room ${createdRoomId} due to DB/processing error.`
       );
       try {
+        // Generate a fresh token for cleanup operation
+        const cleanupToken = await generateManagementToken();
+        
         const disableResponse = await fetch(
           `${HMS_API_BASE_URL}/rooms/${createdRoomId}`,
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${MANAGEMENT_TOKEN}`,
+              Authorization: `Bearer ${cleanupToken}`, // Using fresh token
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({ enabled: false }),

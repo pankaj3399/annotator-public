@@ -135,15 +135,31 @@ export async function POST(req: Request) {
             subject: 'Join BloLabel as a Domain Expert',
             html: getInvitationEmailTemplate(signupUrl, teamInfo, agencyOwnerName)
           });
-          console.log(`[${index}] Email HTML type:`, typeof getInvitationEmailTemplate(signupUrl, teamInfo, agencyOwnerName));
-          console.log(`[${index}] Email sent successfully:`, emailResult);
 
-          return { 
-            email, 
-            status: 'sent', 
-            invitationId: invitation._id.toString(),
-            messageId: emailResult.success ? emailResult.messageId : undefined
-          };
+          console.log(`[${index}] Email result:`, emailResult);
+
+          // Check if email actually succeeded
+          if (emailResult.success) {
+            console.log(`[${index}] Email sent successfully`);
+            return { 
+              email, 
+              status: 'sent', 
+              invitationId: invitation._id.toString(),
+              messageId: emailResult.messageId
+            };
+          } else {
+            console.log(`[${index}] Email failed to send:`, emailResult.error);
+            
+            // Update invitation status to failed since email couldn't be sent
+            await InvitedUsers.findByIdAndUpdate(invitation._id, { status: 'failed' });
+            
+            return { 
+              email, 
+              status: 'email_failed', 
+              invitationId: invitation._id.toString(),
+              error: emailResult.error?.message || 'Email sending failed'
+            };
+          }
         } catch (emailError) {
           console.error(`[${index}] Error processing email ${email}:`, emailError);
           return { 
@@ -163,10 +179,11 @@ export async function POST(req: Request) {
     const sent = results.filter(r => r.status === 'fulfilled' && (r.value as any).status === 'sent').length;
     const alreadyInvited = results.filter(r => r.status === 'fulfilled' && (r.value as any).status === 'already_invited').length;
     const existingUsersCount = results.filter(r => r.status === 'fulfilled' && (r.value as any).status === 'existing_user').length;
+    const emailFailed = results.filter(r => r.status === 'fulfilled' && (r.value as any).status === 'email_failed').length;
     const errors = results.filter(r => r.status === 'fulfilled' && (r.value as any).status === 'error').length;
     const failed = results.filter(r => r.status === 'rejected').length;
 
-    console.log('Summary:', { sent, alreadyInvited, existingUsersCount, errors, failed, total: emails.length });
+    console.log('Summary:', { sent, alreadyInvited, existingUsersCount, emailFailed, errors, failed, total: emails.length });
 
     return NextResponse.json({
       success: true,
@@ -175,6 +192,7 @@ export async function POST(req: Request) {
       existingUsers: existingUsersArray,
       alreadyInvitedUsers: alreadyInvitedUsersArray,
       existingUsersCount,
+      emailFailed,
       errors,
       failed,
       total: emails.length,

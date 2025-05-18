@@ -336,39 +336,45 @@ export default function Component() {
     }
   }
 
-  // --- KEEP ORIGINAL handleSendEmail ---
-  const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
-    setIsLoading(true); // Keep original action loader usage
-    try {
-      const response = await fetch('/api/sendNotificationEmail/custom', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          selectedAnnotators: selectedAnnotators.map(
-            (annotator) => annotator._id
-          ),
-          projectId: projectId,
-        }),
+const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
+  setIsLoading(true);
+  try {
+    const response = await fetch('/api/sendNotificationEmail/custom', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        selectedAnnotators: selectedAnnotators.map(
+          (annotator) => annotator._id
+        ),
+        projectId: projectId,
+      }),
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      setIsMailDialogOpen(false);
+      toast({ 
+        title: 'Email sent successfully', 
+        description: result.msg,
+        variant: 'default' 
       });
-      if (response.ok) {
-        setIsMailDialogOpen(false);
-        toast({ title: 'Email sent successfully', variant: 'default' });
-      } else {
-        const errorData = await response.json();
-        toast({
-          title: `Error: ${errorData.message || 'Configure custom template in notifications'}`,
-          variant: 'destructive',
-        });
-      }
-    } catch (error) {
+    } else {
       toast({
-        title: 'An unexpected error occurred. Please try again later.',
+        title: `Error: ${result.msg || 'Configure custom template in notifications'}`,
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false); // Keep original action loader usage
     }
-  };
+  } catch (error) {
+    console.error('Email sending error:', error);
+    toast({
+      title: 'An unexpected error occurred. Please try again later.',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   // --- KEEP ORIGINAL handleCreateTemplate ---
   const handleCreateTemplate = async (e: React.FormEvent) => {
