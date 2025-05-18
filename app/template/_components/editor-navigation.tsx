@@ -87,9 +87,9 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
               <ArrowLeft className="h-5 w-5 text-gray-500" />
             </Link>
             <div>
-              <h1 className="text-xl font-semibold text-gray-800">Create Test</h1>
+              <h1 className="text-xl font-semibold text-gray-800">Create Template</h1>
               <p className="text-sm text-gray-500">
-                Customize your test form by dragging and dropping elements
+                Customize your template form by dragging and dropping elements
               </p>
             </div>
           </div>

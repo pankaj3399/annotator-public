@@ -45,14 +45,25 @@ export function ChatArea({ groupId }: { groupId: string }) {
     sethide(false)
   }
 
-  const fetchMessages = async () => {
-    const msg = await fetch(`/api/chat/getMessages?groupId=${groupId}&&limitAfter=20`).then(res => res.json())
-    if (msg.error) {
-      return console.log(msg.error)
-    }
-    setMessages(p=>[...p,...msg.messages])
-    sethide(false)
+const fetchMessages = async () => {
+  const msg = await fetch(`/api/chat/getMessages?groupId=${groupId}&&limitAfter=20`).then(res => res.json())
+  if (msg.error) {
+    return console.log(msg.error)
   }
+  
+  // Create a Set of existing message IDs for quick lookup
+  const existingMessageIds = new Set(messages.map(m => m._id))
+  
+  // Filter out messages that already exist in the current state
+  const newMessages = msg.messages.filter(m => !existingMessageIds.has(m._id))
+  
+  // Only append new messages
+  if (newMessages.length > 0) {
+    setMessages(p => [...p, ...newMessages])
+  }
+  
+  sethide(false)
+}
 
   const isUserOnline = (lastLogin: string) => {
     const lastLoginDate = new Date(lastLogin);

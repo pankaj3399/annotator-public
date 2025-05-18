@@ -13,8 +13,8 @@ import JobPostsGrid from '@/components/LandingPage/Jobs';
 import Footer from '@/components/LandingPage/Footer';
 const Landingpage = () => {
   return (
-    <div className="w-full min-h-screen flex items-center justify-center overflow-hidden">
-      <div className="relative z-10 w-full px-4">
+    <div className="min-h-screen flex items-center justify-center overflow-hidden">
+      <div className="relative z-10 w-full">
         <Hero />
         {/* <DownloadSection /> */}
         {/* <Brands /> */}
