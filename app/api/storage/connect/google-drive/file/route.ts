@@ -6,6 +6,9 @@ import { authOptions } from "@/auth";
 import { StorageCredentials } from "@/models/StorageCredentials";
 import { connectToDatabase } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Create OAuth client
 function getOAuthClient() {
   const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
