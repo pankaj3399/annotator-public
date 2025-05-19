@@ -107,9 +107,11 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     // Define public routes that don't require authentication
     const publicPageAndApiRoutes = ["/auth/login", "/auth/signup", "/landing", "/blogs", "/jobs"];
     const isNextAuthApiRoute = pathname.startsWith('/api/auth/');
+    const isWebhookRoute = pathname.startsWith('/api/webhooks/'); 
 
     const isPublicRoute =
       isNextAuthApiRoute ||
+      isWebhookRoute ||
       publicPageAndApiRoutes.includes(pathname) ||
       pathname.startsWith("/blogs/") ||
       pathname.startsWith("/jobs/") ||
