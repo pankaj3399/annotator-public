@@ -1,3 +1,4 @@
+//app/api/projects/[projectId]/guidelines/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Guideline } from '@/models/Guideline';
