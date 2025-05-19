@@ -1,4 +1,3 @@
-//app/api/projects/[projectId]/guidelines/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/db';
 import { Guideline } from '@/models/Guideline';
@@ -86,7 +85,23 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { content = '', attachments = [], isAiMessage, aiProvider, aiModel } = await request.json();
+    const body = await request.json();
+    const { 
+      content = '', 
+      attachments = [], 
+      isAiMessage = false, 
+      aiProvider, 
+      aiModel 
+    } = body;
+
+    // Debug log incoming request
+    console.log('[API] Incoming request body:', {
+      hasContent: !!content,
+      isAiMessage,
+      aiProvider,
+      aiModel,
+      attachmentCount: attachments.length
+    });
     
     if (!content.trim() && (!attachments || attachments.length === 0)) {
       return NextResponse.json(
@@ -107,19 +122,33 @@ export async function POST(
       });
     }
 
-    // Create new message
-    const newMessage = {
+    // Create new message - be explicit about AI fields
+    const messageData: any = {
       sender: session.user.id,
-      content: content.trim() || 'Attachment shared', // Ensure non-empty content
+      content: content.trim() || 'Attachment shared',
       timestamp: new Date(),
-      attachments,
-      isAiMessage: isAiMessage || false,
-      aiProvider: isAiMessage ? aiProvider : undefined,
-      aiModel: isAiMessage ? aiModel : undefined
+      attachments: attachments || [],
+      isAiMessage: Boolean(isAiMessage)
     };
 
+    // Only add AI fields if they're provided and not null/undefined
+    if (isAiMessage && aiProvider) {
+      messageData.aiProvider = aiProvider;
+    }
+    if (isAiMessage && aiModel) {
+      messageData.aiModel = aiModel;
+    }
+
+    // Debug log the message being created
+    console.log('[API] Creating message:', {
+      isAiMessage: messageData.isAiMessage,
+      aiProvider: messageData.aiProvider,
+      aiModel: messageData.aiModel,
+      hasContent: !!messageData.content
+    });
+
     // Add message to guidelines
-    guidelines.messages.push(newMessage);
+    guidelines.messages.push(messageData);
 
     // Add new files to guidelines if they don't already exist
     if (attachments && attachments.length > 0) {
@@ -153,6 +182,15 @@ export async function POST(
 
     // Get the newly added message
     const addedMessage = guidelines.messages[guidelines.messages.length - 1];
+
+    // Debug log the saved message
+    console.log('[API] Saved message:', {
+      id: addedMessage._id,
+      isAiMessage: addedMessage.isAiMessage,
+      aiProvider: addedMessage.aiProvider,
+      aiModel: addedMessage.aiModel,
+      timestamp: addedMessage.timestamp
+    });
 
     return NextResponse.json({ 
       success: true, 

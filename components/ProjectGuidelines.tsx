@@ -703,86 +703,203 @@ const ProjectGuidelines = () => {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    // Logic for AI configuration status
-    const aiMessages = messages.filter((msg) => msg.isAiMessage);
-    if (messages.length > 0) {
-      setShowAiSetupPrompt(false);
-    }
+// Add this function before the main ProjectGuidelines component
+const findLatestAIModelFromUserProjects = async (userId: string): Promise<{provider: string, model: string} | null> => {
+  try {
+    console.log(`[API] Calling /api/users/${userId}/projects/latest-ai-model`);
+    const response = await fetch(`/api/users/${userId}/projects/latest-ai-model`);
+    console.log(`[API] Response status: ${response.status} ${response.statusText}`);
     
-    // Check if the guideline has AI configured at base level
-    if (guidelineData?.aiProvider && guidelineData?.aiModel) {
-      setIsAiConfigured(true);
-    } else if (aiMessages.length > 0) {
-      setIsAiConfigured(true);
+    const data = await response.json();
+    console.log('[API] Response data:', data);
+    
+    if (data.success && data.aiModel) {
+      console.log('[API] ✅ Latest AI model found from API:', {
+        provider: data.aiModel.provider,
+        model: data.aiModel.model,
+        projectName: data.aiModel.projectName,
+        timestamp: data.aiModel.timestamp
+      });
+      return {
+        provider: data.aiModel.provider,
+        model: data.aiModel.model
+      };
+    } else {
+      console.log('[API] ❌ No AI model in response or request failed:', {
+        success: data.success,
+        hasAiModel: !!data.aiModel,
+        message: data.message,
+        error: data.error
+      });
+      return null;
     }
+  } catch (error) {
+    console.error('[API] ❌ Network error calling latest-ai-model API:', error);
+    console.log('[API] Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    return null;
+  }
+};
 
-    // Try to find an associated AI model from the provider APIs
-    const findAssociatedAIModel = async () => {
-      if (guidelineData?.aiProvider && guidelineData?.aiModel) {
-        try {
-          const response = await getProviderAIModels();
-          if (response.success && response.models) {
-            const matchingModel = response.models.find(
-              model => model.provider === guidelineData.aiProvider && model.model === guidelineData.aiModel
-            );
+// Replace the existing useEffect with this updated version
+useEffect(() => {
+  // Logic for AI configuration status
+  const aiMessages = messages.filter((msg) => msg.isAiMessage);
+  if (messages.length > 0) {
+    setShowAiSetupPrompt(false);
+  }
+  
+  // Check if the guideline has AI configured at base level
+  if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+    setIsAiConfigured(true);
+  } else if (aiMessages.length > 0) {
+    setIsAiConfigured(true);
+  }
+
+  // Try to find an associated AI model from the provider APIs
+  const findAssociatedAIModel = async () => {
+    if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+      console.log('[AI Config] Project already has AI configured:', {
+        provider: guidelineData.aiProvider,
+        model: guidelineData.aiModel
+      });
+      
+      try {
+        const response = await getProviderAIModels();
+        if (response.success && response.models) {
+          const matchingModel = response.models.find(
+            model => model.provider === guidelineData.aiProvider && model.model === guidelineData.aiModel
+          );
+          
+          if (matchingModel) {
+            const modelConfig: AIConfig = {
+              provider: matchingModel.provider,
+              model: matchingModel.model,
+              apiKey: matchingModel.apiKey,
+              modelName: matchingModel.name
+            };
             
-            if (matchingModel) {
-              const modelConfig: AIConfig = {
-                provider: matchingModel.provider,
-                model: matchingModel.model,
-                apiKey: matchingModel.apiKey,
-                modelName: matchingModel.name
-              };
+            setAiConfig(modelConfig);
+            setSavedAiConfig(modelConfig);
+            setIsAiConfigured(true);
+            setShowAiSetupPrompt(false);
+            console.log('[AI Config] ✅ Existing AI configuration loaded successfully');
+          }
+        }
+      } catch (error) {
+        console.error('[AI Config] Error fetching AI models for existing config:', error);
+      }
+    } else {
+      // For new projects (no existing AI config), automatically configure with latest used model
+      if (session?.user?.id) {
+        console.log(`[AI Auto-Config] Starting auto-configuration for project ${projectId} and user ${session.user.id}`);
+        
+        try {
+          console.log('[AI Auto-Config] Fetching latest AI model from user projects...');
+          const latestAIModel = await findLatestAIModelFromUserProjects(session.user.id);
+          
+          if (latestAIModel) {
+            console.log('[AI Auto-Config] Latest AI model found:', {
+              provider: latestAIModel.provider,
+              model: latestAIModel.model
+            });
+            
+            // Found a latest AI model, now get the full model config from provider APIs
+            console.log('[AI Auto-Config] Fetching available AI models from providers...');
+            const response = await getProviderAIModels();
+            
+            if (response.success && response.models) {
+              console.log(`[AI Auto-Config] Retrieved ${response.models.length} available models from providers`);
+              console.log('[AI Auto-Config] Available models:', response.models.map(m => `${m.provider}-${m.model}`));
               
-              setAiConfig(modelConfig);
-              setSavedAiConfig(modelConfig);
-              setIsAiConfigured(true);
+              const matchingModel = response.models.find(
+                model => model.provider === latestAIModel.provider && model.model === latestAIModel.model
+              );
               
-              // Store in localStorage as backup
-              try {
-                localStorage.setItem(`project_${projectId}_ai_config`, JSON.stringify(modelConfig));
-              } catch (localStorageError) {
-                console.log('Could not save to localStorage:', localStorageError);
+              if (matchingModel) {
+                console.log('[AI Auto-Config] Matching model found in available models:', {
+                  id: matchingModel.id,
+                  name: matchingModel.name,
+                  provider: matchingModel.provider,
+                  model: matchingModel.model,
+                  hasApiKey: !!matchingModel.apiKey
+                });
+                
+                const modelConfig: AIConfig = {
+                  provider: matchingModel.provider,
+                  model: matchingModel.model,
+                  apiKey: matchingModel.apiKey,
+                  modelName: matchingModel.name
+                };
+                
+                // Automatically configure the AI model without user intervention
+                console.log('[AI Auto-Config] Configuring AI model automatically...');
+                setAiConfig(modelConfig);
+                setSavedAiConfig(modelConfig);
+                setIsAiConfigured(true);
+                setShowAiSetupPrompt(false);
+                
+                // Save to database immediately
+                try {
+                  console.log('[AI Auto-Config] Saving configuration to database...');
+                  await saveAIModelToGuideline(modelConfig);
+                  console.log('[AI Auto-Config] ✅ Auto-configured AI model saved to database successfully');
+                } catch (saveError) {
+                  console.error('[AI Auto-Config] ❌ Error saving auto-configured AI model to database:', saveError);
+                }
+                
+                // Show success toast
+                toast.success(`AI assistant ready with ${matchingModel.name}`, {
+                  description: 'Using your previously configured model',
+                  duration: 3000,
+                });
+                
+                console.log('[AI Auto-Config] ✅ Auto-configuration completed successfully');
+                return; // Successfully configured
+              } else {
+                console.log('[AI Auto-Config] ❌ No matching model found in available models');
+                console.log('[AI Auto-Config] Looking for:', `${latestAIModel.provider}-${latestAIModel.model}`);
+                console.log('[AI Auto-Config] Available models:', response.models.map(m => `${m.provider}-${m.model}-${m.id}`));
               }
+            } else {
+              console.log('[AI Auto-Config] ❌ Failed to fetch available models from providers');
+              console.log('[AI Auto-Config] Response:', {
+                success: response.success,
+                error: response.error,
+                modelCount: response.models ? response.models.length : 'undefined'
+              });
             }
+          } else {
+            console.log('[AI Auto-Config] ❌ No latest AI model found in user projects');
           }
+          
+          // If no latest model found or configuration failed, keep setup prompt
+          console.log('[AI Auto-Config] ❌ Auto-configuration failed - showing manual setup prompt');
+          console.log('[AI Auto-Config] Reasons could be:');
+          console.log('  - No previous AI usage in any user projects');
+          console.log('  - Latest model no longer available in current provider configurations');
+          console.log('  - API key missing for the model');
+          console.log('  - Network error or API failure');
         } catch (error) {
-          console.error('Error fetching AI models:', error);
-          // Try to retrieve from localStorage
-          try {
-            const savedConfig = localStorage.getItem(`project_${projectId}_ai_config`);
-            if (savedConfig) {
-              const parsedConfig = JSON.parse(savedConfig);
-              setSavedAiConfig(parsedConfig);
-              setAiConfig(parsedConfig);
-              setIsAiConfigured(true);
-            }
-          } catch (localStorageError) {
-            console.log('Could not load from localStorage:', localStorageError);
-          }
+          console.error('[AI Auto-Config] ❌ Exception during auto-configuration:', error);
+          console.log('[AI Auto-Config] Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
         }
       } else {
-        // Try to retrieve from localStorage if not in database
-        try {
-          const savedConfig = localStorage.getItem(`project_${projectId}_ai_config`);
-          if (savedConfig) {
-            const parsedConfig = JSON.parse(savedConfig);
-            setSavedAiConfig(parsedConfig);
-            setAiConfig(parsedConfig);
-            if (parsedConfig.provider && parsedConfig.model && parsedConfig.apiKey) {
-              setIsAiConfigured(true);
-            }
-          }
-        } catch (localStorageError) {
-          console.log('Could not load from localStorage:', localStorageError);
-        }
+        console.log('[AI Auto-Config] ❌ No user session found - cannot auto-configure');
       }
-    };
-    
-    findAssociatedAIModel();
-    
-  }, [messages, projectId, guidelineData]);
+    }
+  };
+  
+  findAssociatedAIModel();
+  
+}, [messages, projectId, guidelineData, session?.user?.id]);
 
   const fetchProjectDetails = async () => {
     try {
