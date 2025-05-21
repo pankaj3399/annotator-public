@@ -98,7 +98,7 @@ interface AIModelResponse {
 }
 
 // Interface for formatted AI model data sent to client
-interface FormattedAIModel {
+export interface FormattedAIModel {
     id: string;
     name: string;
     provider: string;
@@ -121,9 +121,9 @@ interface UpdateModelData {
 }
 
 /**
- * Get all AI models for the current user
- * @returns Promise with AI models or error message
- */
+* Get all AI models for the current user
+* @returns Promise with AI models or error message
+*/
 export async function getProviderAIModels(): Promise<AIModelResponse> {
     try {
         const session = await getServerSession(authOptions);
@@ -165,10 +165,10 @@ export async function getProviderAIModels(): Promise<AIModelResponse> {
 }
 
 /**
- * Update an existing AI model
- * @param modelData Data for the model to update
- * @returns Promise with success status or error message
- */
+* Update an existing AI model
+* @param modelData Data for the model to update
+* @returns Promise with success status or error message
+*/
 export async function updateProviderAIModel(modelData: UpdateModelData): Promise<AIModelResponse> {
     try {
         const session = await getServerSession(authOptions);
@@ -221,14 +221,14 @@ export async function updateProviderAIModel(modelData: UpdateModelData): Promise
 }
 
 /**
- * Add a new AI model
- * @param provider Provider identifier
- * @param model Model identifier
- * @param apiKey Provider API key
- * @param name Display name for this model
- * @param systemPrompt Optional system prompt
- * @returns Promise with success status, message, and model ID or error
- */
+* Add a new AI model
+* @param provider Provider identifier
+* @param model Model identifier
+* @param apiKey Provider API key
+* @param name Display name for this model
+* @param systemPrompt Optional system prompt
+* @returns Promise with success status, message, and model ID or error
+*/
 export async function addProviderAIModel(
     provider: string,
     model: string,
@@ -288,10 +288,10 @@ export async function addProviderAIModel(
 }
 
 /**
- * Delete an AI model
- * @param modelId The ID of the model to delete
- * @returns Promise with success status or error message
- */
+* Delete an AI model
+* @param modelId The ID of the model to delete
+* @returns Promise with success status or error message
+*/
 export async function deleteProviderAIModel(modelId: string): Promise<AIModelResponse> {
     try {
         const session = await getServerSession(authOptions);
