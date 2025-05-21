@@ -1,5 +1,5 @@
 import mongoose, { Schema, model, models } from "mongoose";
-
+import "./Project"
 const paymentSchema = new Schema(
   {
     projectManager: {
