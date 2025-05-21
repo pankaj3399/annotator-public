@@ -164,7 +164,7 @@ function getAnnotatorMenu(pathname: string): Group[] {
         {
           href: "/tasks",
           label: "All Projects",
-          active: pathname.includes("/tasks") && 
+          active: pathname.includes("/tasks") &&
             !pathname.includes("/tasks/all") &&
             !pathname.includes("/viewCourses") &&
             !pathname.includes("/annotatorDashboard") &&
@@ -208,7 +208,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   // Extract projectId from pathname or query parameters
   let projectId = pathname.split("/")[pathname.split("/").length - 1];
   const fpath = pathname.split("/")[1];
-  
+
   // For notebook pages, try to get projectId from query
   if (isNotebookPath(pathname)) {
     const queryProjectId = getProjectIdFromQuery();
@@ -241,8 +241,8 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             icon: LayoutDashboard,
           },
           {
-            href: "/projects/data", 
-            label: "Data", 
+            href: "/projects/data",
+            label: "Data",
             active: pathname.includes("/projects/data") || pathname.includes("/dataScientist/notebook"),
             icon: Database,
             submenus: [
@@ -362,14 +362,14 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
   }
 
   if (userRole === "annotator" && (
-    pathname.includes('/projects/') || 
+    pathname.includes('/projects/') ||
     pathname.includes('/dataScientist/') ||
     pathname.includes('/task/') ||
     (pathname.split('/').length > 3 && !pathname.includes('/tasks/'))
   )) {
-  // Return the annotator-specific menu
-  return getAnnotatorMenu(pathname);
-}
+    // Return the annotator-specific menu
+    return getAnnotatorMenu(pathname);
+  }
 
   // Common project-related menu items for PM
   const projectManagerCommonGroups: Group[] = [
@@ -407,7 +407,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           active: pathname.includes(`/projects/data/`),
           icon: Link,
           visibleTo: ["project manager" as UserRole],
-        },  
+        },
         {
           href: `/dataScientist/notebook`,
           label: "Notebook",
@@ -487,9 +487,9 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
           icon: UserPlus,
         },
         {
-          href: `/projects/job-list/create/${projectId}`,
+          href: `/projects/job-list/new/${projectId}`,
           label: "Post Job",
-          active: pathname.includes("/job-list/create"),
+          active: pathname.includes("/job-list/new") || pathname.includes("/job-list/create"),
           icon: UserPlus,
         },
         // {
@@ -791,7 +791,7 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             visibleTo: ["annotator"],
           },
         ],
-      },      
+      },
       {
         groupLabel: "Settings",
         menus: [
@@ -803,14 +803,14 @@ export function getMenuList(pathname: string, userRole: UserRole): Group[] {
             submenus: [],
             visibleTo: ["project manager"],
           },
-          {
-            href: "/bank",
-            label: "Payment Center",
-            active: pathname.includes("/bank"),
-            icon: CreditCard,
-            submenus: [],
-            visibleTo: ["project manager"],
-          },
+          // {
+          //   href: "/bank",
+          //   label: "Payment Center",
+          //   active: pathname.includes("/bank"),
+          //   icon: CreditCard,
+          //   submenus: [],
+          //   visibleTo: ["project manager"],
+          // },
           {
             href: "/profile",
             label: "Profile",

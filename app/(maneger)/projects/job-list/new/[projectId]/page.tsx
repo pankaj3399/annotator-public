@@ -215,8 +215,6 @@ Don't include any extra fields outside of mentioned above`;
     }));
   };
 
-
-
   const handleUploadComplete = (uploadedFile: string) => {
     console.log("File changed");
     setFormData({ ...formData, image: uploadedFile });
@@ -260,21 +258,30 @@ Don't include any extra fields outside of mentioned above`;
 
   const handlePublish = async () => {
     try {
+      // Validate projectId before sending to server
+      const validProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
+
+      // Check if the projectId is 'create' or not a valid MongoDB ObjectId (24 character hex string)
+      if (validProjectId === 'create' || !/^[0-9a-fA-F]{24}$/.test(validProjectId as string)) {
+        toast.error("Invalid project ID. Please navigate back to the project page and try again.");
+        return;
+      }
+      
       const response = await createJobPost({
         title: formData.projectTitle,
         content: editedPost, // HTML content from ReactQuill
-        projectDescription:formData.projectDescription,
-        taskDescription:formData.taskDescription,
-        skills:formData.requiredSkills,
+        projectDescription: formData.projectDescription,
+        taskDescription: formData.taskDescription,
+        skills: formData.requiredSkills,
         startDate: new Date(formData.startDate),
         endDate: new Date(formData.endDate),
         compensation: formData.payRange,
         status: "published",
-        projectId: Array.isArray(projectId) ? projectId[0] : projectId,
+        projectId: validProjectId as string,
         location: formData.location,
-        lat:formData.lat,
-        lng:formData.lng,
-        image:formData.image
+        lat: formData.lat,
+        lng: formData.lng,
+        image: formData.image
       });
   
       if (response.success) {
@@ -290,7 +297,6 @@ Don't include any extra fields outside of mentioned above`;
     }
   };
   
-
   return (
     <div className="max-w-4xl mx-auto p-4">
       <Card>
@@ -404,7 +410,6 @@ Don't include any extra fields outside of mentioned above`;
               />
             </div>
 
-
             <div className="space-y-2">
               <label className="block text-sm font-medium">
                 Project Description
@@ -485,19 +490,18 @@ Don't include any extra fields outside of mentioned above`;
               />
             </div>
             <div className="space-y-2">
-    <label className="block text-sm font-medium">Location</label>
-    <input
-      id="location-input"
-      type="text"
-      name="location"
-      value={inputValue}
-      onChange={handleLocationInputChange}
-      className="w-full p-2 border rounded-md"
-      placeholder="e.g., Sydney, Australia"
-      required
-    />
-  </div>
-
+              <label className="block text-sm font-medium">Location</label>
+              <input
+                id="location-input"
+                type="text"
+                name="location"
+                value={inputValue}
+                onChange={handleLocationInputChange}
+                className="w-full p-2 border rounded-md"
+                placeholder="e.g., Sydney, Australia"
+                required
+              />
+            </div>
             </div>
 
             <div className="space-y-2">

@@ -1,3 +1,4 @@
+// Task.ts
 import mongoose from 'mongoose';
 
 const taskSchema = new mongoose.Schema({
@@ -22,14 +23,28 @@ const taskSchema = new mongoose.Schema({
   timestamps: true // Adds createdAt and updatedAt fields
 });
 
-
-// Compound indexes for specific query patterns
+// === EXISTING INDEXES (kept for backward compatibility) ===
 taskSchema.index({ annotator: 1, project: 1 });
 taskSchema.index({ annotator: 1, type: 1 });
 taskSchema.index({ annotator: 1, updatedAt: -1 });
 taskSchema.index({ annotator: 1, submitted: 1, updatedAt: -1 });
 taskSchema.index({ reviewer: 1, submitted: -1, status: 1, created_at: -1 });
 taskSchema.index({ project: 1, type: 1 });
+
+// === NEW INDEXES FOR DASHBOARD QUERIES ===
+// Single field indexes for common queries
+taskSchema.index({ project_Manager: 1 });
+taskSchema.index({ status: 1 });
+taskSchema.index({ submitted: 1 });
+taskSchema.index({ timeTaken: 1 });
+
+// Compound indexes for aggregation queries
+taskSchema.index({ project_Manager: 1, project: 1 });
+taskSchema.index({ project_Manager: 1, timeTaken: 1 });
+taskSchema.index({ project: 1, project_Manager: 1, timeTaken: 1 });
+taskSchema.index({ project_Manager: 1, project: 1, timeTaken: 1 });
+taskSchema.index({ project_Manager: 1, status: 1 });
+taskSchema.index({ project_Manager: 1, submitted: 1 });
 
 const Task = mongoose.models?.Task || mongoose.model('Task', taskSchema);
 export default Task;

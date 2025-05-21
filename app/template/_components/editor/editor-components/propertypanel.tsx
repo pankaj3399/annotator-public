@@ -135,48 +135,50 @@ const PropertyPanel = () => {
   }>({
     id: element.id || '',
     name: element.name || '',
+    // --- START OF MINIMAL CHANGE 1 ---
     content: !Array.isArray(element.content)
-      ? (element.content as ElementContent)
+      ? (element.content as ElementContent) || {} // Ensure content is an object, not undefined/null
       : ({} as ElementContent),
+    // --- END OF MINIMAL CHANGE 1 ---
   });
 
   const modelFileSupport = {
     'azure-ai-speech': {
       preferred: ['wav', 'mp3'],
-      note: 'PCM WAV gives best results'
+      note: 'PCM WAV gives best results',
     },
     'deepgram-nova-2': {
       preferred: ['wav', 'mp3', 'flac'],
-      note: 'High-quality audio recommended'
+      note: 'High-quality audio recommended',
     },
     'openai-whisper-large-v2': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'groq-whisper-large-v3': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'groq-whisper-large-v3-turbo': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'groq-distil-whisper': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'assemblyai-universal-2': {
       preferred: ['mp3', 'wav', 'flac'],
-      note: 'Supports files up to 5GB'
+      note: 'Supports files up to 5GB',
     },
-    'gladia': {
+    gladia: {
       preferred: ['wav', 'mp3', 'flac'],
-      note: 'Max size: 1GB or 4 hours'
+      note: 'Max size: 1GB or 4 hours',
     },
-    'speechmatics': {
+    speechmatics: {
       preferred: ['wav', 'mp3'],
-      note: 'Uncompressed audio preferred'
-    }
+      note: 'Uncompressed audio preferred',
+    },
   };
   const translationModelOptions: ModelOption[] = [
     { value: 'deepl', label: 'DeepL' },
@@ -204,9 +206,11 @@ const PropertyPanel = () => {
     setElementProperties({
       id: element.id || '',
       name: element.name || '',
+      // --- START OF MINIMAL CHANGE 2 ---
       content: !Array.isArray(element.content)
-        ? (element.content as ElementContent)
+        ? (element.content as ElementContent) || {} // Ensure content is an object, not undefined/null
         : ({} as ElementContent),
+      // --- END OF MINIMAL CHANGE 2 ---
     });
   }, [element, state.editor.elements]);
 
@@ -386,7 +390,12 @@ const PropertyPanel = () => {
                   ...item,
                   [contentKey]: value,
                 }))
-              : { ...element.content, [contentKey]: value },
+              : // --- START OF MINIMAL CHANGE 3 ---
+                {
+                  ...((element.content as ElementContent) || {}),
+                  [contentKey]: value,
+                }, // Ensure element.content is an object
+            // --- END OF MINIMAL CHANGE 3 ---
           },
         },
       });
@@ -758,7 +767,6 @@ const PropertyPanel = () => {
                 placeholder='Enter video URL'
               />
             </div>
-
           </div>
         );
 
@@ -855,12 +863,14 @@ const PropertyPanel = () => {
                           : undefined
                       }
                     />
-{!Array.isArray(elementProperties.content) && 
-  elementProperties.content.transcriptionModel && (
-  <TranscriptionFormatTip 
-    selectedModel={elementProperties.content.transcriptionModel} 
-  />
-)}
+                    {!Array.isArray(elementProperties.content) &&
+                      elementProperties.content.transcriptionModel && (
+                        <TranscriptionFormatTip
+                          selectedModel={
+                            elementProperties.content.transcriptionModel
+                          }
+                        />
+                      )}
                     <div className='space-y-2'>
                       <Label>Language</Label>
                       <Select
@@ -1382,7 +1392,7 @@ const PropertyPanel = () => {
       <div className='font-medium flex items-center gap-2'>
         <span className='bg-primary/5 p-2 rounded-md'>{element.name}</span>
       </div>
-      
+
       {showProperties()}
     </div>
   );

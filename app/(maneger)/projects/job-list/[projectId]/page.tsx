@@ -47,9 +47,16 @@ const JobListingPage = () => {
       setLoading(true);
       const response = await getAllJobs(projectId);
       console.log(response);
-      setJobs(response);
+      // Fix: Ensure response is an array before setting it to state
+      if (response && Array.isArray(response)) {
+        setJobs(response);
+      } else {
+        console.error("Expected array response from getAllJobs, but got:", typeof response);
+        setJobs([]); // Set to empty array if response is not an array
+      }
     } catch (error) {
       console.error("Error fetching jobs:", error);
+      setJobs([]); // Set to empty array on error
     } finally {
       setLoading(false);
     }
@@ -76,7 +83,7 @@ const JobListingPage = () => {
             Manage and create job postings for your project
           </p>
         </div>
-        <Link href={`/projects/job-list/create/${projectId}`}>
+        <Link href={`/projects/job-list/new/${projectId}`}>
           <Button size="sm" className="hover:shadow-md transition-all">
             <PlusCircle className="mr-2 h-4 w-4" />
             Create New Job
@@ -106,35 +113,36 @@ const JobListingPage = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {jobs.map((job) => (
-                    <TableRow key={job._id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{job.title}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={job.status === "published" ? "default" : "secondary"}
-                          className="capitalize"
-                        >
-                          {job.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {formatDate(job.createdAt)}
-                      </TableCell>
-                      <TableCell>
-                        <Link href={`/projects/job-list/edit/${job._id}/${projectId}`}>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="hover:bg-primary/10 hover:text-primary"
+                  {Array.isArray(jobs) && jobs.length > 0 ? (
+                    jobs.map((job) => (
+                      <TableRow key={job._id} className="hover:bg-muted/50">
+                        <TableCell className="font-medium">{job.title}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={job.status === "published" ? "default" : "secondary"}
+                            className="capitalize"
                           >
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Edit
-                          </Button>
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {jobs.length === 0 && (
+                            {job.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {formatDate(job.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <Link href={`/projects/job-list/edit/${job._id}/${projectId}`}>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="hover:bg-primary/10 hover:text-primary"
+                            >
+                              <Pencil className="h-4 w-4 mr-2" />
+                              Edit
+                            </Button>
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell 
                         colSpan={4} 
@@ -145,7 +153,7 @@ const JobListingPage = () => {
                           <p className="text-sm text-muted-foreground">
                             Get started by creating your first job posting
                           </p>
-                          <Link href={`/projects/job-list/create/${projectId}`}>
+                          <Link href={`/projects/job-list/new/${projectId}`}>
                             <Button 
                               variant="outline" 
                               size="sm" 

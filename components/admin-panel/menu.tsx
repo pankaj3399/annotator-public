@@ -49,7 +49,6 @@ import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useEffect, useMemo } from 'react';
 
-
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -67,7 +66,7 @@ type Submenu = {
   href: string;
   label: string;
   active?: boolean;
-  icon?: LucideIcon | any; 
+  icon?: LucideIcon | any;
 };
 
 type MenuItem = {
@@ -104,7 +103,7 @@ export function Menu({ isOpen }: MenuProps) {
   // Project ID extraction logic
   useEffect(() => {
     const pathSegments = pathname.split('/');
-    
+
     // First try to get stored project ID from localStorage (highest priority)
     try {
       const storedProjectId = localStorage.getItem('currentProjectId');
@@ -117,9 +116,9 @@ export function Menu({ isOpen }: MenuProps) {
     } catch (e) {
       console.error('Error accessing localStorage:', e);
     }
-    
+
     // Then check for project ID in various URL patterns
-    
+
     // Check for pipeline page (main entry point to a project)
     if (pathSegments.includes('pipeline')) {
       const pipelineIndex = pathSegments.indexOf('pipeline');
@@ -134,16 +133,21 @@ export function Menu({ isOpen }: MenuProps) {
           }
         }
       }
-    } 
+    }
     // Handle template pages
     else if (pathSegments.includes('template')) {
       const templateIndex = pathSegments.indexOf('template');
-      
+
       // Standard template URL pattern: /projects/template/[type]/[projectId]
       if (templateIndex + 2 < pathSegments.length) {
         const projectId = pathSegments[templateIndex + 2];
-        if (projectId && projectId !== 'create' && projectId !== 'test' && 
-            projectId !== 'training' && projectId !== 'core') {
+        if (
+          projectId &&
+          projectId !== 'create' &&
+          projectId !== 'test' &&
+          projectId !== 'training' &&
+          projectId !== 'core'
+        ) {
           setCurrentProjectId(projectId);
           try {
             localStorage.setItem('currentProjectId', projectId);
@@ -170,7 +174,10 @@ export function Menu({ isOpen }: MenuProps) {
       }
     }
     // Check for project ID in query string (for notebook and data pages)
-    else if (pathname.includes('/dataScientist/notebook') || pathname.includes('/projects/data')) {
+    else if (
+      pathname.includes('/dataScientist/notebook') ||
+      pathname.includes('/projects/data')
+    ) {
       // Extract from URL query parameters
       try {
         const url = new URL(window.location.href);
@@ -187,7 +194,6 @@ export function Menu({ isOpen }: MenuProps) {
         console.error('Error extracting projectId from URL:', e);
       }
     }
-    
   }, [pathname]);
 
   // Memoize menuList
@@ -225,14 +231,14 @@ export function Menu({ isOpen }: MenuProps) {
   // Initialize all accordions to be expanded by default
   useEffect(() => {
     const initialState: { [key: string]: boolean } = {};
-  
+
     // Make ALL groups expanded by default
     updatedMenuList.forEach((group) => {
       // If the group has a groupLabel, make it expanded by default
       if (group.groupLabel) {
         initialState[group.groupLabel] = true;
       }
-      
+
       // Also expand each menu item that has submenus (like "Data" accordion)
       group.menus.forEach((item) => {
         if (item.submenus && item.submenus.length > 0) {
@@ -240,7 +246,7 @@ export function Menu({ isOpen }: MenuProps) {
         }
       });
     });
-  
+
     setExpandedSections(initialState);
   }, [pathname, userRole, updatedMenuList, inProjectContext]);
 
@@ -249,40 +255,59 @@ export function Menu({ isOpen }: MenuProps) {
     // First check if the group already has an icon defined
     if (group.icon) return group.icon;
     if (group.groupIcon) return group.groupIcon;
-    
+
     // If no icon is defined, assign one based on the group label
     switch (group.groupLabel) {
-      case 'Knowledge': return Book;
-      case 'Data': return Database;
-      case 'UI Builder': return LayoutTemplate;
-      case 'Task Management': return Briefcase;
-      case 'Resources': return PersonStanding;
-      case 'Analytics': return LineChart;
-      case 'Settings & Configuration': return Cog;
-      case 'Project Management': return FolderKanban;
-      case 'Expert Management': return UserCog;
-      case 'Settings': return Wrench;
-      case 'AI Academy': return School;
-      case 'Contents': 
-      case 'Projects': return Folders;
-      case 'Project': return FolderCode;
-      case 'User': return User;
-      default: return FolderOpen;
+      case 'Knowledge':
+        return Book;
+      case 'Data':
+        return Database;
+      case 'UI Builder':
+        return LayoutTemplate;
+      case 'Task Management':
+        return Briefcase;
+      case 'Resources':
+        return PersonStanding;
+      case 'Analytics':
+        return LineChart;
+      case 'Settings & Configuration':
+        return Cog;
+      case 'Project Management':
+        return FolderKanban;
+      case 'Expert Management':
+        return UserCog;
+      case 'Settings':
+        return Wrench;
+      case 'AI Academy':
+        return School;
+      case 'Contents':
+      case 'Projects':
+        return Folders;
+      case 'Project':
+        return FolderCode;
+      case 'User':
+        return User;
+      default:
+        return FolderOpen;
     }
   };
 
-  // Function to get proper href with project ID for any link
   const getHrefWithProjectId = (href: string, label: string) => {
     // If we don't have a project ID, return the original href
     if (!currentProjectId) return href;
-        
+
     // Handle data-related links
     if (label === 'Connector') {
       return `/projects/data?projectId=${currentProjectId}`;
     } else if (label === 'Notebook') {
       return `/dataScientist/notebook?projectId=${currentProjectId}`;
     }
-    
+
+    // Special case for job creation routes - handle both old and new paths
+    if (href.includes('/projects/job-list/new/')) {
+      return `/projects/job-list/new/${currentProjectId}`;
+    }
+
     // Specifically handle template URLs (UI Builder section)
     if (href.includes('/projects/template/')) {
       // For UI Builder template links, use this format
@@ -293,11 +318,11 @@ export function Menu({ isOpen }: MenuProps) {
         }
       }
     }
-    
+
     // For other project-related paths, ensure they use the current project ID
     if (href.includes('/projects/') && !href.includes('/projects/data')) {
       const pathParts = href.split('/');
-      
+
       // Check if this is a projects path with a project ID at the end
       // The pattern is typically /projects/something/projectId
       if (pathParts.length >= 4) {
@@ -306,38 +331,44 @@ export function Menu({ isOpen }: MenuProps) {
         return newHref;
       }
     }
-    
+
     // If we don't match any pattern, return the original href
     return href;
   };
 
   // Always use the stored project ID for all links when in project context
-  const backToProjectsHref = currentProjectId ? `/projects/pipeline/${currentProjectId}` : '/';
+  const backToProjectsHref = currentProjectId
+    ? `/projects/pipeline/${currentProjectId}`
+    : '/';
 
   return (
     <nav className='mt-8 h-full w-full'>
-      {inProjectContext && userRole !== 'data scientist'  && pathname !== '/' && (
-        <div className='mb-6 px-4'>
-          {userRole === 'project manager' && (
-            <div className='flex items-center justify-around'>
-              <div className='flex items-center text-sm text-blue-500 mt-1'>
-                <NextLink
-                  href={backToProjectsHref} 
-                  className='flex items-center ml-1'
-                >
-                  <span className='hover:underline'>Pipeline</span>
-                </NextLink>
+      {inProjectContext &&
+        userRole !== 'data scientist' &&
+        pathname !== '/' && (
+          <div className='mb-6 px-4'>
+            {userRole === 'project manager' && (
+              <div className='flex items-center justify-around'>
+                <div className='flex items-center text-sm text-blue-500 mt-1'>
+                  <NextLink
+                    href={backToProjectsHref}
+                    className='flex items-center ml-1'
+                  >
+                    <span className='hover:underline'>Pipeline</span>
+                  </NextLink>
+                </div>
+                <div className='flex items-center text-sm text-blue-500 mt-1'>
+                  <NextLink href='/' className='flex items-center'>
+                    <ArrowLeft className='h-3 w-3 mr-1' />
+                    <span className='hover:underline'>
+                      Back to all projects
+                    </span>
+                  </NextLink>
+                </div>
               </div>
-              <div className='flex items-center text-sm text-blue-500 mt-1'>
-                <NextLink href='/' className='flex items-center'>
-                  <ArrowLeft className='h-3 w-3 mr-1' />
-                  <span className='hover:underline'>Back to all projects</span>
-                </NextLink>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
       <ul className='flex flex-col min-h-[calc(100vh-48px-36px-16px-32px)] lg:min-h-[calc(100vh-32px-40px-32px)] items-start space-y-1 px-2'>
         {updatedMenuList.map((group, groupIndex) => {
@@ -438,9 +469,12 @@ export function Menu({ isOpen }: MenuProps) {
                     let isHighlighted = item.active || hasActiveSubmenu;
 
                     const Icon = item.icon;
-                    
+
                     // Get the proper href with project ID if needed
-                    const menuHref = getHrefWithProjectId(item.href, item.label);
+                    const menuHref = getHrefWithProjectId(
+                      item.href,
+                      item.label
+                    );
 
                     return (
                       <div className='w-full' key={menuIndex}>
@@ -528,9 +562,12 @@ export function Menu({ isOpen }: MenuProps) {
                               {item.submenus.map((submenu, submenuIndex) => {
                                 // Get the icon component from the submenu object
                                 const SubmenuIcon = submenu.icon;
-                                
+
                                 // Add project ID to submenu hrefs if needed
-                                const submenuHref = getHrefWithProjectId(submenu.href, submenu.label);
+                                const submenuHref = getHrefWithProjectId(
+                                  submenu.href,
+                                  submenu.label
+                                );
 
                                 return (
                                   <TooltipProvider
