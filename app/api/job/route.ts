@@ -1,3 +1,4 @@
+// app/api/job/route.ts
 import { authOptions } from '@/auth';
 import { connectToDatabase } from '@/lib/db';
 import { AIJob, AImodel } from '@/models/aiModel';

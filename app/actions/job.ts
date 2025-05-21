@@ -1,4 +1,3 @@
-// app/actions/jobPost.ts
 "use server";
 
 import { revalidatePath } from "next/cache";
@@ -9,6 +8,7 @@ import { getServerSession } from "next-auth";
 import JobApplication from "@/models/JobApplication";
 import { authOptions } from "@/auth";
 import { getProjectLabels } from "./label";
+import mongoose from "mongoose"; // Add this import
 
 const turndownService = new TurndownService();
 export async function createJobPost(data: {
@@ -30,15 +30,31 @@ export async function createJobPost(data: {
   try {
     await connectToDatabase();
 
+    // Add validation for projectId
+    if (!data.projectId || !mongoose.Types.ObjectId.isValid(data.projectId)) {
+      console.error(`Invalid project ID: ${data.projectId}`);
+      return { 
+        success: false, 
+        error: "Invalid project ID. Please provide a valid project ID." 
+      };
+    }
+
     // Convert HTML to Markdown
     const markdownContent = turndownService.turndown(data.content);
-
 
     if (data.image == '') {
       data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
 
-    const labels = await getProjectLabels(data.projectId);
+    // Get labels safely with try/catch
+    let labels = [];
+    try {
+      labels = await getProjectLabels(data.projectId);
+    } catch (labelError) {
+      console.error("Error fetching labels:", labelError);
+      // Continue without labels rather than failing
+    }
+
     const jobPost = await JobPost.create({
       title: data.title,
       content: markdownContent,
@@ -59,15 +75,12 @@ export async function createJobPost(data: {
       label: labels
     });
 
-
     return { success: true, data: jobPost };
   } catch (error) {
     console.error("Error creating job post:", error);
-    return { success: false, error: "Failed to create job post" };
+    return { success: false, error: error.message || "Failed to create job post" };
   }
 }
-
-
 
 export async function editJobPost(jobId: string, data: {
   title: string;
@@ -88,15 +101,31 @@ export async function editJobPost(jobId: string, data: {
   try {
     await connectToDatabase();
 
+    // Add validation for projectId
+    if (!data.projectId || !mongoose.Types.ObjectId.isValid(data.projectId)) {
+      console.error(`Invalid project ID: ${data.projectId}`);
+      return { 
+        success: false, 
+        error: "Invalid project ID. Please provide a valid project ID." 
+      };
+    }
+
     // Convert HTML to Markdown
     const markdownContent = turndownService.turndown(data.content);
-
 
     if (data.image == '') {
       data.image = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/images/defaultJobThumbnail.jpg`
     }
 
-    const labels = await getProjectLabels(data.projectId);
+    // Get labels safely with try/catch
+    let labels = [];
+    try {
+      labels = await getProjectLabels(data.projectId);
+    } catch (labelError) {
+      console.error("Error fetching labels:", labelError);
+      // Continue without labels rather than failing
+    }
+
     const jobPost = await JobPost.updateOne(
       { _id: jobId }, // Filter to find the job post by ID
       {
@@ -122,17 +151,12 @@ export async function editJobPost(jobId: string, data: {
       }
     );
 
-
-
     return { success: true, data: jobPost };
   } catch (error) {
-    console.error("Error creating job post:", error);
-    return { success: false, error: "Failed to create job post" };
+    console.error("Error updating job post:", error);
+    return { success: false, error: error.message || "Failed to update job post" };
   }
 }
-
-
-
 
 export async function getJobPosts(options: {
   status?: "draft" | "published"
@@ -176,8 +200,6 @@ export async function getJobPosts(options: {
     return JSON.stringify(errorResponse)
   }
 }
-
-
 
 export async function updateJobPost(
   id: string,
@@ -329,6 +351,12 @@ export const getAllJobApplications = async () => {
 export async function getAllJobs(projectId: string) {
   try {
     await connectToDatabase();
+    
+    // Add validation for projectId
+    if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+      console.error(`Invalid project ID: ${projectId}`);
+      return []; // Return empty array instead of throwing an error
+    }
 
     const jobs = await JobPost.find({ projectId })
       .sort({ createdAt: -1 })
@@ -344,6 +372,13 @@ export async function getAllJobs(projectId: string) {
 export async function getJobById(jobId: string) {
   try {
     await connectToDatabase();
+    
+    // Add validation for jobId
+    if (!jobId || !mongoose.Types.ObjectId.isValid(jobId)) {
+      console.error(`Invalid job ID: ${jobId}`);
+      throw new Error("Invalid job ID");
+    }
+    
     const job = await JobPost.findById(jobId);
     return JSON.parse(JSON.stringify(job));
   } catch (error) {
@@ -351,4 +386,3 @@ export async function getJobById(jobId: string) {
     throw error;
   }
 }
-
