@@ -88,44 +88,77 @@ export default function InteractiveMap() {
         filterPosts();
     }, [searchValue, activeCategory, posts]);
 
-    const filterPosts = () => {
-        let filtered = [...posts];
+const filterPosts = () => {
+  console.log("--------- FILTERING STARTED ---------");
+  console.log("Active Category:", activeCategory);
+  console.log("Search Mode:", isSearchMode);
+  console.log("Search Value:", searchValue);
+  console.log("Total Posts Before Filtering:", posts.length);
+  
+  // Log a few examples to see what we're working with
+  if (posts.length > 0) {
+    console.log("Sample Post Label:", posts[0].label);
+    console.log("Sample Post Type:", Array.isArray(posts[0].label) ? "Array" : typeof posts[0].label);
+  }
+  
+  let filtered = [...posts];
+  
+  // Filter by category if activeCategory is set
+  if (activeCategory) {
+    console.log("Filtering by category:", activeCategory);
+    
+    filtered = filtered.filter((post) => {
+      // Ensure label is treated as an array (it should already be one)
+      const labels = Array.isArray(post.label) ? post.label : [];
       
-        // Ensure labels are properly parsed
-        filtered = filtered.map((post) => {
-          if (Array.isArray(post.label)) {
-            return {
-              ...post,
-              label: post.label
-                .map((labelString:string) => {
-                  try {
-                    return JSON.parse(labelString); // Convert stringified arrays into real arrays
-                  } catch {
-                    return []; // If JSON parsing fails, return an empty array
-                  }
-                })
-                .flat() // Flatten the nested arrays
-                .filter((label:string) => label && label.trim() !== ''), // Remove empty labels
-            };
-          }
-          return post;
-        });
+      // Log some debugging info for a few posts
+      if (posts.indexOf(post) < 3) {
+        console.log(`Post ${post._id} Labels:`, labels);
+      }
       
-        // Filter by category if activeCategory is set
-        if (activeCategory) {
-          filtered = filtered.filter((post) => post.label.some((label:string) => label.toLowerCase() === activeCategory.toLowerCase()));
+      // Simple string comparison - no need for complex parsing
+      const match = labels.some(label => 
+        label.toLowerCase() === activeCategory.toLowerCase()
+      );
+      
+      // Log the match result for a few posts
+      if (posts.indexOf(post) < 3) {
+        console.log(`Post ${post._id} matches ${activeCategory}:`, match);
+      }
+      
+      return match;
+    });
+    
+    console.log("Posts after category filtering:", filtered.length);
+  }
+  
+  // Filter by search term if in search mode
+  if (isSearchMode && searchValue) {
+    console.log("Filtering by search term:", searchValue);
+    
+    const searchLower = searchValue.toLowerCase();
+    filtered = filtered.filter(
+      (post) => {
+        const matchesTitle = post.title.toLowerCase().includes(searchLower);
+        const matchesLocation = post.location.toLowerCase().includes(searchLower);
+        
+        // Log the match result for a few posts
+        if (posts.indexOf(post) < 3) {
+          console.log(`Post ${post._id} matches search "${searchValue}":`, matchesTitle || matchesLocation);
         }
-      
-        // Filter by search term if in search mode
-        if (isSearchMode && searchValue) {
-          const searchLower = searchValue.toLowerCase();
-          filtered = filtered.filter(
-            (post) => post.title.toLowerCase().includes(searchLower) || post.location.toLowerCase().includes(searchLower)
-          );
-        }
-      
-        setFilteredPosts(filtered);
-      };
+        
+        return matchesTitle || matchesLocation;
+      }
+    );
+    
+    console.log("Posts after search filtering:", filtered.length);
+  }
+  
+  console.log("Final filtered posts count:", filtered.length);
+  console.log("--------- FILTERING ENDED ---------");
+  
+  setFilteredPosts(filtered);
+};
 
     const handleCategoryClick = (category: string) => {
         if (activeCategory === category) {

@@ -117,7 +117,9 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       '/jobs',
     ];
     const isNextAuthApiRoute = pathname.startsWith('/api/auth/');
+
     const isWebhookRoute = pathname.startsWith('/api/stripeWebhook');
+
 
     const isPublicRoute =
       isNextAuthApiRoute ||

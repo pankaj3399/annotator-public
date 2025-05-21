@@ -1,3 +1,4 @@
+// Project.ts
 import { Schema, model, models, CallbackError } from 'mongoose';
 import Task from './Task';
 import { Template } from './Template';
@@ -24,6 +25,12 @@ const projectSchema = new Schema({
     }
   }
 });
+
+// === INDEXES FOR PROJECT QUERIES ===
+projectSchema.index({ project_Manager: 1 });
+projectSchema.index({ name: 1 });
+projectSchema.index({ project_Manager: 1, _id: 1 });
+projectSchema.index({ created_at: -1 }); // For sorting by creation date
 
 projectSchema.pre('findOneAndDelete', async function (next) {
   const projectId = this.getFilter()._id

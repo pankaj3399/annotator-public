@@ -17,6 +17,7 @@ interface ReadyWorkDataPoint {
     name: 'Active' | 'Not Active';
     value: number; // The count
 }
+// Fixed version of getUserStats that includes all annotators
 export async function getUserStats(
     filters: Filters = {},
     granularity: Granularity = 'daily'
@@ -24,7 +25,9 @@ export async function getUserStats(
     console.log(`[getUserStats] Starting for granularity: ${granularity}`);
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !session.user?.email) { /* ... */ return JSON.stringify({ error: 'You must be logged in' } as StatError); }
+        if (!session || !session.user?.email) { 
+            return JSON.stringify({ error: 'You must be logged in' } as StatError); 
+        }
         const userEmail = session.user.email;
         console.log(`[getUserStats] Session found for email: ${userEmail}`);
 
@@ -35,8 +38,8 @@ export async function getUserStats(
                                     .select('team_id email _id')
                                     .lean<LeanUser | null>();
 
-        if (!currentUser) { /* ... */ return JSON.stringify([]); }
-        if (!currentUser.team_id) { /* ... */ return JSON.stringify([]); }
+        if (!currentUser) { return JSON.stringify([]); }
+        if (!currentUser.team_id) { return JSON.stringify([]); }
         const teamId: Types.ObjectId = currentUser.team_id;
         console.log(`[getUserStats] User belongs to Team ID: ${teamId}`);
 
@@ -44,41 +47,80 @@ export async function getUserStats(
         const matchStage: any = {
             role: 'annotator',
             team_id: teamId,
-            // ***** FIX: Use correct field name *****
-            created_at: { $exists: true }
+            // REMOVED: created_at: { $exists: true } - Don't exclude users without dates
         };
 
         // Optional filters
-        if (filters.domain && filters.domain.length > 0) { matchStage.domain = { $in: filters.domain.map(d => new RegExp(`^${d}$`, 'i')) }; }
-        if (filters.lang && filters.lang.length > 0) { matchStage.lang = { $in: filters.lang.map(l => new RegExp(`^${l}$`, 'i')) }; }
-        if (filters.location && filters.location.length > 0) { matchStage.location = { $in: filters.location.map(loc => new RegExp(`^${loc}$`, 'i')) }; }
+        if (filters.domain && filters.domain.length > 0) { 
+            matchStage.domain = { $in: filters.domain.map(d => new RegExp(`^${d}$`, 'i')) }; 
+        }
+        if (filters.lang && filters.lang.length > 0) { 
+            matchStage.lang = { $in: filters.lang.map(l => new RegExp(`^${l}$`, 'i')) }; 
+        }
+        if (filters.location && filters.location.length > 0) { 
+            matchStage.location = { $in: filters.location.map(loc => new RegExp(`^${loc}$`, 'i')) }; 
+        }
         console.log('[getUserStats] Initial Match Stage:', JSON.stringify(matchStage));
+
+        // First, get the total count of all matching annotators (for accurate cumulative)
+        const totalAnnotators = await UserModel.countDocuments(matchStage);
+        console.log(`[getUserStats] Total annotators matching filters: ${totalAnnotators}`);
 
         // --- Define Grouping/Formatting based on Granularity ---
         let groupStageId: any;
         let projectDateFormat: any;
         let sortFields: Record<string, 1 | -1> = { "_id": 1 };
+        
+        // Use a default date for users without created_at (e.g., January 1, 2020)
+        const defaultDate = new Date('2020-01-01');
 
         switch (granularity) {
             case 'weekly':
-                // ***** FIX: Use correct field name *****
-                groupStageId = { year: { $isoWeekYear: "$created_at_date" }, week: { $isoWeek: "$created_at_date" } };
-                projectDateFormat = { /* ... same format string ... */
-                    $concat: [ { $toString: "$_id.year" }, "-W", { $toString: { $cond: { if: { $lt: ["$_id.week", 10] }, then: { $concat: ["0", { $toString: "$_id.week" }] }, else: { $toString: "$_id.week" } } } }]
+                groupStageId = { 
+                    year: { $isoWeekYear: "$created_at_date" }, 
+                    week: { $isoWeek: "$created_at_date" } 
+                };
+                projectDateFormat = { 
+                    $concat: [ 
+                        { $toString: "$_id.year" }, 
+                        "-W", 
+                        { $toString: { 
+                            $cond: { 
+                                if: { $lt: ["$_id.week", 10] }, 
+                                then: { $concat: ["0", { $toString: "$_id.week" }] }, 
+                                else: { $toString: "$_id.week" } 
+                            } 
+                        }}
+                    ]
                 };
                 sortFields = { "_id.year": 1, "_id.week": 1 };
                 break;
             case 'monthly':
-                 // ***** FIX: Use correct field name *****
-                groupStageId = { year: { $year: "$created_at_date" }, month: { $month: "$created_at_date" } };
-                projectDateFormat = { /* ... same format string ... */
-                     $dateToString: { format: "%Y-%m", date: { $dateFromParts: { 'year': "$_id.year", 'month': "$_id.month", 'day': 1 } } }
+                groupStageId = { 
+                    year: { $year: "$created_at_date" }, 
+                    month: { $month: "$created_at_date" } 
+                };
+                projectDateFormat = { 
+                    $dateToString: { 
+                        format: "%Y-%m", 
+                        date: { 
+                            $dateFromParts: { 
+                                'year': "$_id.year", 
+                                'month': "$_id.month", 
+                                'day': 1 
+                            } 
+                        } 
+                    }
                 };
                 sortFields = { "_id.year": 1, "_id.month": 1 };
                 break;
             default: // daily
-                 // ***** FIX: Use correct field name *****
-                groupStageId = { $dateToString: { format: "%Y-%m-%d", date: "$created_at_date" } };
+                groupStageId = { 
+                    $dateToString: { 
+                        format: "%Y-%m-%d", 
+                        date: "$created_at_date" 
+                    } 
+                };
                 projectDateFormat = "$_id";
                 sortFields = { "_id": 1 };
                 break;
@@ -91,26 +133,37 @@ export async function getUserStats(
             { $match: matchStage },
             {
                 $project: {
-                    // ***** FIX: Use correct field name and rename projected field *****
-                    created_at_date: { // Project to a consistent name
-                         $cond: {
-                           // Check original field name
-                           if: { $eq: [{ $type: "$created_at" }, "date"] },
-                           then: "$created_at",
-                           else: { $toDate: "$created_at" }
-                         }
-                     }
+                    // Handle missing or invalid created_at dates
+                    created_at_date: {
+                        $cond: {
+                            if: { 
+                                $or: [
+                                    { $not: ["$created_at"] }, // Field doesn't exist
+                                    { $eq: ["$created_at", null] } // Field is null
+                                ]
+                            },
+                            then: defaultDate, // Use default date
+                            else: {
+                                $cond: {
+                                    if: { $eq: [{ $type: "$created_at" }, "date"] },
+                                    then: "$created_at",
+                                    else: { 
+                                        $cond: {
+                                            if: { $eq: [{ $type: "$created_at" }, "string"] },
+                                            then: { $toDate: "$created_at" },
+                                            else: defaultDate // Fallback for any other type
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             },
-            {
-                // ***** FIX: Match on the projected field name *****
-                $match: {
-                    created_at_date: { $ne: null, $type: "date" }
-                }
-             },
+            // REMOVED the second $match that filtered out null dates
             {
                 $group: {
-                    _id: groupStageId, // Group uses the fields derived from created_at_date
+                    _id: groupStageId,
                     newExperts: { $sum: 1 }
                 }
             },
@@ -118,38 +171,46 @@ export async function getUserStats(
             {
                 $project: {
                     _id: 0,
-                    date: projectDateFormat, // Create the final date string
+                    date: projectDateFormat,
                     newExperts: 1
                 }
             }
         ]);
 
-        // Log the raw result from aggregation
         console.log('[getUserStats] Raw Aggregation Result Count:', aggregationResult.length);
         if (aggregationResult.length > 0) {
-             console.log('[getUserStats] Raw Aggregation Result Sample (first 3):', JSON.stringify(aggregationResult.slice(0, 3)));
-        } else {
-             console.log('[getUserStats] Aggregation returned no results.');
+             console.log('[getUserStats] Raw Aggregation Result Sample (first 3):', 
+                JSON.stringify(aggregationResult.slice(0, 3)));
         }
 
         // --- Calculate Cumulative Experts ---
         let cumulativeCount = 0;
         const statsWithCumulative = aggregationResult.map(stat => {
             cumulativeCount += stat.newExperts;
-            return { date: stat.date, newExperts: stat.newExperts, cumulativeExperts: cumulativeCount };
+            return { 
+                date: stat.date, 
+                newExperts: stat.newExperts, 
+                cumulativeExperts: cumulativeCount 
+            };
         });
-        console.log('[getUserStats] Stats with Cumulative Count:', statsWithCumulative.length);
-         if (statsWithCumulative.length > 0) {
-             console.log('[getUserStats] Stats with Cumulative Sample (first 3):', JSON.stringify(statsWithCumulative.slice(0,3)));
-         }
+
+        // Log the final cumulative count vs total
+        console.log(`[getUserStats] Final cumulative: ${cumulativeCount}, Total annotators: ${totalAnnotators}`);
+        
+        // Add a warning if there's a mismatch
+        if (cumulativeCount !== totalAnnotators) {
+            console.warn(`[getUserStats] MISMATCH: Cumulative (${cumulativeCount}) != Total (${totalAnnotators})`);
+        }
 
         console.log("[getUserStats] Function finished successfully.");
         return JSON.stringify(statsWithCumulative);
 
     } catch (error) {
-        console.error(`[getUserStats ERROR] Failed during stats calculation (granularity: ${granularity}):`, error);
+        console.error(`[getUserStats ERROR] Failed during stats calculation:`, error);
         let errorMessage = `Failed to fetch ${granularity} stats.`;
-        if (error instanceof Error) { errorMessage = error.message || errorMessage; }
+        if (error instanceof Error) { 
+            errorMessage = error.message || errorMessage; 
+        }
         return JSON.stringify({ error: errorMessage } as StatError);
     }
 }
@@ -182,8 +243,6 @@ export async function getReadyToWorkStats(filters: Filters = {}): Promise<string
         const matchStage: any = {
             role: 'annotator',
             team_id: teamId,
-            // isReadyToWork field should exist based on schema default, but check just in case
-            // isReadyToWork: { $exists: true } // Usually not needed if schema has default
         };
 
         // Apply optional filters

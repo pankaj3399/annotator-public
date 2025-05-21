@@ -165,7 +165,7 @@ export default function Pipeline() {
       items: [
         {
           name: 'Post Job',
-          path: `/projects/job-list/create/${projectId}`,
+          path: `/projects/job-list/new/${projectId}`,
           icon: UserPlus,
         },
         {
