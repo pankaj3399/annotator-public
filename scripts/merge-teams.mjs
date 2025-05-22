@@ -208,8 +208,8 @@ async function runTeamMerge() {
 
         // Option 2: Use team names
         
-        const SOURCE_TEAM_NAME = "Ana's Annotation Team";
-        const TARGET_TEAM_NAME = "test";
+        const SOURCE_TEAM_NAME = "Blomega Lab";
+        const TARGET_TEAM_NAME = "Freelancers";
         
         console.log('🔍 Finding teams by name...');
         const [sourceTeam, targetTeam] = await Promise.all([
