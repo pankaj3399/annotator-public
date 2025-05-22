@@ -267,65 +267,179 @@ setFormData({ ...formData, image: uploadedFile });
 };
 
 const handleSubmit = async (e: React.FormEvent) => {
-e.preventDefault();
-setIsLoading(true);
+  e.preventDefault();
+  setIsLoading(true);
 
-if (!formData.selectedAiModelConfigId) {
-toast.error("Please select an AI Configuration.");
-setIsLoading(false);
-return;
-}
+  if (!formData.selectedAiModelConfigId) {
+    toast.error("Please select an AI Configuration.");
+    setIsLoading(false);
+    return;
+  }
 
-const selectedConfig = availableProviderModels.find(
-(m) => m.id === formData.selectedAiModelConfigId
-);
+  const selectedConfig = availableProviderModels.find(
+    (m) => m.id === formData.selectedAiModelConfigId
+  );
 
-if (!selectedConfig) {
-toast.error(
-"Selected AI configuration not found. Please refresh or re-select a model."
-);
-setIsLoading(false);
-return;
-}
+  if (!selectedConfig) {
+    toast.error(
+      "Selected AI configuration not found. Please refresh or re-select a model."
+    );
+    setIsLoading(false);
+    return;
+  }
 
-try {
-console.log("Form data for AI generation:", formData);
-console.log("Selected AI Config:", selectedConfig);
+  try {
+    console.log("Form data for AI generation:", formData);
+    console.log("Selected AI Config:", selectedConfig);
 
-const prompt = generatePrompt(formData);
-// if (prompt) { setIsAiModalOpen(true); } // If this modal is still relevant
+    const prompt = generatePrompt(formData);
 
-const response = await generateAiResponse(
-selectedConfig.provider,
-selectedConfig.model,
-prompt,
-projectId as string,
-selectedConfig.apiKey // API key from the selected configuration
-);
+    const response = await generateAiResponse(
+      selectedConfig.provider,
+      selectedConfig.model,
+      prompt,
+      projectId as string,
+      selectedConfig.apiKey
+    );
 
-if (response) {
-const htmlContent = convertMarkdownToHtml(response);
-setGeneratedPost(htmlContent);
-setEditedPost(htmlContent);
-} else {
-toast.error(
-"Failed to generate AI response. The AI model might have returned an empty response."
-);
-const errorMessage =
-"<p>Failed to generate job post content from AI. Please try again or select a different model.</p>";
-setGeneratedPost(errorMessage);
-setEditedPost(errorMessage);
-}
-} catch (error) {
-console.error("Error generating job post:", error);
-const errorMessage =
-"<p>Error generating job post. Please check your AI model configuration and API key, then try again.</p>";
-setGeneratedPost(errorMessage);
-setEditedPost(errorMessage);
-toast.error("Error generating job post. See console for details.");
-} finally {
-setIsLoading(false);
-}
+    if (response) {
+      const htmlContent = convertMarkdownToHtml(response);
+      setGeneratedPost(htmlContent);
+      setEditedPost(htmlContent);
+      toast.success("Job post generated successfully!");
+    } else {
+      const errorMsg = "The AI model returned an empty response. This could be due to:";
+      const suggestions = [
+        "• Invalid or expired API key",
+        "• Model quota exceeded", 
+        "• Content filtering by the AI provider",
+        "• Network connectivity issues"
+      ];
+      
+      toast.error(`${errorMsg}\n${suggestions.join('\n')}`, {
+        duration: 8000
+      });
+      
+      const errorMessage = `
+        <div style="padding: 20px; border: 1px solid #ef4444; border-radius: 8px; background-color: #fef2f2;">
+          <h3 style="color: #dc2626; margin-top: 0;">AI Generation Failed</h3>
+          <p><strong>The AI model returned an empty response.</strong></p>
+          <p>Possible causes:</p>
+          <ul>
+            <li>Invalid or expired API key for ${selectedConfig.provider}</li>
+            <li>Model quota exceeded</li>
+            <li>Content filtering by the AI provider</li>
+            <li>Network connectivity issues</li>
+          </ul>
+          <p><strong>Solutions:</strong></p>
+          <ul>
+            <li>Check your API key in settings</li>
+            <li>Verify your account has available credits/quota</li>
+            <li>Try a different AI model</li>
+            <li>Simplify your job description content</li>
+          </ul>
+        </div>
+      `;
+      setGeneratedPost(errorMessage);
+      setEditedPost(errorMessage);
+    }
+  } catch (error: any) {
+    console.error("Error generating job post:", error);
+    
+    // Extract more specific error information
+    let errorMessage = "An error occurred while generating the job post.";
+    let detailedError = "";
+    let suggestions: string[] = [];
+
+    if (error.message) {
+      // Parse common AI provider errors
+      if (error.message.includes("invalid_api_key") || error.message.includes("authentication")) {
+        errorMessage = "API Key Authentication Failed";
+        detailedError = `Your ${selectedConfig.provider} API key appears to be invalid or expired.`;
+        suggestions = [
+          "Verify your API key in settings",
+          "Check if the API key has the required permissions",
+          "Ensure the API key hasn't expired"
+        ];
+      } else if (error.message.includes("rate_limit") || error.message.includes("quota")) {
+        errorMessage = "Rate Limit or Quota Exceeded";
+        detailedError = `You've exceeded the rate limit or quota for ${selectedConfig.provider}.`;
+        suggestions = [
+          "Wait a few minutes before trying again",
+          "Check your account's usage limits",
+          "Consider upgrading your plan if needed"
+        ];
+      } else if (error.message.includes("model_not_found") || error.message.includes("invalid_model")) {
+        errorMessage = "Invalid Model Configuration";
+        detailedError = `The model "${selectedConfig.model}" is not available or invalid for ${selectedConfig.provider}.`;
+        suggestions = [
+          "Check if the model name is correct",
+          "Verify the model is available in your region",
+          "Try selecting a different model"
+        ];
+      } else if (error.message.includes("content_filter") || error.message.includes("safety")) {
+        errorMessage = "Content Filtered";
+        detailedError = "The AI provider's content filter blocked the request.";
+        suggestions = [
+          "Review your job description for potentially flagged content",
+          "Try rephrasing the job requirements",
+          "Use more general language in the description"
+        ];
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        errorMessage = "Network Connection Error";
+        detailedError = "Unable to connect to the AI provider's servers.";
+        suggestions = [
+          "Check your internet connection",
+          "Try again in a few moments",
+          "Contact support if the issue persists"
+        ];
+      } else {
+        // Generic error with the actual error message
+        detailedError = error.message;
+        suggestions = [
+          "Check your AI model configuration",
+          "Verify your API key is valid and has sufficient quota",
+          "Try selecting a different AI model",
+          "Contact support if the issue persists"
+        ];
+      }
+    }
+
+    // Show user-friendly error in toast
+    toast.error(`${errorMessage}: ${detailedError}`, {
+      duration: 10000,
+      description: suggestions.length > 0 ? suggestions.join(' • ') : undefined
+    });
+
+    // Show detailed error in the editor area
+    const errorHtml = `
+      <div style="padding: 20px; border: 1px solid #ef4444; border-radius: 8px; background-color: #fef2f2;">
+        <h3 style="color: #dc2626; margin-top: 0;">${errorMessage}</h3>
+        <p><strong>Error Details:</strong></p>
+        <p style="background-color: #fee2e2; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 14px;">
+          ${detailedError || error.message}
+        </p>
+        ${suggestions.length > 0 ? `
+          <p><strong>Suggested Solutions:</strong></p>
+          <ul>
+            ${suggestions.map(suggestion => `<li>${suggestion}</li>`).join('')}
+          </ul>
+        ` : ''}
+        <p><strong>Provider:</strong> ${selectedConfig.provider}</p>
+        <p><strong>Model:</strong> ${selectedConfig.model}</p>
+        <p><strong>Configuration:</strong> ${selectedConfig.name}</p>
+        <hr style="margin: 15px 0; border-color: #fca5a5;">
+        <p style="font-size: 14px; color: #7f1d1d;">
+          <strong>Technical Details:</strong> Check the browser console for more information.
+        </p>
+      </div>
+    `;
+    
+    setGeneratedPost(errorHtml);
+    setEditedPost(errorHtml);
+  } finally {
+    setIsLoading(false);
+  }
 };
 
 const handlePublish = async () => {
