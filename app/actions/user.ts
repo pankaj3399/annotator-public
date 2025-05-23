@@ -22,7 +22,6 @@ import JobPost from "@/models/JobPost";
 import JobApplication from "@/models/JobApplication";
 import { Group, Message, UserGroup } from "@/models/chat";
 import { AIJob, AImodel } from "@/models/aiModel";
-import { bankDetail } from "@/models/bank";
 
 export async function updateUserTeam(userId: string, teamId: string) {
   console.log("updateUserTeam action called:", { userId, teamId });
@@ -268,14 +267,7 @@ export async function deleteUser(userId: string) {
       { session }
     );
     console.log("Reset any invitations accepted by this user");
-    
-    // 11. Delete user's bank details
-    const bankResult = await bankDetail.deleteMany(
-      { user: userId },
-      { session }
-    );
-    console.log(`Deleted ${bankResult.deletedCount} bank details`);
-    
+        
     // 12. Handle AI models and jobs
     // Delete AI jobs
     const aiJobsResult = await AIJob.deleteMany(
