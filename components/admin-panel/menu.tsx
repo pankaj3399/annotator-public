@@ -1,3 +1,4 @@
+// components/Menu.tsx (adjust path as needed)
 import {
   Ellipsis,
   LogOut,
@@ -26,7 +27,6 @@ import {
   NotebookText,
   FileType,
   FileType2,
-  // Additional icons for distinct accordion group headers
   Folders,
   Book,
   LineChart,
@@ -44,10 +44,11 @@ import {
   FolderKanban,
   FolderCode,
   LayoutTemplate,
+  Home, // Added Home for getGroupIcon fallback
 } from 'lucide-react';
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react'; // Added useCallback
 
 import { Button } from '@/components/ui/button';
 import {
@@ -56,12 +57,55 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { getMenuList, UserRole } from '@/lib/menu-list';
+import { getMenuList, UserRole, getProjectIdFromQuery } from '@/lib/menu-list'; // Ensure path is correct
 import { cn } from '@/lib/utils';
 import { signOut, useSession } from 'next-auth/react';
-import { TemplateIcon } from '../TemplateIcon';
 
-// Define more explicit types to ensure TypeScript understands the structure
+// Keywords that are part of paths but are NOT project IDs
+const INVALID_ID_KEYWORDS_LIST = [
+  'new',
+  'create',
+  'edit',
+  'data',
+  'task',
+  'test',
+  'training',
+  'core',
+  'job-list',
+  'template',
+  'pipeline',
+  'guidelines',
+  'discussion',
+  'benchmark-proposals',
+  'analytics',
+  'leaderboard',
+  'settings',
+  'notification',
+  'ai-config',
+  'all',
+  'annotatorDashboard',
+  'chat',
+  'profile',
+  'wishlist',
+  'bank',
+  'viewCourses',
+  'myCourses',
+  'benchmark-arena',
+  'review',
+  'providerKeys',
+  'history',
+  'orders',
+  'label',
+  'teams',
+  'experts',
+  'reviewsAndRatings',
+  'landing',
+  'dashboard',
+  'annotator',
+  'courses',
+  'dataScientist',
+];
+
 type Submenu = {
   href: string;
   label: string;
@@ -80,8 +124,7 @@ type MenuItem = {
 type MenuGroup = {
   groupLabel: string;
   menus: MenuItem[];
-  groupIcon?: LucideIcon | any;
-  icon?: LucideIcon | any;
+  icon?: LucideIcon | any; // For group icon
 };
 
 interface MenuProps {
@@ -93,150 +136,140 @@ interface MenuProps {
 export function Menu({ isOpen }: MenuProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const userRole = (session?.user?.role as UserRole) || 'annotator';
 
-  // Get user role from session data
-  const userRole = (session?.user?.role as UserRole) || 'annotator'; // Default to annotator if no role found
-
-  // Store current project ID when it's available
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const INVALID_ID_KEYWORDS = useMemo(() => INVALID_ID_KEYWORDS_LIST, []);
 
-  // Extract project ID from URL with different route patterns
   useEffect(() => {
+    let determinedProjectId: string | null = null;
     const pathSegments = pathname.split('/');
-    if (pathname.includes('/payments-manager') || 
-      pathname.includes('/settings/payments') || 
-      pathname.includes('/payments/history')) {
-    // Clear any previously set projectId for payment pages
-    setCurrentProjectId(null);
-    return; // Exit early - don't process other project ID extraction logic
-  }
 
-    // Check for pipeline page (main entry point to a project)
-    if (pathSegments.includes('pipeline')) {
-      const pipelineIndex = pathSegments.indexOf('pipeline');
-      if (pipelineIndex + 1 < pathSegments.length) {
-        const projectId = pathSegments[pipelineIndex + 1];
-        if (projectId) {
-          console.log('Setting project ID from pipeline page:', projectId);
-          setCurrentProjectId(projectId);
+    const queryProjectId = getProjectIdFromQuery();
+    if (queryProjectId) {
+      determinedProjectId = queryProjectId;
+    } else {
+      if (pathSegments.includes('pipeline')) {
+        const pipelineIndex = pathSegments.indexOf('pipeline');
+        if (pipelineIndex + 1 < pathSegments.length) {
+          const pid = pathSegments[pipelineIndex + 1];
+          if (pid && !INVALID_ID_KEYWORDS.includes(pid.toLowerCase())) {
+            determinedProjectId = pid;
+          }
+        }
+      } else if (
+        pathSegments.includes('projects') &&
+        pathSegments.includes('template')
+      ) {
+        const templateIndex = pathSegments.indexOf('template');
+        if (templateIndex + 2 < pathSegments.length) {
+          const pid = pathSegments[templateIndex + 2];
+          if (pid && !INVALID_ID_KEYWORDS.includes(pid.toLowerCase())) {
+            determinedProjectId = pid;
+          }
+        }
+      } else if (pathname.startsWith('/projects/job-list/new/')) {
+        const pid = pathSegments[pathSegments.length - 1];
+        if (pid && !INVALID_ID_KEYWORDS.includes(pid.toLowerCase())) {
+          determinedProjectId = pid;
+        }
+      } else if (
+        pathSegments.includes('projects') &&
+        pathSegments.length >= 4
+      ) {
+        let pidCandidate = pathSegments[pathSegments.length - 1];
+        if (
+          pidCandidate &&
+          INVALID_ID_KEYWORDS.includes(pidCandidate.toLowerCase()) &&
+          pathSegments.length > 1
+        ) {
+          pidCandidate = pathSegments[pathSegments.length - 2];
+        }
+        if (
+          pidCandidate &&
+          !INVALID_ID_KEYWORDS.includes(pidCandidate.toLowerCase())
+        ) {
+          const projectsIndex = pathSegments.indexOf('projects');
+          if (
+            projectsIndex !== -1 &&
+            pathSegments.indexOf(pidCandidate) > projectsIndex + 1
+          ) {
+            determinedProjectId = pidCandidate;
+          }
         }
       }
     }
-    // Handle template pages (like /projects/template/test/projectId)
-    else if (pathSegments.includes('template')) {
-      const templateIndex = pathSegments.indexOf('template');
-      if (templateIndex + 2 < pathSegments.length) {
-        const projectId = pathSegments[templateIndex + 2];
-        if (projectId) {
-          console.log('Setting project ID from template page:', projectId);
-          setCurrentProjectId(projectId);
-        }
-      }
-    }
-    // Handle other project routes like guidelines, summary, etc.
-    else if (pathSegments.includes('projects') && pathSegments.length >= 4) {
-      // Path format like: /projects/section/projectId
-      const projectsIndex = pathSegments.indexOf('projects');
-      if (projectsIndex + 2 < pathSegments.length) {
-        const projectId = pathSegments[projectsIndex + 2];
-        if (projectId) {
-          console.log('Setting project ID from projects page:', projectId);
-          setCurrentProjectId(projectId);
-        }
-      }
-    }
-    // Check for project ID in query string (for notebook and data pages)
-    else if (
-      pathname.includes('/dataScientist/notebook') ||
-      pathname.includes('/projects/data')
-    ) {
-      // Extract from URL query parameters
+
+    if (!determinedProjectId) {
       try {
-        const url = new URL(window.location.href);
-        const projectId = url.searchParams.get('projectId');
-        if (projectId) {
-          console.log('Setting project ID from query parameter:', projectId);
-          setCurrentProjectId(projectId);
+        const storedProjectId = localStorage.getItem('currentProjectId');
+        if (
+          storedProjectId &&
+          !INVALID_ID_KEYWORDS.includes(storedProjectId.toLowerCase())
+        ) {
+          determinedProjectId = storedProjectId;
         }
       } catch (e) {
-        console.error('Error extracting projectId from URL:', e);
+        console.error('Error accessing localStorage for projectId:', e);
       }
     }
-  }, [pathname]);
 
-  // Memoize menuList
+    if (determinedProjectId && determinedProjectId !== currentProjectId) {
+      setCurrentProjectId(determinedProjectId);
+      try {
+        localStorage.setItem('currentProjectId', determinedProjectId);
+      } catch (e) {
+        console.error('Error storing projectId in localStorage:', e);
+      }
+    } else if (!determinedProjectId && currentProjectId !== null) {
+      const isProjectPath =
+        pathname.includes('/projects/') ||
+        pathname.includes('/pipeline/') ||
+        pathname.includes('/dataScientist/notebook');
+      if (!isProjectPath) {
+        // setCurrentProjectId(null); // Optional: clear if navigating away from project context
+      }
+    }
+  }, [pathname, currentProjectId, INVALID_ID_KEYWORDS]);
+
   const menuList = useMemo(() => {
-    const list = getMenuList(pathname, userRole);
-    return list as MenuGroup[];
-  }, [pathname, userRole]);
+    return getMenuList(pathname, userRole, currentProjectId) as MenuGroup[];
+  }, [pathname, userRole, currentProjectId]);
 
-  // Update "Contents" to "Projects" if needed
   const updatedMenuList = useMemo(() => {
     return menuList.map((group) => {
-      if (group.groupLabel === 'Contents') {
+      if (group.groupLabel === 'Contents')
         return { ...group, groupLabel: 'Projects' };
-      }
       return group;
     });
   }, [menuList]);
 
-  // Track expanded sections
   const [expandedSections, setExpandedSections] = useState<{
     [key: string]: boolean;
   }>({});
 
-  // Check if in a project context
-  const pathSegments = pathname.split('/');
-  const isPaymentRelatedPath =
-    pathname.includes('/payments-manager') ||
-    pathname.includes('/payments/history') ||
-    pathname.includes('/settings/payments');
-  const inProjectContext =
-    !isPaymentRelatedPath &&
-    (pathSegments.includes('projects') ||
-      pathname.includes('/dataScientist/notebook') ||
-      currentProjectId !== null);
-
-  // Toggle section expansion
-  const toggleSection = (groupLabel: string) => {
+  // Function to toggle section expansion
+  const toggleSection = useCallback((sectionLabel: string) => {
     setExpandedSections((prev) => ({
       ...prev,
-      [groupLabel]: !prev[groupLabel],
+      [sectionLabel]: !prev[sectionLabel],
     }));
-  };
+  }, []); // Empty dependency array as it doesn't depend on props/state outside its own scope
 
-  // Initialize all accordions to be expanded by default
   useEffect(() => {
-    console.log('--- Menu useEffect Start --- Pathname:', pathname);
-    console.log('Current Project ID:', currentProjectId);
     const initialState: { [key: string]: boolean } = {};
-
-    // Make ALL groups expanded by default
     updatedMenuList.forEach((group) => {
-      // If the group has a groupLabel, make it expanded by default
-      if (group.groupLabel) {
-        initialState[group.groupLabel] = true;
-      }
-
-      // Also expand each menu item that has submenus (like "Data" accordion)
+      if (group.groupLabel) initialState[group.groupLabel] = true;
       group.menus.forEach((item) => {
-        if (item.submenus && item.submenus.length > 0) {
+        if (item.submenus && item.submenus.length > 0)
           initialState[item.label] = true;
-        }
       });
     });
-
-    console.log('--- Menu useEffect End --- Final initialState:', initialState);
     setExpandedSections(initialState);
-  }, [pathname, userRole, updatedMenuList, inProjectContext]);
+  }, [updatedMenuList]);
 
-  // Get the appropriate icon for a group based on its label
-  const getGroupIcon = (group: MenuGroup) => {
-    // First check if the group already has an icon defined
+  const getGroupIcon = (group: MenuGroup): LucideIcon | any => {
     if (group.icon) return group.icon;
-    if (group.groupIcon) return group.groupIcon;
-
-    // If no icon is defined, assign one based on the group label
     switch (group.groupLabel) {
       case 'Knowledge':
         return Book;
@@ -272,46 +305,75 @@ export function Menu({ isOpen }: MenuProps) {
     }
   };
 
-  // Function to get proper href with project ID for data-related links
-  const getHrefWithProjectId = (href: string, label: string) => {
-    // If this is a data-related link and we have a project ID
-    if (currentProjectId) {
-      if (label === 'Connector') {
-        return `/projects/data?projectId=${currentProjectId}`;
-      } else if (label === 'Notebook') {
-        return `/dataScientist/notebook?projectId=${currentProjectId}`;
+  const getHrefWithProjectId = (baseHref: string, label: string): string => {
+    if (
+      !currentProjectId ||
+      INVALID_ID_KEYWORDS.includes(currentProjectId.toLowerCase())
+    ) {
+      if (
+        (label === 'Connector' && baseHref === '/projects/data') ||
+        (label === 'Notebook' && baseHref === '/dataScientist/notebook')
+      ) {
+        const queryPid = getProjectIdFromQuery();
+        if (queryPid) return `${baseHref}?projectId=${queryPid}`;
       }
-
-      // For other project-related paths, ensure they use the current project ID
-      if (href.includes('/projects/') && !href.includes('/projects/data')) {
-        // Replace the project ID in the path if it exists
-        const pathParts = href.split('/');
-        const projectIdPosition = pathParts.length - 1;
-        if (projectIdPosition > 0) {
-          pathParts[projectIdPosition] = currentProjectId;
-          return pathParts.join('/');
-        }
-      }
+      return baseHref;
     }
-    return href;
+
+    if (label === 'Connector' && baseHref === '/projects/data') {
+      return `/projects/data?projectId=${currentProjectId}`;
+    }
+    if (label === 'Notebook' && baseHref === '/dataScientist/notebook') {
+      return `/dataScientist/notebook?projectId=${currentProjectId}`;
+    }
+
+    if (baseHref === '/projects/job-list/new') {
+      return `/projects/job-list/new/${currentProjectId}`;
+    }
+
+    const projectSpecificBasePaths = [
+      '/projects/guidelines',
+      '/projects/discussion',
+      '/projects/template/test',
+      '/projects/template/training',
+      '/projects/template/core',
+      '/projects/task',
+      '/projects/benchmark-proposals',
+      '/projects/training',
+      '/projects/job-list',
+      '/projects/job-applications',
+      '/projects/analytics/view',
+      '/projects/leaderboard',
+      '/projects/ai-config',
+      '/projects/settings',
+      '/projects/notification',
+    ];
+
+    if (projectSpecificBasePaths.some((p) => baseHref === p)) {
+      return `${baseHref}/${currentProjectId}`;
+    }
+
+    return baseHref;
   };
 
-  // Always use the stored project ID for the Pipeline link
-  const backToProjectsHref = currentProjectId
-    ? `/projects/pipeline/${currentProjectId}`
+  const inProjectContext =
+    currentProjectId !== null &&
+    !INVALID_ID_KEYWORDS.includes(currentProjectId.toLowerCase());
+  const backToProjectsHref = inProjectContext
+    ? `/pipeline/${currentProjectId}`
     : '/';
 
   return (
     <nav className='mt-8 h-full w-full'>
       {inProjectContext &&
         userRole !== 'data scientist' &&
-        currentProjectId && (
+        pathname !== '/' && (
           <div className='mb-6 px-4'>
             {userRole === 'project manager' && (
-              <div className='flex items-center justify-between'>
+              <div className='flex items-center justify-around'>
                 <div className='flex items-center text-sm text-blue-500 mt-1'>
                   <NextLink
-                    href={`/projects/pipeline/${currentProjectId}`}
+                    href={backToProjectsHref}
                     className='flex items-center ml-1'
                   >
                     <span className='hover:underline'>Pipeline</span>
@@ -332,23 +394,19 @@ export function Menu({ isOpen }: MenuProps) {
 
       <ul className='flex flex-col min-h-[calc(100vh-48px-36px-16px-32px)] lg:min-h-[calc(100vh-32px-40px-32px)] items-start space-y-1 px-2'>
         {updatedMenuList.map((group, groupIndex) => {
-          // Skip empty groups
           if (group.menus.length === 0) return null;
-
-          // Get the appropriate icon component for this group
           const GroupIcon = getGroupIcon(group);
 
           return (
             <li
               className={cn('w-full', group.groupLabel ? 'pt-5' : '')}
-              key={groupIndex}
+              key={`${group.groupLabel}-${groupIndex}`}
             >
-              {/* Group Label */}
               {(isOpen && group.groupLabel) || isOpen === undefined ? (
                 <div
                   className={cn(
                     'flex items-center justify-between px-3 pb-1 mb-2',
-                    group.groupLabel ? 'cursor-pointer hover:text-gray-900' : ''
+                    group.groupLabel ? 'cursor-pointer hover:text-gray-700' : ''
                   )}
                   onClick={() =>
                     group.groupLabel && toggleSection(group.groupLabel)
@@ -376,7 +434,6 @@ export function Menu({ isOpen }: MenuProps) {
                       {group.groupLabel}
                     </p>
                   </div>
-
                   {group.groupLabel &&
                     (expandedSections[group.groupLabel] ? (
                       <ChevronDown
@@ -415,29 +472,25 @@ export function Menu({ isOpen }: MenuProps) {
                 <p className='pb-2'></p>
               )}
 
-              {/* Display menus if section is expanded or if there's no groupLabel */}
               {(!group.groupLabel ||
                 expandedSections[group.groupLabel] ||
                 isOpen === false) && (
                 <div className={cn(group.groupLabel ? 'pl-2' : '')}>
                   {group.menus.map((item, menuIndex) => {
-                    // Determine if this menu item has active submenus
                     const hasActiveSubmenu =
                       item.submenus?.some((submenu) => submenu.active) || false;
-
-                    // Determine if this item should be highlighted
                     let isHighlighted = item.active || hasActiveSubmenu;
-
                     const Icon = item.icon;
-
-                    // Get the proper href with project ID if needed
                     const menuHref = getHrefWithProjectId(
                       item.href,
                       item.label
                     );
 
                     return (
-                      <div className='w-full' key={menuIndex}>
+                      <div
+                        className='w-full'
+                        key={`${item.label}-${menuIndex}`}
+                      >
                         <TooltipProvider disableHoverableContent>
                           <Tooltip delayDuration={100}>
                             <TooltipTrigger asChild>
@@ -513,25 +566,20 @@ export function Menu({ isOpen }: MenuProps) {
                           </Tooltip>
                         </TooltipProvider>
 
-                        {/* Submenu items */}
                         {item.submenus &&
                           item.submenus.length > 0 &&
                           expandedSections[item.label] &&
                           isOpen !== false && (
                             <div className='pl-8 space-y-1'>
                               {item.submenus.map((submenu, submenuIndex) => {
-                                // Get the icon component from the submenu object
                                 const SubmenuIcon = submenu.icon;
-
-                                // Add project ID to submenu hrefs if needed
                                 const submenuHref = getHrefWithProjectId(
                                   submenu.href,
                                   submenu.label
                                 );
-
                                 return (
                                   <TooltipProvider
-                                    key={submenuIndex}
+                                    key={`${submenu.label}-${submenuIndex}`}
                                     disableHoverableContent
                                   >
                                     <Tooltip delayDuration={100}>
@@ -593,7 +641,6 @@ export function Menu({ isOpen }: MenuProps) {
           );
         })}
 
-        {/* Logout Button */}
         <li className='w-full grow flex items-end'>
           <TooltipProvider disableHoverableContent>
             <Tooltip delayDuration={100}>
@@ -612,7 +659,9 @@ export function Menu({ isOpen }: MenuProps) {
                       isOpen === false ? 'opacity-0 hidden' : 'opacity-100'
                     )}
                   >
-                    Logout
+                    {session?.user?.name
+                      ? `Logout ${session.user.name}`
+                      : 'Logout'}
                   </p>
                 </Button>
               </TooltipTrigger>

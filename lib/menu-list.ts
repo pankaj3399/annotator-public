@@ -1,4 +1,4 @@
-//menu-list.ts
+// lib/menu-list.ts
 import {
   BookUser,
   Bot,
@@ -53,17 +53,19 @@ import {
   FileType,
   TestTube,
   Rocket,
-  UserX2Icon,
-  User2Icon,
   BookA,
-  UserCheck,
   DollarSign,
-} from "lucide-react";
-
-import { BookIcon } from "@/components/BookIcon";
+  UserCheck,
+} from 'lucide-react';
+import { BookIcon } from '@/components/BookIcon'; // Adjust path if needed
 
 // Define user roles
-export type UserRole = "project manager" | "annotator" | "agency owner" | "system admin" | "data scientist";
+export type UserRole =
+  | 'project manager'
+  | 'annotator'
+  | 'agency owner'
+  | 'system admin'
+  | 'data scientist';
 
 type Submenu = {
   href: string;
@@ -85,75 +87,167 @@ type Group = {
   groupLabel: string;
   menus: Menu[];
   visibleTo?: UserRole[]; // Role-based visibility for groups
-  icon?: LucideIcon | any;
+  icon?: LucideIcon | any; // Icon for the group itself (used in Menu.tsx)
 };
 
-// Check if we're in a notebook context
+// Keywords that are part of paths but are NOT project IDs
+const PATH_KEYWORDS_NOT_IDS = [
+  'new',
+  'create',
+  'edit',
+  'data',
+  'task',
+  'test',
+  'training',
+  'core',
+  'job-list',
+  'template',
+  'pipeline',
+  'guidelines',
+  'discussion',
+  'benchmark-proposals',
+  'analytics',
+  'leaderboard',
+  'settings',
+  'notification',
+  'ai-config',
+  'all',
+  'annotatorDashboard',
+  'chat',
+  'profile',
+  'wishlist',
+  'bank',
+  'viewCourses',
+  'myCourses',
+  'benchmark-arena',
+  'review',
+  'providerKeys',
+  'history',
+  'orders',
+  'label',
+  'teams',
+  'experts',
+  'reviewsAndRatings',
+  'landing',
+  'dashboard',
+  'annotator',
+  'courses',
+  'dataScientist',
+];
+
 function isNotebookPath(pathname: string): boolean {
   return pathname.includes('/dataScientist/notebook');
 }
 
 // Get project ID from URL query parameters (for notebook pages)
-function getProjectIdFromQuery(): string | null {
+export function getProjectIdFromQuery(): string | null {
+  // Export if used in Menu.tsx directly
   if (typeof window !== 'undefined') {
     try {
       const url = new URL(window.location.href);
-      return url.searchParams.get('projectId');
+      const projectId = url.searchParams.get('projectId');
+      if (
+        projectId &&
+        !PATH_KEYWORDS_NOT_IDS.includes(projectId.toLowerCase())
+      ) {
+        return projectId;
+      }
     } catch (e) {
-      console.error('Error parsing URL:', e);
+      console.error('Error parsing URL for query projectId:', e);
     }
+  }
+  return null;
+}
+
+function extractPotentialProjectIdFromPath(pathname: string): string | null {
+  const segments = pathname.split('/');
+  if (segments.length < 2) return null;
+
+  // Pattern: /projects/{section}/{id} or /projects/{section}/{action}/{id}
+  if (segments.includes('projects')) {
+    const projectsIndex = segments.indexOf('projects');
+    if (segments.length > projectsIndex + 2) {
+      const potentialId = segments[projectsIndex + 2];
+      // /projects/template/test/{id}, /projects/job-list/new/{id}
+      if (
+        segments.length > projectsIndex + 3 &&
+        !PATH_KEYWORDS_NOT_IDS.includes(
+          segments[projectsIndex + 3].toLowerCase()
+        )
+      ) {
+        return segments[projectsIndex + 3];
+      }
+      // /projects/guidelines/{id}
+      if (!PATH_KEYWORDS_NOT_IDS.includes(potentialId.toLowerCase())) {
+        return potentialId;
+      }
+    }
+  }
+  // Pattern: /pipeline/{id}
+  if (segments.includes('pipeline')) {
+    const pipelineIndex = segments.indexOf('pipeline');
+    if (segments.length > pipelineIndex + 1) {
+      const potentialId = segments[pipelineIndex + 1];
+      if (!PATH_KEYWORDS_NOT_IDS.includes(potentialId.toLowerCase())) {
+        return potentialId;
+      }
+    }
+  }
+
+  if (isNotebookPath(pathname)) {
+    return getProjectIdFromQuery();
   }
   return null;
 }
 function getAnnotatorMenu(pathname: string): Group[] {
   return [
     {
-      groupLabel: "",
+      groupLabel: '',
       menus: [
         {
-          href: "/landing",
-          label: "Home",
-          active: pathname.includes("/landing"),
+          href: '/landing',
+          label: 'Home',
+          active: pathname.includes('/landing'),
           icon: Home,
           submenus: [],
         },
         {
-          href: "/tasks/annotatorDashboard",
-          label: "Dashboard",
-          active: pathname.includes("/annotatorDashboard"),
+          href: '/tasks/annotatorDashboard',
+          label: 'Dashboard',
+          active: pathname.includes('/annotatorDashboard'),
           icon: LayoutDashboard,
           submenus: [],
         },
         {
-          href: "/tasks/chat",
-          label: "Chat",
-          active: pathname.includes("/chat"),
+          href: '/tasks/chat',
+          label: 'Chat',
+          active: pathname.includes('/chat'),
           icon: MessageSquare,
           submenus: [],
         },
         {
-          href: "/tasks/wishlist",
-          label: "Buy me this!",
-          active: pathname.includes("/wishlist"),
+          href: '/tasks/wishlist',
+          label: 'Buy me this!',
+          active: pathname.includes('/wishlist'),
           icon: Heart,
           submenus: [],
         },
       ],
     },
     {
-      groupLabel: "AI Academy",
+      groupLabel: 'AI Academy',
       menus: [
         {
-          href: "/tasks/viewCourses",
-          label: "All Courses",
-          active: pathname.includes("/viewCourses"),
+          href: '/tasks/viewCourses',
+          label: 'All Courses',
+          active: pathname.includes('/viewCourses'),
           icon: BookOpen,
           submenus: [],
         },
         {
-          href: "/tasks/myCourses",
-          label: "My Courses",
-          active: pathname.includes("/myCourses"),
+          href: '/tasks/myCourses',
+          label: 'My Courses',
+          active: pathname.includes('/myCourses'),
           icon: BookIcon,
           submenus: [],
         },
@@ -163,782 +257,664 @@ function getAnnotatorMenu(pathname: string): Group[] {
       groupLabel: "Payments",
       menus: [
         {
-            href: "/payments-manager/history",
-          label: "Payment History",
-          active: pathname.includes("/payments-manager/history"),
-          icon: FileText,
-        },
-      
-      ],
-    },
-
-    {
-      groupLabel: "Projects", // Changed from "Contents" to be more descriptive
-      menus: [
-        {
-          href: "/tasks",
-          label: "All Projects",
-          active: pathname.includes("/tasks") && 
-            !pathname.includes("/tasks/all") &&
-            !pathname.includes("/viewCourses") &&
-            !pathname.includes("/annotatorDashboard") &&
-            !pathname.includes("/tasks/benchmark-arena"),
-          icon: FolderOpen,
-        },
-        {
-          href: "/tasks/all",
-          label: "All Tasks",
-          active: pathname === "/tasks/all",
-          icon: CheckSquare,
-        },
-        {
-          href: "/tasks/review",
-          label: "Review Tasks",
-          active: pathname.includes("/tasks/review"),
-          icon: CheckCircle,
-        },
-        {
-          href: "/tasks/benchmark-arena",
-          label: "Benchmark Arena",
-          icon: TrendingUp,
-          active: pathname.includes("/tasks/benchmark-arena")
-        }
-      ],
-    },
-    {
-      groupLabel: "User",
-      menus: [
-        {
-          href: "/profile",
-          label: "Profile",
-          active: pathname.includes("/profile"),
-          icon: CircleUser,
-        },
-         {
-      href: "/settings/payments",
-      label: "Payments",
-      active: pathname.includes("/settings/payments") || pathname.includes("/payments/"),
-      icon: DollarSign,
-      submenus: [
-        {
-          href: "/settings/payments",
-          label: "Bank Settings",
-          active: pathname.includes("/settings/payments") && !pathname.includes("/history"),
-          icon: CreditCard,
-        },
-        {
           href: "/payments/history",
           label: "Payment History",
           active: pathname.includes("/payments/history"),
           icon: FileText,
+        },
+        {
+          href: "/payments/bank-settings",
+          label: "Bank Settings",
+          active: pathname.includes("/payments/bank-settings"),
+          icon: CreditCard,
         }
       ],
     },
+
+    {
+      groupLabel: 'Projects',
+      menus: [
+        {
+          href: '/tasks',
+          label: 'All Projects',
+          active:
+            pathname.includes('/tasks') &&
+            !pathname.includes('/tasks/all') &&
+            !pathname.includes('/viewCourses') &&
+            !pathname.includes('/annotatorDashboard') &&
+            !pathname.includes('/tasks/benchmark-arena'),
+          icon: FolderOpen,
+        },
+        {
+          href: '/tasks/all',
+          label: 'All Tasks',
+          active: pathname === '/tasks/all',
+          icon: CheckSquare,
+        },
+        {
+          href: '/tasks/review',
+          label: 'Review Tasks',
+          active: pathname.includes('/tasks/review'),
+          icon: CheckCircle,
+        },
+        {
+          href: '/tasks/benchmark-arena',
+          label: 'Benchmark Arena',
+          icon: TrendingUp,
+          active: pathname.includes('/tasks/benchmark-arena'),
+        },
+      ],
+    },
+    {
+      groupLabel: 'User',
+      menus: [
+        {
+          href: '/profile',
+          label: 'Profile',
+          active: pathname.includes('/profile'),
+          icon: CircleUser,
+        },
+        // {
+        // href: "/settings/payments",
+        // label: "Payments",
+        // active: pathname.includes("/settings/payments") || pathname.includes("/payments/"),
+        // icon: DollarSign,
+        // submenus: [
+        // {
+        // href: "/settings/payments",
+        // label: "Bank Settings",
+        // active: pathname.includes("/settings/payments") && !pathname.includes("/history"),
+        // icon: CreditCard,
+        // },
+        // {
+        // href: "/payments/history",
+        // label: "Payment History",
+        // active: pathname.includes("/payments/history"),
+        // icon: FileText,
+        // }
+        // ],
+        // },
       ],
     },
   ];
 }
-export function getMenuList(pathname: string, userRole: UserRole): Group[] {
-  // Extract projectId from pathname or query parameters
-  let projectId = pathname.split("/")[pathname.split("/").length - 1];
-  const fpath = pathname.split("/")[1];
-  
-  // For notebook pages, try to get projectId from query
-  if (isNotebookPath(pathname)) {
-    const queryProjectId = getProjectIdFromQuery();
-    if (queryProjectId) {
-      projectId = queryProjectId;
-    }
-  }
+export function getMenuList(
+  pathname: string,
+  userRole: UserRole,
+  dynamicProjectId?: string | null
+): Group[] {
+  const fpath = pathname.split('/')[1] || ''; // Ensure fpath is not undefined
+  // Use dynamicProjectId if provided and valid, otherwise try to extract from path
+  const effectiveProjectId =
+    dynamicProjectId &&
+      !PATH_KEYWORDS_NOT_IDS.includes(dynamicProjectId.toLowerCase())
+      ? dynamicProjectId
+      : extractPotentialProjectIdFromPath(pathname);
 
-  // For data scientist role
-  if (userRole === "data scientist") {
+  if (userRole === 'data scientist') {
     return [
       {
-        groupLabel: "",
+        groupLabel: '',
         menus: [
           {
-            href: "/landing",
-            label: "Home",
-            active: pathname.includes("/landing"),
+            href: '/landing',
+            label: 'Home',
+            active: pathname.includes('/landing'),
             icon: Home,
-            submenus: [],
-          }
+          },
         ],
-      }, {
-        groupLabel: "",
+      },
+      {
+        groupLabel: '',
         menus: [
           {
-            href: "/dataScientist/dashboard",
-            label: "Dashboard",
-            active: pathname.includes("/dataScientist/dashboard"),
+            href: '/dataScientist/dashboard',
+            label: 'Dashboard',
+            active: pathname.includes('/dataScientist/dashboard'),
             icon: LayoutDashboard,
           },
           {
-            href: "/projects/data", 
-            label: "Data", 
-            active: pathname.includes("/projects/data") || pathname.includes("/dataScientist/notebook"),
+            href: '/projects/data', // Base path, Menu.tsx adds ?projectId
+            label: 'Data',
+            active:
+              pathname.startsWith('/projects/data') ||
+              pathname.startsWith('/dataScientist/notebook'),
             icon: Database,
             submenus: [
               {
                 href: `/projects/data`,
-                label: "Connector",
-                active: pathname.includes(`/projects/data`),
+                label: 'Connector',
+                active: pathname.startsWith(`/projects/data`),
                 icon: Link,
               },
               {
                 href: `/dataScientist/notebook`,
-                label: "Notebook",
-                active: pathname.includes(`/dataScientist/notebook`),
+                label: 'Notebook',
+                active: pathname.startsWith(`/dataScientist/notebook`),
                 icon: NotebookText,
               },
             ],
-          }
+          },
         ],
       },
       {
-        groupLabel: "User",
+        groupLabel: 'User',
         menus: [
           {
-            href: "/profile",
-            label: "Profile",
-            active: pathname.includes("/profile"),
+            href: '/profile',
+            label: 'Profile',
+            active: pathname.includes('/profile'),
             icon: CircleUser,
-          }
+          },
         ],
-      }
+      },
     ];
   }
 
-  // For agency owner role
-  if (userRole === "agency owner") {
+  if (userRole === 'agency owner') {
     return [
       {
-        groupLabel: "",
+        groupLabel: '',
         menus: [
           {
-            href: "/landing",
-            label: "Home",
-            active: pathname.includes("/landing"),
+            href: '/landing',
+            label: 'Home',
+            active: pathname.includes('/landing'),
             icon: Home,
-            submenus: [],
           },
           {
-            href: "/agencyOwner",
-            label: "Dashboard",
-            active: pathname === "/agencyOwner",
+            href: '/agencyOwner',
+            label: 'Dashboard',
+            active: pathname === '/agencyOwner',
             icon: LayoutDashboard,
-            submenus: [],
           },
           {
-            href: "/agencyOwner/experts",
-            label: "Experts",
-            active: pathname.includes("/agencyOwner/experts"),
+            href: '/agencyOwner/experts',
+            label: 'Experts',
+            active: pathname.includes('/agencyOwner/experts'),
             icon: BookUser,
-            submenus: [],
           },
           {
-            href: "/agencyOwner/reviewsAndRatings",
-            label: "Reviews & Ratings",
-            active: pathname.includes("/agencyOwner/reviewsAndRatings"),
+            href: '/agencyOwner/reviewsAndRatings',
+            label: 'Reviews & Ratings',
+            active: pathname.includes('/agencyOwner/reviewsAndRatings'),
             icon: Star,
-            submenus: [],
           },
         ],
       },
     ];
   }
 
-  // For system admin role
-  if (userRole === "system admin") {
+  if (userRole === 'system admin') {
     return [
       {
-        groupLabel: "",
+        groupLabel: '',
         menus: [
           {
-            href: "/landing",
-            label: "Home",
-            active: pathname.includes("/landing"),
+            href: '/landing',
+            label: 'Home',
+            active: pathname.includes('/landing'),
             icon: Home,
-            submenus: [],
           },
           {
-            href: "/",
-            label: "Custom Fields",
-            active: pathname === "/",
+            href: '/',
+            label: 'Custom Fields',
+            active: pathname === '/',
             icon: FileText,
-            submenus: [],
           },
           {
-            href: "/admin/orders",
-            label: "View Orders",
-            active: pathname.includes("/admin/orders"),
+            href: '/admin/orders',
+            label: 'View Orders',
+            active: pathname.includes('/admin/orders'),
             icon: ShoppingCart,
-            submenus: [],
           },
           {
-            href: "/admin/label",
-            label: "Add Label",
-            active: pathname.includes("/admin/label"),
+            href: '/admin/label',
+            label: 'Add Label',
+            active: pathname.includes('/admin/label'),
             icon: Tag,
-            submenus: [],
           },
           {
-            href: "/admin/teams",
-            label: "Manage Teams",
-            active: pathname.includes("/admin/teams"),
+            href: '/admin/teams',
+            label: 'Manage Teams',
+            active: pathname.includes('/admin/teams'),
             icon: Users,
-            submenus: [],
           },
         ],
       },
     ];
   }
 
-  if (userRole === "annotator" && (
-    pathname.includes('/projects/') || 
-    pathname.includes('/dataScientist/') ||
-    pathname.includes('/task/') ||
-    (pathname.split('/').length > 3 && !pathname.includes('/tasks/'))
-  )) {
-  // Return the annotator-specific menu
-  return getAnnotatorMenu(pathname);
-}
+  if (
+    userRole === 'annotator' &&
+    (pathname.includes('/projects/') || // Annotator might view a specific project page
+      pathname.includes('/task/') || // Annotator working on a task within a project context
+      (pathname.split('/').length > 2 && !pathname.startsWith('/tasks/'))) // More general project context
+  ) {
+    // If an annotator is deep within a project path, they should see annotator menu
+    // This helps if they land on a URL that's not under /tasks/ but is project specific for them
+    return getAnnotatorMenu(pathname);
+  }
 
-  // Common project-related menu items for PM
   const projectManagerCommonGroups: Group[] = [
     {
-      groupLabel: "Knowledge",
+      groupLabel: 'Knowledge',
+      icon: FileText,
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/guidelines/${projectId}`,
-          label: "Guidelines",
-          active: pathname.includes(`/projects/guidelines/${projectId}`),
+          href: `/projects/guidelines`,
+          label: 'Guidelines',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/guidelines/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/guidelines/`),
           icon: BookA,
         },
         {
-          href: `/projects/summary/${projectId}`,
-          label: "Summary",
-          active: pathname.includes(`/projects/summary/${projectId}`),
-          icon: FileType2,
-        },
-        {
-          href: `/projects/discussion/${projectId}`,
-          label: "Discussion",
-          active: pathname.includes(`/projects/discussion/${projectId}`),
+          href: `/projects/discussion`,
+          label: 'Discussion',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/discussion/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/discussion/`),
           icon: MessageSquare,
         },
       ],
-      visibleTo: ["project manager"],
-      icon: FileText,
     },
     {
-      groupLabel: "Data",
+      groupLabel: 'Data',
+      visibleTo: ['project manager'],
       menus: [
         {
           href: `/projects/data`,
-          label: "Connector",
-          active: pathname.includes(`/projects/data/`),
+          label: 'Connector',
+          active: pathname.startsWith(`/projects/data`),
           icon: Link,
-          visibleTo: ["project manager" as UserRole],
-        },  
+        },
         {
           href: `/dataScientist/notebook`,
-          label: "Notebook",
-          active: pathname.includes(`/dataScientist/notebook`),
+          label: 'Notebook',
+          active: pathname.startsWith(`/dataScientist/notebook`),
           icon: NotebookText,
         },
       ],
-      visibleTo: ["project manager"],
     },
     {
-      groupLabel: "UI Builder",
+      groupLabel: 'UI Builder',
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/template/test/${projectId}`,
-          label: "Create Test",
-          active: pathname.includes("/template/test"),
+          href: `/projects/template/test`,
+          label: 'Create Test',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/template/test/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/template/test/`),
           icon: TestTube,
         },
         {
-          href: `/projects/template/training/${projectId}`,
-          label: "Create Training",
-          active: pathname.includes("/template/training"),
+          href: `/projects/template/training`,
+          label: 'Create Training',
+          active: effectiveProjectId
+            ? pathname.includes(
+              `/projects/template/training/${effectiveProjectId}`
+            )
+            : pathname.startsWith(`/projects/template/training/`),
           icon: GraduationCap,
         },
         {
-          href: `/projects/template/core/${projectId}`,
-          label: "Create Production",
-          active: pathname.includes("/template/core"),
+          href: `/projects/template/core`,
+          label: 'Create Production',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/template/core/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/template/core/`),
           icon: Rocket,
         },
       ],
-      visibleTo: ["project manager"],
     },
     {
-      groupLabel: "Task Management",
+      groupLabel: 'Task Management',
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/task/${projectId}`,
-          label: "Tasks",
-          active: pathname.includes("/task"),
+          href: `/projects/task`,
+          label: 'Tasks',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/task/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/task/`),
           icon: CheckSquare,
-          visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
         },
       ],
-      visibleTo: ["project manager"],
     },
     {
-      groupLabel: "Project Management",
+      groupLabel: 'Project Management',
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/benchmark-proposals/${projectId}`,
-          label: "Benchmark Proposals",
-          active: pathname.includes("/benchmark-proposals"),
+          href: `/projects/benchmark-proposals`,
+          label: 'Benchmark Proposals',
+          active: effectiveProjectId
+            ? pathname.includes(
+              `/projects/benchmark-proposals/${effectiveProjectId}`
+            )
+            : pathname.startsWith(`/projects/benchmark-proposals/`),
           icon: TrendingUp,
         },
         {
-          href: `/projects/training/${projectId}`,
-          label: "Kickoff Session",
-          active: pathname === `/projects/training/${projectId}`,
+          href: `/projects/training`,
+          label: 'Kickoff Session',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/training/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/training/`),
           icon: GraduationCap,
-        }
-      ]
+        },
+      ],
     },
     {
-      groupLabel: "Resources",
+      groupLabel: 'Resources',
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/job-list/${projectId}`,
-          label: "Job List",
-          active: pathname.includes("/job-list"),
+          href: `/projects/job-list`,
+          label: 'Job List',
+          active: effectiveProjectId
+            ? pathname.startsWith(`/projects/job-list/${effectiveProjectId}`) &&
+            !pathname.includes('/new')
+            : pathname.startsWith(`/projects/job-list/`) &&
+            !pathname.includes('/new'),
           icon: FileSpreadsheet,
         },
         {
-          href: `/projects/job-applications/${projectId}`,
-          label: "Job Applicants",
-          active: pathname.includes("/job-applications"),
+          href: `/projects/job-applications`,
+          label: 'Job Applicants',
+          active: effectiveProjectId
+            ? pathname.includes(
+              `/projects/job-applications/${effectiveProjectId}`
+            )
+            : pathname.startsWith(`/projects/job-applications/`),
           icon: UserPlus,
         },
         {
-          href: `/projects/job-list/create/${projectId}`,
-          label: "Post Job",
-          active: pathname.includes("/job-list/create"),
-          icon: UserPlus,
-        },
-        {
-          href: `/onboarded-annotator/${projectId}`,
-          label: "Onboarded Experts",
-          active: pathname.includes("/onboarded-annotator"),
-          icon: UserCheck,
+          href: `/projects/job-list/new`,
+          label: 'Post Job',
+          active:
+            pathname.includes('/projects/job-list/new') ||
+            pathname.includes('/projects/job-list/create'),
+          icon: FilePlus,
         },
       ],
-      visibleTo: ["project manager"],
     },
     {
-      groupLabel: "Analytics",
+      groupLabel: 'Analytics',
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/analytics/view/${projectId}`,
-          label: "Overview",
-          active: pathname.includes("/analytics/view"),
+          href: `/projects/analytics/view`,
+          label: 'Overview',
+          active: effectiveProjectId
+            ? pathname.includes(
+              `/projects/analytics/view/${effectiveProjectId}`
+            )
+            : pathname.startsWith(`/projects/analytics/view/`),
           icon: PieChart,
         },
         {
-          href: `/projects/leaderboard/${projectId}`,
-          label: "Leaderboard",
-          active: pathname.includes("/leaderboard"),
+          href: `/projects/leaderboard`,
+          label: 'Leaderboard',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/leaderboard/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/leaderboard/`),
           icon: Activity,
         },
       ],
-      visibleTo: ["project manager"],
     },
     {
-      groupLabel: "Settings & Configuration",
+      groupLabel: 'Settings & Configuration',
+      visibleTo: ['project manager'],
       menus: [
         {
-          href: `/projects/ai-config/${projectId}`,
-          label: "AI Expert",
-          active: pathname.includes("/ai-config"),
+          href: `/projects/ai-config`,
+          label: 'AI Expert',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/ai-config/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/ai-config/`),
           icon: Bot,
         },
         {
-          href: `/projects/settings/${projectId}`,
-          label: "Settings",
-          active: pathname.includes("/settings"),
+          href: `/projects/settings`,
+          label: 'Settings',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/settings/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/settings/`),
           icon: Settings,
         },
         {
-          href: `/projects/notification/${projectId}`,
-          label: "Notification",
-          active: pathname.includes("/notification"),
+          href: `/projects/notification`,
+          label: 'Notification',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/notification/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/notification/`),
           icon: Bell,
         },
       ],
-      visibleTo: ["project manager"],
-    }
+    },
   ];
 
-  // For tasks path
-  if (fpath === "tasks") {
-    const tasksMenu: Group[] = [
-      {
-        groupLabel: "",
-        menus: [
-          {
-            href: "/landing",
-            label: "Home",
-            active: pathname.includes("/landing"),
-            icon: Home,
-            submenus: [],
-          },
-          {
-            href: "/tasks/annotatorDashboard",
-            label: "Dashboard",
-            active: pathname.includes("/annotatorDashboard"),
-            icon: LayoutDashboard,
-            submenus: [],
-          },
-          {
-            href: "/tasks/chat",
-            label: "Chat",
-            active: pathname.includes("/chat"),
-            icon: MessageSquare,
-            submenus: [],
-          },
-          {
-            href: "/tasks/wishlist",
-            label: userRole === "project manager" ? "Wishlist" : "Buy me this!",
-            active: pathname.includes("/wishlist"),
-            icon: Heart,
-            submenus: [],
-          },
-        ],
-      },
-      {
-        groupLabel: "AI Academy",
-        menus: [
-          {
-            href: "/tasks/viewCourses",
-            label: "All Courses",
-            active: pathname.includes("/viewCourses"),
-            icon: BookOpen,
-            submenus: [],
-            visibleTo: ["annotator"],
-          },
-          {
-            href: "/tasks/myCourses",
-            label: "My Courses",
-            active: pathname.includes("/myCourses"),
-            icon: BookIcon,
-            submenus: [],
-            visibleTo: ["annotator"],
-          },
-          {
-            href: "/courses",
-            label: "Courses",
-            active: pathname.startsWith("/courses"),
-            icon: GraduationCap,
-            visibleTo: ["project manager"],
-          },
-        ],
-      },
-          {
-      groupLabel: "Payments",
-      menus: [
+  if (fpath === 'tasks') {
+    const tasksMenuBase = getAnnotatorMenu(pathname); // Annotator menu also serves as base for PM in /tasks
+    if (userRole === 'project manager') {
+      // Add PM specific general links to the tasks menu if not already present by context
+      const pmGeneralLinks = [
         {
-            href: "/payments-manager/history",
-          label: "Payment History",
-          active: pathname.includes("/payments-manager/history"),
-          icon: FileText,
+          href: '/courses',
+          label: 'Courses',
+          active: pathname.startsWith('/courses'),
+          icon: GraduationCap,
+          visibleTo: ['project manager'] as UserRole[],
         },
-      
-      ],
-    },
-      {
-        groupLabel: "Contents",
-        menus: [
-          {
-            href: "/tasks",
-            label: "Projects",
-            active:
-              pathname.includes("/tasks") &&
-              !pathname.includes("/tasks/all") &&
-              !pathname.includes("/viewCourses") &&
-              !pathname.includes("/annotatorDashboard") &&
-              !pathname.includes("/tasks/benchmark-arena"),
-            icon: FolderOpen,
-          },
-          {
-            href: "/tasks/all",
-            label: "All Tasks",
-            active: pathname === "/tasks/all",
-            icon: CheckSquare,
-            visibleTo: ["annotator"],
-          },
-          {
-            href: "/tasks/review",
-            label: "Review Tasks",
-            active: pathname.includes("/tasks/review"),
-            icon: CheckCircle,
-            visibleTo: ["annotator"],
-          },
-          {
-            href: "/tasks/benchmark-arena",
-            label: "Benchmark Arena",
-            icon: TrendingUp,
-            active: pathname.includes("/tasks/benchmark-arena")
-          }
-        ],
-      },
-      {
-        groupLabel: "User",
-        menus: [
-          {
-            href: "/profile",
-            label: "Profile",
-            active: pathname.includes("/profile"),
-            icon: CircleUser,
-          },
-        ],
-      },
-    ];
-
-    // For project manager, add the specific groups regardless of path
-    if (userRole === "project manager") {
-      // Check if there's a project context in the tasks path
-      const potentialProjectId = pathname.split("/").slice(2).find(segment =>
-        segment &&
-        !["all", "annotatorDashboard", "chat", "profile", "wishlist", "bank", "viewCourses", "myCourses", "benchmark-arena", "review",].includes(segment)
+      ];
+      // Modify AI Academy for PM
+      const aiAcademyGroup = tasksMenuBase.find(
+        (g) => g.groupLabel === 'AI Academy'
       );
-
-      if (potentialProjectId) {
-        // If there's a project context, include PM-specific groups with the correct projectId
-        const pmGroupsWithCorrectProject = projectManagerCommonGroups.map(group => ({
-          ...group,
-          menus: group.menus.map(menu => ({
-            ...menu,
-            href: menu.href.replace(projectId, potentialProjectId)
-          }))
-        }));
-
-        return filterMenusByRole([...tasksMenu, ...pmGroupsWithCorrectProject], userRole);
+      if (aiAcademyGroup) {
+        aiAcademyGroup.menus = aiAcademyGroup.menus.filter(
+          (m) =>
+            !m.label.includes('All Courses') && !m.label.includes('My Courses')
+        ); // Remove annotator courses
+        aiAcademyGroup.menus.push(
+          ...pmGeneralLinks.filter((link) => link.label === 'Courses')
+        );
+      } else {
+        tasksMenuBase.push({
+          groupLabel: 'AI Academy',
+          menus: pmGeneralLinks.filter((link) => link.label === 'Courses'),
+          visibleTo: ['project manager'],
+        });
       }
 
-      return filterMenusByRole([...tasksMenu, ...projectManagerCommonGroups], userRole);
+      // If effectiveProjectId is available (e.g. /tasks/PROJECT_ID/...),
+      // PM should also see projectManagerCommonGroups
+      if (effectiveProjectId) {
+        return filterMenusByRole(
+          [...tasksMenuBase, ...projectManagerCommonGroups],
+          userRole
+        );
+      }
+      return filterMenusByRole(tasksMenuBase, userRole);
     }
-
-    return filterMenusByRole(tasksMenu, userRole);
+    return filterMenusByRole(tasksMenuBase, userRole);
   }
 
-  // For home page, courses pages, or top-level pages
-  if (
-    projectId == "" ||
-    projectId == "dashboard" ||
-    projectId == "annotator" ||
-    projectId == "chat" ||
-    projectId == "profile" ||
-    projectId == "wishlist" ||
-    projectId == "bank" || projectId == "providerKeys" || projectId=="history"||
-    fpath == "courses"
-  ) {
+  const nonProjectSpecificRoots = [
+    '',
+    'landing',
+    'dashboard',
+    'annotator',
+    'chat',
+    'profile',
+    'wishlist',
+    'bank',
+    'providerKeys',
+    'history',
+    'courses',
+    'admin',
+    'agencyOwner',
+    'payments-manager',
+  ];
+  if (!effectiveProjectId || nonProjectSpecificRoots.includes(fpath)) {
     const homeMenu: Group[] = [
       {
-        groupLabel: "",
+        groupLabel: '',
         menus: [
           {
-            href: "/landing",
-            label: "Home",
-            active: pathname.includes("/landing"),
+            href: '/landing',
+            label: 'Home',
+            active: pathname.includes('/landing'),
             icon: Home,
-            submenus: [],
           },
         ],
       },
       {
-        groupLabel: "Project Management",
+        groupLabel: 'Project Management',
+        visibleTo: [
+          'project manager',
+          'annotator',
+          'agency owner',
+          'system admin',
+        ],
         menus: [
           {
-            href: "/dashboard",
-            label: "Dashboard",
-            active: pathname.includes("/dashboard"),
+            href: '/dashboard',
+            label: 'Dashboard',
+            active: pathname.includes('/dashboard'),
             icon: LayoutDashboard,
-            submenus: [],
-            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
           {
-            href: "/",
-            label: "Projects",
-            active: pathname === "/",
+            href: '/',
+            label: 'Projects',
+            active: pathname === '/',
             icon: FolderOpen,
-            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
           },
         ],
       },
       {
-        groupLabel: "Expert Management",
+        groupLabel: 'Expert Management',
+        visibleTo: ['project manager'],
         menus: [
           {
-            href: "/annotator",
-            label: "Expert",
-            active: pathname.includes("/annotator"),
+            href: '/annotator',
+            label: 'Expert',
+            active: pathname.includes('/annotator'),
             icon: User,
-            submenus: [],
-            visibleTo: ["project manager"],
           },
           {
-            href: "/onboarded-annotator",
-            label: "Onboarded Expert",
-            active: pathname.includes("/onboarded-annotator"),
-            icon: User2Icon,
-            submenus: [],
-            visibleTo: ["project manager"],
-          },
-          {
-            href: "/chat",
-            label: "Chat",
-            active: pathname.includes("/chat"),
+            href: '/chat',
+            label: 'Chat',
+            active: pathname.includes('/chat'),
             icon: MessageSquare,
-            submenus: [],
-            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+            visibleTo: ['project manager', 'annotator'],
           },
           {
-            href: "/wishlist",
-            label: userRole === "project manager" ? "Wishlist" : "Buy me this!",
-            active: pathname.includes("/wishlist"),
+            href: '/wishlist',
+            label: userRole === 'project manager' ? 'Wishlist' : 'Buy me this!',
+            active: pathname.includes('/wishlist'),
             icon: Heart,
-            submenus: [],
-            visibleTo: ["project manager", "annotator", "agency owner", "system admin"],
+            visibleTo: ['project manager', 'annotator'],
           },
         ],
       },
       {
-        groupLabel: "AI Academy",
+        groupLabel: 'AI Academy',
         menus: [
           {
-            href: "/courses",
-            label: "Courses",
-            active: pathname.startsWith("/courses"),
+            href: '/courses',
+            label: 'Courses',
+            active: pathname.startsWith('/courses'),
             icon: GraduationCap,
-            visibleTo: ["project manager"],
+            visibleTo: ['project manager'],
           },
           {
-            href: "/tasks/viewCourses",
-            label: "All Courses",
-            active: pathname.includes("/viewCourses"),
+            href: '/tasks/viewCourses',
+            label: 'All Courses',
+            active: pathname.includes('/tasks/viewCourses'),
             icon: BookOpen,
-            visibleTo: ["annotator"],
+            visibleTo: ['annotator'],
           },
           {
-            href: "/tasks/myCourses",
-            label: "My Courses",
-            active: pathname.includes("/myCourses"),
+            href: '/tasks/myCourses',
+            label: 'My Courses',
+            active: pathname.includes('/tasks/myCourses'),
             icon: BookIcon,
-            visibleTo: ["annotator"],
+            visibleTo: ['annotator'],
           },
         ],
-      },      
-          {
-      groupLabel: "Payments",
-      menus: [
-        {
-            href: "/payments-manager/history",
-          label: "Payment History",
-          active: pathname.includes("/payments-manager/history"),
-          icon: FileText,
-        },
-      
-      ],
-    },
+      },
       {
-        groupLabel: "Settings",
+        groupLabel: 'Settings',
         menus: [
           {
-            href: "/providerKeys",
-            label: "Provider Keys",
-            active: pathname.includes("/providerKeys"),
+            href: '/providerKeys',
+            label: 'Provider Keys',
+            active: pathname.includes('/providerKeys'),
             icon: Key,
-            submenus: [],
-            visibleTo: ["project manager"],
+            visibleTo: ['project manager'],
           },
           {
-            href: "/bank",
-            label: "Payment Center",
-            active: pathname.includes("/bank"),
-            icon: CreditCard,
-            submenus: [],
-            visibleTo: ["project manager"],
-          },
-
-          {
-            href: "/profile",
-            label: "Profile",
-            active: pathname.includes("/profile"),
+            href: '/profile',
+            label: 'Profile',
+            active: pathname.includes('/profile'),
             icon: CircleUser,
           },
+        {
+      href: "/payments-manager/history", // For project managers
+      label: "Payment History",
+      active: pathname.includes("/payments-manager/history"),
+      icon: DollarSign,
+      visibleTo: ["project manager"], // Only PM sees this in Settings
+    }
         ],
       },
     ];
-
     return filterMenusByRole(homeMenu, userRole);
   }
 
-  // Special case: For notebook pages that need project context
-  if (isNotebookPath(pathname)) {
-    // If we have a valid project ID from query params, show the same menu as projects
-    if (projectId && projectId !== "notebook") {
-      return filterMenusByRole(projectManagerCommonGroups, userRole);
-    }
-  }
-
-  // Default menu structure for project context
+  // Default for project context (PM viewing a specific project)
   const defaultMenu: Group[] = [];
-
-  // Always include project-specific groups for project managers when a valid project ID is present
-  if (userRole === "project manager" && projectId &&
-    !["", "dashboard", "annotator", "chat", "profile", "wishlist", "bank"].includes(projectId)) {
+  if (userRole === 'project manager' && effectiveProjectId) {
     defaultMenu.push(...projectManagerCommonGroups);
   }
-
-  // This conditional check is for a specific analytics view within the annotator path
+  // This case might be for annotators viewing specific project analytics if that's a feature
   if (
-    pathname.includes("/tasks/annotator") &&
-    pathname.includes("/analytics")
+    pathname.includes('/tasks/annotator') &&
+    pathname.includes('/analytics')
   ) {
     defaultMenu.push({
-      groupLabel: "Analytics",
+      groupLabel: 'Analytics',
       menus: [
         {
-          href: "/tasks/annotatorDashboard",
-          label: "Overview",
-          active: pathname.includes("/tasks/annotatorDashboard"),
+          href: '/tasks/annotatorDashboard',
+          label: 'Overview',
+          active: pathname.includes('/tasks/annotatorDashboard'),
           icon: PieChart,
         },
       ],
-      visibleTo: ["project manager"],
+      visibleTo: ['project manager', 'annotator'], // Or just annotator
     });
   }
 
   return filterMenusByRole(defaultMenu, userRole);
 }
 
-// Helper function to filter menus by role
 function filterMenusByRole(groups: Group[], userRole: UserRole): Group[] {
-  // First filter out groups that aren't visible to the user role
-  const filteredGroups = groups.filter(group =>
-    !group.visibleTo || group.visibleTo.includes(userRole)
+  const filteredGroups = groups.filter(
+    (group) => !group.visibleTo || group.visibleTo.includes(userRole)
   );
 
-  // Then filter menu items within each group
-  return filteredGroups.map(group => {
-    const filteredMenus = group.menus.filter(menu =>
-      !menu.visibleTo || menu.visibleTo.includes(userRole)
-    );
-
-    return {
-      ...group,
-      menus: filteredMenus
-    };
-    // Remove empty groups (groups with no visible menus)
-  }).filter(group => group.menus.length > 0);
+  return filteredGroups
+    .map((group) => {
+      const filteredMenus = group.menus.filter(
+        (menu) => !menu.visibleTo || menu.visibleTo.includes(userRole)
+      );
+      return { ...group, menus: filteredMenus };
+    })
+    .filter((group) => group.menus.length > 0);
 }
