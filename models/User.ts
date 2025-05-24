@@ -87,6 +87,27 @@ const userSchema = new Schema(
       of: Schema.Types.Mixed,
       default: {},
     },
+    stripeAccountId: {
+  type: String,
+  default: null
+},
+stripeAccountStatus: {
+  type: String,
+  enum: ['pending', 'active', 'rejected', 'incomplete'],
+  default: null
+},
+stripeOnboardingComplete: {
+  type: Boolean,
+  default: false
+},
+stripeCustomerId: {
+  type: String,
+  default: null
+},
+defaultPaymentMethod: {
+  type: String,
+  default: null
+},
     created_at: {
       type: Date,
       default: Date.now,

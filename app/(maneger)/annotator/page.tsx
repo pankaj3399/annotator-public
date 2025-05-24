@@ -28,6 +28,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import MultiCombobox from '@/components/ui/multi-combobox';
 import { Button } from '@/components/ui/button';
+import { CreditCard } from 'lucide-react';
+
 import {
   Dialog,
   DialogContent,
@@ -625,7 +627,10 @@ export default function AnnotatorsPage() {
       description: 'Expert removed.',
     });
   };
-
+const handleStripePayment = (expertId: string) => {
+  console.log(`[AnnotatorsPage] Navigating to payment page for expert: ${expertId}`);
+  router.push(`/pay/${expertId}`);
+};
   // --- Pagination Calculation ---
   const totalPages = Math.ceil(filteredAnnotators.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
@@ -935,6 +940,15 @@ export default function AnnotatorsPage() {
                         <div className='flex items-center justify-end space-x-1'>
                           {' '}
                      
+                          <Button
+  size='icon'
+  variant='ghost'
+  className='h-7 w-7 text-green-600 hover:text-green-700'
+  onClick={() => handleStripePayment(user._id)}
+  title='Pay Expert'
+>
+  <CreditCard className='h-4 w-4' />
+</Button>
                           <Button
                             size='icon'
                             variant='ghost'

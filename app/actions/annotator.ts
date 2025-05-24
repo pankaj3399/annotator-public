@@ -38,3 +38,45 @@ export async function getAllAnnotators() {
         throw error;
     }
 }
+
+export async function getAnnotatorById(annotatorId: string) {
+  try {
+    // Get the current user from session
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.email) {
+      return { error: 'You must be logged in' };
+    }
+
+    // Find the current user to verify access rights
+    await connectToDatabase();
+    const currentUser = await User.findOne({ email: session.user.email });
+    
+    if (!currentUser) {
+      return { error: 'User not found' };
+    }
+    
+    // Find the annotator by ID
+    const annotator = await User.findById(annotatorId)
+      .select('name email role domain lang location stripeAccountId stripeAccountStatus');
+    
+    if (!annotator) {
+      return { error: 'Annotator not found' };
+    }
+    
+    // Verify they are an annotator
+    if (annotator.role !== 'annotator') {
+      return { error: 'User is not an annotator' };
+    }
+    
+    // Verify the annotator is in the same team (optional team-based security)
+    if (currentUser.team_id && annotator.team_id && 
+        currentUser.team_id.toString() !== annotator.team_id.toString()) {
+      return { error: 'Unauthorized access to annotator' };
+    }
+    
+    return { data: JSON.stringify(annotator) };
+  } catch (error) {
+    console.error('Error getting annotator by ID:', error);
+    return { error: 'Failed to fetch annotator details' };
+  }
+}

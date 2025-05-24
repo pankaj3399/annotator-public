@@ -1,52 +1,50 @@
-
-
 // components/Menu.tsx (adjust path as needed)
 import {
-Ellipsis,
-LogOut,
-ChevronDown,
-ChevronRight,
-ArrowLeft,
-LucideIcon,
-FileText,
-Database,
-GraduationCap,
-ClipboardList,
-Users,
-BarChart,
-Settings,
-FolderOpen,
-Rocket,
-Bell,
-TestTube,
-TrendingUp,
-Heart,
-BookOpen,
-Bot,
-User,
-CircleUser,
-Link,
-NotebookText,
-FileType,
-FileType2,
-Folders,
-Book,
-LineChart,
-BookMarked,
-FileCode,
-Wrench,
-PersonStanding,
-LayoutDashboard,
-Library,
-Briefcase,
-Cog,
-UserCog,
-School,
-BookText,
-FolderKanban,
-FolderCode,
-LayoutTemplate,
-Home, // Added Home for getGroupIcon fallback
+  Ellipsis,
+  LogOut,
+  ChevronDown,
+  ChevronRight,
+  ArrowLeft,
+  LucideIcon,
+  FileText,
+  Database,
+  GraduationCap,
+  ClipboardList,
+  Users,
+  BarChart,
+  Settings,
+  FolderOpen,
+  Rocket,
+  Bell,
+  TestTube,
+  TrendingUp,
+  Heart,
+  BookOpen,
+  Bot,
+  User,
+  CircleUser,
+  Link,
+  NotebookText,
+  FileType,
+  FileType2,
+  Folders,
+  Book,
+  LineChart,
+  BookMarked,
+  FileCode,
+  Wrench,
+  PersonStanding,
+  LayoutDashboard,
+  Library,
+  Briefcase,
+  Cog,
+  UserCog,
+  School,
+  BookText,
+  FolderKanban,
+  FolderCode,
+  LayoutTemplate,
+  Home, // Added Home for getGroupIcon fallback
 } from 'lucide-react';
 import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -124,9 +122,9 @@ submenus?: Submenu[];
 };
 
 type MenuGroup = {
-groupLabel: string;
-menus: MenuItem[];
-icon?: LucideIcon | any; // For group icon
+  groupLabel: string;
+  menus: MenuItem[];
+  icon?: LucideIcon | any; // For group icon
 };
 
 interface MenuProps {
