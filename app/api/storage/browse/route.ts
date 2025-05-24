@@ -7,6 +7,9 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/auth";
 import { connectToDatabase } from "@/lib/db";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Initialize S3 client with credentials
 function initializeS3Client(credentials: any, s3Config: any) {
     try {

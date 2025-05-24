@@ -25,21 +25,160 @@ import {
   Folder,
   ChevronRight,
   Upload,
+  Download,
+  ExternalLink,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
 import {
   generateAIResponseWithAttachments,
   getProviderAIModels,
 } from '@/app/actions/providerAIModel';
 import Loader from './ui/NewLoader/Loader';
+import pdfToText from 'react-pdftotext';
+
+// Constants
+const MAX_PDF_SIZE = 10 * 1024 * 1024; // 10MB limit
+const MAX_PDF_TEXT_LENGTH = 50000; // Limit PDF text to 50k characters
+
+// Error handling utility for AI model access errors
+interface AIError {
+  status?: number;
+  error?: {
+    message?: string;
+    type?: string;
+    code?: string;
+  };
+  message?: string;
+}
+
+// Function to parse AI errors and create user-friendly messages
+const parseAIError = (error: any): { title: string; message: string; action?: string } => {
+  // Convert error to string for pattern matching
+  const errorString = JSON.stringify(error).toLowerCase();
+  const errorMessage = (error.message || '').toLowerCase();
+  
+  // Handle authentication/token errors (check multiple patterns)
+  if (
+    error.status === 401 || 
+    error.status === 403 ||
+    errorString.includes('unauthorized') ||
+    errorString.includes('invalid api key') ||
+    errorString.includes('invalid_api_key') ||
+    errorString.includes('authentication') ||
+    errorString.includes('api key') ||
+    errorMessage.includes('unauthorized') ||
+    errorMessage.includes('invalid api key') ||
+    errorMessage.includes('authentication') ||
+    errorMessage.includes('forbidden') ||
+    (error.error && (
+      error.error.type === 'invalid_request_error' ||
+      error.error.code === 'invalid_api_key' ||
+      error.error.code === 'authentication_error'
+    ))
+  ) {
+    return {
+      title: 'Authentication Failed',
+      message: 'Your API key is invalid, expired, or doesn\'t have permission to access this model. Please check your AI provider settings.',
+      action: 'Update API Key'
+    };
+  }
+
+  // Handle OpenAI specific model access errors
+  if (error.status === 404 && error.error?.code === 'model_not_found') {
+    const modelName = extractModelNameFromError(error.error.message || '');
+    return {
+      title: 'AI Model Not Available',
+      message: `The ${modelName} model is not accessible with your current API key. You may need to upgrade your OpenAI plan or check your model permissions.`,
+      action: 'Configure Different Model'
+    };
+  }
+
+  // Handle rate limiting
+  if (
+    error.status === 429 ||
+    errorString.includes('rate limit') ||
+    errorString.includes('rate_limit_exceeded') ||
+    errorMessage.includes('rate limit')
+  ) {
+    return {
+      title: 'Rate Limit Exceeded',
+      message: 'You\'ve reached your API usage limit. Please try again later or upgrade your plan.',
+      action: 'Try Again Later'
+    };
+  }
+
+  // Handle quota exceeded
+  if (
+    (error.status === 403 && error.error?.message?.includes('quota')) ||
+    errorString.includes('quota exceeded') ||
+    errorString.includes('insufficient_quota') ||
+    errorMessage.includes('quota')
+  ) {
+    return {
+      title: 'Quota Exceeded',
+      message: 'You\'ve used up your monthly quota. Please upgrade your plan or wait for the next billing cycle.',
+      action: 'Upgrade Plan'
+    };
+  }
+
+  // Handle network/connection errors (only if not authentication related)
+  if (
+    errorMessage.includes('fetch') ||
+    errorMessage.includes('network') ||
+    errorMessage.includes('connection') ||
+    errorMessage.includes('timeout') ||
+    error.name === 'TypeError' ||
+    error.name === 'NetworkError'
+  ) {
+    return {
+      title: 'Connection Error',
+      message: 'Unable to connect to the AI service. Please check your internet connection and try again.',
+      action: 'Retry'
+    };
+  }
+
+  // Handle server errors
+  if (error.status >= 500) {
+    return {
+      title: 'Server Error',
+      message: 'The AI service is temporarily unavailable. Please try again in a few moments.',
+      action: 'Try Again Later'
+    };
+  }
+
+  // Generic error fallback
+  return {
+    title: 'AI Service Error',
+    message: error.message || error.error?.message || 'An unexpected error occurred while generating the AI response.',
+    action: 'Try Again'
+  };
+};
+
+// Extract model name from error message
+const extractModelNameFromError = (message: string): string => {
+  const modelMatch = message.match(/`([^`]+)`/);
+  return modelMatch ? modelMatch[1] : 'requested';
+};
+
+// Utility function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Utility function to truncate text
+const truncateText = (text: string, maxLength: number): { text: string; wasTruncated: boolean } => {
+  if (text.length <= maxLength) {
+    return { text, wasTruncated: false };
+  }
+  return { 
+    text: text.substring(0, maxLength) + '\n\n[Text truncated due to length...]',
+    wasTruncated: true
+  };
+};
 
 // Interfaces remain the same
 interface FileAttachment {
@@ -80,6 +219,8 @@ interface Message {
   timestamp: string;
   attachments: Attachment[];
   isAiMessage?: boolean;
+  aiProvider?: string;
+  aiModel?: string;
 }
 
 interface File extends Attachment {
@@ -98,6 +239,14 @@ interface AIConfig {
   model: string;
   apiKey: string;
   modelName?: string;
+}
+
+interface GuidelineData {
+  aiProvider?: string;
+  aiModel?: string;
+  description: string;
+  messages: Message[];
+  files: File[];
 }
 
 interface AIModelSelectorProps {
@@ -121,6 +270,17 @@ interface KnowledgeSidebarProps {
   setShowIframe: (show: boolean) => void;
   handleConnect: () => void;
   handleBackFromIframe: () => void;
+  onDownloadFile: (file: File) => void;
+}
+
+// Interface for the AI Model Selector Bottom Sheet
+interface AIModelBottomSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (config: AIConfig) => void;
+  isLoading: boolean;
+  currentConfig: AIConfig | null;
+  isConfigured: boolean;
 }
 
 // New Sidebar Component for Knowledge Files
@@ -132,7 +292,8 @@ const KnowledgeSidebar: React.FC<KnowledgeSidebarProps> = ({
   showIframe,
   setShowIframe,
   handleConnect,
-  handleBackFromIframe
+  handleBackFromIframe,
+  onDownloadFile
 }) => {
   return (
     <div 
@@ -182,24 +343,21 @@ const KnowledgeSidebar: React.FC<KnowledgeSidebarProps> = ({
             ) : (
               <div className="space-y-2">
                 {/* Dynamic file list */}
-                {files.length > 0 && files.filter(f => 
-                  f.fileName !== "Project Overview.pdf" && 
-                  f.fileName !== "Design Guidelines.docx"
-                ).map((file, index) => (
+                {files.length > 0 && files.map((file, index) => (
                   <div 
                     key={index} 
                     className="flex items-center justify-between p-3 border-0 bg-muted/20 rounded-md"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="text-blue-500">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="text-blue-500 flex-shrink-0">
                         <FileText className="h-5 w-5" />
                       </div>
-                      <div>
-                        <div className="font-medium">{file.fileName}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate" title={file.fileName}>
+                          {file.fileName}
+                        </div>
                         <div className="text-xs text-muted-foreground">
-                          {typeof file.fileSize === 'number' ? 
-                            `${(file.fileSize / (1024 * 1024)).toFixed(1)} MB` : 
-                            '0.0 MB'} • {
+                          {formatFileSize(file.fileSize || 0)} • {
                               new Date(file.uploadedAt).toLocaleDateString('en-US', {
                                 month: 'numeric',
                                 day: 'numeric',
@@ -208,6 +366,17 @@ const KnowledgeSidebar: React.FC<KnowledgeSidebarProps> = ({
                             }
                         </div>
                       </div>
+                    </div>
+                    <div className="flex gap-1 ml-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => onDownloadFile(file)}
+                        title="Download file"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -248,14 +417,19 @@ const KnowledgeSidebar: React.FC<KnowledgeSidebarProps> = ({
   );
 };
 
-// AIModelSelector component remains the same
-const AIModelSelector: React.FC<AIModelSelectorProps> = ({
+// New AI Model Bottom Sheet Component
+const AIModelBottomSheet: React.FC<AIModelBottomSheetProps> = ({
+  isOpen,
+  onClose,
   onSelect,
   isLoading,
+  currentConfig,
+  isConfigured
 }) => {
+  const [selectedModel, setSelectedModel] = useState<AIModel | null>(null);
   const [aiModels, setAiModels] = useState<AIModel[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -264,14 +438,15 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
         const response = await getProviderAIModels();
         if (response.success && response.models) {
           setAiModels(response.models);
-          if (response.models.length > 0 && !selectedModelId) {
-            const firstModel = response.models[0];
-            setSelectedModelId(firstModel.id);
-            onSelect({
-              provider: firstModel.provider,
-              model: firstModel.model,
-              apiKey: firstModel.apiKey,
-            });
+          
+          // Pre-select the current model if it exists
+          if (currentConfig?.provider && currentConfig?.model) {
+            const currentModel = response.models.find(
+              model => model.provider === currentConfig.provider && model.model === currentConfig.model
+            );
+            if (currentModel) {
+              setSelectedModel(currentModel);
+            }
           }
         } else {
           toast.error(response.error || 'Failed to fetch AI models');
@@ -283,80 +458,112 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({
         setLoading(false);
       }
     };
-    fetchModels();
-  }, [selectedModelId, onSelect]); // Removed dependency on aiModels to prevent potential loop
+    
+    if (isOpen) {
+      fetchModels();
+    }
+  }, [isOpen, currentConfig]);
+
+  const handleSaveSettings = () => {
+    if (selectedModel) {
+      const config = {
+        provider: selectedModel.provider,
+        model: selectedModel.model,
+        apiKey: selectedModel.apiKey,
+        modelName: selectedModel.name,
+      };
+      onSelect(config);
+    }
+    onClose();
+  };
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const id = e.target.value;
-    setSelectedModelId(id);
-    if (id) {
-      const selectedModel = aiModels.find((model) => model.id === id);
-      if (selectedModel) {
-        onSelect({
-          provider: selectedModel.provider,
-          model: selectedModel.model,
-          apiKey: selectedModel.apiKey,
-          modelName: selectedModel.name,
-        });
-      }
-    }
+    const model = aiModels.find(m => m.id === id) || null;
+    setSelectedModel(model);
   };
+  
+  return (
+    <div 
+      className={`fixed inset-x-0 bottom-0 w-full bg-background shadow-lg transform transition-transform duration-300 ease-in-out z-50 flex flex-col border-t rounded-t-lg ${
+        isOpen ? 'translate-y-0' : 'translate-y-full'
+      }`}
+    >
+      {/* Bottom Sheet Content */}
+      <div className="p-6 max-h-[70vh] overflow-y-auto">
+        <h2 className="text-xl font-semibold">AI Model Settings</h2>
+        <p className="text-muted-foreground mt-1 mb-6">
+          Select your preferred AI provider and model for guidelines assistance
+        </p>
+        
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : aiModels.length === 0 ? (
+          <div className="text-center py-4">
+            <p className="text-muted-foreground mb-2">No AI models available</p>
+            <Button
+              variant="outline"
+              onClick={() => router.push('/providerKeys')}
+            >
+              Configure AI Models
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <label className="text-sm font-medium w-24">AI Model:</label>
+                <select
+                  className="flex-1 p-2 border rounded bg-background"
+                  onChange={handleModelChange}
+                  value={selectedModel?.id || ""}
+                >
+                  <option value="">Select a model</option>
+                  {aiModels.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.provider} - {model.name}
+                      {model.model === 'gpt-4' && ' (Requires ChatGPT Plus)'}
+                      {model.model === 'gpt-3.5-turbo' && ' (Available on free tier)'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            
+            {selectedModel && (
+              <div className="mt-4">
+                <h3 className="text-sm font-medium mb-2">Current Selection</h3>
+                <div className="rounded-md bg-muted/50 overflow-hidden">
+                  <div className="grid grid-cols-2 py-2 px-4 border-b">
+                    <div className="font-medium">Provider:</div>
+                    <div>{selectedModel.provider}</div>
+                  </div>
+                  <div className="grid grid-cols-2 py-2 px-4">
+                    <div className="font-medium">Model:</div>
+                    <div>{selectedModel.model}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-  if (loading) {
-    return <Loader />;
-  }
-
-  if (aiModels.length === 0) {
-    return (
-      <div className='text-center py-4'>
-        <p className='text-muted-foreground mb-2'>No AI models available</p>
-        <Button
-          variant='outline'
-          onClick={() => (window.location.href = '/settings/ai-models')}
+      {/* Bottom Sheet Footer */}
+      <div className="p-4 border-t space-y-2">
+        <Button 
+          className="w-full" 
+          disabled={!selectedModel || isLoading}
+          onClick={handleSaveSettings}
         >
-          Add New AI Model
+          {isConfigured ? 'Update AI Model' : 'Configure & Start AI'}
+        </Button>
+        <Button variant="outline" className="w-full" onClick={onClose}>
+          Cancel
         </Button>
       </div>
-    );
-  }
-
-  return (
-    <div className='space-y-2'>
-      <label className='text-sm font-medium'>
-        Select AI Model <span className='text-red-500'>*</span>
-      </label>
-      <select
-        className='w-full p-2 border rounded'
-        value={selectedModelId}
-        onChange={handleModelChange}
-        disabled={isLoading}
-        required
-      >
-        <option value=''>Choose an AI Model</option>
-        {aiModels.map((model) => (
-          <option key={model.id} value={model.id}>
-            {model.name} ({model.provider} - {model.model})
-          </option>
-        ))}
-      </select>
-
-      {selectedModelId && (
-        <div className='rounded-md bg-muted p-3 text-sm'>
-          <p className='font-medium'>Selected Model Information:</p>
-          <ul className='mt-1 space-y-1 text-muted-foreground'>
-            <li>
-              Name: {aiModels.find((m) => m.id === selectedModelId)?.name}
-            </li>
-            <li>
-              Provider:{' '}
-              {aiModels.find((m) => m.id === selectedModelId)?.provider}
-            </li>
-            <li>
-              Model: {aiModels.find((m) => m.id === selectedModelId)?.model}
-            </li>
-          </ul>
-        </div>
-      )}
     </div>
   );
 };
@@ -372,6 +579,7 @@ const ProjectGuidelines = () => {
   const [projectName, setProjectName] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const [guidelineData, setGuidelineData] = useState<GuidelineData | null>(null);
 
   // Message and file handling states
   const [newMessage, setNewMessage] = useState('');
@@ -391,13 +599,15 @@ const ProjectGuidelines = () => {
     apiKey: '',
   });
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false);
   const [isAiConfigured, setIsAiConfigured] = useState(false);
   const [showAiSetupPrompt, setShowAiSetupPrompt] = useState(true);
   const [savedAiConfig, setSavedAiConfig] = useState<AIConfig | null>(null);
 
-  // Knowledge sidebar state - changed from dialog to sidebar
+  // Knowledge sidebar state
   const [knowledgeSidebarOpen, setKnowledgeSidebarOpen] = useState(false);
+  
+  // AI Model selector state - now a bottom sheet
+  const [aiBottomSheetOpen, setAiBottomSheetOpen] = useState(false);
   
   // Connected data sources (example data)
   const [dataSources, setDataSources] = useState<DataSource[]>([
@@ -426,6 +636,62 @@ const ProjectGuidelines = () => {
     setShowIframe(false);
   };
 
+  // Function to get fresh pre-signed URL for a file
+  const getFreshFileUrl = async (s3Path: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}&regenerate=true`);
+      const data = await response.json();
+      if (data.success) {
+        return data.fileUrl;
+      } else {
+        console.error('Failed to get fresh URL:', data.error);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error getting fresh URL:', error);
+      return null;
+    }
+  };
+
+  // Function to handle file download with fresh URL
+  const handleDownloadFile = async (file: File) => {
+    try {
+      toast.info('Generating download link...');
+      const freshUrl = await getFreshFileUrl(file.s3Path);
+      if (freshUrl) {
+        // Create a temporary link to download the file
+        const link = document.createElement('a');
+        link.href = freshUrl;
+        link.download = file.fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('Download started');
+      } else {
+        toast.error('Failed to generate download link');
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error('Error downloading file');
+    }
+  };
+
+  // Function to handle file opening with fresh URL
+  const handleOpenFile = async (attachment: Attachment) => {
+    try {
+      const freshUrl = await getFreshFileUrl(attachment.s3Path);
+      if (freshUrl) {
+        window.open(freshUrl, '_blank');
+      } else {
+        toast.error('Failed to open file');
+      }
+    } catch (error) {
+      console.error('Error opening file:', error);
+      toast.error('Error opening file');
+    }
+  };
+
   // Fetch guidelines data on component mount
   useEffect(() => {
     fetchGuidelines();
@@ -437,63 +703,203 @@ const ProjectGuidelines = () => {
     scrollToBottom();
   }, [messages]);
 
-  useEffect(() => {
-    // Logic for AI configuration status
-    const aiMessages = messages.filter((msg) => msg.isAiMessage);
-    if (messages.length > 0) {
-      setShowAiSetupPrompt(false);
+// Add this function before the main ProjectGuidelines component
+const findLatestAIModelFromUserProjects = async (userId: string): Promise<{provider: string, model: string} | null> => {
+  try {
+    console.log(`[API] Calling /api/users/${userId}/projects/latest-ai-model`);
+    const response = await fetch(`/api/users/${userId}/projects/latest-ai-model`);
+    console.log(`[API] Response status: ${response.status} ${response.statusText}`);
+    
+    const data = await response.json();
+    console.log('[API] Response data:', data);
+    
+    if (data.success && data.aiModel) {
+      console.log('[API] ✅ Latest AI model found from API:', {
+        provider: data.aiModel.provider,
+        model: data.aiModel.model,
+        projectName: data.aiModel.projectName,
+        timestamp: data.aiModel.timestamp
+      });
+      return {
+        provider: data.aiModel.provider,
+        model: data.aiModel.model
+      };
+    } else {
+      console.log('[API] ❌ No AI model in response or request failed:', {
+        success: data.success,
+        hasAiModel: !!data.aiModel,
+        message: data.message,
+        error: data.error
+      });
+      return null;
     }
-    if (aiMessages.length > 0) {
-      setIsAiConfigured(true);
-    }
+  } catch (error) {
+    console.error('[API] ❌ Network error calling latest-ai-model API:', error);
+    console.log('[API] Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    return null;
+  }
+};
 
-    const fetchAiConfig = async () => {
+// Replace the existing useEffect with this updated version
+useEffect(() => {
+  // Logic for AI configuration status
+  const aiMessages = messages.filter((msg) => msg.isAiMessage);
+  if (messages.length > 0) {
+    setShowAiSetupPrompt(false);
+  }
+  
+  // Check if the guideline has AI configured at base level
+  if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+    setIsAiConfigured(true);
+  } else if (aiMessages.length > 0) {
+    setIsAiConfigured(true);
+  }
+
+  // Try to find an associated AI model from the provider APIs
+  const findAssociatedAIModel = async () => {
+    if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+      console.log('[AI Config] Project already has AI configured:', {
+        provider: guidelineData.aiProvider,
+        model: guidelineData.aiModel
+      });
+      
       try {
-        const res = await fetch(`/api/projects/${projectId}/ai-config`);
-        if (!res.ok) {
-          console.log(`API endpoint returned ${res.status}: ${res.statusText}`);
-          try {
-            const savedConfig = localStorage.getItem(`project_${projectId}_ai_config`);
-            if (savedConfig) {
-              const parsedConfig = JSON.parse(savedConfig);
-              setSavedAiConfig(parsedConfig);
-              setAiConfig(parsedConfig);
-              if (parsedConfig.provider && parsedConfig.model && parsedConfig.apiKey) {
-                setIsAiConfigured(true);
-              }
-            }
-          } catch (localStorageError) {
-            console.log('Could not load from localStorage:', localStorageError);
-          }
-          return;
-        }
-        const data = await res.json();
-        if (data.success && data.config) {
-          setSavedAiConfig(data.config);
-          setAiConfig(data.config);
-          if (data.config.provider && data.config.model && data.config.apiKey) {
+        const response = await getProviderAIModels();
+        if (response.success && response.models) {
+          const matchingModel = response.models.find(
+            model => model.provider === guidelineData.aiProvider && model.model === guidelineData.aiModel
+          );
+          
+          if (matchingModel) {
+            const modelConfig: AIConfig = {
+              provider: matchingModel.provider,
+              model: matchingModel.model,
+              apiKey: matchingModel.apiKey,
+              modelName: matchingModel.name
+            };
+            
+            setAiConfig(modelConfig);
+            setSavedAiConfig(modelConfig);
             setIsAiConfigured(true);
+            setShowAiSetupPrompt(false);
+            console.log('[AI Config] ✅ Existing AI configuration loaded successfully');
           }
         }
       } catch (error) {
-        console.log('Error fetching AI config (may be a missing endpoint):', error);
-        try {
-          const savedConfig = localStorage.getItem(`project_${projectId}_ai_config`);
-          if (savedConfig) {
-            const parsedConfig = JSON.parse(savedConfig);
-            setSavedAiConfig(parsedConfig);
-            setAiConfig(parsedConfig);
-            if (parsedConfig.provider && parsedConfig.model && parsedConfig.apiKey) {
-              setIsAiConfigured(true);
-            }
-          }
-        } catch (localStorageError) {
-          console.log('Could not load from localStorage:', localStorageError);
-        }
+        console.error('[AI Config] Error fetching AI models for existing config:', error);
       }
-    };
-    fetchAiConfig();
-  }, [messages, projectId]);
+    } else {
+      // For new projects (no existing AI config), automatically configure with latest used model
+      if (session?.user?.id) {
+        console.log(`[AI Auto-Config] Starting auto-configuration for project ${projectId} and user ${session.user.id}`);
+        
+        try {
+          console.log('[AI Auto-Config] Fetching latest AI model from user projects...');
+          const latestAIModel = await findLatestAIModelFromUserProjects(session.user.id);
+          
+          if (latestAIModel) {
+            console.log('[AI Auto-Config] Latest AI model found:', {
+              provider: latestAIModel.provider,
+              model: latestAIModel.model
+            });
+            
+            // Found a latest AI model, now get the full model config from provider APIs
+            console.log('[AI Auto-Config] Fetching available AI models from providers...');
+            const response = await getProviderAIModels();
+            
+            if (response.success && response.models) {
+              console.log(`[AI Auto-Config] Retrieved ${response.models.length} available models from providers`);
+              console.log('[AI Auto-Config] Available models:', response.models.map(m => `${m.provider}-${m.model}`));
+              
+              const matchingModel = response.models.find(
+                model => model.provider === latestAIModel.provider && model.model === latestAIModel.model
+              );
+              
+              if (matchingModel) {
+                console.log('[AI Auto-Config] Matching model found in available models:', {
+                  id: matchingModel.id,
+                  name: matchingModel.name,
+                  provider: matchingModel.provider,
+                  model: matchingModel.model,
+                  hasApiKey: !!matchingModel.apiKey
+                });
+                
+                const modelConfig: AIConfig = {
+                  provider: matchingModel.provider,
+                  model: matchingModel.model,
+                  apiKey: matchingModel.apiKey,
+                  modelName: matchingModel.name
+                };
+                
+                // Automatically configure the AI model without user intervention
+                console.log('[AI Auto-Config] Configuring AI model automatically...');
+                setAiConfig(modelConfig);
+                setSavedAiConfig(modelConfig);
+                setIsAiConfigured(true);
+                setShowAiSetupPrompt(false);
+                
+                // Save to database immediately
+                try {
+                  console.log('[AI Auto-Config] Saving configuration to database...');
+                  await saveAIModelToGuideline(modelConfig);
+                  console.log('[AI Auto-Config] ✅ Auto-configured AI model saved to database successfully');
+                } catch (saveError) {
+                  console.error('[AI Auto-Config] ❌ Error saving auto-configured AI model to database:', saveError);
+                }
+                
+                // Show success toast
+                toast.success(`AI assistant ready with ${matchingModel.name}`, {
+                  description: 'Using your previously configured model',
+                  duration: 3000,
+                });
+                
+                console.log('[AI Auto-Config] ✅ Auto-configuration completed successfully');
+                return; // Successfully configured
+              } else {
+                console.log('[AI Auto-Config] ❌ No matching model found in available models');
+                console.log('[AI Auto-Config] Looking for:', `${latestAIModel.provider}-${latestAIModel.model}`);
+                console.log('[AI Auto-Config] Available models:', response.models.map(m => `${m.provider}-${m.model}-${m.id}`));
+              }
+            } else {
+              console.log('[AI Auto-Config] ❌ Failed to fetch available models from providers');
+              console.log('[AI Auto-Config] Response:', {
+                success: response.success,
+                error: response.error,
+                modelCount: response.models ? response.models.length : 'undefined'
+              });
+            }
+          } else {
+            console.log('[AI Auto-Config] ❌ No latest AI model found in user projects');
+          }
+          
+          // If no latest model found or configuration failed, keep setup prompt
+          console.log('[AI Auto-Config] ❌ Auto-configuration failed - showing manual setup prompt');
+          console.log('[AI Auto-Config] Reasons could be:');
+          console.log('  - No previous AI usage in any user projects');
+          console.log('  - Latest model no longer available in current provider configurations');
+          console.log('  - API key missing for the model');
+          console.log('  - Network error or API failure');
+        } catch (error) {
+          console.error('[AI Auto-Config] ❌ Exception during auto-configuration:', error);
+          console.log('[AI Auto-Config] Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+        }
+      } else {
+        console.log('[AI Auto-Config] ❌ No user session found - cannot auto-configure');
+      }
+    }
+  };
+  
+  findAssociatedAIModel();
+  
+}, [messages, projectId, guidelineData, session?.user?.id]);
 
   const fetchProjectDetails = async () => {
     try {
@@ -519,6 +925,13 @@ const ProjectGuidelines = () => {
       if (data.success) {
         setMessages(data.messages || []);
         setFiles(data.files || []);
+        setGuidelineData({
+          description: data.description || '',
+          messages: data.messages || [],
+          files: data.files || [],
+          aiProvider: data.aiProvider,
+          aiModel: data.aiModel
+        });
       } else {
         toast.error('Failed to load guidelines');
       }
@@ -607,7 +1020,7 @@ const ProjectGuidelines = () => {
           toast.info('Configure AI assistant to get automated responses', {
             action: {
               label: 'Configure',
-              onClick: () => setAiModalOpen(true),
+              onClick: () => setAiBottomSheetOpen(true),
             },
           });
         }
@@ -655,23 +1068,8 @@ const ProjectGuidelines = () => {
       );
 
       if (response) {
-        const aiResponseMessage = {
-          _id: `ai-response-${Date.now()}`,
-          sender: {
-            _id: 'ai-assistant',
-            name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
-            email: 'ai@assistant.com',
-            image: '/ai-assistant-avatar.png',
-          },
-          content: response,
-          timestamp: new Date().toISOString(),
-          attachments: [],
-          isAiMessage: true,
-        };
-        setMessages((prev) => [...prev, aiResponseMessage]);
-
-        // Save AI message to server
-        await fetch(`/api/projects/${projectId}/guidelines`, {
+        // First save to server to get the proper _id and timestamp
+        const saveResponse = await fetch(`/api/projects/${projectId}/guidelines`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -681,192 +1079,407 @@ const ProjectGuidelines = () => {
             aiModel: aiConfig.model,
           }),
         });
+        
+        const saveData = await saveResponse.json();
+        
+        if (saveResponse.ok && saveData.success) {
+          // Use the server-returned message if available
+          const aiResponseMessage = saveData.message || {
+            _id: `ai-response-${Date.now()}`,
+            sender: {
+              _id: 'ai-assistant',
+              name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
+              email: 'ai@assistant.com',
+              image: '/ai-assistant-avatar.png',
+            },
+            content: response,
+            timestamp: new Date().toISOString(),
+            attachments: [],
+            isAiMessage: true,
+            aiProvider: aiConfig.provider,
+            aiModel: aiConfig.model,
+          };
+          
+          setMessages((prev) => [...prev, aiResponseMessage]);
+        } else {
+          // Fallback to local message if server save failed
+          const aiResponseMessage = {
+            _id: `ai-response-${Date.now()}`,
+            sender: {
+              _id: 'ai-assistant',
+              name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
+              email: 'ai@assistant.com',
+              image: '/ai-assistant-avatar.png',
+            },
+            content: response,
+            timestamp: new Date().toISOString(),
+            attachments: [],
+            isAiMessage: true,
+            aiProvider: aiConfig.provider,
+            aiModel: aiConfig.model,
+          };
+          
+          setMessages((prev) => [...prev, aiResponseMessage]);
+          console.error('Error saving AI message to server');
+        }
       }
     } catch (error) {
       console.error('Error generating AI response:', error);
-      toast.error('Failed to generate AI response');
+      
+      // Enhanced error handling with beautiful toast messages
+      const { title, message, action } = parseAIError(error);
+      
+      toast.error(title, {
+        description: message,
+        action: action ? {
+          label: action,
+          onClick: () => {
+            if (action === 'Configure Different Model') {
+              setAiBottomSheetOpen(true);
+            } else if (action === 'Update API Key') {
+              router.push('/providerKeys');
+            } else if (action === 'Try Again Later' || action === 'Retry') {
+              // Could implement retry logic here
+              return;
+            }
+          },
+        } : undefined,
+        duration: 8000, // Longer duration for error messages
+      });
     } finally {
       setIsGeneratingAI(false);
     }
   };
 
-  const configureAndTrainAI = async () => {
-    if (!aiConfig.apiKey || !aiConfig.provider || !aiConfig.model) {
-      toast.error('Please configure all AI settings');
+  // Save AI model to the guideline level in the database
+  const saveAIModelToGuideline = async (config: AIConfig) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/guidelines`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          aiConfig: {
+            provider: config.provider,
+            model: config.model
+          }
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        // Update local guideline data
+        setGuidelineData(prev => prev ? {
+          ...prev,
+          aiProvider: config.provider,
+          aiModel: config.model
+        } : null);
+        
+        return true;
+      } else {
+        console.error('Failed to save AI model to guideline:', data.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error saving AI model to guideline:', error);
+      return false;
+    }
+  };
+
+  // Configure and train the selected AI model
+  const configureAndTrainAI = async (config?: AIConfig) => {
+    const configToUse = config || aiConfig;
+    
+    if (!configToUse.apiKey || !configToUse.provider || !configToUse.model) {
+      toast.error('Please select a valid AI model');
       return;
     }
+    
     setIsGeneratingAI(true);
     try {
-      // Save config attempt (optional)
-      try {
-        const configResponse = await fetch(`/api/projects/${projectId}/ai-config`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ config: aiConfig }),
-        });
-        if (!configResponse.ok) console.log(`Warning: Could not save AI config. Status: ${configResponse.status}`);
-      } catch (configError) {
-        console.log('Error saving AI config (endpoint may not exist):', configError);
+      // Save to database at guideline level
+      const savedToGuideline = await saveAIModelToGuideline(configToUse);
+      if (!savedToGuideline) {
+        console.log('Warning: Could not save AI model to guideline in database');
       }
-      // Local storage fallback
+      
+      // Save to local storage as backup
       try {
-        localStorage.setItem(`project_${projectId}_ai_config`, JSON.stringify(aiConfig));
+        localStorage.setItem(`project_${projectId}_ai_config`, JSON.stringify(configToUse));
       } catch (storageError) {
         console.log('Could not save to localStorage:', storageError);
       }
 
-      // Training prompt
-      const trainingPrompt = `
-        Project Name: ${projectName}
-        This AI will assist with project guidelines and answering questions related to this project.
-        The AI should maintain a professional and helpful tone, reference project details when relevant, assist with clarifying guidelines or requirements, and help team members understand project context.
-        Please introduce yourself as an AI assistant for the "${projectName}" project with a brief, professional message.
-      `;
+      // Update state with the new config
+      setAiConfig(configToUse);
+      setSavedAiConfig(configToUse);
+      setIsAiConfigured(true);
+      setShowAiSetupPrompt(false);
 
-      // Generate intro response
-      const response = await generateAIResponseWithAttachments(
-        aiConfig.provider,
-        aiConfig.model,
-        trainingPrompt,
-        projectId,
-        aiConfig.apiKey
-      );
+      // If this is the first setup, generate an intro response
+      if (!isAiConfigured || messages.length === 0) {
+        // Training prompt
+        const trainingPrompt = `
+          Project Name: ${projectName}
+          This AI will assist with project guidelines and answering questions related to this project.
+          The AI should maintain a professional and helpful tone, reference project details when relevant, assist with clarifying guidelines or requirements, and help team members understand project context.
+          Please introduce yourself as an AI assistant for the "${projectName}" project with a brief, professional message.
+        `;
 
-      if (response) {
-        const aiMessage = {
-          _id: `ai-intro-${Date.now()}`,
-          sender: {
-            _id: 'ai-assistant',
-            name: `${aiConfig.modelName || aiConfig.provider} Assistant`,
-            email: 'ai@assistant.com',
-            image: '/ai-assistant-avatar.png',
-          },
-          content: response,
-          timestamp: new Date().toISOString(),
-          attachments: [],
-          isAiMessage: true,
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-        setIsAiConfigured(true);
-        setShowAiSetupPrompt(false);
+        // Generate intro response
+        const response = await generateAIResponseWithAttachments(
+          configToUse.provider,
+          configToUse.model,
+          trainingPrompt,
+          projectId,
+          configToUse.apiKey
+        );
 
-        // Save intro message to server
-        await fetch(`/api/projects/${projectId}/guidelines`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            content: response,
-            isAiMessage: true,
-            aiProvider: aiConfig.provider,
-            aiModel: aiConfig.model,
-          }),
-        });
-        toast.success('AI assistant is ready to help with this project');
+        if (response) {
+          // Save intro message to server with aiProvider and aiModel fields
+          const messageResponse = await fetch(`/api/projects/${projectId}/guidelines`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: response,
+              isAiMessage: true,
+              aiProvider: configToUse.provider,
+              aiModel: configToUse.model,
+            }),
+          });
+          
+          if (messageResponse.ok) {
+            const messageData = await messageResponse.json();
+            if (messageData.success) {
+              // Use the server-returned message if available, otherwise create a local version
+              const aiMessage = messageData.message || {
+                _id: `ai-intro-${Date.now()}`,
+                sender: {
+                  _id: 'ai-assistant',
+                  name: `${configToUse.modelName || configToUse.provider} Assistant`,
+                  email: 'ai@assistant.com',
+                  image: '/ai-assistant-avatar.png',
+                },
+                content: response,
+                timestamp: new Date().toISOString(),
+                attachments: [],
+                isAiMessage: true,
+                aiProvider: configToUse.provider,
+                aiModel: configToUse.model,
+              };
+              
+              // Add message to the UI
+              setMessages((prev) => [...prev, aiMessage]);
+              toast.success('AI assistant is ready to help with this project');
+            }
+          } else {
+            // Fallback if server request failed
+            const aiMessage = {
+              _id: `ai-intro-${Date.now()}`,
+              sender: {
+                _id: 'ai-assistant',
+                name: `${configToUse.modelName || configToUse.provider} Assistant`,
+                email: 'ai@assistant.com',
+                image: '/ai-assistant-avatar.png',
+              },
+              content: response,
+              timestamp: new Date().toISOString(),
+              attachments: [],
+              isAiMessage: true,
+              aiProvider: configToUse.provider,
+              aiModel: configToUse.model,
+            };
+            
+            setMessages((prev) => [...prev, aiMessage]);
+            toast.success('AI assistant is ready to help with this project');
+          }
+        } else {
+          toast.error('Failed to train AI assistant');
+        }
       } else {
-        toast.error('Failed to train AI assistant');
+        toast.success(`Updated to ${configToUse.modelName || configToUse.model} as your AI assistant`);
       }
     } catch (error) {
-      console.error('Error training AI:', error);
-      toast.error('Error setting up AI assistant');
+      console.error('Error configuring AI:', error);
+      
+      // Enhanced error handling for configuration
+      const { title, message } = parseAIError(error);
+      toast.error(title, {
+        description: message,
+        duration: 6000,
+      });
     } finally {
       setIsGeneratingAI(false);
-      setAiModalOpen(false);
+      setAiBottomSheetOpen(false);
     }
   };
 
+  // Handler for AI model selection from the bottom sheet
+  const handleSelectedAIModel = (config: AIConfig) => {
+    // Call the configure and train function with the selected config
+    configureAndTrainAI(config);
+  };
+
+  // Updated extractPDFText function with better error handling
+  const extractPDFText = async (file) => {
+    try {
+      const text = await pdfToText(file);
+      return text.trim();
+    } catch (error) {
+      console.error('Failed to extract text from PDF:', error);
+      return null;
+    }
+  };
+
+  // Updated sendPDFContentMessage function with text truncation
+  const sendPDFContentMessage = async (fileName, extractedText) => {
+    try {
+      // Truncate text if it's too long
+      const { text: truncatedText, wasTruncated } = truncateText(extractedText, MAX_PDF_TEXT_LENGTH);
+      
+      let content = `📄 **Uploaded: ${fileName}**\n\n${truncatedText}`;
+      
+      if (wasTruncated) {
+        content += `\n\n*Note: PDF content was truncated due to length. The full content is available in the file.*`;
+      }
+      
+      const response = await fetch(`/api/projects/${projectId}/guidelines`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: content,
+          isAiMessage: false,
+        }),
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        const systemMessage = {
+          ...data.message,
+          sender: {
+            _id: 'system',
+            name: 'System',
+            email: 'system@app.com',
+          },
+        };
+        setMessages((prev) => [...prev, systemMessage]);
+        return true;
+      } else {
+        console.error('Failed to send PDF content message:', data.error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error sending PDF content message:', error);
+      return false;
+    }
+  };
+
+  // Updated handleFileUpload function with size limit validation
   const handleFileUpload = async (files: FileList) => {
     if (!files.length) return;
 
     setUploading(true);
-    const filesToUpload = Array.from(files);
-    const uploadingFilesCopy = [...uploadingFiles];
-
-    const newlySelectedFiles: File[] = [];
+    const file = files[0];
 
     try {
-      await Promise.all(
-        filesToUpload.map(async (originalFile) => {
-          const isPdf = originalFile.type === 'application/pdf' || originalFile.name.toLowerCase().endsWith('.pdf');
-          if (!isPdf) {
-            toast.error(`${originalFile.name} is not a PDF file. Only PDF files are supported.`);
-            return;
-          }
-          const contentType = 'application/pdf';
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (!isPdf) {
+        toast.error(`${file.name} is not a PDF file. Only PDF files are supported.`);
+        return;
+      }
 
-          // 1. Get pre-signed URL
-          const presignedUrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: originalFile.name, contentType }),
-          });
-          const { url, s3Path, fileId } = await presignedUrlResponse.json();
-          if (!url) throw new Error('Failed to get upload URL');
+      // Check file size limit
+      if (file.size > MAX_PDF_SIZE) {
+        toast.error(`File size exceeds the ${formatFileSize(MAX_PDF_SIZE)} limit. Please choose a smaller file.`);
+        return;
+      }
 
-          // Add to visual progress tracker
-          const uploadingFile = {
-            file: {
-              fileName: originalFile.name, fileType: contentType, fileSize: originalFile.size,
-              fileUrl: '', s3Path, uploadedAt: new Date().toISOString(),
-              uploadedBy: { _id: session?.user.id || '', name: session?.user.name || '', email: session?.user.email || '' },
-            }, progress: 0,
-          };
-          uploadingFilesCopy.push(uploadingFile);
-          setUploadingFiles([...uploadingFilesCopy]);
+      const contentType = 'application/pdf';
 
-          // 2. Upload to S3
-          const fileBlob = new Blob([originalFile], { type: contentType });
-          const uploadResponse = await fetch(url, { method: 'PUT', body: fileBlob, headers: { 'Content-Type': contentType } });
-          if (!uploadResponse.ok) throw new Error('File upload failed');
+      // 1. Extract PDF text content first
+      toast.info('Extracting PDF content...');
+      const extractedText = await extractPDFText(file);
+      
+      if (!extractedText) {
+        toast.error('Could not extract text from PDF. The file might be image-based or corrupted.');
+        return;
+      }
 
-          // 3. Get final S3 URL (assuming server generates it based on s3Path)
-          const s3UrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}`);
-          const s3UrlData = await s3UrlResponse.json();
-          if (!s3UrlData.success) throw new Error('Failed to generate S3 URL');
-          const fileUrl = s3UrlData.fileUrl;
+      // 2. Get pre-signed URL
+      const presignedUrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, contentType }),
+      });
+      const { url, s3Path, fileId } = await presignedUrlResponse.json();
+      if (!url) throw new Error('Failed to get upload URL');
 
-          // 4. Register file with our API
-          const registerResponse = await fetch(`/api/projects/${projectId}/guidelines/files`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: originalFile.name, fileType: contentType, fileSize: originalFile.size, fileUrl, s3Path }),
-          });
-          const registeredFile = await registerResponse.json();
-          if (!registeredFile.success) throw new Error('Failed to register file');
+      // 3. Upload to S3
+      const fileBlob = new Blob([file], { type: contentType });
+      const uploadResponse = await fetch(url, { 
+        method: 'PUT', 
+        body: fileBlob, 
+        headers: { 'Content-Type': contentType } 
+      });
+      if (!uploadResponse.ok) throw new Error('File upload failed');
 
-          // Update visual progress
-          const fileIndex = uploadingFilesCopy.findIndex(f => f.file.s3Path === s3Path);
-          if (fileIndex !== -1) {
-            uploadingFilesCopy[fileIndex].progress = 100;
-            setUploadingFiles([...uploadingFilesCopy]);
-          }
+      // 4. Get final S3 URL
+      const s3UrlResponse = await fetch(`/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}`);
+      const s3UrlData = await s3UrlResponse.json();
+      if (!s3UrlData.success) throw new Error('Failed to generate S3 URL');
+      const fileUrl = s3UrlData.fileUrl;
 
-          // Create file object for selection state (and potential message sending)
-          const newFile: File = {
-            fileName: originalFile.name, fileType: contentType, fileSize: originalFile.size,
-            fileUrl, s3Path,
-            uploadedAt: registeredFile.file?.uploadedAt || new Date().toISOString(),
-            uploadedBy: registeredFile.file?.uploadedBy || { _id: session?.user.id || '', name: session?.user.name || '', email: session?.user.email || '' },
-            originalFile,
-          };
+      // 5. Register file with our API
+      const registerResponse = await fetch(`/api/projects/${projectId}/guidelines/files`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          fileName: file.name, 
+          fileType: contentType, 
+          fileSize: file.size, 
+          fileUrl, 
+          s3Path 
+        }),
+      });
+      const registeredFile = await registerResponse.json();
+      if (!registeredFile.success) throw new Error('Failed to register file');
 
-          newlySelectedFiles.push(newFile);
-          setFiles(prev => [...prev, newFile]);
-
-          toast.success(`${originalFile.name} uploaded successfully`);
-        })
-      );
-
-      // Add all successfully uploaded files from this batch to the selectedFiles state
-      setSelectedFiles((prev) => [...prev, ...newlySelectedFiles]);
+      // 6. Send PDF content as a message
+      toast.info('Adding PDF content to conversation...');
+      const contentSent = await sendPDFContentMessage(file.name, extractedText);
+      
+      if (contentSent) {
+        // 7. Update files state
+        const newFile = {
+          fileName: file.name,
+          fileType: contentType,
+          fileSize: file.size,
+          fileUrl,
+          s3Path,
+          uploadedAt: registeredFile.file?.uploadedAt || new Date().toISOString(),
+          uploadedBy: registeredFile.file?.uploadedBy || { 
+            _id: session?.user.id || '', 
+            name: session?.user.name || '', 
+            email: session?.user.email || '' 
+          },
+        };
+        
+        setFiles(prev => [...prev, newFile]);
+        toast.success(`${file.name} uploaded and content added to conversation`);
+      } else {
+        toast.error('File uploaded but failed to add content to conversation');
+      }
 
     } catch (error) {
-      console.error('Error uploading files:', error);
-      toast.error('Failed to upload one or more file(s)');
+      console.error('Error uploading file:', error);
+      toast.error('Failed to upload file');
     } finally {
       setUploading(false);
-      setUploadingFiles([]);
       if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+        fileInputRef.current.value = '';
       }
     }
   };
@@ -902,7 +1515,7 @@ const ProjectGuidelines = () => {
         className='h-10 w-10 p-0'
         onClick={() => fileInputRef.current?.click()}
         disabled={uploading || !isAiConfigured}
-        title={!isAiConfigured ? 'Configure AI assistant to attach files' : 'Attach PDF file'}
+        title={!isAiConfigured ? 'Configure AI assistant to attach files' : `Attach PDF file (max ${formatFileSize(MAX_PDF_SIZE)})`}
       >
         <Upload className={`h-6 w-6 ${!isAiConfigured ? 'opacity-50' : ''}`} />
         <span className='sr-only'>Attach PDF</span>
@@ -924,20 +1537,57 @@ const ProjectGuidelines = () => {
     return <Loader />;
   }
 
+  // Helper to get model info for display
+  const getModelDisplayInfo = (message: Message) => {
+    // First try the message-specific info
+    if (message.aiProvider && message.aiModel) {
+      return `${message.aiProvider} - ${message.aiModel}`;
+    }
+    
+    // Then try the guideline-level info
+    if (guidelineData?.aiProvider && guidelineData?.aiModel) {
+      return `${guidelineData.aiProvider} - ${guidelineData.aiModel}`;
+    }
+    
+    // Fallback to saved config
+    if (savedAiConfig) {
+      return `${savedAiConfig.provider} - ${savedAiConfig.modelName || savedAiConfig.model}`;
+    }
+    
+    // Generic fallback
+    return 'AI Assistant';
+  };
+
   // Main Component Return
   return (
     <Card className='w-full'>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle className='text-2xl'>Project Guidelines Assistant</CardTitle>
-          <p className="text-muted-foreground text-sm mt-1">Ask questions about guidelines using your preferred AI model</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Ask questions about guidelines using your preferred AI model
+            {isAiConfigured && (
+              <span className="ml-1">
+                (Currently using: <span className="font-medium">
+                  {guidelineData?.aiProvider && guidelineData?.aiModel 
+                    ? `${guidelineData.aiProvider} - ${guidelineData.aiModel}`
+                    : savedAiConfig?.provider && savedAiConfig?.modelName 
+                      ? `${savedAiConfig.provider} - ${savedAiConfig.modelName}` 
+                      : savedAiConfig?.provider && savedAiConfig?.model
+                        ? `${savedAiConfig.provider} - ${savedAiConfig.model}`
+                        : 'AI Assistant'
+                  }
+                </span>)
+              </span>
+            )}
+          </p>
         </div>
         <div className='flex gap-2'>
-          {/* AI Settings Button */}
+          {/* AI Settings Button - Now opens bottom sheet */}
           <Button
             size='sm'
             variant='outline'
-            onClick={() => setAiModalOpen(true)}
+            onClick={() => setAiBottomSheetOpen(true)}
           >
             <Settings className='h-4 w-4 mr-2' />
             AI Settings
@@ -966,8 +1616,11 @@ const ProjectGuidelines = () => {
                 <Bot className='h-16 w-16 mb-4 opacity-60' />
                 <h3 className='text-xl font-medium mb-2'>Configure AI Assistant</h3>
                 <p className='text-muted-foreground max-w-md mb-6'>
-                  To get started with project guidelines, configure an AI assistant that will help manage conversations and answer questions about this project.
+                  To get started with project guidelines, select an AI model that will help manage conversations and answer questions about this project.
                 </p>
+                <Button onClick={() => setAiBottomSheetOpen(true)}>
+                  Select AI Model
+                </Button>
               </div>
             ) : (
               // Chat Message Area
@@ -1040,15 +1693,25 @@ const ProjectGuidelines = () => {
                             </div>
                           )}
                           {/* Content */}
-                          <div className='whitespace-pre-wrap'>{message.content}</div>
+                        <div className='whitespace-pre-wrap'>{message.content}</div>
+                          {message.isAiMessage && (
+                            <div className="text-xs opacity-60 mt-1">
+                              Generated by {getModelDisplayInfo(message)}
+                            </div>
+                          )}
                           {/* Attachments */}
                           {message.attachments && message.attachments.length > 0 && (
                             <div className='mt-2 space-y-1'>
                               {message.attachments.map((attachment, index) => (
-                                <a key={index} href={attachment.fileUrl} target='_blank' rel='noopener noreferrer' className='flex items-center text-xs text-blue-600 dark:text-blue-400 hover:underline'>
+                                <div 
+                                  key={index} 
+                                  className='flex items-center text-xs text-blue-600 dark:text-blue-400 hover:underline cursor-pointer'
+                                  onClick={() => handleOpenFile(attachment)}
+                                >
                                   {getFileIcon(attachment.fileType)}
                                   <span className='ml-1 truncate'>{attachment.fileName}</span>
-                                </a>
+                                  <ExternalLink className='h-3 w-3 ml-1' />
+                                </div>
                               ))}
                             </div>
                           )}
@@ -1163,7 +1826,7 @@ const ProjectGuidelines = () => {
         </div>
       </CardContent>
 
-      {/* Knowledge Files Sidebar - Replaced Dialog with Sidebar */}
+      {/* Knowledge Files Sidebar */}
       <KnowledgeSidebar 
         isOpen={knowledgeSidebarOpen}
         onClose={() => setKnowledgeSidebarOpen(false)}
@@ -1173,44 +1836,32 @@ const ProjectGuidelines = () => {
         setShowIframe={setShowIframe}
         handleConnect={handleConnect}
         handleBackFromIframe={handleBackFromIframe}
+        onDownloadFile={handleDownloadFile}
       />
 
-      {/* AI Configuration Dialog */}
-      <Dialog open={aiModalOpen} onOpenChange={setAiModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isAiConfigured ? 'AI Assistant Settings' : 'Configure AI Assistant'}</DialogTitle>
-            <DialogDescription>
-              {isAiConfigured ? 'Select or update the AI model for this project' : 'Set up an AI assistant to help with project discussions'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className='space-y-4 py-4'>
-            <AIModelSelector onSelect={setAiConfig} isLoading={isGeneratingAI} />
-             {savedAiConfig && (
-               <div className="text-sm text-muted-foreground mt-2">
-                  Currently using: {savedAiConfig.modelName || `${savedAiConfig.provider} - ${savedAiConfig.model}`}
-               </div>
-             )}
-          </div>
-          <DialogFooter>
-            <Button variant='outline' onClick={() => setAiModalOpen(false)}>Cancel</Button>
-            <Button
-              onClick={configureAndTrainAI}
-              disabled={isGeneratingAI || !aiConfig.provider || !aiConfig.model || !aiConfig.apiKey}
-            >
-              {isGeneratingAI ? (
-                <><Loader2 className='h-4 w-4 mr-2 animate-spin' /> {isAiConfigured ? 'Updating...' : 'Setting up AI...'}</>
-              ) : (isAiConfigured ? 'Update AI Assistant' : 'Configure & Start AI')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* AI Model Bottom Sheet */}
+      <AIModelBottomSheet
+        isOpen={aiBottomSheetOpen}
+        onClose={() => setAiBottomSheetOpen(false)}
+        onSelect={handleSelectedAIModel}
+        isLoading={isGeneratingAI}
+        currentConfig={savedAiConfig}
+        isConfigured={isAiConfigured}
+      />
 
       {/* Add overlay when sidebar is open for small screens */}
       {knowledgeSidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/30 z-40 lg:hidden" 
           onClick={() => setKnowledgeSidebarOpen(false)}
+        />
+      )}
+      
+      {/* Add overlay when bottom sheet is open */}
+      {aiBottomSheetOpen && (
+        <div 
+          className="fixed inset-0 bg-black/30 z-40" 
+          onClick={() => setAiBottomSheetOpen(false)}
         />
       )}
     </Card>

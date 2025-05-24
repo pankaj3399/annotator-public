@@ -1,3 +1,5 @@
+
+// Template.ts
 import { Schema, model, models } from 'mongoose';
 
 const templateSchema = new Schema({
@@ -11,5 +13,10 @@ const templateSchema = new Schema({
     type: { type: String, enum: ['test', 'training', 'core'], default: 'test' },
     groundTruthTask: { type: Schema.Types.ObjectId, ref: 'Task', required: false },
 });
+
+// === INDEXES FOR TEMPLATE QUERIES ===
+templateSchema.index({ project: 1 });
+templateSchema.index({ type: 1 });
+templateSchema.index({ private: 1 });
 
 export const Template = models?.Template || model('Template', templateSchema);

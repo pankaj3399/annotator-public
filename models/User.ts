@@ -1,3 +1,4 @@
+// User.ts
 import mongoose, { Schema, model, models } from "mongoose";
 
 const userSchema = new Schema(
@@ -124,6 +125,13 @@ defaultPaymentMethod: {
     minimize: false, // This ensures empty objects are stored
   }
 );
+
+// === INDEXES FOR USER QUERIES ===
+userSchema.index({ role: 1 }); // For counting annotators
+userSchema.index({ team_id: 1 });
+userSchema.index({ lastLogin: -1 }); // For sorting by last login
+userSchema.index({ created_at: -1 }); // For sorting by creation date
+// Note: email already has unique: true which creates a unique index
 
 userSchema.pre("save", function (next) {
   this.updated_at = new Date();

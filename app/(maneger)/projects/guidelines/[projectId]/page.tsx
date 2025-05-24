@@ -55,18 +55,6 @@ export default function GuidelinesPage() {
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <Breadcrumb className="mb-6">
-        <BreadcrumbItem>
-          <BreadcrumbLink href="/projects">Projects</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbLink href={`/projects/${projectId}`}>{projectName}</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbLink> <span className="inline-block ml-1">Guidelines</span> </BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
-
       <div className="mb-6">
         <Link
           href={`/projects/${projectId}`}

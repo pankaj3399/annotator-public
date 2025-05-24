@@ -1,4 +1,4 @@
-import { getToken } from "next-auth/jwt";
+import { getToken } from 'next-auth/jwt';
 import { NextResponse, type NextRequest } from 'next/server';
 
 // --- Security Headers Helper ---
@@ -18,13 +18,14 @@ function addSecurityHeaders(response: NextResponse): void {
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'no-referrer');
 
-  const permissions = [
-    'geolocation=()', 'microphone=()', 'camera=()', 'payment=()', 'usb=()','payment=self'
-  ];
+  const permissions = ['usb=()'];
   response.headers.set('Permissions-Policy', permissions.join(', '));
 
   if (process.env.NODE_ENV === 'production') {
-    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    );
   }
 }
 
@@ -33,7 +34,10 @@ function handleOptionsRequest(): NextResponse {
   const preflightResponse = new NextResponse(null, { status: 204 });
 
   // Prevent caching preflight responses
-  preflightResponse.headers.set('Cache-Control', 'no-store, max-age=0, must-revalidate');
+  preflightResponse.headers.set(
+    'Cache-Control',
+    'no-store, max-age=0, must-revalidate'
+  );
 
   // Only add security headers, no CORS headers
   addSecurityHeaders(preflightResponse);
@@ -58,7 +62,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
   // Authentication and authorization logic
   const nextAuthSecret = process.env.NEXTAUTH_SECRET;
   if (!nextAuthSecret) {
-    console.error("[Middleware] CRITICAL: NEXTAUTH_SECRET is not set.");
+    console.error('[Middleware] CRITICAL: NEXTAUTH_SECRET is not set.');
     return response;
   }
 
@@ -66,7 +70,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const token = await getToken({ req, secret: nextAuthSecret });
 
     // Handle team parameter for Google sign-in
-    if (pathname === "/auth/signup") {
+    if (pathname === '/auth/signup') {
       const teamParam = searchParams.get('team');
       if (teamParam) {
         response.cookies.set('signup_team_id', teamParam, {
@@ -94,38 +98,50 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     }
 
     // Clear team cookie after successful authentication
-    if (pathname === "/dashboard" && token) {
+    if (pathname === '/dashboard' && token) {
       if (req.cookies.has('signup_team_id')) {
         response.cookies.delete({
           name: 'signup_team_id',
           path: '/',
-          secure: process.env.NODE_ENV === 'production'
+          secure: process.env.NODE_ENV === 'production',
         });
       }
     }
 
     // Define public routes that don't require authentication
-    const publicPageAndApiRoutes = ["/auth/login", "/auth/signup", "/landing", "/blogs", "/jobs"];
+    const publicPageAndApiRoutes = [
+      '/auth/login',
+      '/auth/signup',
+      '/landing',
+      '/blogs',
+      '/jobs',
+    ];
     const isNextAuthApiRoute = pathname.startsWith('/api/auth/');
+
+    const isWebhookRoute = pathname.startsWith('/api/stripeWebhook');
+
 
     const isPublicRoute =
       isNextAuthApiRoute ||
+      isWebhookRoute ||
       publicPageAndApiRoutes.includes(pathname) ||
-      pathname.startsWith("/blogs/") ||
-      pathname.startsWith("/jobs/") ||
-      pathname.startsWith("/benchmark-arena") ||
-      pathname.startsWith("/auth");
+      pathname.startsWith('/blogs/') ||
+      pathname.startsWith('/jobs/') ||
+      pathname.startsWith('/benchmark-arena') ||
+      pathname.startsWith('/auth');
 
     // Redirect unauthenticated users to landing
     if (!token && !isPublicRoute) {
-      const redirectResponse = NextResponse.redirect(new URL("/landing", req.url));
+      const redirectResponse = NextResponse.redirect(
+        new URL('/landing', req.url)
+      );
       addSecurityHeaders(redirectResponse);
       return redirectResponse;
     }
 
     return response;
   } catch (error) {
-    console.error("[Middleware] Authentication error:", error);
+    console.error('[Middleware] Authentication error:', error);
     // Fall back to treating as unauthenticated on error
     return response;
   }
@@ -133,5 +149,5 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
 // --- Middleware Configuration ---
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 };

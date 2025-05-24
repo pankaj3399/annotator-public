@@ -4,7 +4,10 @@ import { connectToDatabase } from "@/lib/db";
 import NotificationTemplate from "@/models/NotificationTemplate";
 import { authOptions } from '@/auth';
 
-export async function PUT(req: Request) {
+export async function PUT(
+  req: Request,
+  { params }: { params: { projectId: string; templateId: string } }
+) {
   const session = await getServerSession(authOptions);
   
   if (!session) {
@@ -14,10 +17,11 @@ export async function PUT(req: Request) {
   try {
     await connectToDatabase();
 
-    const { _id, ...updates } = await req.json(); // Destructure _id and rest of the fields
+    const { templateId } = params; // Get templateId from URL params
+    const updates = await req.json(); // Get update data from body
 
     // Ensure template ID is provided
-    if (!_id) {
+    if (!templateId) {
       return NextResponse.json(
         { success: false, error: "Template ID is required" },
         { status: 400 }
@@ -26,8 +30,8 @@ export async function PUT(req: Request) {
 
     // Find and update the template
     const updatedTemplate = await NotificationTemplate.findByIdAndUpdate(
-      _id,
-      updates, // Use remaining fields for update
+      templateId, // Use templateId from URL params
+      updates,    // Use update data from request body
       { new: true }
     );
 
@@ -52,7 +56,10 @@ export async function PUT(req: Request) {
   }
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(
+  req: Request,
+  { params }: { params: { projectId: string; templateId: string } }
+) {
   const session = await getServerSession(authOptions);
   
   if (!session) {
@@ -62,10 +69,10 @@ export async function DELETE(req: Request) {
   try {
     await connectToDatabase();
 
-    const { _id } = await req.json(); // Get the template ID from the request body
+    const { templateId } = params; // Get templateId from URL params
 
     // Ensure template ID is provided
-    if (!_id) {
+    if (!templateId) {
       return NextResponse.json(
         { success: false, error: "Template ID is required" },
         { status: 400 }
@@ -73,7 +80,7 @@ export async function DELETE(req: Request) {
     }
 
     // Find and delete the template
-    const deletedTemplate = await NotificationTemplate.findByIdAndDelete(_id);
+    const deletedTemplate = await NotificationTemplate.findByIdAndDelete(templateId);
 
     // Check if the template exists
     if (!deletedTemplate) {

@@ -4,6 +4,10 @@ import { StorageCredentials } from "@/models/StorageCredentials";
 import { google } from "googleapis";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/lib/db";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 const redirectUri = `${nextAuthUrl}api/storage/connect/google-drive/callback`;
 // Your Google OAuth credentials from environment variables

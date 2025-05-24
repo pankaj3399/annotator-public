@@ -6,6 +6,10 @@ import { ObjectId } from 'mongodb';
 import { authOptions } from '@/auth';
 import { connectToDatabase } from '@/lib/db';
 
+// Explicitly mark this route as dynamic
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // Define an interface for the storage connection document
 interface StorageConnection {
   _id: mongoose.Types.ObjectId;

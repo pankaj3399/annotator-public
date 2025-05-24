@@ -49,7 +49,6 @@ import {
 import { useRouter } from 'next/navigation';
 import { domains, languages, locations } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
-import { Transfer } from '@/components/transferDialog';
 import { DeleteUserButton } from '@/components/DeleteUserButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DailyExpertsStats } from '@/components/ProjectManagerDashboard/DailyExpertsStats'; // Using this based on your last code
@@ -648,7 +647,6 @@ const handleStripePayment = (expertId: string) => {
         {/* Added shadow and sticky */}
         <div className='max-w-7xl mx-auto py-4 px-4 flex justify-between items-center'>
           <h1 className='text-2xl font-semibold text-gray-900'>Experts</h1>
-          <Transfer onOpen={onOpen} setOnOpen={setOnOpen} id={id} />
           <div className='flex items-center gap-2 sm:gap-3'>
             {' '}
             {/* Reduced gap slightly */}
@@ -941,16 +939,7 @@ const handleStripePayment = (expertId: string) => {
                         {/* Actions aligned right */}
                         <div className='flex items-center justify-end space-x-1'>
                           {' '}
-                          {/* Use flex end */}
-                          <Button
-                            size='icon'
-                            variant='ghost'
-                            className='h-7 w-7'
-                            onClick={() => handleTransfer(user._id)}
-                            title='Transfer'
-                          >
-                            <DollarSign className='h-4 w-4' />
-                          </Button>
+                     
                           <Button
   size='icon'
   variant='ghost'

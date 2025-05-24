@@ -105,54 +105,140 @@ export async function getAIModels(projectid: string) {
   }
 }
 
+
 export async function generateAiResponse(provider: string, model: string, prompt: string, projectId: string, apiKey: string) {
   try {
+    // Validate inputs
+    if (!provider || !model || !prompt || !apiKey) {
+      throw new Error("Missing required parameters: provider, model, prompt, or API key");
+    }
+
     switch (provider.toLowerCase()) {
       case "openai": {
+        if (!apiKey.startsWith('sk-')) {
+          throw new Error("Invalid OpenAI API key format. API key should start with 'sk-'");
+        }
+
         const openai = new OpenAI({
           apiKey: apiKey
         });
 
-        const completion = await openai.chat.completions.create({
-          model: model,
-          messages: [{ role: "user", content: prompt }],
-        });
+        try {
+          const completion = await openai.chat.completions.create({
+            model: model,
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 2000,
+            temperature: 0.7,
+          });
 
-        return completion.choices[0].message.content;
+          const content = completion.choices[0]?.message?.content;
+          if (!content) {
+            throw new Error("OpenAI returned an empty response. This might be due to content filtering or model limitations.");
+          }
+
+          return content;
+        } catch (openaiError: any) {
+          console.error("OpenAI API Error:", openaiError);
+          
+          // Parse OpenAI specific errors
+          if (openaiError.status === 401) {
+            throw new Error("Invalid OpenAI API key. Please check your API key in settings.");
+          } else if (openaiError.status === 429) {
+            throw new Error("OpenAI rate limit exceeded. Please wait a moment and try again.");
+          } else if (openaiError.status === 400) {
+            throw new Error(`OpenAI request error: ${openaiError.message || 'Invalid request parameters'}`);
+          } else if (openaiError.status === 404) {
+            throw new Error(`OpenAI model '${model}' not found. Please check if the model name is correct.`);
+          } else {
+            throw new Error(`OpenAI API error: ${openaiError.message || 'Unknown error occurred'}`);
+          }
+        }
       }
 
       case "anthropic": {
+        if (!apiKey.startsWith('sk-ant-')) {
+          throw new Error("Invalid Anthropic API key format. API key should start with 'sk-ant-'");
+        }
+
         const anthropic = new Anthropic({
           apiKey: apiKey
-        })
-        const message = await anthropic.messages.create({
-          model: model,
-          messages: [{ role: "user", content: prompt }],
-          max_tokens: 1024,
         });
-        //@ts-ignore
-        return message.content[0].text
+
+        try {
+          const message = await anthropic.messages.create({
+            model: model,
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 2000,
+          });
+
+          // @ts-ignore - Anthropic typing issue
+          const content = message.content[0]?.text;
+          if (!content) {
+            throw new Error("Anthropic returned an empty response. This might be due to content filtering or model limitations.");
+          }
+
+          return content;
+        } catch (anthropicError: any) {
+          console.error("Anthropic API Error:", anthropicError);
+          
+          // Parse Anthropic specific errors
+          if (anthropicError.status === 401) {
+            throw new Error("Invalid Anthropic API key. Please check your API key in settings.");
+          } else if (anthropicError.status === 429) {
+            throw new Error("Anthropic rate limit exceeded. Please wait a moment and try again.");
+          } else if (anthropicError.status === 400) {
+            throw new Error(`Anthropic request error: ${anthropicError.message || 'Invalid request parameters'}`);
+          } else if (anthropicError.status === 404) {
+            throw new Error(`Anthropic model '${model}' not found. Please check if the model name is correct.`);
+          } else {
+            throw new Error(`Anthropic API error: ${anthropicError.message || 'Unknown error occurred'}`);
+          }
+        }
       }
 
       case "gemini": {
-        const genAI = new GoogleGenerativeAI(
-          apiKey
-        );
+        const genAI = new GoogleGenerativeAI(apiKey);
 
-        const modelInstance = genAI.getGenerativeModel({ model });
-        const result = await modelInstance.generateContent(prompt);
+        try {
+          const modelInstance = genAI.getGenerativeModel({ model });
+          const result = await modelInstance.generateContent(prompt);
 
-        return result.response.text();
+          const content = result.response.text();
+          if (!content || content.trim() === '') {
+            throw new Error("Gemini returned an empty response. This might be due to content filtering or model limitations.");
+          }
+
+          return content;
+        } catch (geminiError: any) {
+          console.error("Gemini API Error:", geminiError);
+          
+          // Parse Gemini specific errors
+          if (geminiError.message?.includes('API_KEY_INVALID')) {
+            throw new Error("Invalid Google Gemini API key. Please check your API key in settings.");
+          } else if (geminiError.message?.includes('QUOTA_EXCEEDED')) {
+            throw new Error("Gemini API quota exceeded. Please check your Google Cloud billing and quotas.");
+          } else if (geminiError.message?.includes('MODEL_NOT_FOUND')) {
+            throw new Error(`Gemini model '${model}' not found. Please check if the model name is correct.`);
+          } else if (geminiError.message?.includes('SAFETY')) {
+            throw new Error("Content was blocked by Gemini's safety filters. Please review and modify your job description.");
+          } else {
+            throw new Error(`Gemini API error: ${geminiError.message || 'Unknown error occurred'}`);
+          }
+        }
       }
 
       default:
-        throw new Error(`Provider ${provider} not implemented`);
+        throw new Error(`AI Provider '${provider}' is not supported. Available providers: OpenAI, Anthropic, Gemini`);
     }
   } catch (error) {
     console.error("AI Response Generation Error:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to generate AI response");
+    
+    // Re-throw with more context if it's not already a detailed error
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error(`Failed to generate AI response: ${String(error)}`);
+    }
   }
 }
 

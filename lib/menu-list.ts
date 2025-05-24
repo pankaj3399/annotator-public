@@ -68,75 +68,34 @@ export type UserRole =
   | 'data scientist';
 
 type Submenu = {
-  href: string;
-  label: string;
-  active?: boolean;
-  icon?: LucideIcon | any;
+href: string;
+label: string;
+active?: boolean;
+icon?: LucideIcon | any;
 };
 
 type Menu = {
-  href: string;
-  label: string;
-  active: boolean;
-  icon: LucideIcon | any;
-  submenus?: Submenu[];
-  visibleTo?: UserRole[]; // Role-based visibility
+href: string;
+label: string;
+active: boolean;
+icon: LucideIcon | any;
+submenus?: Submenu[];
+visibleTo?: UserRole[]; // Role-based visibility
 };
 
 type Group = {
-  groupLabel: string;
-  menus: Menu[];
-  visibleTo?: UserRole[]; // Role-based visibility for groups
-  icon?: LucideIcon | any; // Icon for the group itself (used in Menu.tsx)
+groupLabel: string;
+menus: Menu[];
+visibleTo?: UserRole[]; // Role-based visibility for groups
+icon?: LucideIcon | any; // Icon for the group itself (used in Menu.tsx)
 };
 
 // Keywords that are part of paths but are NOT project IDs
-const PATH_KEYWORDS_NOT_IDS = [
-  'new',
-  'create',
-  'edit',
-  'data',
-  'task',
-  'test',
-  'training',
-  'core',
-  'job-list',
-  'template',
-  'pipeline',
-  'guidelines',
-  'discussion',
-  'benchmark-proposals',
-  'analytics',
-  'leaderboard',
-  'settings',
-  'notification',
-  'ai-config',
-  'all',
-  'annotatorDashboard',
-  'chat',
-  'profile',
-  'wishlist',
-  'bank',
-  'viewCourses',
-  'myCourses',
-  'benchmark-arena',
-  'review',
-  'providerKeys',
-  'history',
-  'orders',
-  'label',
-  'teams',
-  'experts',
-  'reviewsAndRatings',
-  'landing',
-  'dashboard',
-  'annotator',
-  'courses',
-  'dataScientist',
-];
+const PATH_KEYWORDS_NOT_IDS = ['new', 'create', 'edit', 'data', 'task', 'test', 'training', 'core', 'job-list', 'template', 'pipeline', 'guidelines', 'discussion', 'benchmark-proposals', 'analytics', 'leaderboard', 'settings', 'notification', 'ai-config', 'all', 'annotatorDashboard', 'chat', 'profile', 'wishlist', 'bank', 'viewCourses', 'myCourses', 'benchmark-arena', 'review', 'providerKeys', 'history', 'orders', 'label', 'teams', 'experts', 'reviewsAndRatings', 'landing', 'dashboard', 'annotator', 'courses', 'dataScientist'];
+
 
 function isNotebookPath(pathname: string): boolean {
-  return pathname.includes('/dataScientist/notebook');
+return pathname.includes('/dataScientist/notebook');
 }
 
 // Get project ID from URL query parameters (for notebook pages)

@@ -3,6 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { google } from "googleapis";
 import { authOptions } from "@/auth";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const nextAuthUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000/';
 // Your Google OAuth credentials from environment variables
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;

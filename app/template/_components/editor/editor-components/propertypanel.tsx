@@ -1,3 +1,4 @@
+//propertyPanel.tsx
 'use client';
 
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider';
@@ -80,10 +81,10 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   apiKeyExists,
 }) => {
   // Enhanced debug logging
-  console.log(`Rendering ModelSelector for ${modelType}:`, {
-    currentValue,
-    hasApiKey: !!apiKeyExists,
-  });
+  // console.log(`Rendering ModelSelector for ${modelType}:`, {
+  // currentValue,
+  // hasApiKey: !!apiKeyExists,
+  // });
 
   return (
     <div className='space-y-2'>
@@ -92,7 +93,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
         className='w-full p-2 border rounded-md'
         value={currentValue || ''}
         onChange={(e) => {
-          console.log(`Selected ${modelType} model:`, e.target.value);
+          // console.log(`Selected ${modelType} model:`, e.target.value);
           onModelChange(e.target.value, modelType);
         }}
       >
@@ -136,47 +137,47 @@ const PropertyPanel = () => {
     id: element.id || '',
     name: element.name || '',
     content: !Array.isArray(element.content)
-      ? (element.content as ElementContent)
+      ? (element.content as ElementContent) || {}
       : ({} as ElementContent),
   });
 
   const modelFileSupport = {
     'azure-ai-speech': {
       preferred: ['wav', 'mp3'],
-      note: 'PCM WAV gives best results'
+      note: 'PCM WAV gives best results',
     },
     'deepgram-nova-2': {
       preferred: ['wav', 'mp3', 'flac'],
-      note: 'High-quality audio recommended'
+      note: 'High-quality audio recommended',
     },
     'openai-whisper-large-v2': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'groq-whisper-large-v3': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'groq-whisper-large-v3-turbo': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'groq-distil-whisper': {
       preferred: ['mp3', 'wav', 'mp4'],
-      note: 'Max size: 25MB'
+      note: 'Max size: 25MB',
     },
     'assemblyai-universal-2': {
       preferred: ['mp3', 'wav', 'flac'],
-      note: 'Supports files up to 5GB'
+      note: 'Supports files up to 5GB',
     },
-    'gladia': {
+    gladia: {
       preferred: ['wav', 'mp3', 'flac'],
-      note: 'Max size: 1GB or 4 hours'
+      note: 'Max size: 1GB or 4 hours',
     },
-    'speechmatics': {
+    speechmatics: {
       preferred: ['wav', 'mp3'],
-      note: 'Uncompressed audio preferred'
-    }
+      note: 'Uncompressed audio preferred',
+    },
   };
   const translationModelOptions: ModelOption[] = [
     { value: 'deepl', label: 'DeepL' },
@@ -201,14 +202,20 @@ const PropertyPanel = () => {
   ];
 
   useEffect(() => {
+    // This effect now only runs when a *different* element is selected
+    // (i.e., when element.id changes).
+    // It initializes the local elementProperties state from the newly selected element.
+    // Any subsequent changes to properties of this element (e.g., toggling
+    // transcribeEnabled) will be managed by handlePropertyChange updating
+    // elementProperties directly, without this effect clobbering that local change.
     setElementProperties({
       id: element.id || '',
       name: element.name || '',
       content: !Array.isArray(element.content)
-        ? (element.content as ElementContent)
+        ? (element.content as ElementContent) || {}
         : ({} as ElementContent),
     });
-  }, [element, state.editor.elements]);
+  }, [element.id]); // <--- THE CRITICAL FIX: Depend on element.id
 
   const findAllElementsOfType = (
     elements: EditorElement[],
@@ -276,11 +283,11 @@ const PropertyPanel = () => {
     type: 'transcription' | 'translation'
   ): Promise<void> => {
     if (!modelValue) {
-      console.error('Model selection failed: No model value provided');
+      // console.error('Model selection failed: No model value provided');
       return;
     }
 
-    console.log(`handleModelChange called with:`, { modelValue, type });
+    // console.log(`handleModelChange called with:`, { modelValue, type });
 
     const propertyPath =
       type === 'transcription' ? 'transcriptionModel' : 'translationModel';
@@ -288,45 +295,51 @@ const PropertyPanel = () => {
       type === 'transcription' ? 'apiKey' : 'translationApiKey';
 
     // Update local state first for immediate UI feedback
-    console.log(
-      `Updating model selection in local state: ${propertyPath} = ${modelValue}`
-    );
+    // console.log(
+    // `Updating model selection in local state: ${propertyPath} = ${modelValue}`
+    // );
     setElementProperties((prev) => {
       const newState = {
         ...prev,
         content: {
           ...prev.content,
           [propertyPath]: modelValue,
+          // Clear previous API key when model changes, it will be re-fetched
+          [apiKeyPath]: '',
         },
       };
-      console.log('Updated element properties state:', newState);
+      // console.log('Updated element properties state (model select):', newState);
       return newState;
     });
 
     // Update in editor state
-    console.log(`Dispatching model update to editor state`);
+    // console.log(`Dispatching model update to editor state`);
     dispatch({
       type: 'UPDATE_ELEMENT',
       payload: {
         elementDetails: {
-          ...element,
-          content: Array.isArray(element.content)
-            ? element.content
-            : { ...(element.content || {}), [propertyPath]: modelValue },
+          ...element, // Use the current `element` prop from state for base
+          content: !Array.isArray(element.content)
+            ? {
+                ...(element.content || {}),
+                [propertyPath]: modelValue,
+                [apiKeyPath]: '',
+              }
+            : element.content, // Should not happen for elements with these properties
         },
       },
     });
 
     try {
       // Fetch API key
-      console.log(`Fetching API key for ${modelValue} (${type})`);
+      // console.log(`Fetching API key for ${modelValue} (${type})`);
       const apiKey = await fetchApiKey(modelValue, type);
-      console.log(
-        `API key fetch result:`,
-        apiKey ? 'Found key' : 'No key found'
-      );
+      // console.log(
+      // `API key fetch result:`,
+      // apiKey ? 'Found key' : 'No key found'
+      // );
 
-      // Update with API key result
+      // Update with API key result in local state
       setElementProperties((prev) => ({
         ...prev,
         content: {
@@ -341,13 +354,13 @@ const PropertyPanel = () => {
         payload: {
           elementDetails: {
             ...element,
-            content: Array.isArray(element.content)
-              ? element.content
-              : {
+            content: !Array.isArray(element.content)
+              ? {
                   ...(element.content || {}),
-                  [propertyPath]: modelValue,
+                  [propertyPath]: modelValue, // Ensure model is still set
                   [apiKeyPath]: apiKey || '',
-                },
+                }
+              : element.content,
           },
         },
       });
@@ -355,16 +368,14 @@ const PropertyPanel = () => {
       console.error('Error in handleModelChange:', error);
       toast({
         title: 'Error',
-        description: 'Failed to update model selection',
+        description: 'Failed to update model selection or fetch API key',
         variant: 'destructive',
       });
     }
   };
 
   const handlePropertyChange = (property: string, value: any) => {
-    // Check if the property starts with 'content.'
     if (property.startsWith('content.')) {
-      // Extract the key after 'content.'
       const contentKey = property.split('.')[1];
 
       setElementProperties((prev) => ({
@@ -375,25 +386,23 @@ const PropertyPanel = () => {
         },
       }));
 
-      // Dispatch update for content changes
       dispatch({
         type: 'UPDATE_ELEMENT',
         payload: {
           elementDetails: {
             ...element,
-            content: Array.isArray(element.content)
-              ? element.content.map((item) => ({
-                  ...item,
+            content: !Array.isArray(element.content)
+              ? {
+                  ...((element.content as ElementContent) || {}),
                   [contentKey]: value,
-                }))
-              : { ...element.content, [contentKey]: value },
+                }
+              : element.content, // Should not happen for elements that have 'content' object
           },
         },
       });
       return;
     }
 
-    // Original implementation for other properties
     setElementProperties((prev) => ({ ...prev, [property]: value }));
 
     if (property === 'name') {
@@ -414,9 +423,10 @@ const PropertyPanel = () => {
     return null;
   }
 
-  if (!element || !element.id || element.type === ('__body' as EditorBtns)) {
-    return null;
-  }
+  // Redundant check, but keeping for safety, already covered above.
+  // if (!element || !element.id || element.type === ('__body' as EditorBtns)) {
+  // return null;
+  // }
 
   const showProperties = () => {
     switch (element.type) {
@@ -437,11 +447,11 @@ const PropertyPanel = () => {
               <Input
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.innerText
+                    ? (elementProperties.content.innerText ?? '')
                     : ''
                 }
                 onChange={(e) =>
-                  handlePropertyChange('innerText', e.target.value)
+                  handlePropertyChange('content.innerText', e.target.value)
                 }
                 placeholder='Enter placeholder text'
               />
@@ -453,11 +463,14 @@ const PropertyPanel = () => {
                 type='number'
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.wordLimit
+                    ? (elementProperties.content.wordLimit ?? '')
                     : ''
                 }
                 onChange={(e) =>
-                  handlePropertyChange('wordLimit', parseInt(e.target.value))
+                  handlePropertyChange(
+                    'content.wordLimit',
+                    parseInt(e.target.value) || undefined
+                  )
                 }
                 placeholder='Enter word limit'
               />
@@ -465,27 +478,23 @@ const PropertyPanel = () => {
             <div className='space-y-2'>
               <Label>Allow Paste</Label>
               <div className='flex items-center space-x-2'>
-                <input
-                  type='checkbox'
+                <Switch
+                  id='copyAllowed'
                   checked={
                     !Array.isArray(elementProperties.content)
-                      ? elementProperties.content.copyAllowed
+                      ? !!elementProperties.content.copyAllowed
                       : false
                   }
-                  onChange={(e) =>
-                    handlePropertyChange(
-                      'content.copyAllowed',
-                      e.target.checked
-                    )
+                  onCheckedChange={(checked) =>
+                    handlePropertyChange('content.copyAllowed', checked)
                   }
-                  className='toggle-checkbox'
                 />
-                <span>
+                <Label htmlFor='copyAllowed'>
                   {!Array.isArray(elementProperties.content) &&
                   elementProperties.content.copyAllowed
                     ? 'Enabled'
                     : 'Disabled'}
-                </span>
+                </Label>
               </div>
             </div>
           </div>
@@ -509,7 +518,7 @@ const PropertyPanel = () => {
               <Input
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.innerText
+                    ? (elementProperties.content.innerText ?? '')
                     : ''
                 }
                 onChange={(e) =>
@@ -519,27 +528,24 @@ const PropertyPanel = () => {
               />
             </div>
 
-            {/* Translation Settings Section for Dynamic Text */}
             {element.type === 'dynamicText' && (
               <div className='border-t pt-4 mt-4'>
                 <h3 className='font-medium mb-2'>Translation Settings</h3>
 
                 <div className='flex items-center space-x-2 mb-4'>
-                  <input
-                    type='checkbox'
+                  <Switch
                     id='translationEnabled'
                     checked={
                       !Array.isArray(elementProperties.content)
-                        ? elementProperties.content.translationEnabled
+                        ? !!elementProperties.content.translationEnabled
                         : false
                     }
-                    onChange={(e) =>
+                    onCheckedChange={(checked) =>
                       handlePropertyChange(
                         'content.translationEnabled',
-                        e.target.checked
+                        checked
                       )
                     }
-                    className='toggle-checkbox'
                   />
                   <Label htmlFor='translationEnabled'>Enable Translation</Label>
                 </div>
@@ -705,10 +711,12 @@ const PropertyPanel = () => {
               <Input
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.title
+                    ? (elementProperties.content.title ?? '')
                     : ''
                 }
-                onChange={(e) => handlePropertyChange('title', e.target.value)}
+                onChange={(e) =>
+                  handlePropertyChange('content.title', e.target.value)
+                }
                 placeholder='Enter checkbox title'
               />
             </div>
@@ -723,8 +731,11 @@ const PropertyPanel = () => {
                 }
                 onChange={(e) =>
                   handlePropertyChange(
-                    'checkboxes',
-                    e.target.value.split(',').map((s) => s.trim())
+                    'content.checkboxes',
+                    e.target.value
+                      .split(',')
+                      .map((s) => s.trim())
+                      .filter((s) => s) // Ensure no empty strings
                   )
                 }
                 placeholder='Option 1, Option 2, Option 3'
@@ -751,27 +762,13 @@ const PropertyPanel = () => {
               <Input
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.src
-                    : ''
-                }
-                onChange={(e) => handlePropertyChange('src', e.target.value)}
-                placeholder='Enter video URL'
-              />
-            </div>
-
-            <div className='space-y-2'>
-              <Label>Time Limit (seconds)</Label>
-              <Input
-                type='number'
-                value={
-                  !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.limit
+                    ? (elementProperties.content.src ?? '')
                     : ''
                 }
                 onChange={(e) =>
-                  handlePropertyChange('limit', parseInt(e.target.value))
+                  handlePropertyChange('content.src', e.target.value)
                 }
-                placeholder='Enter time limit'
+                placeholder='Enter video URL'
               />
             </div>
           </div>
@@ -795,7 +792,7 @@ const PropertyPanel = () => {
               <Input
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.src
+                    ? (elementProperties.content.src ?? '')
                     : ''
                 }
                 onChange={(e) =>
@@ -811,41 +808,37 @@ const PropertyPanel = () => {
                 type='number'
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.limit
+                    ? (elementProperties.content.limit ?? '')
                     : ''
                 }
                 onChange={(e) =>
                   handlePropertyChange(
                     'content.limit',
-                    parseInt(e.target.value)
+                    parseInt(e.target.value) || undefined
                   )
                 }
                 placeholder='Enter time limit'
               />
             </div>
 
-            {/* Transcription Settings Section */}
             <div className='border-t pt-4 mt-4'>
               <h3 className='font-medium mb-2'>Transcription Settings</h3>
 
               <div className='flex items-center space-x-2 mb-4'>
-                <input
-                  type='checkbox'
-                  id='transcribeEnabled'
+                <Switch
+                  id='transcribeEnabledAudio'
                   checked={
                     !Array.isArray(elementProperties.content)
-                      ? elementProperties.content.transcribeEnabled
+                      ? !!elementProperties.content.transcribeEnabled
                       : false
                   }
-                  onChange={(e) =>
-                    handlePropertyChange(
-                      'content.transcribeEnabled',
-                      e.target.checked
-                    )
+                  onCheckedChange={(checked) =>
+                    handlePropertyChange('content.transcribeEnabled', checked)
                   }
-                  className='toggle-checkbox'
                 />
-                <Label htmlFor='transcribeEnabled'>Enable Transcription</Label>
+                <Label htmlFor='transcribeEnabledAudio'>
+                  Enable Transcription
+                </Label>
               </div>
 
               {!Array.isArray(elementProperties.content) &&
@@ -870,12 +863,14 @@ const PropertyPanel = () => {
                           : undefined
                       }
                     />
-{!Array.isArray(elementProperties.content) && 
-  elementProperties.content.transcriptionModel && (
-  <TranscriptionFormatTip 
-    selectedModel={elementProperties.content.transcriptionModel} 
-  />
-)}
+                    {!Array.isArray(elementProperties.content) &&
+                      elementProperties.content.transcriptionModel && (
+                        <TranscriptionFormatTip
+                          selectedModel={
+                            elementProperties.content.transcriptionModel
+                          }
+                        />
+                      )}
                     <div className='space-y-2'>
                       <Label>Language</Label>
                       <Select
@@ -930,10 +925,12 @@ const PropertyPanel = () => {
               <Input
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.src
+                    ? (elementProperties.content.src ?? '')
                     : ''
                 }
-                onChange={(e) => handlePropertyChange('src', e.target.value)}
+                onChange={(e) =>
+                  handlePropertyChange('content.src', e.target.value)
+                }
                 placeholder='Enter image URL'
               />
             </div>
@@ -959,11 +956,14 @@ const PropertyPanel = () => {
                 type='number'
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.limit
+                    ? (elementProperties.content.limit ?? '')
                     : ''
                 }
                 onChange={(e) =>
-                  handlePropertyChange('limit', parseInt(e.target.value))
+                  handlePropertyChange(
+                    'content.limit',
+                    parseInt(e.target.value) || undefined
+                  )
                 }
                 placeholder='Enter time limit'
               />
@@ -975,7 +975,6 @@ const PropertyPanel = () => {
       case 'inputRecordAudio':
         return (
           <div className='space-y-4'>
-            {/* Name Input */}
             <div className='space-y-2'>
               <Label>Name</Label>
               <Input
@@ -985,43 +984,43 @@ const PropertyPanel = () => {
               />
             </div>
 
-            {/* Time Limit Input */}
             <div className='space-y-2'>
               <Label>Time Limit (seconds)</Label>
               <Input
                 type='number'
                 value={
                   !Array.isArray(elementProperties.content)
-                    ? elementProperties.content.limit
+                    ? (elementProperties.content.limit ?? '')
                     : ''
                 }
                 onChange={(e) =>
                   handlePropertyChange(
                     'content.limit',
-                    parseInt(e.target.value)
+                    parseInt(e.target.value) || undefined
                   )
                 }
                 placeholder='Enter time limit'
               />
             </div>
 
-            {/* Transcription Settings */}
             <div className='border-t pt-4 mt-4'>
               <h3 className='font-medium mb-2'>Transcription Settings</h3>
 
               <div className='flex items-center space-x-2 mb-4'>
                 <Switch
-                  id='transcribeEnabled'
+                  id='transcribeEnabledRecordAudio'
                   checked={
                     !Array.isArray(elementProperties.content)
-                      ? elementProperties.content.transcribeEnabled
+                      ? !!elementProperties.content.transcribeEnabled
                       : false
                   }
                   onCheckedChange={(checked) =>
                     handlePropertyChange('content.transcribeEnabled', checked)
                   }
                 />
-                <Label htmlFor='transcribeEnabled'>Enable Transcription</Label>
+                <Label htmlFor='transcribeEnabledRecordAudio'>
+                  Enable Transcription
+                </Label>
               </div>
 
               {!Array.isArray(elementProperties.content) &&
@@ -1046,7 +1045,14 @@ const PropertyPanel = () => {
                           : undefined
                       }
                     />
-
+                    {!Array.isArray(elementProperties.content) &&
+                      elementProperties.content.transcriptionModel && (
+                        <TranscriptionFormatTip
+                          selectedModel={
+                            elementProperties.content.transcriptionModel
+                          }
+                        />
+                      )}
                     <div className='space-y-2'>
                       <Label>Language</Label>
                       <Select
@@ -1070,7 +1076,7 @@ const PropertyPanel = () => {
                           <SelectItem value='it'>Italian</SelectItem>
                           <SelectItem value='pt'>Portuguese</SelectItem>
                           <SelectItem value='ru'>Russian</SelectItem>
-                          <SelectItem value='zh'>Chinese</SelectItem>{' '}
+                          <SelectItem value='zh'>Chinese</SelectItem>
                           <SelectItem value='ja'>Japanese</SelectItem>
                           <SelectItem value='ko'>Korean</SelectItem>
                           <SelectItem value='ar'>Arabic</SelectItem>
@@ -1082,17 +1088,14 @@ const PropertyPanel = () => {
                 )}
             </div>
 
-            {/* Clean Voice Options */}
             <div className='border-t pt-4 mt-4'>
               <h3 className='font-medium mb-2'>Clean Voice Options</h3>
-
-              {/* Background Noise Checkbox */}
               <div className='flex items-center gap-2 mb-2'>
                 <Switch
                   id='backgroundNoise'
                   checked={
                     !Array.isArray(elementProperties.content)
-                      ? elementProperties.content.backgroundNoise
+                      ? !!elementProperties.content.backgroundNoise
                       : false
                   }
                   onCheckedChange={(checked) =>
@@ -1103,14 +1106,12 @@ const PropertyPanel = () => {
                   Background Noise Reduction
                 </Label>
               </div>
-
-              {/* Silence Removal Checkbox */}
               <div className='flex items-center gap-2 mb-2'>
                 <Switch
                   id='silenceRemoval'
                   checked={
                     !Array.isArray(elementProperties.content)
-                      ? elementProperties.content.silenceRemoval
+                      ? !!elementProperties.content.silenceRemoval
                       : false
                   }
                   onCheckedChange={(checked) =>
@@ -1119,14 +1120,12 @@ const PropertyPanel = () => {
                 />
                 <Label htmlFor='silenceRemoval'>Silence Removal</Label>
               </div>
-
-              {/* Filler Word Removal Checkbox */}
               <div className='flex items-center gap-2'>
                 <Switch
                   id='fillerWordRemoval'
                   checked={
                     !Array.isArray(elementProperties.content)
-                      ? elementProperties.content.fillerWordRemoval
+                      ? !!elementProperties.content.fillerWordRemoval
                       : false
                   }
                   onCheckedChange={(checked) =>
@@ -1144,90 +1143,97 @@ const PropertyPanel = () => {
           ? (elementProperties.content as ElementContent)
           : ({} as ElementContent);
 
-        // Initialize slides if they don't exist
-        if (!content.slides || content.slides.length === 0) {
-          content.slides = [
-            {
-              type: 'text',
-              innerText: '{{text}}',
-            },
-          ];
-          content.currentSlideIndex = 0;
+        const currentSlideIndex = content.currentSlideIndex ?? 0;
+        const slides = content.slides || [];
 
-          // Update the element with initial slides
-          handlePropertyChange('slides', content.slides);
-          handlePropertyChange('currentSlideIndex', 0);
-        }
-
-        const currentSlideIndex = content.currentSlideIndex || 0;
-        const slides = content.slides || [
-          {
-            type: 'text',
-            innerText: '{{text}}',
-          },
-        ];
-        const currentSlide = slides[currentSlideIndex] || slides[0];
+        // Ensure there's always at least one slide in local state for UI stability
+        // Global state will be the source of truth eventually
+        const displaySlides =
+          slides.length > 0
+            ? slides
+            : [{ type: 'text', innerText: '{{text}}' }];
+        const currentSlide =
+          displaySlides[currentSlideIndex] || displaySlides[0];
 
         const handleAddSlide = () => {
           const newSlides = [
             ...(content.slides || []),
             {
               type: 'text',
-              innerText: '{{text}}',
+              innerText: '{{text}}', // Default new slide
             },
           ];
-          // Dispatch update with new slides and set current index to the new slide
+          const newContent = {
+            ...content,
+            slides: newSlides,
+            currentSlideIndex: newSlides.length - 1,
+          };
+          setElementProperties((prev) => ({
+            ...prev,
+            content: newContent as ElementContent,
+          }));
           dispatch({
             type: 'UPDATE_ELEMENT',
             payload: {
               elementDetails: {
                 ...element,
-                content: {
-                  ...content,
-                  slides: newSlides,
-                  currentSlideIndex: newSlides.length - 1,
-                },
+                content: newContent,
               },
             },
           });
         };
 
         const handleRemoveSlide = (index: number) => {
-          if ((content.slides?.length || 0) <= 1) return; // Keep at least one slide
+          if ((content.slides?.length || 0) <= 1) {
+            toast({
+              title: 'Cannot remove',
+              description: 'Carousel must have at least one slide.',
+              variant: 'destructive',
+            });
+            return;
+          }
 
-          const newSlides = slides.filter((_, i) => i !== index);
-          const newCurrentIndex =
-            index >= newSlides.length
-              ? newSlides.length - 1
-              : content.currentSlideIndex || 0;
+          const newSlides = (content.slides || []).filter(
+            (_, i) => i !== index
+          );
+          const newCurrentIndex = Math.max(
+            0,
+            Math.min(index, newSlides.length - 1)
+          );
 
-          // Dispatch update with removed slide and adjusted current index
+          const newContent = {
+            ...content,
+            slides: newSlides,
+            currentSlideIndex: newCurrentIndex,
+          };
+          setElementProperties((prev) => ({
+            ...prev,
+            content: newContent as ElementContent,
+          }));
           dispatch({
             type: 'UPDATE_ELEMENT',
             payload: {
               elementDetails: {
                 ...element,
-                content: {
-                  ...content,
-                  slides: newSlides,
-                  currentSlideIndex: newCurrentIndex,
-                },
+                content: newContent,
               },
             },
           });
         };
 
-        const handleSlideChange = (index: number) => {
-          handlePropertyChange('currentSlideIndex', index);
+        const handleSlideSelection = (index: number) => {
+          handlePropertyChange('content.currentSlideIndex', index);
         };
 
-        const updateCurrentSlide = (property: string, value: any) => {
-          const newSlides = [...slides];
-          newSlides[currentSlideIndex] = {
-            ...newSlides[currentSlideIndex],
-            [property]: value,
-          };
-          handlePropertyChange('slides', newSlides);
+        const updateCurrentSlideProperty = (property: string, value: any) => {
+          const newSlides = [...(content.slides || [])];
+          if (newSlides[currentSlideIndex]) {
+            newSlides[currentSlideIndex] = {
+              ...newSlides[currentSlideIndex],
+              [property]: value,
+            };
+            handlePropertyChange('content.slides', newSlides);
+          }
         };
 
         return (
@@ -1243,138 +1249,144 @@ const PropertyPanel = () => {
 
             <div className='space-y-2'>
               <div className='flex justify-between items-center'>
-                <Label>Slides</Label>
+                <Label>Slides ({displaySlides.length})</Label>
                 <Button variant='outline' size='sm' onClick={handleAddSlide}>
-                  <Plus className='h-4 w-4' />
+                  <Plus className='h-4 w-4 mr-1' />
                   Add Slide
                 </Button>
               </div>
 
-              <div className='flex flex-wrap gap-2'>
-                {slides.map((slide, index) => (
+              <div className='flex flex-wrap gap-2 p-2 border rounded-md min-h-[40px]'>
+                {displaySlides.map((slide, index) => (
                   <Button
                     key={index}
                     variant={
                       index === currentSlideIndex ? 'default' : 'outline'
                     }
                     size='sm'
-                    className='relative'
-                    onClick={() =>
-                      dispatch({
-                        type: 'UPDATE_ELEMENT',
-                        payload: {
-                          elementDetails: {
-                            ...element,
-                            content: {
-                              ...content,
-                              currentSlideIndex: index,
-                            },
-                          },
-                        },
-                      })
-                    }
+                    className='relative group'
+                    onClick={() => handleSlideSelection(index)}
                   >
                     Slide {index + 1}
-                    {slides.length > 1 && (
-                      <button
-                        className='absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full p-0.5'
+                    {displaySlides.length > 1 && (
+                      <Button
+                        variant='ghost'
+                        size='icon'
+                        className='absolute -top-2 -right-2 h-5 w-5 p-0 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity'
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemoveSlide(index);
                         }}
                       >
-                        <Minus className='h-3 w-3' />
-                      </button>
+                        <X className='h-3 w-3' />
+                      </Button>
                     )}
                   </Button>
                 ))}
+                {displaySlides.length === 0 && (
+                  <p className='text-xs text-muted-foreground'>
+                    No slides yet. Click "Add Slide".
+                  </p>
+                )}
               </div>
             </div>
-
-            <div className='space-y-2'>
-              <Label>Content Type</Label>
-              <Select
-                value={currentSlide?.type || 'text'}
-                onValueChange={(value) => updateCurrentSlide('type', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder='Select content type' />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value='text'>Text</SelectItem>
-                  <SelectItem value='image'>Image</SelectItem>
-                  <SelectItem value='video'>Video</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {currentSlide?.type &&
-              (currentSlide.type === 'image' ||
-                currentSlide.type === 'video') && (
-                <div className='space-y-2'>
+            {displaySlides.length > 0 && currentSlide && (
+              <>
+                <div className='space-y-2 border-t pt-4'>
                   <Label>
-                    {currentSlide.type === 'image' ? 'Image URL' : 'Video URL'}
+                    Current Slide (Editing Slide {currentSlideIndex + 1})
                   </Label>
+                  <Select
+                    value={currentSlide.type || 'text'}
+                    onValueChange={(value) =>
+                      updateCurrentSlideProperty('type', value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder='Select content type' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='text'>Text</SelectItem>
+                      <SelectItem value='image'>Image</SelectItem>
+                      <SelectItem value='video'>Video</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(currentSlide.type === 'image' ||
+                  currentSlide.type === 'video') && (
+                  <div className='space-y-2'>
+                    <Label>
+                      {currentSlide.type === 'image'
+                        ? 'Image URL'
+                        : 'Video URL'}
+                    </Label>
+                    <Input
+                      value={currentSlide.src || ''}
+                      onChange={(e) =>
+                        updateCurrentSlideProperty('src', e.target.value)
+                      }
+                      placeholder={`Enter ${currentSlide.type?.toLowerCase()} URL`}
+                    />
+                  </div>
+                )}
+
+                {currentSlide.type === 'text' && (
+                  <div className='space-y-2'>
+                    <Label>Text Content</Label>
+                    <Input
+                      value={currentSlide.innerText || ''}
+                      onChange={(e) =>
+                        updateCurrentSlideProperty('innerText', e.target.value)
+                      }
+                      placeholder='Enter text content (e.g., {{data.some_text}} or static text)'
+                    />
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className='border-t pt-4 space-y-2'>
+              <div className='flex items-center space-x-2'>
+                <Switch
+                  id='keyboard-nav'
+                  checked={!!content.keyboardNav}
+                  onCheckedChange={(checked) =>
+                    handlePropertyChange('content.keyboardNav', checked)
+                  }
+                />
+                <Label htmlFor='keyboard-nav'>Enable Keyboard Navigation</Label>
+              </div>
+
+              <div className='flex items-center space-x-2'>
+                <Switch
+                  id='auto-slide'
+                  checked={!!content.autoSlide}
+                  onCheckedChange={(checked) =>
+                    handlePropertyChange('content.autoSlide', checked)
+                  }
+                />
+                <Label htmlFor='auto-slide'>Enable Auto Slide</Label>
+              </div>
+
+              {content.autoSlide && (
+                <div className='space-y-2'>
+                  <Label>Slide Interval (seconds)</Label>
                   <Input
-                    value={currentSlide.src || ''}
-                    onChange={(e) => updateCurrentSlide('src', e.target.value)}
-                    placeholder={`Enter ${currentSlide.type?.toLowerCase()} URL`}
+                    type='number'
+                    value={content.slideInterval || 5}
+                    onChange={(e) =>
+                      handlePropertyChange(
+                        'content.slideInterval',
+                        parseInt(e.target.value) || 5
+                      )
+                    }
+                    placeholder='Enter slide interval'
+                    min={1}
                   />
                 </div>
               )}
-
-            {currentSlide?.type === 'text' && (
-              <div className='space-y-2'>
-                <Label>Text Content</Label>
-                <Input
-                  value={currentSlide.innerText || ''}
-                  onChange={(e) =>
-                    updateCurrentSlide('innerText', e.target.value)
-                  }
-                  placeholder='Enter text content'
-                />
-              </div>
-            )}
-
-            <div className='flex items-center space-x-2'>
-              <Switch
-                id='keyboard-nav'
-                checked={!!content.keyboardNav}
-                onCheckedChange={(checked) =>
-                  handlePropertyChange('keyboardNav', checked)
-                }
-              />
-              <Label htmlFor='keyboard-nav'>Enable Keyboard Navigation</Label>
             </div>
-
-            <div className='flex items-center space-x-2'>
-              <Switch
-                id='auto-slide'
-                checked={!!content.autoSlide}
-                onCheckedChange={(checked) =>
-                  handlePropertyChange('autoSlide', checked)
-                }
-              />
-              <Label htmlFor='auto-slide'>Enable Auto Slide</Label>
-            </div>
-
-            {content.autoSlide && (
-              <div className='space-y-2'>
-                <Label>Slide Interval (seconds)</Label>
-                <Input
-                  type='number'
-                  value={content.slideInterval || 5}
-                  onChange={(e) =>
-                    handlePropertyChange(
-                      'slideInterval',
-                      parseInt(e.target.value)
-                    )
-                  }
-                  placeholder='Enter slide interval'
-                  min={1}
-                />
-              </div>
-            )}
           </div>
         );
       }
@@ -1395,9 +1407,11 @@ const PropertyPanel = () => {
   return (
     <div className='p-4 space-y-4 bg-background rounded-lg border'>
       <div className='font-medium flex items-center gap-2'>
-        <span className='bg-primary/5 p-2 rounded-md'>{element.name}</span>
+        <span className='bg-primary/5 p-2 rounded-md'>
+          {element.name} ({element.type})
+        </span>
       </div>
-      
+
       {showProperties()}
     </div>
   );
