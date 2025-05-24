@@ -273,26 +273,6 @@ function getAnnotatorMenu(pathname: string): Group[] {
           active: pathname.includes('/profile'),
           icon: CircleUser,
         },
-        // {
-        // href: "/settings/payments",
-        // label: "Payments",
-        // active: pathname.includes("/settings/payments") || pathname.includes("/payments/"),
-        // icon: DollarSign,
-        // submenus: [
-        // {
-        // href: "/settings/payments",
-        // label: "Bank Settings",
-        // active: pathname.includes("/settings/payments") && !pathname.includes("/history"),
-        // icon: CreditCard,
-        // },
-        // {
-        // href: "/payments/history",
-        // label: "Payment History",
-        // active: pathname.includes("/payments/history"),
-        // icon: FileText,
-        // }
-        // ],
-        // },
       ],
     },
   ];
