@@ -37,8 +37,8 @@ export async function createConnectAccount() {
       // Create an account link for existing account
       const accountLink = await stripe.accountLinks.create({
         account: user.stripeAccountId,
-        refresh_url: `${process.env.NEXTAUTH_URL}/settings/payments?refresh=true`,
-        return_url: `${process.env.NEXTAUTH_URL}/settings/payments?success=true`,
+        refresh_url: `${process.env.NEXTAUTH_URL}/payments/bank-settings?refresh=true`,
+        return_url: `${process.env.NEXTAUTH_URL}/payments/bank-settings?success=true`,
         type: 'account_onboarding',
       });
       
@@ -70,8 +70,8 @@ export async function createConnectAccount() {
     // Create an account link for onboarding
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
-      refresh_url: `${process.env.NEXTAUTH_URL}/settings/payments?refresh=true`,
-      return_url: `${process.env.NEXTAUTH_URL}/settings/payments?success=true`,
+      refresh_url: `${process.env.NEXTAUTH_URL}/payments/bank-settings?refresh=true`,
+      return_url: `${process.env.NEXTAUTH_URL}/payments/bank-settings?success=true`,
       type: 'account_onboarding',
     });
     
