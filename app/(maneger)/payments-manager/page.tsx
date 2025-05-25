@@ -92,7 +92,7 @@ export default function PaymentsManagerPage() {
             <Button
               variant='outline'
               className='w-full'
-              onClick={() => router.push('/payments/history')}
+              onClick={() => router.push('/payments-manager/history')}
             >
               View Payment History
             </Button>
