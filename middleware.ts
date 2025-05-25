@@ -118,8 +118,8 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     ];
     const isNextAuthApiRoute = pathname.startsWith('/api/auth/');
 
-    const isWebhookRoute = pathname.startsWith('/api/stripeWebhook');
-
+    const isWebhookRoute = pathname.startsWith('/api/stripeWebhook') ||
+      pathname.startsWith('/api/webhooks/stripe-connect');
 
     const isPublicRoute =
       isNextAuthApiRoute ||
