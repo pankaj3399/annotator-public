@@ -44,7 +44,8 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  CheckCircle2Icon
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
@@ -460,7 +461,7 @@ export default function PaymentHistoryPage() {
           title="Successful Payments"
           value={summary.successfulPayments.toString()}
           description="Total completed transactions"
-          icon={<CheckCircleIcon className="h-5 w-5 text-primary" />}
+          icon={<CheckCircle2Icon className="h-5 w-5 text-primary" />}
         />
         <SummaryCard
           title="Annotators Paid"
