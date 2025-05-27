@@ -4,9 +4,10 @@ import Stripe from 'stripe';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { Payment } from '@/models/Payment';
+import { handlePaymentSucceeded } from '@/app/actions/stripe-connect';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2025-02-24.acacia",
 });
 
 const connectEndpointSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET!;
@@ -41,146 +42,264 @@ export async function POST(req: Request) {
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log(`[Webhook] Processing payment_intent.succeeded: ${paymentIntent.id}`);
-        
-        // Only process if this is a Connect payment (has transfer_data)
-        if (!paymentIntent.transfer_data || !paymentIntent.transfer_data.destination) {
+
+        // Process both regular Connect payments (transfer_data) and cross-border payments (on_behalf_of)
+        const isConnectPayment = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
+        if (!isConnectPayment) {
           console.log(`[Webhook] Skipping payment_intent.succeeded - not a Connect payment: ${paymentIntent.id}`);
           return NextResponse.json({ received: true });
         }
-        
-        // Log the payment details
+
+        // Determine payment type
+        const paymentType = paymentIntent.transfer_data ? 'transfer_data' : 'on_behalf_of';
+        const destination = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
         console.log(`[Webhook] Connect payment succeeded details:
           Payment ID: ${paymentIntent.id}
+          Type: ${paymentType}
           Amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}
-          Destination: ${paymentIntent.transfer_data.destination}
+          Destination: ${destination}
           Status: ${paymentIntent.status}
+          Cross-border: ${paymentIntent.metadata?.crossBorder || 'false'}
           Metadata: ${JSON.stringify(paymentIntent.metadata)}`);
-        
-        // Update payment status in your database
+
+        // Update payment status in database first
         const updatedPayment = await Payment.findOneAndUpdate(
           { stripePaymentIntentId: paymentIntent.id },
           { status: 'succeeded' },
           { new: true }
         );
-        
+
         if (updatedPayment) {
           console.log(`[Webhook] Updated payment record in database:
             Payment DB ID: ${updatedPayment._id}
             New Status: ${updatedPayment.status}
+            Cross-border: ${updatedPayment.crossBorderPayment}
             Project Manager: ${updatedPayment.projectManager}
             Expert: ${updatedPayment.expert}
             Amount: ${updatedPayment.amount}`);
+
+          // Handle cross-border payments (on_behalf_of) - create manual transfer
+          if (paymentType === 'on_behalf_of' && updatedPayment.crossBorderPayment) {
+            console.log(`[Webhook] Handling cross-border payment transfer for: ${paymentIntent.id}`);
+
+            try {
+              const transferResult = await handlePaymentSucceeded(paymentIntent.id);
+
+              if (transferResult.error) {
+                console.error(`[Webhook] Cross-border transfer failed: ${transferResult.error}`);
+              } else {
+                console.log(`[Webhook] Cross-border transfer successful: ${transferResult.transferId}`);
+              }
+            } catch (transferError: any) {
+              console.error(`[Webhook] Error during cross-border transfer: ${transferError.message}`);
+            }
+          } else {
+            console.log(`[Webhook] Regular transfer_data payment - no manual transfer needed`);
+          }
+
         } else {
           console.error(`[Webhook] Could not find payment record for payment_intent.id: ${paymentIntent.id}`);
         }
-        
+
         break;
       }
 
       case "payment_intent.processing": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log(`[Webhook] Processing payment_intent.processing: ${paymentIntent.id}`);
-        
-        // Only process if this is a Connect payment (has transfer_data)
-        if (!paymentIntent.transfer_data || !paymentIntent.transfer_data.destination) {
+
+        const isConnectPayment = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
+        if (!isConnectPayment) {
           console.log(`[Webhook] Skipping payment_intent.processing - not a Connect payment: ${paymentIntent.id}`);
           return NextResponse.json({ received: true });
         }
-        
+
+        const paymentType = paymentIntent.transfer_data ? 'transfer_data' : 'on_behalf_of';
+        const destination = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
         console.log(`[Webhook] Payment processing details:
           Payment ID: ${paymentIntent.id}
+          Type: ${paymentType}
           Amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}
-          Destination: ${paymentIntent.transfer_data.destination}
+          Destination: ${destination}
           Payment Method Types: ${paymentIntent.payment_method_types.join(', ')}
+          Cross-border: ${paymentIntent.metadata?.crossBorder || 'false'}
           Metadata: ${JSON.stringify(paymentIntent.metadata)}`);
-        
+
         const updatedPayment = await Payment.findOneAndUpdate(
           { stripePaymentIntentId: paymentIntent.id },
           { status: 'processing' },
           { new: true }
         );
-        
+
         if (updatedPayment) {
           console.log(`[Webhook] Updated payment status to 'processing' for DB ID: ${updatedPayment._id}`);
         } else {
           console.error(`[Webhook] Could not find payment record for payment_intent.id: ${paymentIntent.id}`);
         }
-        
+
         break;
       }
 
       case "payment_intent.payment_failed": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log(`[Webhook] Processing payment_intent.payment_failed: ${paymentIntent.id}`);
-        
-        // Only process if this is a Connect payment (has transfer_data)
-        if (!paymentIntent.transfer_data || !paymentIntent.transfer_data.destination) {
+
+        const isConnectPayment = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
+        if (!isConnectPayment) {
           console.log(`[Webhook] Skipping payment_intent.payment_failed - not a Connect payment: ${paymentIntent.id}`);
           return NextResponse.json({ received: true });
         }
-        
-        // Log failure details
+
+        const paymentType = paymentIntent.transfer_data ? 'transfer_data' : 'on_behalf_of';
+        const destination = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
         console.log(`[Webhook] Payment failed details:
           Payment ID: ${paymentIntent.id}
+          Type: ${paymentType}
           Amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}
-          Destination: ${paymentIntent.transfer_data.destination}
+          Destination: ${destination}
+          Cross-border: ${paymentIntent.metadata?.crossBorder || 'false'}
           Last Payment Error: ${paymentIntent.last_payment_error ? JSON.stringify(paymentIntent.last_payment_error) : 'None'}`);
-        
+
         const updatedPayment = await Payment.findOneAndUpdate(
           { stripePaymentIntentId: paymentIntent.id },
-          { 
+          {
             status: 'failed',
+            errorMessage: paymentIntent.last_payment_error?.message || 'Payment failed',
             updated_at: new Date()
           },
           { new: true }
         );
-        
+
         if (updatedPayment) {
           console.log(`[Webhook] Updated payment status to 'failed' for DB ID: ${updatedPayment._id}`);
         } else {
           console.error(`[Webhook] Could not find payment record for payment_intent.id: ${paymentIntent.id}`);
         }
-        
+
         break;
       }
 
       case "payment_intent.requires_action": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
         console.log(`[Webhook] Processing payment_intent.requires_action: ${paymentIntent.id}`);
-        
-        // Only process if this is a Connect payment (has transfer_data)
-        if (!paymentIntent.transfer_data || !paymentIntent.transfer_data.destination) {
+
+        const isConnectPayment = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
+        if (!isConnectPayment) {
           console.log(`[Webhook] Skipping payment_intent.requires_action - not a Connect payment: ${paymentIntent.id}`);
           return NextResponse.json({ received: true });
         }
-        
-        // Log the details of what action is required
+
+        const paymentType = paymentIntent.transfer_data ? 'transfer_data' : 'on_behalf_of';
+        const destination = paymentIntent.transfer_data?.destination || paymentIntent.on_behalf_of;
+
         console.log(`[Webhook] Payment requires action details:
           Payment ID: ${paymentIntent.id}
+          Type: ${paymentType}
           Amount: ${paymentIntent.amount / 100} ${paymentIntent.currency}
-          Destination: ${paymentIntent.transfer_data.destination}
+          Destination: ${destination}
+          Cross-border: ${paymentIntent.metadata?.crossBorder || 'false'}
           Next Action: ${paymentIntent.next_action ? JSON.stringify(paymentIntent.next_action) : 'None'}
           Metadata: ${JSON.stringify(paymentIntent.metadata)}`);
-        
-        // No status update needed in database, just log for monitoring
+
+        // Update status to requires_action for better tracking
+        const updatedPayment = await Payment.findOneAndUpdate(
+          { stripePaymentIntentId: paymentIntent.id },
+          { status: 'requires_action' },
+          { new: true }
+        );
+
+        if (updatedPayment) {
+          console.log(`[Webhook] Updated payment status to 'requires_action' for DB ID: ${updatedPayment._id}`);
+        }
+
+        break;
+      }
+
+      // NEW: Handle transfer events for cross-border payments
+      case "transfer.created": {
+        const transfer = event.data.object as Stripe.Transfer;
+        console.log(`[Webhook] Transfer created:
+          Transfer ID: ${transfer.id}
+          Amount: ${transfer.amount / 100} ${transfer.currency}
+          Destination: ${transfer.destination}
+          Source Transaction: ${transfer.source_transaction}
+          Metadata: ${JSON.stringify(transfer.metadata)}`);
+
+        // Update payment record with transfer ID if this is from our cross-border handling
+        if (transfer.metadata?.paymentId) {
+          const updatedPayment = await Payment.findOneAndUpdate(
+            { _id: transfer.metadata.paymentId },
+            {
+              stripeTransferId: transfer.id,
+              status: 'completed'
+            },
+            { new: true }
+          );
+
+          if (updatedPayment) {
+            console.log(`[Webhook] Updated payment with transfer ID: ${transfer.id} for payment: ${transfer.metadata.paymentId}`);
+          }
+        }
+
+        break;
+      }
+
+      case "transfer.updated": {
+        const transfer = event.data.object as Stripe.Transfer;
+
+        // Check if this is a failed transfer
+        if (transfer.status === 'failed') {
+          console.log(`[Webhook] Transfer failed:
+            Transfer ID: ${transfer.id}
+            Amount: ${transfer.amount / 100} ${transfer.currency}
+            Destination: ${transfer.destination}
+            Status: ${transfer.status}
+            Metadata: ${JSON.stringify(transfer.metadata)}`);
+
+          // Update payment record with failure info
+          if (transfer.metadata?.paymentId) {
+            const updatedPayment = await Payment.findOneAndUpdate(
+              { _id: transfer.metadata.paymentId },
+              {
+                status: 'transfer_failed',
+                errorMessage: 'Transfer failed',
+                stripeTransferId: transfer.id
+              },
+              { new: true }
+            );
+
+            if (updatedPayment) {
+              console.log(`[Webhook] Updated payment with failed transfer for payment: ${transfer.metadata.paymentId}`);
+            }
+          }
+        } else {
+          console.log(`[Webhook] Transfer updated: ${transfer.id}, Status: ${transfer.status}`);
+        }
+
         break;
       }
 
       case "account.updated": {
         const account = event.data.object as Stripe.Account;
         console.log(`[Webhook] Processing account.updated: ${account.id}`);
-        
+
         // Find user with this Stripe account ID
         const user = await User.findOne({ stripeAccountId: account.id });
-        
+
         if (!user) {
           console.error(`[Webhook] No user found with stripeAccountId: ${account.id}`);
           break;
         }
-        
+
         let status = 'incomplete';
-        
-        // Log detailed account status
+
         console.log(`[Webhook] Account updated details:
           Account ID: ${account.id}
           Details Submitted: ${account.details_submitted}
@@ -210,65 +329,57 @@ export async function POST(req: Request) {
         } else {
           console.log(`[Webhook] No status change needed for user ${user._id}, current status: ${status}`);
         }
-        
+
         break;
       }
 
       case "capability.updated": {
         const capability = event.data.object as Stripe.Capability;
         const accountId = capability.account;
-        
+
         console.log(`[Webhook] Capability updated:
           Account ID: ${accountId}
           Capability ID: ${capability.id}
           Capability Type: ${capability.object}
           Status: ${capability.status}
           Requirements: ${JSON.stringify(capability.requirements)}`);
-        
+
         // Find the user with this account
         const user = await User.findOne({ stripeAccountId: accountId });
-        
+
         if (user) {
-          console.log(`[Webhook] Capability updated for user: ${user._id}, capability: ${capability.id}`);
+          console.log(`[Webhook] Capability updated for user: ${user._id}, capability: ${capability.id}, status: ${capability.status}`);
         } else {
           console.error(`[Webhook] No user found with stripeAccountId: ${accountId} for capability update`);
         }
-        
+
         break;
       }
-      
+
       case "charge.succeeded": {
         const charge = event.data.object as Stripe.Charge;
         console.log(`[Webhook] Charge succeeded: ${charge.id}`);
-        
-        if (!charge.transfer) {
-          console.log(`[Webhook] Skipping charge.succeeded - not a Connect charge (no transfer): ${charge.id}`);
+
+        if (!charge.transfer && !charge.on_behalf_of) {
+          console.log(`[Webhook] Skipping charge.succeeded - not a Connect charge: ${charge.id}`);
           return NextResponse.json({ received: true });
         }
-        
+
+        const chargeType = charge.transfer ? 'transfer' : 'on_behalf_of';
+        const destination = charge.transfer || charge.on_behalf_of;
+
         console.log(`[Webhook] Connect charge succeeded details:
           Charge ID: ${charge.id}
+          Type: ${chargeType}
           Payment Intent: ${charge.payment_intent}
           Amount: ${charge.amount / 100} ${charge.currency}
-          Transfer: ${charge.transfer}
+          Destination: ${destination}
           Status: ${charge.status}
           Payment Method: ${charge.payment_method_details?.type || 'Unknown'}`);
-        
+
         break;
       }
-      
-      case "transfer.created": {
-        const transfer = event.data.object as Stripe.Transfer;
-        console.log(`[Webhook] Transfer created:
-          Transfer ID: ${transfer.id}
-          Amount: ${transfer.amount / 100} ${transfer.currency}
-          Destination: ${transfer.destination}
-          Source Transaction: ${transfer.source_transaction}
-          Metadata: ${JSON.stringify(transfer.metadata)}`);
-        
-        break;
-      }
-      
+
       case "payout.created":
       case "payout.updated":
       case "payout.paid":
@@ -281,7 +392,7 @@ export async function POST(req: Request) {
           Status: ${payout.status}
           Arrival Date: ${new Date(payout.arrival_date * 1000).toISOString()}
           Metadata: ${JSON.stringify(payout.metadata)}`);
-        
+
         break;
       }
 
