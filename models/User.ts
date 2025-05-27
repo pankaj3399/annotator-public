@@ -1,5 +1,9 @@
-// User.ts
+// User.ts - Minimal version
+import { SUPPORTED_COUNTRIES, SUPPORTED_CURRENCIES } from "@/lib/constants";
 import mongoose, { Schema, model, models } from "mongoose";
+
+
+
 
 const userSchema = new Schema(
   {
@@ -87,27 +91,48 @@ const userSchema = new Schema(
       of: Schema.Types.Mixed,
       default: {},
     },
+    
+    // === ESSENTIAL STRIPE CONNECT FIELDS ===
     stripeAccountId: {
-  type: String,
-  default: null
-},
-stripeAccountStatus: {
-  type: String,
-  enum: ['pending', 'active', 'rejected', 'incomplete'],
-  default: null
-},
-stripeOnboardingComplete: {
-  type: Boolean,
-  default: false
-},
-stripeCustomerId: {
-  type: String,
-  default: null
-},
-defaultPaymentMethod: {
-  type: String,
-  default: null
-},
+      type: String,
+      default: null,
+      index: true,
+    },
+    stripeAccountStatus: {
+      type: String,
+      enum: ['pending', 'active', 'rejected', 'incomplete'],
+      default: null,
+    },
+    stripeAccountCountry: {
+      type: String,
+      enum: SUPPORTED_COUNTRIES,
+      default: null,
+      uppercase: true,
+    },
+    stripeOnboardingComplete: {
+      type: Boolean,
+      default: false,
+    },
+    
+    // === OPTIONAL: For currency preferences ===
+    preferredCurrency: {
+      type: String,
+      enum: SUPPORTED_CURRENCIES,
+      default: 'usd',
+      lowercase: true,
+    },
+    
+    // === STRIPE CUSTOMER FIELDS (for project managers) ===
+    stripeCustomerId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    defaultPaymentMethod: {
+      type: String,
+      default: null,
+    },
+    
     created_at: {
       type: Date,
       default: Date.now,
@@ -122,16 +147,17 @@ defaultPaymentMethod: {
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
-    minimize: false, // This ensures empty objects are stored
+    minimize: false,
   }
 );
 
-// === INDEXES FOR USER QUERIES ===
-userSchema.index({ role: 1 }); // For counting annotators
+// === ESSENTIAL INDEXES ===
+userSchema.index({ role: 1 });
 userSchema.index({ team_id: 1 });
-userSchema.index({ lastLogin: -1 }); // For sorting by last login
-userSchema.index({ created_at: -1 }); // For sorting by creation date
-// Note: email already has unique: true which creates a unique index
+userSchema.index({ lastLogin: -1 });
+userSchema.index({ created_at: -1 });
+userSchema.index({ stripeAccountStatus: 1 });
+userSchema.index({ stripeAccountCountry: 1 });
 
 userSchema.pre("save", function (next) {
   this.updated_at = new Date();
