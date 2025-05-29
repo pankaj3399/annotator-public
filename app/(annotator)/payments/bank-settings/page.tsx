@@ -97,6 +97,14 @@ const SUPPORTED_COUNTRIES = [
   { code: 'IN', name: 'India' },
   { code: 'AE', name: 'United Arab Emirates' },
   { code: 'PR', name: 'Puerto Rico' },
+  { code: 'PH', name: 'Philippines' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'TR', name: 'Turkey' },
+  { code: 'AR', name: 'Argentina' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'KE', name: 'Kenya' },
+  { code: 'ZA', name: 'South Africa' },
 ];
 
 export default function AnnotatorPaymentsPage() {

@@ -418,20 +418,21 @@ export const PAYMENT_METHODS = [
   'bacs_debit', 'acss_debit', 'au_becs_debit', 'other'
 ]
 
-// Stripe Connect supported countries
 export const SUPPORTED_COUNTRIES = [
   'US', 'CA', 'GB', 'AU', 'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 
   'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 
   'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'CH', 'NO', 'IS', 'LI', 'JP', 
-  'SG', 'HK', 'NZ', 'MY', 'TH', 'MX', 'BR', 'IN', 'AE', 'PR'
-]
+  'SG', 'HK', 'NZ', 'MY', 'TH', 'MX', 'BR', 'IN', 'AE', 'PR',
+  'PH', 'SA', 'EG', 'TR', 'AR', 'NG', 'KE', 'ZA'  
+] 
 
 // Supported currencies
 export const SUPPORTED_CURRENCIES = [
   'usd', 'eur', 'gbp', 'cad', 'aud', 'jpy', 'sgd', 'hkd', 'nzd', 'myr', 
   'thb', 'mxn', 'brl', 'inr', 'aed', 'chf', 'nok', 'dkk', 'sek', 'pln', 
-  'czk', 'huf', 'ron', 'bgn', 'hrk', 'isk'
-] 
+  'czk', 'huf', 'ron', 'bgn', 'hrk', 'isk',
+  'php', 'sar', 'egp', 'try', 'ars', 'ngn', 'kes', 'zar' 
+] as const;
 
 export type SupportedCountry = typeof SUPPORTED_COUNTRIES[number];
 export type SupportedCurrency = typeof SUPPORTED_CURRENCIES[number];
