@@ -46,7 +46,7 @@ const paymentSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "processing", "succeeded", "failed", "refunded", "disputed", "canceled"],
+      enum: ["pending", "processing", "succeeded", "failed", "refunded", "disputed", "canceled", "requires_action", "completed", "transfer_failed"],
       default: "pending",
       index: true,
     },
@@ -95,7 +95,9 @@ paymentSchema.index({ status: 1, created_at: -1 });
 paymentSchema.index({ created_at: -1 });
 paymentSchema.index({ projectManager: 1, status: 1, created_at: -1 });
 paymentSchema.index({ expert: 1, status: 1, created_at: -1 });
-
+paymentSchema.index({ stripePaymentIntentId: 1 }, { unique: true, sparse: true });
+paymentSchema.index({ crossBorderPayment: 1, status: 1 }); // For cross-border payment queries
+paymentSchema.index({ stripeTransferId: 1 }, { sparse: true });
 paymentSchema.pre("save", function (next) {
   this.updated_at = new Date();
   next();
