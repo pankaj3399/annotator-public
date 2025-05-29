@@ -51,4 +51,40 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-export { connectToDatabase };
+const executeWithRetry = async <T>(
+  operation: () => Promise<T>, 
+  maxRetries = 2,
+  retryDelay = 1000
+): Promise<T> => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      console.error(`Database operation attempt ${attempt} failed:`, error.message);
+      
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Wait before retry
+      await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+      
+      // For timeout/buffering errors, try to reconnect
+      if (error.message.includes('timeout') || error.message.includes('buffering')) {
+        try {
+          // Force a fresh connection
+          if (global._mongoose) {
+            await global._mongoose.connection.close();
+            global._mongoose = undefined;
+          }
+          await connectToDatabase();
+        } catch (reconnectError) {
+          console.error('Reconnection failed:', reconnectError);
+        }
+      }
+    }
+  }
+  throw new Error('All retry attempts exhausted');
+};
+
+export { connectToDatabase, executeWithRetry };
