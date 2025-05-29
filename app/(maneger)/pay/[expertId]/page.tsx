@@ -41,19 +41,23 @@ import {
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getAnnotatorById } from '@/app/actions/annotator';
+import { SupportedCountry } from '@/lib/constants';
 
 // Initialize Stripe
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-// Payment method types
 type PaymentMethodType =
   | 'card'
   | 'us_bank_account'
   | 'sepa_debit'
   | 'ideal'
-  | 'link';
+  | 'link'
+  | 'giropay'
+  | 'bacs_debit'
+  | 'acss_debit'
+  | 'au_becs_debit';
 
 // Currency mapping with proper formatting
 const CURRENCY_CONFIG = {
@@ -343,55 +347,27 @@ function PaymentForm({ expertId }: { expertId: string }) {
 
   // Fallback currency mapping for when API calls fail
   const getFallbackCurrencies = (country: string): string[] => {
-    const currencyMap: Record<string, string[]> = {
-      US: ['usd'],
-      CA: ['cad', 'usd'],
-      GB: ['gbp', 'eur', 'usd'],
-      AU: ['aud', 'usd'],
-      JP: ['jpy', 'usd'],
-      SG: ['sgd', 'usd'],
-      HK: ['hkd', 'usd'],
-      NZ: ['nzd', 'usd'],
-      MY: ['myr', 'usd'],
-      TH: ['thb', 'usd'],
-      MX: ['mxn', 'usd'],
-      BR: ['brl', 'usd'],
-      IN: ['inr', 'usd'],
-      AE: ['aed', 'usd'],
-      CH: ['chf', 'eur', 'usd'],
-      NO: ['nok', 'eur', 'usd'],
-      IS: ['isk', 'eur', 'usd'],
-      LI: ['chf', 'eur', 'usd'],
-      PR: ['usd'],
-      // European countries
-      AT: ['eur', 'usd'],
-      BE: ['eur', 'usd'],
-      BG: ['bgn', 'eur', 'usd'],
-      HR: ['hrk', 'eur', 'usd'],
-      CY: ['eur', 'usd'],
-      CZ: ['czk', 'eur', 'usd'],
-      DK: ['dkk', 'eur', 'usd'],
-      EE: ['eur', 'usd'],
-      FI: ['eur', 'usd'],
-      FR: ['eur', 'usd'],
-      DE: ['eur', 'usd'],
-      GR: ['eur', 'usd'],
-      HU: ['huf', 'eur', 'usd'],
-      IE: ['eur', 'usd'],
-      IT: ['eur', 'usd'],
-      LV: ['eur', 'usd'],
-      LT: ['eur', 'usd'],
-      LU: ['eur', 'usd'],
-      MT: ['eur', 'usd'],
-      NL: ['eur', 'usd'],
-      PL: ['pln', 'eur', 'usd'],
-      PT: ['eur', 'usd'],
-      RO: ['ron', 'eur', 'usd'],
-      SK: ['eur', 'usd'],
-      SI: ['eur', 'usd'],
-      ES: ['eur', 'usd'],
-      SE: ['sek', 'eur', 'usd'],
-    };
+  const currencyMap: Record<SupportedCountry, string[]> = {
+    'US': ['usd'],
+    'CA': ['cad', 'usd'],
+    'GB': ['gbp', 'eur', 'usd'],
+    'HK': ['hkd', 'usd'],
+    'TH': ['thb', 'usd'],
+    'MX': ['mxn', 'usd'],
+    'CH': ['chf', 'eur', 'usd'],
+    'NO': ['nok', 'eur', 'usd'],
+    'IS': ['isk', 'eur', 'usd'],
+    // European countries
+    'AT': ['eur', 'usd'], 'BE': ['eur', 'usd'], 'BG': ['bgn', 'eur', 'usd'],
+    'HR': ['hrk', 'eur', 'usd'], 'CY': ['eur', 'usd'], 'CZ': ['czk', 'eur', 'usd'],
+    'DK': ['dkk', 'eur', 'usd'], 'EE': ['eur', 'usd'], 'FI': ['eur', 'usd'],
+    'FR': ['eur', 'usd'], 'DE': ['eur', 'usd'], 'GR': ['eur', 'usd'],
+    'HU': ['huf', 'eur', 'usd'], 'IE': ['eur', 'usd'], 'IT': ['eur', 'usd'],
+    'LV': ['eur', 'usd'], 'LT': ['eur', 'usd'], 'LU': ['eur', 'usd'],
+    'MT': ['eur', 'usd'], 'NL': ['eur', 'usd'], 'PL': ['pln', 'eur', 'usd'],
+    'PT': ['eur', 'usd'], 'RO': ['ron', 'eur', 'usd'], 'SK': ['eur', 'usd'],
+    'SI': ['eur', 'usd'], 'ES': ['eur', 'usd'], 'SE': ['sek', 'eur', 'usd'],
+  };
 
     return currencyMap[country] || ['usd'];
   };
