@@ -36,13 +36,17 @@ function needsCrossBorderHandling(expertCountry: string, platformCountry: string
   // Different countries definitely need special handling
   return expertCountry !== platformCountry;
 }
-
 // Get capabilities for each country
 function getCapabilitiesForCountry(country: SupportedCountry) {
-  const baseCapabilities = {
-    card_payments: { requested: true },
+
+  const baseCapabilities: Record<string, { requested: boolean }> = {
     transfers: { requested: true },
   };
+
+  // Only add card_payments for supported countries
+  if (!noCardPaymentsCountries.includes(country)) {
+    baseCapabilities.card_payments = { requested: true };
+  }
 
   const countrySpecificCapabilities: Record<SupportedCountry, Record<string, { requested: boolean }>> = {
     // North America
@@ -53,6 +57,7 @@ function getCapabilitiesForCountry(country: SupportedCountry) {
     'CA': {
       acss_debit_payments: { requested: true },
     },
+    'MX': {}, // Cards only
 
     // Europe (SEPA countries)
     'AT': { sepa_debit_payments: { requested: true } },
@@ -94,25 +99,10 @@ function getCapabilitiesForCountry(country: SupportedCountry) {
     'CH': { sepa_debit_payments: { requested: true } },
     'NO': { sepa_debit_payments: { requested: true } },
     'IS': {},
-    'LI': {},
 
     // Asia Pacific
-    'AU': { au_becs_debit_payments: { requested: true } },
-    'JP': {}, // Cards only
-    'SG': {}, // Cards only
     'HK': {}, // Cards only
-    'NZ': {}, // Cards only
-    'MY': {}, // Cards only
     'TH': {}, // Cards only
-
-    // Latin America
-    'MX': {}, // Cards only
-    'BR': {}, // Cards only
-    'PR': {}, // Cards only
-
-    // Middle East & India
-    'AE': {}, // Cards only
-    'IN': {}, // Cards only
   };
 
   return {
@@ -143,6 +133,8 @@ function getSupportedCurrencies(country: SupportedCountry): string[] {
     'IS': ['isk', 'eur', 'usd'],
     'LI': ['chf', 'eur', 'usd'],
     'PR': ['usd'],
+    'PH': ['php', 'usd'], // Add Philippines with PHP and USD
+    'SA': ['sar', 'usd'],
     // European countries
     'AT': ['eur', 'usd'], 'BE': ['eur', 'usd'], 'BG': ['bgn', 'eur', 'usd'],
     'HR': ['hrk', 'eur', 'usd'], 'CY': ['eur', 'usd'], 'CZ': ['czk', 'eur', 'usd'],
@@ -153,9 +145,65 @@ function getSupportedCurrencies(country: SupportedCountry): string[] {
     'MT': ['eur', 'usd'], 'NL': ['eur', 'usd'], 'PL': ['pln', 'eur', 'usd'],
     'PT': ['eur', 'usd'], 'RO': ['ron', 'eur', 'usd'], 'SK': ['eur', 'usd'],
     'SI': ['eur', 'usd'], 'ES': ['eur', 'usd'], 'SE': ['sek', 'eur', 'usd'],
+    'EG': ['egp', 'usd'],
+    'TR': ['try', 'usd'],
+    'AR': ['ars', 'usd'],
+    'NG': ['ngn', 'usd'],
+    'KE': ['kes', 'usd'],
+    'ZA': ['zar', 'usd'],
   };
 
   return currencyMap[country] || ['usd'];
+}
+
+function getAvailablePaymentMethods(country: string): string[] {
+  const baseMethods = ['card']; // Card works everywhere
+
+  const countryMethods: Record<string, string[]> = {
+    // North America
+    'US': ['us_bank_account', 'link'],
+    'CA': ['acss_debit'],
+
+    // Europe - SEPA countries
+    'AT': ['sepa_debit'], 'BE': ['sepa_debit'], 'BG': ['sepa_debit'],
+    'HR': ['sepa_debit'], 'CY': ['sepa_debit'], 'CZ': ['sepa_debit'],
+    'DK': ['sepa_debit'], 'EE': ['sepa_debit'], 'FI': ['sepa_debit'],
+    'FR': ['sepa_debit'], 'GR': ['sepa_debit'], 'HU': ['sepa_debit'],
+    'IE': ['sepa_debit'], 'IT': ['sepa_debit'], 'LV': ['sepa_debit'],
+    'LT': ['sepa_debit'], 'LU': ['sepa_debit'], 'MT': ['sepa_debit'],
+    'PL': ['sepa_debit'], 'PT': ['sepa_debit'], 'RO': ['sepa_debit'],
+    'SK': ['sepa_debit'], 'SI': ['sepa_debit'], 'ES': ['sepa_debit'],
+    'SE': ['sepa_debit'], 'CH': ['sepa_debit'], 'NO': ['sepa_debit'],
+
+    // Special cases
+    'DE': ['sepa_debit', 'giropay'],
+    'NL': ['sepa_debit', 'ideal'],
+    'GB': ['bacs_debit'],
+  };
+
+  return [...baseMethods, ...(countryMethods[country] || [])];
+}
+
+// Helper function to convert amounts to minor currency units
+function convertToMinorUnits(amount: number, currency: string): number {
+  // Zero-decimal currencies (no cents)
+  const zeroDecimalCurrencies = [
+    'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf',
+    'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'
+  ];
+
+  if (zeroDecimalCurrencies.includes(currency.toLowerCase())) {
+    return Math.round(amount);
+  }
+
+  // Three-decimal currencies
+  const threeDecimalCurrencies = ['bhd', 'jod', 'kwd', 'omr', 'tnd'];
+  if (threeDecimalCurrencies.includes(currency.toLowerCase())) {
+    return Math.round(amount * 1000);
+  }
+
+  // Standard two-decimal currencies
+  return Math.round(amount * 100);
 }
 
 // Create Stripe account for expert
@@ -217,8 +265,11 @@ export async function createConnectAccount(country?: SupportedCountry) {
     // Get capabilities for the country
     const capabilities = getCapabilitiesForCountry(country);
 
+    // Determine if we need recipient service agreement
+    const needsRecipientAgreement = !capabilities.card_payments;
+
     // Enhanced account creation with better cross-border support
-    const account = await stripe.accounts.create({
+    const accountConfig: Stripe.AccountCreateParams = {
       type: 'express',
       country: country,
       email: user.email,
@@ -241,7 +292,16 @@ export async function createConnectAccount(country?: SupportedCountry) {
         userCountry: country,
         platformCountry: getPlatformCountry(),
       },
-    });
+    };
+
+    // For countries that don't support card_payments, use recipient service agreement
+    if (needsRecipientAgreement) {
+      accountConfig.tos_acceptance = {
+        service_agreement: 'recipient'
+      };
+    }
+
+    const account = await stripe.accounts.create(accountConfig);
 
     // Create an account link for onboarding
     const accountLink = await stripe.accountLinks.create({
@@ -268,7 +328,6 @@ export async function createConnectAccount(country?: SupportedCountry) {
     return { error: 'Failed to create Stripe account' };
   }
 }
-
 // Get Connect account status
 export async function getConnectAccountStatus() {
   try {
@@ -320,28 +379,6 @@ export async function getConnectAccountStatus() {
     console.error('Error fetching Connect account status:', error);
     return { error: 'Failed to get account status' };
   }
-}
-
-// Helper function to convert amounts to minor currency units
-function convertToMinorUnits(amount: number, currency: string): number {
-  // Zero-decimal currencies (no cents)
-  const zeroDecimalCurrencies = [
-    'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga', 'pyg', 'rwf',
-    'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf'
-  ];
-
-  if (zeroDecimalCurrencies.includes(currency.toLowerCase())) {
-    return Math.round(amount);
-  }
-
-  // Three-decimal currencies
-  const threeDecimalCurrencies = ['bhd', 'jod', 'kwd', 'omr', 'tnd'];
-  if (threeDecimalCurrencies.includes(currency.toLowerCase())) {
-    return Math.round(amount * 1000);
-  }
-
-  // Standard two-decimal currencies
-  return Math.round(amount * 100);
 }
 
 // FIXED: Enhanced payment intent creation with cross-border handling
@@ -404,7 +441,8 @@ export async function createPaymentIntent(
     }
 
     // Validate payment method
-    const validPaymentMethods = ['card', 'us_bank_account', 'sepa_debit', 'ideal', 'link', 'giropay', 'bacs_debit', 'acss_debit', 'au_becs_debit'];
+    const platformCountry = getPlatformCountry();
+    const validPaymentMethods = getAvailablePaymentMethods(platformCountry);
     if (!validPaymentMethods.includes(paymentMethod)) {
       return { error: `Payment method ${paymentMethod} is not supported` };
     }
@@ -416,12 +454,12 @@ export async function createPaymentIntent(
 
     // Validate minimum amount based on currency
     const minimumAmounts: Record<string, number> = {
-      'usd': 50, 'eur': 50, 'gbp': 30, 'cad': 50, 'aud': 50, 'jpy': 50,
-      'sgd': 50, 'hkd': 400, 'nok': 300, 'sek': 300, 'dkk': 250, 'chf': 50,
-      'pln': 200, 'czk': 1500, 'huf': 17500, 'ron': 200, 'bgn': 100,
-      'hrk': 350, 'isk': 7000, 'thb': 2000, 'myr': 200, 'inr': 5000,
-      'brl': 50, 'mxn': 1000, 'aed': 200
+      'usd': 50, 'eur': 50, 'gbp': 30, 'cad': 50, 'chf': 50,
+      'dkk': 250, 'sek': 300, 'nok': 300, 'pln': 200, 'czk': 1500,
+      'huf': 17500, 'ron': 200, 'bgn': 100, 'hrk': 350, 'isk': 7000,
+      'hkd': 400, 'thb': 2000, 'mxn': 1000
     };
+
 
     const minAmount = minimumAmounts[normalizedCurrency] || 50;
     if (amountInMinorUnits < minAmount) {
@@ -430,7 +468,6 @@ export async function createPaymentIntent(
     }
 
     // Check if we need cross-border handling
-    const platformCountry = getPlatformCountry();
     const needsCrossBorder = needsCrossBorderHandling(expertAccount.country!, platformCountry);
 
     console.log('Cross-border handling needed:', needsCrossBorder);
