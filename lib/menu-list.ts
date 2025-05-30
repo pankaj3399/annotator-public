@@ -56,6 +56,7 @@ import {
   BookA,
   DollarSign,
   UserCheck,
+  LayoutDashboardIcon,
 } from 'lucide-react';
 import { BookIcon } from '@/components/BookIcon'; // Adjust path if needed
 
@@ -396,10 +397,16 @@ export function getMenuList(
             icon: Home,
           },
           {
-            href: '/',
+            href: '/custom-fields',
             label: 'Custom Fields',
             active: pathname === '/',
             icon: FileText,
+          },
+            {
+            href: '/admin/dashboard',
+            label: 'Dashboard',
+            active: pathname === '/admin/dashboard',
+            icon: LayoutDashboardIcon,
           },
           {
             href: '/admin/orders',
