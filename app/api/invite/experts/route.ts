@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     console.log(`Looking up user with email: ${session.user?.email}`);
     const currentUser = await User.findOne({ email: session.user?.email });
 
-    if (!currentUser || currentUser.role !== 'agency owner') {
+    if (!currentUser || currentUser.role !== 'agency owner' && currentUser.role !== 'project manager') {
       console.log('Authorization failed: Not an agency owner');
       return NextResponse.json(
         { error: 'Not authorized to invite experts' },

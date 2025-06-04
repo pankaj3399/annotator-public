@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     // Get the user details to verify they are an agency owner
     const currentUser = await User.findOne({ email: session.user?.email });
 
-    if (!currentUser || currentUser.role !== 'agency owner') {
+    if (!currentUser || currentUser.role !== 'agency owner' && currentUser.role !== 'project manager') {
       return NextResponse.json(
         { error: 'Not authorized to invite experts' },
         { status: 403 }

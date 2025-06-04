@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -27,9 +27,12 @@ import {
   Home, 
   Settings, 
   Bell,
-  LogOut
+  LogOut,
+  Copy,
+  Link as LinkIcon
 } from 'lucide-react';
 import Loader from '@/components/ui/NewLoader/Loader';
+import { getUserTeamInfo } from '@/app/actions/user';
 
 export default function AgencyOwnerLayout({
   children,
@@ -44,7 +47,52 @@ export default function AgencyOwnerLayout({
   const [isUploading, setIsUploading] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [invitationLink, setInvitationLink] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [teamInfo, setTeamInfo] = useState<{name: string} | null>(null);
   const sidebar = useStore(useSidebarToggle, (state) => state);
+
+  // Fetch user team info and generate invitation link on component mount
+  useEffect(() => {
+    if (session) {
+      const fetchTeamInfoAndGenerateLink = async () => {
+        try {
+          setLinkLoading(true);
+          
+          const result = await getUserTeamInfo();
+          
+          if (result.success) {
+            // Construct signup URL in the client
+            const baseUrl = window.location.origin;
+            const teamId = result.team?.id || '';
+            const link = `${baseUrl}/auth/signup?role=annotator&team=${teamId}`;
+            
+            setInvitationLink(link);
+            
+            if (result.team?.name) {
+              setTeamInfo({ name: result.team.name });
+            }
+          } else {
+            console.error('Failed to get team info:', result.error);
+            // Fallback to basic link if action fails
+            const baseUrl = window.location.origin;
+            const link = `${baseUrl}/auth/signup?role=annotator&team=`;
+            setInvitationLink(link);
+          }
+        } catch (error) {
+          console.error('Error fetching team info:', error);
+          // Fallback to basic link
+          const baseUrl = window.location.origin;
+          const link = `${baseUrl}/auth/signup?role=annotator&team=`;
+          setInvitationLink(link);
+        } finally {
+          setLinkLoading(false);
+        }
+      };
+
+      fetchTeamInfoAndGenerateLink();
+    }
+  }, [session]);
 
   if (status === 'loading' || !sidebar) {
     return <Loader />;
@@ -55,10 +103,28 @@ export default function AgencyOwnerLayout({
     return null;
   }
 
-  if (session?.user?.role !== 'agency owner') {
+  if (session?.user?.role !== 'agency owner' && session?.user?.role !== 'project manager') {
     router.push('/');
     return null;
-  }
+  } 
+
+  // Copy invitation link to clipboard
+  const copyInvitationLink = async () => {
+    try {
+      await navigator.clipboard.writeText(invitationLink);
+      toast({
+        title: 'Link Copied!',
+        description: 'The invitation link has been copied to your clipboard.',
+      });
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Copy Failed',
+        description: 'Failed to copy the link. Please try selecting and copying manually.',
+      });
+    }
+  };
 
   const handleEmailInvite = async () => {
     if (!inviteEmails.trim()) {
@@ -285,7 +351,7 @@ export default function AgencyOwnerLayout({
 
       {/* Invite Modal */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Invite Experts</DialogTitle>
             <DialogDescription>
@@ -294,13 +360,49 @@ export default function AgencyOwnerLayout({
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            {/* Invitation Link Section */}
+            <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="h-4 w-4" />
+                <h3 className="text-sm font-medium">Expert Invitation Link</h3>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Input 
+                  value={invitationLink} 
+                  readOnly 
+                  className="flex-1 font-mono text-xs"
+                  placeholder="Invitation link will appear here"
+                />
+                <Button 
+                  onClick={copyInvitationLink}
+                  disabled={!invitationLink}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-600">
+                Share this link with experts to join your team directly
+              </p>
+            </div>
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-gray-500">OR SEND PERSONALIZED EMAILS</span>
+              </div>
+            </div>
+            
             <div className="space-y-2">
               <h3 className="text-sm font-medium">Option 1: Enter Email Addresses</h3>
               <Textarea
                 placeholder="Enter email addresses (one per line, or separated by commas)"
                 value={inviteEmails}
                 onChange={(e) => setInviteEmails(e.target.value)}
-                rows={5}
+                rows={4}
                 className="resize-none"
               />
               <p className="text-xs text-gray-500">
@@ -315,7 +417,7 @@ export default function AgencyOwnerLayout({
               </Button>
             </div>
             
-            <div className="relative my-4">
+            <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-gray-300" />
               </div>

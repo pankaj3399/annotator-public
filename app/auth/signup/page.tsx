@@ -42,6 +42,7 @@ import {
   BarChart,
   LineChart,
   Brain,
+  Shield,
 } from 'lucide-react';
 import MultiCombobox from '@/components/ui/multi-combobox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -49,6 +50,7 @@ import { getTestTemplateTasks, createTestTasks } from '@/app/actions/task';
 import { getTeams } from '@/app/actions/team';
 import { Checkbox } from '@/components/ui/checkbox';
 import Loader from '@/components/ui/NewLoader/Loader';
+import AcoladPolicyDialog from '@/components/AcoladPolicyDialog';
 
 interface Option {
   value: string;
@@ -62,7 +64,11 @@ interface Team {
 }
 
 type Step = 'role' | 'invitation' | 'details';
-type UserRole = 'annotator' | 'project manager' | 'agency owner' | 'data scientist';
+type UserRole =
+  | 'annotator'
+  | 'project manager'
+  | 'agency owner'
+  | 'data scientist';
 
 // This internal component uses searchParams
 function AuthPageContent() {
@@ -84,6 +90,14 @@ function AuthPageContent() {
   const [isRequestSubmitted, setIsRequestSubmitted] = useState(false);
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Acolad policy states
+  const [showAcoladDialog, setShowAcoladDialog] = useState(false);
+  const [acoladPolicyAccepted, setAcoladPolicyAccepted] = useState(false);
+  const [pendingAction, setPendingAction] = useState<
+    'google' | 'submit' | null
+  >(null);
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -103,6 +117,12 @@ function AuthPageContent() {
 
   // Determine if team selection should be disabled
   const isTeamSelectionDisabled = !!teamParam;
+
+  // Check if selected team is Acolad
+  const isAcoladTeam = () => {
+    const selectedTeam = teams.find((team) => team._id === formData.team_id);
+    return selectedTeam?.name?.toLowerCase() === 'acolad';
+  };
 
   // Fetch teams when component mounts
   useEffect(() => {
@@ -144,14 +164,55 @@ function AuthPageContent() {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
 
-  const handleRoleSelect = (
-    selectedRole: UserRole
-  ) => {
+  const handleRoleSelect = (selectedRole: UserRole) => {
     setFormData({ ...formData, role: selectedRole });
     setStep(selectedRole === 'project manager' ? 'invitation' : 'details');
   };
 
+  // Handle team selection with Acolad check
+  const handleTeamSelection = (teamId: string) => {
+    setFormData({ ...formData, team_id: teamId });
+
+    // Reset Acolad policy acceptance when team changes
+    if (acoladPolicyAccepted) {
+      setAcoladPolicyAccepted(false);
+    }
+  };
+
+  // Check for Acolad team before proceeding with action
+  const checkAcoladPolicyAndProceed = (action: 'google' | 'submit') => {
+    if (isAcoladTeam() && !acoladPolicyAccepted) {
+      setPendingAction(action);
+      setShowAcoladDialog(true);
+      return false;
+    }
+    return true;
+  };
+
+  // Handle Acolad policy acceptance
+  const handleAcoladPolicyAcceptance = () => {
+    setAcoladPolicyAccepted(true);
+    setShowAcoladDialog(false);
+
+    // Execute the pending action
+    if (pendingAction === 'google') {
+      executeGoogleSignIn();
+    } else if (pendingAction === 'submit') {
+      executeFormSubmit();
+    }
+    setPendingAction(null);
+  };
+
   const handleGoogleSignIn = async () => {
+    // Check Acolad policies first
+    if (!checkAcoladPolicyAndProceed('google')) {
+      return;
+    }
+
+    await executeGoogleSignIn();
+  };
+
+  const executeGoogleSignIn = async () => {
     try {
       console.log('Google sign-in button clicked');
       console.log('Current form data:', {
@@ -160,7 +221,10 @@ function AuthPageContent() {
       });
 
       // For annotators, require team selection
-      if ((formData.role === 'annotator' || formData.role === 'data scientist') && !formData.team_id) {
+      if (
+        (formData.role === 'annotator' || formData.role === 'data scientist') &&
+        !formData.team_id
+      ) {
         console.log('Team ID missing, showing error');
         toast({
           variant: 'destructive',
@@ -312,13 +376,23 @@ function AuthPageContent() {
       });
     }
   };
+
   const handleCheckboxChange = (checked: boolean) => {
     setFormData({ ...formData, termsAccepted: checked });
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Check Acolad policies first
+    if (!checkAcoladPolicyAndProceed('submit')) {
+      return;
+    }
+
+    await executeFormSubmit();
+  };
+
+  const executeFormSubmit = async () => {
     // Validate required fields based on role
     if (formData.role === 'annotator' || formData.role === 'agency owner') {
       if (
@@ -334,7 +408,7 @@ function AuthPageContent() {
         return;
       }
     }
-    
+
     // For data scientist, validate only required fields (name, email, phone, location, team)
     if (formData.role === 'data scientist') {
       if (
@@ -361,7 +435,7 @@ function AuthPageContent() {
       });
       return;
     }
-    
+
     if (!formData.termsAccepted) {
       toast({
         variant: 'destructive',
@@ -370,7 +444,7 @@ function AuthPageContent() {
       });
       return;
     }
-    
+
     try {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
@@ -582,282 +656,318 @@ function AuthPageContent() {
   }
 
   return (
-    <div className='min-h-screen flex items-center justify-center p-4'>
-      <div
-        className={`bg-white p-8 ${
-          formData.role === 'annotator' || formData.role === 'agency owner' || formData.role === 'data scientist'
-            ? 'max-w-xl'
-            : 'max-w-md'
-        } w-full`}
-      >
-        <h2 className='text-4xl font-bold text-center mb-6'>Sign Up</h2>
+    <>
+      {/* Acolad Privacy Policy Dialog */}
+      <AcoladPolicyDialog
+        isOpen={showAcoladDialog}
+        onClose={() => {
+          setShowAcoladDialog(false);
+          setPendingAction(null);
+        }}
+        onAccept={handleAcoladPolicyAcceptance}
+      />
 
-        {/* Role-specific banners */}
-        {isTeamSelectionDisabled && formData.role === 'annotator' && (
-          <Alert className='mb-6 bg-blue-50 border-blue-200'>
-            <AlertDescription className='flex items-center'>
-              <Users className='mr-2 h-5 w-5 text-blue-500' />
-              <span>
-                You've been invited to join as a <strong>Domain Expert</strong>
-              </span>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {formData.role === 'data scientist' && (
-          <Alert className='mb-6 bg-indigo-50 border-indigo-200'>
-            <AlertDescription className='flex items-center'>
-              <FlaskConical className='mr-2 h-5 w-5 text-indigo-500' />
-              <span>
-                Join our platform as a <strong>Data Scientist</strong> to analyze datasets, build models, and extract valuable insights.
-              </span>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Google Sign In Button - For annotators and data scientists */}
-        {formData.role === 'annotator' &&
-          process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
-            <>
-              <Button
-                type='button'
-                variant='outline'
-                className='w-full mb-6 flex items-center justify-center gap-2'
-                onClick={handleGoogleSignIn}
-              >
-                <svg className='h-4 w-4' viewBox='0 0 24 24'>
-                  <path
-                    d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'
-                    fill='#4285F4'
-                  />
-                  <path
-                    d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'
-                    fill='#34A853'
-                  />
-                  <path
-                    d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'
-                    fill='#FBBC05'
-                  />
-                  <path
-                    d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'
-                    fill='#EA4335'
-                  />
-                </svg>
-                Continue with Google
-              </Button>
-
-              <div className='relative mb-6'>
-                <div className='absolute inset-0 flex items-center'>
-                  <div className='w-full border-t border-gray-300'></div>
-                </div>
-                <div className='relative flex justify-center text-sm'>
-                  <span className='px-2 bg-white text-gray-500'>
-                    Or continue with email
-                  </span>
-                </div>
-              </div>
-            </>
-          )}
-
-        <form
-          onSubmit={handleSubmit}
-          className={`grid ${
-            formData.role === 'annotator' || formData.role === 'agency owner' || formData.role === 'data scientist'
-              ? 'grid-cols-2'
-              : 'grid-cols-1'
-          } gap-6`}
+      <div className='min-h-screen flex items-center justify-center p-4'>
+        <div
+          className={`bg-white p-8 ${
+            formData.role === 'annotator' ||
+            formData.role === 'agency owner' ||
+            formData.role === 'data scientist'
+              ? 'max-w-xl'
+              : 'max-w-md'
+          } w-full`}
         >
-          <div className='space-y-2'>
-            <Label htmlFor='name'>Name</Label>
-            <Input
-              id='name'
-              type='text'
-              value={formData.name}
-              onChange={handleChange}
-              placeholder='Enter your name'
-              required
-            />
-          </div>
-          <div className='space-y-2'>
-            <Label htmlFor='email'>Email</Label>
-            <Input
-              id='email'
-              type='email'
-              value={formData.email}
-              onChange={handleChange}
-              placeholder='Enter your email'
-              required
-              disabled={
-                formData.role === 'project manager' &&
-                invitationMode === 'request' &&
-                isRequestSubmitted
-              }
-            />
-          </div>
-          <div className='space-y-2'>
-            <Label htmlFor='password'>Password</Label>
-            <Input
-              id='password'
-              type='password'
-              value={formData.password}
-              minLength={6}
-              onChange={handleChange}
-              placeholder='Enter your password'
-              required
-            />
-          </div>
+          <h2 className='text-4xl font-bold text-center mb-6'>Sign Up</h2>
 
-          {/* Team Selection - Added for all users */}
-          <div className='space-y-2'>
-            <Label htmlFor='team' className='flex items-center'>
-              Select Team
-              {isTeamSelectionDisabled && (
-                <Lock className='ml-2 h-4 w-4 text-gray-400' />
-              )}
-            </Label>
-            <Select
-              value={formData.team_id}
-              onValueChange={(value) =>
-                setFormData({ ...formData, team_id: value })
-              }
-              disabled={isTeamSelectionDisabled}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Select a team' />
-              </SelectTrigger>
-              <SelectContent>
-                {teams.map((team) => (
-                  <SelectItem key={team._id} value={team._id}>
-                    <div className='flex items-center'>
-                      <Users className='mr-2 h-4 w-4' />
-                      {team.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Phone field - For annotators, agency owners and data scientists */}
-          {(formData.role === 'annotator' || formData.role === 'agency owner' || formData.role === 'data scientist') && (
-            <div className='space-y-2'>
-              <Label htmlFor='phone'>Phone number</Label>
-              <Input
-                id='phone'
-                type='tel'
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder='Enter your phone number'
-                required
-              />
-            </div>
-          )}
-          
-          {/* Location/Country field - For annotators, agency owners and data scientists */}
-          {(formData.role === 'annotator' || formData.role === 'agency owner' || formData.role === 'data scientist') && (
-            <div className='space-y-2'>
-              <Label htmlFor='location'>Country</Label>
-              <Combobox
-                options={locationOptions}
-                value={formData.location}
-                onChange={(value) =>
-                  setFormData({ ...formData, location: value })
-                }
-                placeholder='Select country'
-              />
-            </div>
+          {/* Role-specific banners */}
+          {isTeamSelectionDisabled && formData.role === 'annotator' && (
+            <Alert className='mb-6 bg-blue-50 border-blue-200'>
+              <AlertDescription className='flex items-center'>
+                <Users className='mr-2 h-5 w-5 text-blue-500' />
+                <span>
+                You've been invited to join as a <strong>Domain Expert</strong>
+                </span>
+              </AlertDescription>
+            </Alert>
           )}
 
-          {/* Fields specific to annotators and agency owners only */}
-          {(formData.role === 'annotator' || formData.role === 'agency owner') && (
-            <>
-              <div className='space-y-2'>
-                <Label htmlFor='domain'>Domain</Label>
-                <MultiCombobox
-                  options={domainOptions}
-                  value={formData.domain}
-                  onChange={(value) =>
-                    setFormData({ ...formData, domain: value })
-                  }
-                  placeholder='Select domain'
-                  allowCustom={true}
-                />
-              </div>
-              <div className='space-y-2'>
-                <Label htmlFor='lang'>Language</Label>
-                <MultiCombobox
-                  options={languageOptions}
-                  value={formData.lang}
-                  onChange={(value) =>
-                    setFormData({ ...formData, lang: value })
-                  }
-                  placeholder='Select language'
-                />
-              </div>
-            </>
+          {formData.role === 'data scientist' && (
+            <Alert className='mb-6 bg-indigo-50 border-indigo-200'>
+              <AlertDescription className='flex items-center'>
+                <FlaskConical className='mr-2 h-5 w-5 text-indigo-500' />
+                <span>
+                  Join our platform as a <strong>Data Scientist</strong> to
+                  analyze datasets, build models, and extract valuable insights.
+                </span>
+              </AlertDescription>
+            </Alert>
           )}
 
-          {/* Terms and conditions and Submit button */}
-          <div
-            className={
-              formData.role === 'annotator' || formData.role === 'agency owner' || formData.role === 'data scientist'
-                ? 'col-span-2'
-                : ''
-            }
-          > 
-            <div className="flex items-center space-x-2 mb-4">
-              <Checkbox 
-                id="terms" 
-                checked={formData.termsAccepted}
-                onCheckedChange={handleCheckboxChange}
-                required
-              />
-              <label
-                htmlFor="terms"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                I agree to the{' '}
-                <a 
-                  href="https://www.blolabel.ai/blogs/terms-and-conditions-for-blolabel"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary underline"
+          {/* Acolad Policy Notice */}
+          {isAcoladTeam() && (
+            <Alert className='mb-6 bg-amber-50 border-amber-200'>
+              <AlertDescription className='flex items-center'>
+                <Shield className='mr-2 h-5 w-5 text-amber-600' />
+                <span>
+                  <strong>Acolad Partnership:</strong> Additional privacy
+                  policies apply for this team.
+                  {acoladPolicyAccepted && (
+                    <span className='text-green-600 ml-2'>
+                      ✓ Policies accepted
+                    </span>
+                  )}
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Google Sign In Button - For annotators and data scientists */}
+          {formData.role === 'annotator' &&
+            process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+              <>
+                <Button
+                  type='button'
+                  variant='outline'
+                  className='w-full mb-6 flex items-center justify-center gap-2'
+                  onClick={handleGoogleSignIn}
                 >
-                  Terms and Conditions
-                </a>
-              </label>
-            </div>
-            <Button 
-              type="submit" 
-              className="w-full"
-              disabled={!formData.termsAccepted}
-            >
-              Sign Up
-            </Button>
-          </div>
-        </form>
+                  <svg className='h-4 w-4' viewBox='0 0 24 24'>
+                    <path
+                      d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'
+                      fill='#4285F4'
+                    />
+                    <path
+                      d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'
+                      fill='#34A853'
+                    />
+                    <path
+                      d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'
+                      fill='#FBBC05'
+                    />
+                    <path
+                      d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'
+                      fill='#EA4335'
+                    />
+                  </svg>
+                  Continue with Google
+                </Button>
 
-        <div className='mt-4 text-center'>
-          <button
-            className='text-sm text-gray-600 hover:underline'
-            onClick={() => router.push('/auth/login')}
+                <div className='relative mb-6'>
+                  <div className='absolute inset-0 flex items-center'>
+                    <div className='w-full border-t border-gray-300'></div>
+                  </div>
+                  <div className='relative flex justify-center text-sm'>
+                    <span className='px-2 bg-white text-gray-500'>
+                      Or continue with email
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+
+          <form
+            onSubmit={handleSubmit}
+            className={`grid ${
+              formData.role === 'annotator' ||
+              formData.role === 'agency owner' ||
+              formData.role === 'data scientist'
+                ? 'grid-cols-2'
+                : 'grid-cols-1'
+            } gap-6`}
           >
-            Already have an account? Login
-          </button>
+            <div className='space-y-2'>
+              <Label htmlFor='name'>Name</Label>
+              <Input
+                id='name'
+                type='text'
+                value={formData.name}
+                onChange={handleChange}
+                placeholder='Enter your name'
+                required
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label htmlFor='email'>Email</Label>
+              <Input
+                id='email'
+                type='email'
+                value={formData.email}
+                onChange={handleChange}
+                placeholder='Enter your email'
+                required
+                disabled={
+                  formData.role === 'project manager' &&
+                  invitationMode === 'request' &&
+                  isRequestSubmitted
+                }
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label htmlFor='password'>Password</Label>
+              <Input
+                id='password'
+                type='password'
+                value={formData.password}
+                minLength={6}
+                onChange={handleChange}
+                placeholder='Enter your password'
+                required
+              />
+            </div>
+
+            {/* Team Selection - Added for all users */}
+            <div className='space-y-2'>
+              <Label htmlFor='team' className='flex items-center'>
+                Select Team
+                {isTeamSelectionDisabled && (
+                  <Lock className='ml-2 h-4 w-4 text-gray-400' />
+                )}
+              </Label>
+              <Select
+                value={formData.team_id}
+                onValueChange={handleTeamSelection}
+                disabled={isTeamSelectionDisabled}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder='Select a team' />
+                </SelectTrigger>
+                <SelectContent>
+                  {teams.map((team) => (
+                    <SelectItem key={team._id} value={team._id}>
+                      <div className='flex items-center'>
+                        <Users className='mr-2 h-4 w-4' />
+                        {team.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Phone field - For annotators, agency owners and data scientists */}
+            {(formData.role === 'annotator' ||
+              formData.role === 'agency owner' ||
+              formData.role === 'data scientist') && (
+              <div className='space-y-2'>
+                <Label htmlFor='phone'>Phone number</Label>
+                <Input
+                  id='phone'
+                  type='tel'
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder='Enter your phone number'
+                  required
+                />
+              </div>
+            )}
+
+            {/* Location/Country field - For annotators, agency owners and data scientists */}
+            {(formData.role === 'annotator' ||
+              formData.role === 'agency owner' ||
+              formData.role === 'data scientist') && (
+              <div className='space-y-2'>
+                <Label htmlFor='location'>Country</Label>
+                <Combobox
+                  options={locationOptions}
+                  value={formData.location}
+                  onChange={(value) =>
+                    setFormData({ ...formData, location: value })
+                  }
+                  placeholder='Select country'
+                />
+              </div>
+            )}
+
+            {/* Fields specific to annotators and agency owners only */}
+            {(formData.role === 'annotator' ||
+              formData.role === 'agency owner') && (
+              <>
+                <div className='space-y-2'>
+                  <Label htmlFor='domain'>Domain</Label>
+                  <MultiCombobox
+                    options={domainOptions}
+                    value={formData.domain}
+                    onChange={(value) =>
+                      setFormData({ ...formData, domain: value })
+                    }
+                    placeholder='Select domain'
+                    allowCustom={true}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='lang'>Language</Label>
+                  <MultiCombobox
+                    options={languageOptions}
+                    value={formData.lang}
+                    onChange={(value) =>
+                      setFormData({ ...formData, lang: value })
+                    }
+                    placeholder='Select language'
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Terms and conditions and Submit button */}
+            <div
+              className={
+                formData.role === 'annotator' ||
+                formData.role === 'agency owner' ||
+                formData.role === 'data scientist'
+                  ? 'col-span-2'
+                  : ''
+              }
+            >
+              <div className='flex items-center space-x-2 mb-4'>
+                <Checkbox
+                  id='terms'
+                  checked={formData.termsAccepted}
+                  onCheckedChange={handleCheckboxChange}
+                  required
+                />
+                <label
+                  htmlFor='terms'
+                  className='text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
+                >
+                  I agree to the{' '}
+                  <a
+                    href='https://www.blolabel.ai/blogs/terms-and-conditions-for-blolabel'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='text-primary underline'
+                  >
+                    Terms and Conditions
+                  </a>
+                </label>
+              </div>
+              <Button
+                type='submit'
+                className='w-full'
+                disabled={!formData.termsAccepted}
+              >
+                Sign Up
+              </Button>
+            </div>
+          </form>
+
+          <div className='mt-4 text-center'>
+            <button
+              className='text-sm text-gray-600 hover:underline'
+              onClick={() => router.push('/auth/login')}
+            >
+              Already have an account? Login
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
 // Main component that wraps the content with Suspense
 export default function AuthPageComponent() {
   return (
-    <Suspense
-      fallback={
-        <Loader/>
-      }
-    >
+    <Suspense fallback={<Loader />}>
       <AuthPageContent />
     </Suspense>
   );

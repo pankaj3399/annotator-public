@@ -57,6 +57,7 @@ import {
   DollarSign,
   UserCheck,
   LayoutDashboardIcon,
+  User2Icon,
 } from 'lucide-react';
 import { BookIcon } from '@/components/BookIcon'; // Adjust path if needed
 
@@ -751,6 +752,12 @@ export function getMenuList(
             label: 'Expert',
             active: pathname.includes('/annotator'),
             icon: User,
+          },
+           {
+            href: '/agencyOwner/experts',
+            label: 'Invite Experts',
+            active: pathname.includes('/agencyOwner/experts'),
+            icon: User2Icon,
           },
           {
             href: '/chat',
