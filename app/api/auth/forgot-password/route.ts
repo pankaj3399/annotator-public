@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     await ResetToken.create({ email, token, expires });
 
     // Create reset link
-    const resetLink = `${process.env.NEXTAUTH_URL}auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
+    const resetLink = `${process.env.NEXTAUTH_URL}/auth/reset-password?token=${token}&email=${encodeURIComponent(email)}`;
 
     // Send email using our utility
     await sendEmail({

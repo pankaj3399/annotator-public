@@ -6,12 +6,15 @@ import { Project } from '@/models/Project';
 export async function getLabels() {
   try {
     await connectToDatabase();
-    // Fetch all projects and select only the labels field
     const projects = await Project.find({}).select('labels');
-
-    // Combine all labels from all projects and remove duplicates
+    
     const allLabels = new Set(projects.flatMap(project => project.labels || []));
-    return Array.from(allLabels);
+    
+    // Convert strings to objects with _id and name
+    return Array.from(allLabels).map((label, index) => ({
+      _id: `label_${index}`, // or generate proper IDs
+      name: label
+    }));
   } catch (error) {
     console.log(error)
     throw new Error('Error fetching labels');
