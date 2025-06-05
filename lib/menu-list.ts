@@ -398,7 +398,7 @@ export function getMenuList(
             icon: Home,
           },
           {
-            href: '/custom-fields',
+            href: '/admin/custom-fields',
             label: 'Custom Fields',
             active: pathname === '/',
             icon: FileText,

@@ -7,7 +7,7 @@ import {
   getTasksOfAnnotator,
   handleTakeTest,
 } from '@/app/actions/task';
-import { getLabels } from '@/app/actions/label';
+import { getLabels, getProjectLabels } from '@/app/actions/label';
 import { SheetMenu } from '@/components/admin-panel/sheet-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
-import { CalendarIcon, ClipboardList, GraduationCap, MessageCircleIcon } from 'lucide-react';
+import {
+  CalendarIcon,
+  ClipboardList,
+  GraduationCap,
+  MessageCircleIcon,
+} from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -72,13 +77,7 @@ interface CustomLabel {
   color?: string;
 }
 
-type LabelType =
-  | 'LLM BENCHMARK'
-  | 'MULTIMODALITY'
-  | 'TRANSLATION'
-  | 'ACCENTS'
-  | 'ENGLISH'
-  | string;
+type LabelType = string;
 
 export default function ProjectDashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -92,6 +91,8 @@ export default function ProjectDashboard() {
     new Set()
   );
   const [customLabels, setCustomLabels] = useState<CustomLabel[]>([]);
+  const [userProjectLabels, setUserProjectLabels] = useState<string[]>([]);
+  const [allAvailableLabels, setAllAvailableLabels] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // NEW: State to control benchmark proposal dialog
@@ -114,7 +115,45 @@ export default function ProjectDashboard() {
     if (labelStyles[label]) {
       return labelStyles[label]; // Predefined labels use their styles
     }
-    return 'bg-gray-200 text-gray-800';
+    // Generate a consistent color based on label name for custom labels
+    const colors = [
+      'bg-blue-200 text-blue-800',
+      'bg-green-200 text-green-800',
+      'bg-purple-200 text-purple-800',
+      'bg-red-200 text-red-800',
+      'bg-indigo-200 text-indigo-800',
+      'bg-teal-200 text-teal-800',
+    ];
+    const hash = label.split('').reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Extract unique labels from user's projects using server action
+  const extractUserProjectLabels = async (projectsList: Project[]) => {
+    const uniqueLabels = new Set<string>();
+
+    try {
+      // Get labels for each project using the server action
+      const labelPromises = projectsList.map((project) =>
+        getProjectLabels(project._id)
+      );
+      const allProjectLabels = await Promise.all(labelPromises);
+
+      // Combine all labels from all projects
+      allProjectLabels.forEach((labels) => {
+        labels.forEach((label) => {
+          if (label && label.trim()) {
+            uniqueLabels.add(label.trim());
+          }
+        });
+      });
+    } catch (error) {
+      console.error('Error fetching project labels:', error);
+    }
+
+    return Array.from(uniqueLabels).sort();
   };
 
   // Handler for benchmark proposal feature.
@@ -171,16 +210,13 @@ export default function ProjectDashboard() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [assignedProjects, projectsWithRepeatTasks, fetchedLabels] =
-          await Promise.all([
-            getDistinctProjectsByAnnotator(),
-            getProjectsWithRepeatTasks(),
-            getLabels(),
-          ]);
+        const [assignedProjects, projectsWithRepeatTasks] = await Promise.all([
+          getDistinctProjectsByAnnotator(),
+          getProjectsWithRepeatTasks(),
+        ]);
         const assignedProjectsList = assignedProjects;
         const projectsWithTestsList = projectsWithRepeatTasks;
-        const parsedLabels = fetchedLabels || [];
-        setCustomLabels(parsedLabels);
+
         const testProjectIds = new Set<string>(
           projectsWithTestsList.map((p: Project) => p._id)
         );
@@ -193,6 +229,11 @@ export default function ProjectDashboard() {
             allProjects.push(project);
           }
         });
+
+        // Extract unique labels from user's projects using server action
+        const uniqueLabels = await extractUserProjectLabels(allProjects);
+        setUserProjectLabels(uniqueLabels);
+        setAllAvailableLabels(uniqueLabels); // Store all available labels separately
 
         setProjects(allProjects);
         setFilteredProjects(allProjects);
@@ -257,6 +298,10 @@ export default function ProjectDashboard() {
         }
       });
 
+      // Update user project labels based on filtered results
+      const uniqueLabels = extractUserProjectLabels(allProjects);
+      setUserProjectLabels(uniqueLabels);
+
       setProjects(allProjects);
 
       // Apply search filter if exists
@@ -273,6 +318,7 @@ export default function ProjectDashboard() {
       toast.error('Failed to filter projects');
     }
   };
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value.toLowerCase();
     setSearchQuery(query);
@@ -304,18 +350,6 @@ export default function ProjectDashboard() {
     );
   }
 
-  if (!session) {
-    return <Loader />;
-  }
-
-  if (isLoading) {
-    return (
-      <div className='flex items-center justify-center min-h-screen'>
-        <Loader />
-      </div>
-    );
-  }
-
   return (
     <div className='min-h-screen'>
       <header className='bg-white'>
@@ -337,30 +371,29 @@ export default function ProjectDashboard() {
               className='flex-grow'
             />
           </div>
-          <div className='flex flex-wrap gap-3 mb-6'>
-            {[
-              ...Object.keys(labelStyles),
-              ...customLabels.map((label) => label.name),
-            ].map((label) => (
-              <button
-                key={label}
-                onClick={() => handleLabelClick(label)}
-                className={`
-                  px-4 py-2 rounded-md transition-all duration-200
-                  ${getLabelStyle(label)}
-                  ${
-                    selectedLabels.includes(label)
-                      ? 'ring-2 ring-offset-2 ring-opacity-60 ring-current shadow-md scale-105'
-                      : 'hover:scale-105 active:scale-95'
-                  }
-                  font-medium text-sm
-                  transform hover:shadow-md
-                `}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {allAvailableLabels.length > 0 && (
+            <div className='flex flex-wrap gap-3 mb-6'>
+              {allAvailableLabels.map((label) => (
+                <button
+                  key={label}
+                  onClick={() => handleLabelClick(label)}
+                  className={`
+                    px-4 py-2 rounded-md transition-all duration-200
+                    ${getLabelStyle(label)}
+                    ${
+                      selectedLabels.includes(label)
+                        ? 'ring-2 ring-offset-2 ring-opacity-60 ring-current shadow-md scale-105'
+                        : 'hover:scale-105 active:scale-95'
+                    }
+                    font-medium text-sm
+                    transform hover:shadow-md
+                  `}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </form>
         {filteredProjects.length === 0 ? (
           <div className='text-center py-10'>

@@ -1,22 +1,52 @@
 "use server"
 import { connectToDatabase } from '@/lib/db';
 import { Project } from '@/models/Project';
+import Label from '@/models/Label';
 
-// Action to fetch all labels across all projects
-export async function getLabels() {
+export async function getLabelsForAdmin() {
   try {
     await connectToDatabase();
-    // Fetch all projects and select only the labels field
+    
+    // Get labels from projects
     const projects = await Project.find({}).select('labels');
-
-    // Combine all labels from all projects and remove duplicates
-    const allLabels = new Set(projects.flatMap(project => project.labels || []));
-    return Array.from(allLabels);
+    const projectLabels = new Set(projects.flatMap(project => project.labels || []));
+    
+    // Get labels from Label schema
+    const labelDocs = await Label.find({}).select('name');
+    const schemaLabels = new Set(labelDocs.map(label => label.name));
+    
+    // Combine both sets of labels
+    const allLabels = new Set([...projectLabels, ...schemaLabels]);
+    
+    // Convert strings to objects with _id and name
+    return Array.from(allLabels).map((label, index) => ({
+      _id: `label_${index}`,
+      name: label
+    }));
   } catch (error) {
     console.log(error)
     throw new Error('Error fetching labels');
   }
 }
+
+export async function getLabels() {
+  try {
+    await connectToDatabase();
+    const projects = await Project.find({}).select('labels');
+    
+    const allLabels = new Set(projects.flatMap(project => project.labels || []));
+    
+    // Convert strings to objects with _id and name
+    return Array.from(allLabels).map((label, index) => ({
+      _id: `label_${index}`, // or generate proper IDs
+      name: label
+    }));
+  } catch (error) {
+    console.log(error)
+    throw new Error('Error fetching labels');
+  }
+}
+
 
 // Action to fetch labels for a specific project
 export async function getProjectLabels(projectId: string): Promise<string[]> {
@@ -35,32 +65,35 @@ export async function getProjectLabels(projectId: string): Promise<string[]> {
   }
 }
 
-// Action to create a new label for a specific project
-export async function createCustomLabel(name: string, projectId: string) {
+// Action to create a new label (works with or without project ID)
+export async function createCustomLabel(name: string, projectId?: string) {
   try {
     await connectToDatabase();
-    const project = await Project.findById(projectId);
+    
+    // Always create the label in the Label schema first (if it doesn't exist)
+    const existingLabel = await Label.findOne({ name });
+    if (!existingLabel) {
+      await Label.create({ name });
+    }
+    
+    // If projectId is provided, also add to project
+    if (projectId) {
+      const project = await Project.findById(projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
 
-    if (!project) {
-      throw new Error('Project not found');
+      // Add the label to the project's labels array if not already there
+      const updatedProject = await Project.findByIdAndUpdate(
+        projectId,
+        { $addToSet: { labels: name } },
+        { new: true }
+      );
+
+      return JSON.stringify(updatedProject.labels);
     }
 
-    // Check if label already exists in this project
-    if (!project.labels) {
-      project.labels = [];
-    }
-    if (project.labels.includes(name)) {
-      throw new Error('Label already exists in this project');
-    }
-
-    // Add the new label to the project's labels array
-    const updatedProject = await Project.findByIdAndUpdate(
-      projectId,
-      { $addToSet: { labels: name } },
-      { new: true }
-    );
-
-    return JSON.stringify(updatedProject.labels);
+    return { success: true, message: 'Label created successfully' };
   } catch (error) {
     throw new Error('Error creating label: ' + error);
   }
@@ -103,5 +136,16 @@ export async function removeProjectLabel(projectId: string, label: string) {
     return updatedProject.labels;
   } catch (error) {
     throw new Error('Error removing label from project: ' + error);
+  }
+}
+
+export async function fetchAllLabelsFromLabelsModel() {
+  try {
+    await connectToDatabase();
+    const labels = await Label.find({}).select('name').sort({ name: 1 });
+    return labels.map(label => label.name);
+  } catch (error) {
+    console.error('Error fetching labels from Labels model:', error);
+    throw new Error('Error fetching labels from Labels model');
   }
 }

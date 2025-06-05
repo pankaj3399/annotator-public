@@ -386,3 +386,51 @@ export async function getJobById(jobId: string) {
     throw error;
   }
 }
+
+export async function getJobApplicationsByProject(projectId: string) {
+  try {
+    await connectToDatabase();
+
+    // Add validation for projectId
+    if (!projectId || !mongoose.Types.ObjectId.isValid(projectId)) {
+      console.error(`Invalid project ID: ${projectId}`);
+      return { success: false, error: "Invalid project ID" };
+    }
+
+    // First get all jobs for this project
+    const jobs = await JobPost.find({ projectId }).select('_id title status').lean();
+    
+    if (jobs.length === 0) {
+      return { success: true, data: [] }; // No jobs in this project
+    }
+
+    const jobIds = jobs.map(job => job._id);
+
+    // Then get all applications for those jobs
+    const applications = await JobApplication.find({
+      jobId: { $in: jobIds }
+    })
+      .populate("jobId", "title projectId status") // Include status for filtering
+      .populate("userId", "name email")
+      .sort({ appliedAt: -1 })
+      .lean();
+
+    // Group applications by job
+    const groupedApplications = applications.reduce((acc, application) => {
+      const jobId = application.jobId._id.toString();
+      if (!acc[jobId]) {
+        acc[jobId] = {
+          jobInfo: application.jobId,
+          applications: []
+        };
+      }
+      acc[jobId].applications.push(application);
+      return acc;
+    }, {});
+
+    return { success: true, data: groupedApplications };
+  } catch (error) {
+    console.error("Error fetching job applications by project:", error);
+    return { success: false, error: "Failed to fetch job applications" };
+  }
+}

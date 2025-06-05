@@ -12,8 +12,8 @@ import { TemplateCopier } from '@/components/template-copier';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import Loader from '@/components/ui/NewLoader/Loader';
-import { DataLoadingSpinner } from '@/components/ui/DataLoadingSpinner';
 import {
   Table,
   TableBody,
@@ -22,6 +22,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseISO } from 'date-fns';
 import {
@@ -37,25 +52,12 @@ import {
   X,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { usePathname, useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getAllAnnotators } from '@/app/actions/annotator';
 import { changeAnnotator } from '@/app/actions/task';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { getAIModels } from '@/app/actions/aiModel';
-import { Badge } from '@/components/ui/badge';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import ProjectLabelManager from '@/components/LabelManager';
+import { getAIModels } from '@/app/actions/aiModel';
 
 interface Model {
   _id: string;
@@ -82,6 +84,7 @@ export default function TemplatesByType() {
   const [templates, setTemplates] = useState<template[]>([]);
   const [project, setProject] = useState<Project>();
   const [newTemplateName, setNewTemplateName] = useState('');
+  // Removed newTemplateType state since type is determined by URL
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDialogOpen2, setIsDialogOpen2] = useState(false);
   const [template, setTemplate] = useState<template>();
@@ -91,6 +94,9 @@ export default function TemplatesByType() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const [isDataLoading, setIsDataLoading] = useState(true);
+  // NEW: Add state for create template dialog
+  const [createTemplateDialogOpen, setCreateTemplateDialogOpen] =
+    useState(false);
 
   // Fetch annotators and AI models
   useEffect(() => {
@@ -218,27 +224,43 @@ export default function TemplatesByType() {
     return <Loader />;
   }
 
-  const handleTemplateClick = (temp: template) => {
+  // Handle create tasks button click
+  const handleCreateTasks = (e: React.MouseEvent, temp: template) => {
+    e.stopPropagation();
     setTemplate(temp);
     setIsDialogOpen(true);
   };
 
+  // UPDATED: Handle create template with dialog (using templateType from URL)
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const defaultTemplate: CreateTemplateInput = {
       name: newTemplateName.trim(),
       project: projectId,
-      type: templateType, // Use the type from URL params
+      type: templateType, // Use templateType from URL params, not state
     };
-    const template: template = JSON.parse(
-      await upsertTemplate(
-        projectId as string,
-        defaultTemplate as template,
-        undefined,
-        true
-      )
-    );
-    router.push(`/template?Id=${template._id}`);
+
+    try {
+      const template: template = JSON.parse(
+        await upsertTemplate(
+          projectId as string,
+          defaultTemplate as template,
+          undefined,
+          true
+        )
+      );
+      setCreateTemplateDialogOpen(false); // Close the dialog
+      toast({
+        title: 'Template created successfully',
+      });
+      router.push(`/template?Id=${template._id}`);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Failed to create template',
+        description: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
   };
 
   const handleEditTemplate = (e: React.MouseEvent, _id: string) => {
@@ -291,11 +313,11 @@ export default function TemplatesByType() {
 
   // Show proper template type label in UI
   const typeDisplayMap = {
-    'test': 'Test Templates',
-    'training': 'Training Templates',
-    'core': 'Core Templates',
+    test: 'Test Templates',
+    training: 'Training Templates',
+    core: 'Core Templates',
   };
-  
+
   const templateTypeDisplay = typeDisplayMap[templateType] || 'Templates';
 
   return (
@@ -319,23 +341,12 @@ export default function TemplatesByType() {
       </header>
 
       <main className='max-w-7xl mx-auto sm:px-6 lg:px-8'>
-        {/* Create Template Form */}
-        <form
-          onSubmit={handleCreateTemplate}
-          className='flex mb-6 items-center space-x-4'
-        >
-          <Input
-            type='text'
-            required
-            placeholder={`New ${templateType} template name`}
-            value={newTemplateName}
-            onChange={(e) => setNewTemplateName(e.target.value)}
-            className='flex-grow w-9/12'
-          />
-          <Button type='submit'>
-            <PlusCircle className='mr-2 h-4 w-4' /> Create {templateType} Template
+        {/* UPDATED: Button aligned to right */}
+        <div className='mb-6 flex justify-end'>
+          <Button onClick={() => setCreateTemplateDialogOpen(true)}>
+            <PlusCircle className='mr-2 h-4 w-4' /> Create Template
           </Button>
-        </form>
+        </div>
 
         {/* Templates Table */}
         {templates.length === 0 && !isDataLoading ? (
@@ -356,24 +367,33 @@ export default function TemplatesByType() {
                   <TableRow>
                     <TableHead>Template Name</TableHead>
                     <TableHead>Created Date</TableHead>
+                    <TableHead>Create Tasks</TableHead>
                     <TableHead className='text-right'>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {templates.map((template) => (
-                    <TableRow
-                      key={template._id}
-                      onClick={() => handleTemplateClick(template)}
-                      className='cursor-pointer hover:bg-gray-50'
-                    >
+                    <TableRow key={template._id} className='hover:bg-gray-50'>
                       <TableCell className='font-medium'>
                         {template.name}
                       </TableCell>
                       <TableCell>
                         <div className='flex items-center text-sm text-gray-500'>
                           <CalendarIcon className='mr-2 h-4 w-4' />
-                          {template.created_at ? format(parseISO(template.created_at), 'PPP') : 'N/A'}
+                          {template.created_at
+                            ? format(parseISO(template.created_at), 'PPP')
+                            : 'N/A'}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant='default'
+                          size='sm'
+                          onClick={(e) => handleCreateTasks(e, template)}
+                          className='bg-black text-white'
+                        >
+                          Create {templateType} Tasks
+                        </Button>
                       </TableCell>
                       <TableCell className='text-right'>
                         <Button
@@ -417,7 +437,54 @@ export default function TemplatesByType() {
           )
         )}
 
-        {/* Dialogs */}
+        {/* NEW: Create Template Dialog */}
+        <Dialog
+          open={createTemplateDialogOpen}
+          onOpenChange={setCreateTemplateDialogOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New {templateType} Template</DialogTitle>
+              <DialogDescription>
+                Enter a name for your new {templateType} template.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleCreateTemplate}>
+              <div className='grid gap-4 py-4'>
+                <div className='grid grid-cols-4 items-center gap-4'>
+                  <Label htmlFor='templateName' className='text-right'>
+                    Name
+                  </Label>
+                  <Input
+                    id='templateName'
+                    type='text'
+                    placeholder={`Enter ${templateType} template name`}
+                    required
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    className='col-span-3'
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => {
+                    setCreateTemplateDialogOpen(false);
+                    setNewTemplateName(project?.name || ''); // Reset to project name
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type='submit'>Create Template</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Task Creation Dialog */}
         {project && template && (
           <TaskDialog
             onConfigure={fetchAIModels}
@@ -429,6 +496,7 @@ export default function TemplatesByType() {
             handleAssignUser={handleAssignUser}
           />
         )}
+        {/* Template Copy Dialog */}
         {project && template && (
           <TemplateCopier
             template={template}
@@ -442,7 +510,13 @@ export default function TemplatesByType() {
 }
 
 // Modified Suggestion component to filter by template type
-export function Suggesion({ projectId, templateType }: { projectId: string, templateType: string }) {
+export function Suggesion({
+  projectId,
+  templateType,
+}: {
+  projectId: string;
+  templateType: string;
+}) {
   const [templates, setTemplates] = useState<template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [end, setEnd] = useState(false);
