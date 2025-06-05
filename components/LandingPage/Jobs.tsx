@@ -1,238 +1,243 @@
-'use client'
-import { useState, useEffect } from "react";
-import { getJobPosts } from "@/app/actions/job";
-import MapComponent from "../JobMap";
-import { Search, X } from "lucide-react";
+'use client';
+import { useState, useEffect } from 'react';
+import { getJobPosts } from '@/app/actions/job';
+import MapComponent from '../JobMap';
+import { Search, X } from 'lucide-react';
 
 interface JobPost {
-    _id: string;
-    title: string;
-    content: string;
-    lat: string;
-    lng: string;
-    compensation: string;
-    location: string;
-    category?: string;
-    label:string[]
+  _id: string;
+  title: string;
+  content: string;
+  lat: string;
+  lng: string;
+  compensation: string;
+  location: string;
+  category?: string;
+  label: string[];
 }
 
 interface MarkerData {
-    id: string;
-    coordinates: [number, number];
+  id: string;
+  coordinates: [number, number];
 }
 
-const categories = [
-    'LLM BENCHMARK',
-    'TRANSLATION',
-    'MULTIMODALITY',
-    'ACCENTS',
-    'ENGLISH'
-];
-
 export default function InteractiveMap() {
-    const [posts, setPosts] = useState<JobPost[]>([]);
-    const [filteredPosts, setFilteredPosts] = useState<JobPost[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isSearchMode, setIsSearchMode] = useState(false);
-    const [searchValue, setSearchValue] = useState('');
-    const [activeCategory, setActiveCategory] = useState('');
-    const [mapCenter, setMapCenter] = useState<[number, number]>([37.7749, -122.4194]);
+  const [posts, setPosts] = useState<JobPost[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<JobPost[]>([]);
+  const [availableLabels, setAvailableLabels] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
+  const [activeCategory, setActiveCategory] = useState('');
+  const [mapCenter, setMapCenter] = useState<[number, number]>([
+    37.7749, -122.4194,
+  ]);
 
-    useEffect(() => {
-        const fetchPosts = async () => {
-            try {
-                const response = await getJobPosts({ limit: 200 });
-                const parsedResponse = JSON.parse(response);
-
-                if (!parsedResponse.success || !parsedResponse.data) {
-                    setError("Failed to load job posts");
-                } else {
-                    setPosts(parsedResponse.data.posts);
-                    setFilteredPosts(parsedResponse.data.posts);
-                    
-                    // Calculate new center after posts are loaded
-                    const jobCounts = parsedResponse.data.posts.reduce(
-                        (acc: Record<string, number>, post: JobPost) => {
-                            const key = `${post.lat},${post.lng}`;
-                            acc[key] = (acc[key] || 0) + 1;
-                            return acc;
-                        },
-                        {}
-                    );
-
-                    const maxLocation = Object.entries(jobCounts).reduce(
-                        (max, [coords, count]) => {
-                            return count > max.count ? { coords, count } : max;
-                        },
-                        { coords: "", count: 0 }
-                    );
-
-                    if (maxLocation.coords) {
-                        const [lat, lng] = maxLocation.coords.split(",").map(Number);
-                        setMapCenter([lat, lng]);
-                    }
-                }
-            } catch (err) {
-                console.log(err)
-                setError("Failed to load job posts");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchPosts();
-    }, []);
-
-    useEffect(() => {
-        filterPosts();
-    }, [searchValue, activeCategory, posts]);
-
-const filterPosts = () => {
-  console.log("--------- FILTERING STARTED ---------");
-  console.log("Active Category:", activeCategory);
-  console.log("Search Mode:", isSearchMode);
-  console.log("Search Value:", searchValue);
-  console.log("Total Posts Before Filtering:", posts.length);
-  
-  // Log a few examples to see what we're working with
-  if (posts.length > 0) {
-    console.log("Sample Post Label:", posts[0].label);
-    console.log("Sample Post Type:", Array.isArray(posts[0].label) ? "Array" : typeof posts[0].label);
-  }
-  
-  let filtered = [...posts];
-  
-  // Filter by category if activeCategory is set
-  if (activeCategory) {
-    console.log("Filtering by category:", activeCategory);
-    
-    filtered = filtered.filter((post) => {
-      // Ensure label is treated as an array (it should already be one)
-      const labels = Array.isArray(post.label) ? post.label : [];
-      
-      // Log some debugging info for a few posts
-      if (posts.indexOf(post) < 3) {
-        console.log(`Post ${post._id} Labels:`, labels);
+  // Extract unique labels from job posts
+  const extractLabelsFromJobs = (posts: JobPost[]) => {
+    const labelsSet = new Set<string>();
+    posts.forEach((post) => {
+      if (post.label && Array.isArray(post.label)) {
+        post.label.forEach((label) => {
+          if (label && label.trim()) {
+            labelsSet.add(label.trim());
+          }
+        });
       }
-      
-      // Simple string comparison - no need for complex parsing
-      const match = labels.some(label => 
-        label.toLowerCase() === activeCategory.toLowerCase()
-      );
-      
-      // Log the match result for a few posts
-      if (posts.indexOf(post) < 3) {
-        console.log(`Post ${post._id} matches ${activeCategory}:`, match);
-      }
-      
-      return match;
     });
-    
-    console.log("Posts after category filtering:", filtered.length);
-  }
-  
-  // Filter by search term if in search mode
-  if (isSearchMode && searchValue) {
-    console.log("Filtering by search term:", searchValue);
-    
-    const searchLower = searchValue.toLowerCase();
-    filtered = filtered.filter(
-      (post) => {
-        const matchesTitle = post.title.toLowerCase().includes(searchLower);
-        const matchesLocation = post.location.toLowerCase().includes(searchLower);
-        
-        // Log the match result for a few posts
-        if (posts.indexOf(post) < 3) {
-          console.log(`Post ${post._id} matches search "${searchValue}":`, matchesTitle || matchesLocation);
-        }
-        
-        return matchesTitle || matchesLocation;
-      }
-    );
-    
-    console.log("Posts after search filtering:", filtered.length);
-  }
-  
-  console.log("Final filtered posts count:", filtered.length);
-  console.log("--------- FILTERING ENDED ---------");
-  
-  setFilteredPosts(filtered);
-};
+    return Array.from(labelsSet).sort();
+  };
 
-    const handleCategoryClick = (category: string) => {
-        if (activeCategory === category) {
-            setActiveCategory('');
+  // Generate consistent colors for labels
+  const getLabelColor = (label: string) => {
+    const colors = [
+      'bg-yellow-100 text-yellow-800',
+      'bg-orange-100 text-orange-800',
+      'bg-cyan-100 text-cyan-800',
+      'bg-pink-100 text-pink-800',
+      'bg-indigo-100 text-indigo-800',
+      'bg-green-100 text-green-800',
+      'bg-purple-100 text-purple-800',
+      'bg-red-100 text-red-800',
+      'bg-blue-100 text-blue-800',
+      'bg-teal-100 text-teal-800',
+    ];
+
+    const hash = label.split('').reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const response = await getJobPosts({ limit: 200 });
+        const parsedResponse = JSON.parse(response);
+
+        if (!parsedResponse.success || !parsedResponse.data) {
+          setError('Failed to load job posts');
         } else {
-            setActiveCategory(category);
+          const fetchedPosts = parsedResponse.data.posts;
+          setPosts(fetchedPosts);
+          setFilteredPosts(fetchedPosts);
+
+          // Extract and set available labels from the fetched posts
+          const labels = extractLabelsFromJobs(fetchedPosts);
+          setAvailableLabels(labels);
+
+          // Calculate new center after posts are loaded
+          const jobCounts = fetchedPosts.reduce(
+            (acc: Record<string, number>, post: JobPost) => {
+              const key = `${post.lat},${post.lng}`;
+              acc[key] = (acc[key] || 0) + 1;
+              return acc;
+            },
+            {}
+          );
+
+          const maxLocation = Object.entries(jobCounts).reduce(
+            (max, [coords, count]) => {
+              return count > max.count ? { coords, count } : max;
+            },
+            { coords: '', count: 0 }
+          );
+
+          if (maxLocation.coords) {
+            const [lat, lng] = maxLocation.coords.split(',').map(Number);
+            setMapCenter([lat, lng]);
+          }
         }
+      } catch (err) {
+        console.log(err);
+        setError('Failed to load job posts');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleSearchToggle = () => {
-        setIsSearchMode(!isSearchMode);
-        if (isSearchMode) {
-            setSearchValue('');
-        }
-    };
+    fetchPosts();
+  }, []);
 
-    if (error) return <div className="text-center text-red-600">{error}</div>;
-    
-    const markers: MarkerData[] = filteredPosts
-        .map(post => {
-            const lat = parseFloat(post.lat);
-            const lng = parseFloat(post.lng);
+  useEffect(() => {
+    filterPosts();
+  }, [searchValue, activeCategory, posts]);
 
-            if (!isNaN(lat) && !isNaN(lng)) {
-                return { id: post._id, coordinates: [lat, lng] };
-            }
-            return null;
-        })
-        .filter((marker): marker is MarkerData => marker !== null);
+  const filterPosts = () => {
+    let filtered = [...posts];
 
-    return (
-        <div className="w-full mt-24 ">
-      <div className="container mx-auto px-4">
-                {/* Search Bar */}
-        <div className="mb-8 w-full max-w-3xl mx-auto">
+    // Filter by category if activeCategory is set
+    if (activeCategory) {
+      filtered = filtered.filter((post) => {
+        // Ensure label is treated as an array (it should already be one)
+        const labels = Array.isArray(post.label) ? post.label : [];
+
+        // Simple string comparison - no need for complex parsing
+        const match = labels.some(
+          (label) => label.toLowerCase() === activeCategory.toLowerCase()
+        );
+
+        return match;
+      });
+    }
+
+    // Filter by search term if in search mode
+    if (isSearchMode && searchValue) {
+      const searchLower = searchValue.toLowerCase();
+      filtered = filtered.filter((post) => {
+        const matchesTitle = post.title.toLowerCase().includes(searchLower);
+        const matchesLocation = post.location
+          .toLowerCase()
+          .includes(searchLower);
+
+        return matchesTitle || matchesLocation;
+      });
+    }
+
+    setFilteredPosts(filtered);
+  };
+
+  const handleCategoryClick = (category: string) => {
+    if (activeCategory === category) {
+      setActiveCategory('');
+    } else {
+      setActiveCategory(category);
+    }
+  };
+
+  const handleSearchToggle = () => {
+    setIsSearchMode(!isSearchMode);
+    if (isSearchMode) {
+      setSearchValue('');
+    }
+  };
+
+  if (error) return <div className='text-center text-red-600'>{error}</div>;
+
+  const markers: MarkerData[] = filteredPosts
+    .map((post) => {
+      const lat = parseFloat(post.lat);
+      const lng = parseFloat(post.lng);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        return { id: post._id, coordinates: [lat, lng] };
+      }
+      return null;
+    })
+    .filter((marker): marker is MarkerData => marker !== null);
+
+  return (
+    <div className='w-full mt-24 '>
+      <div className='container mx-auto px-4'>
+        {/* Search Bar */}
+        <div className='mb-8 w-full max-w-3xl mx-auto'>
           <div
             className={`
-            relative flex items-center rounded-full border border-gray-200 
-            transition-all duration-300 ease-in-out overflow-hidden
-            ${isSearchMode ? "bg-white shadow-lg" : "bg-transparent"}
-          `}
+                        relative flex items-center rounded-full border border-gray-200 
+                        transition-all duration-300 ease-in-out overflow-hidden
+                        ${isSearchMode ? 'bg-white shadow-lg' : 'bg-transparent'}
+                        `}
           >
             <div
               className={`
-              flex-1 flex items-center gap-2 px-4 h-12
-              transition-all duration-300 ease-in-out
-              ${isSearchMode ? "w-full" : "w-auto"}
-            `}
+                            flex-1 flex items-center gap-2 px-4 h-12
+                            transition-all duration-300 ease-in-out
+                            ${isSearchMode ? 'w-full' : 'w-auto'}
+                            `}
             >
               {!isSearchMode ? (
-                categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => handleCategoryClick(category)}
-                    className={`
-                      px-4 py-1 rounded-full text-sm font-medium 
-                      transition-all duration-200 whitespace-nowrap
-                      ${
-                        activeCategory === category
-                          ? "bg-black text-white"
-                          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                      }
-                    `}
-                  >
-                    {category}
-                  </button>
-                ))
+                availableLabels.length > 0 ? (
+                  availableLabels.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => handleCategoryClick(category)}
+                      className={`
+                                                px-4 py-1 rounded-full text-sm font-medium 
+                                                transition-all duration-200 whitespace-nowrap
+                                                ${
+                                                  activeCategory === category
+                                                    ? 'bg-black text-white'
+                                                    : `${getLabelColor(category).replace('100', '200')} hover:scale-105`
+                                                }
+                                            `}
+                    >
+                      {category}
+                    </button>
+                  ))
+                ) : (
+                  <div className='text-sm text-gray-500 py-2'>
+                    {loading ? 'Loading labels...' : 'No labels available'}
+                  </div>
+                )
               ) : (
                 <input
-                  type="text"
+                  type='text'
                   value={searchValue}
                   onChange={(e) => setSearchValue(e.target.value)}
-                  placeholder="Search jobs..."
-                  className="w-full bg-transparent outline-none text-gray-700"
+                  placeholder='Search jobs...'
+                  className='w-full bg-transparent outline-none text-gray-700'
                   autoFocus
                 />
               )}
@@ -241,23 +246,23 @@ const filterPosts = () => {
             <button
               onClick={handleSearchToggle}
               className={`
-                p-3 rounded-full transition-all duration-200
-                ${isSearchMode ? "hover:bg-gray-100" : "bg-[#ff395c] text-white hover:bg-gray-700"}
-              `}
+                                p-3 rounded-full transition-all duration-200
+                                ${isSearchMode ? 'hover:bg-gray-100' : 'bg-[#ff395c] text-white hover:bg-gray-700'}
+                            `}
             >
               {isSearchMode ? <X size={20} /> : <Search size={20} />}
             </button>
           </div>
         </div>
-            </div>
+      </div>
 
-            <div className="w-full flex-1">
-                <MapComponent 
-                    posts={filteredPosts} 
-                    markers={markers} 
-                    center={mapCenter}
-                />
-            </div>
-        </div>
-    );
+      <div className='w-full flex-1'>
+        <MapComponent
+          posts={filteredPosts}
+          markers={markers}
+          center={mapCenter}
+        />
+      </div>
+    </div>
+  );
 }

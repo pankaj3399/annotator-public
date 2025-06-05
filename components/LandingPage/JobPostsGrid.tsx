@@ -7,11 +7,10 @@ import Link from "next/link"
 import { CalendarIcon, MapPinIcon, DollarSignIcon, Search, X } from "lucide-react"
 import Loader from "@/components/ui/NewLoader/Loader"
 
-const categories = ["LLM BENCHMARK", "TRANSLATION", "MULTIMODALITY", "ACCENTS", "ENGLISH"]
-
 const JobPostsGrid = () => {
   const [jobPosts, setJobPosts] = useState<any[]>([])
   const [filteredPosts, setFilteredPosts] = useState<any[]>([])
+  const [availableLabels, setAvailableLabels] = useState<string[]>([])
   const [isSearchMode, setIsSearchMode] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [activeCategory, setActiveCategory] = useState("")
@@ -27,7 +26,22 @@ const JobPostsGrid = () => {
 
   useEffect(() => {
     filterPosts()
-  }, [searchValue, activeCategory]) // Updated dependency array
+  }, [searchValue, activeCategory])
+
+  // Extract unique labels from job posts
+  const extractLabelsFromJobs = (posts: any[]) => {
+    const labelsSet = new Set<string>()
+    posts.forEach(post => {
+      if (post.label && Array.isArray(post.label)) {
+        post.label.forEach((label: string) => {
+          if (label && label.trim()) {
+            labelsSet.add(label.trim())
+          }
+        })
+      }
+    })
+    return Array.from(labelsSet).sort()
+  }
 
   const fetchJobPosts = async (pageNumber = 1) => {
     try {
@@ -38,9 +52,16 @@ const JobPostsGrid = () => {
         if (pageNumber === 1) {
           setJobPosts(parsedResponse.data.posts)
           setFilteredPosts(parsedResponse.data.posts)
+          // Extract and set available labels from the fetched posts
+          const labels = extractLabelsFromJobs(parsedResponse.data.posts)
+          setAvailableLabels(labels)
         } else {
-          setJobPosts((prevPosts) => [...prevPosts, ...parsedResponse.data.posts])
-          setFilteredPosts((prevPosts) => [...prevPosts, ...parsedResponse.data.posts])
+          const updatedPosts = [...jobPosts, ...parsedResponse.data.posts]
+          setJobPosts(updatedPosts)
+          setFilteredPosts(updatedPosts)
+          // Update available labels with new posts
+          const labels = extractLabelsFromJobs(updatedPosts)
+          setAvailableLabels(labels)
         }
         setTotalPages(parsedResponse.data.pagination.totalPages)
         setHasMore(pageNumber < parsedResponse.data.pagination.totalPages)
@@ -51,33 +72,34 @@ const JobPostsGrid = () => {
       setIsLoading(false)
     }
   }
-const filterPosts = () => {
-  let filtered = [...jobPosts]; // or [...posts] for InteractiveMap
-  
-  // Filter by category if activeCategory is set
-  if (activeCategory) {
-    filtered = filtered.filter((post) => {
-      // Ensure label is treated as an array (it should already be one)
-      const labels = Array.isArray(post.label) ? post.label : [];
-      
-      // Simple string comparison - no need for complex parsing
-      return labels.some(label => 
-        label.toLowerCase() === activeCategory.toLowerCase()
-      );
-    });
+
+  const filterPosts = () => {
+    let filtered = [...jobPosts]
+    
+    // Filter by category if activeCategory is set
+    if (activeCategory) {
+      filtered = filtered.filter((post) => {
+        // Ensure label is treated as an array (it should already be one)
+        const labels = Array.isArray(post.label) ? post.label : []
+        
+        // Simple string comparison - no need for complex parsing
+        return labels.some(label => 
+          label.toLowerCase() === activeCategory.toLowerCase()
+        )
+      })
+    }
+    
+    // Filter by search term if in search mode
+    if (isSearchMode && searchValue) {
+      const searchLower = searchValue.toLowerCase()
+      filtered = filtered.filter(
+        (post) => post.title.toLowerCase().includes(searchLower) || 
+                  post.location.toLowerCase().includes(searchLower)
+      )
+    }
+    
+    setFilteredPosts(filtered)
   }
-  
-  // Filter by search term if in search mode
-  if (isSearchMode && searchValue) {
-    const searchLower = searchValue.toLowerCase();
-    filtered = filtered.filter(
-      (post) => post.title.toLowerCase().includes(searchLower) || 
-                post.location.toLowerCase().includes(searchLower)
-    );
-  }
-  
-  setFilteredPosts(filtered);
-};
   
   const handleCategoryClick = (category: string) => {
     if (activeCategory === category) {
@@ -100,6 +122,28 @@ const filterPosts = () => {
     fetchJobPosts(nextPage)
   }
 
+  // Generate consistent colors for labels
+  const getLabelColor = (label: string) => {
+    const colors = [
+      'bg-yellow-100 text-yellow-800',
+      'bg-orange-100 text-orange-800',
+      'bg-cyan-100 text-cyan-800',
+      'bg-pink-100 text-pink-800',
+      'bg-indigo-100 text-indigo-800',
+      'bg-green-100 text-green-800',
+      'bg-purple-100 text-purple-800',
+      'bg-red-100 text-red-800',
+      'bg-blue-100 text-blue-800',
+      'bg-teal-100 text-teal-800',
+    ]
+    
+    const hash = label.split('').reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc)
+    }, 0)
+    
+    return colors[Math.abs(hash) % colors.length]
+  }
+
   return (
     <div className="w-full mt-24 ">
       <div className="container mx-auto px-4">
@@ -120,23 +164,29 @@ const filterPosts = () => {
             `}
             >
               {!isSearchMode ? (
-                categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => handleCategoryClick(category)}
-                    className={`
-                      px-4 py-1 rounded-full text-sm font-medium 
-                      transition-all duration-200 whitespace-nowrap
-                      ${
-                        activeCategory === category
-                          ? "bg-black text-white"
-                          : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-                      }
-                    `}
-                  >
-                    {category}
-                  </button>
-                ))
+                availableLabels.length > 0 ? (
+                  availableLabels.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => handleCategoryClick(category)}
+                      className={`
+                        px-4 py-1 rounded-full text-sm font-medium 
+                        transition-all duration-200 whitespace-nowrap
+                        ${
+                          activeCategory === category
+                            ? "bg-black text-white"
+                            : `${getLabelColor(category).replace('100', '200')} hover:scale-105`
+                        }
+                      `}
+                    >
+                      {category}
+                    </button>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 py-2">
+                    {isLoading ? "Loading labels..." : "No labels available"}
+                  </div>
+                )
               ) : (
                 <input
                   type="text"
@@ -174,12 +224,12 @@ const filterPosts = () => {
             )}
 
             {/* Job Grid */}
- {/* Job Grid */}
-<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-  {filteredPosts.map((jobPost) => (
-    <JobCard key={jobPost._id} jobPost={jobPost} />
-  ))}
-</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {filteredPosts.map((jobPost) => (
+                <JobCard key={jobPost._id} jobPost={jobPost} />
+              ))}
+            </div>
+            
             {!isLoading && hasMore && (
               <div className="flex justify-center mt-8">
                 <Button onClick={handleLoadMore} className="bg-black text-white hover:bg-gray-800">
@@ -254,4 +304,3 @@ const JobCard = ({ jobPost }: { jobPost: any }) => {
 }
 
 export default JobPostsGrid
-

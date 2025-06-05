@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import React from "react";
-import { useEffect, useState } from "react";
+import React from 'react';
+import { useEffect, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -9,11 +9,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { getAllJobApplications } from "@/app/actions/job";
-import Link from "next/link";
+} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { ChevronDown, ChevronRight, Users } from 'lucide-react';
+import { getJobApplicationsByProject } from '@/app/actions/job';
 
 interface User {
   _id: string;
@@ -24,7 +29,8 @@ interface User {
 interface Job {
   _id: string;
   title: string;
-  status: "draft" | "published";
+  status: 'draft' | 'published';
+  projectId: string;
 }
 
 interface JobApplication {
@@ -35,95 +41,240 @@ interface JobApplication {
   appliedAt: string;
 }
 
-const JobApplicationsTable = () => {
-  const [applications, setApplications] = useState<any>([]);
+interface GroupedApplications {
+  [jobId: string]: {
+    jobInfo: Job;
+    applications: JobApplication[];
+  };
+}
+
+interface JobApplicationsTableProps {
+  projectId: string;
+}
+
+const JobApplicationsTable = ({ projectId }: JobApplicationsTableProps) => {
+  const [groupedApplications, setGroupedApplications] =
+    useState<GroupedApplications>({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedJobs, setExpandedJobs] = useState<Set<string>>(new Set());
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const response = await getAllJobApplications();
+      setError(null);
 
-      console.log(response);
+      const response = await getJobApplicationsByProject(projectId);
+
+      console.log('Applications response:', response);
 
       if (response.success) {
-        setApplications(response.data);
+        setGroupedApplications(response.data || {});
+        // Auto-expand jobs that have applications
+        const jobsWithApplications = Object.keys(response.data || {});
+        setExpandedJobs(new Set(jobsWithApplications));
+      } else {
+        setError(response.error || 'Failed to fetch applications');
       }
     } catch (error) {
-      console.error("Error fetching applications:", error);
+      console.error('Error fetching applications:', error);
+      setError('An unexpected error occurred while fetching applications');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchApplications();
-  }, []);
+    if (projectId) {
+      fetchApplications();
+    }
+  }, [projectId]);
+
+  const toggleJobExpansion = (jobId: string) => {
+    const newExpanded = new Set(expandedJobs);
+    if (newExpanded.has(jobId)) {
+      newExpanded.delete(jobId);
+    } else {
+      newExpanded.add(jobId);
+    }
+    setExpandedJobs(newExpanded);
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
     });
   };
 
+  const getTotalApplicationsCount = () => {
+    return Object.values(groupedApplications).reduce(
+      (total, job) => total + job.applications.length,
+      0
+    );
+  };
+
+  if (loading) {
+    return (
+      <Card className='w-full'>
+        <CardHeader>
+          <CardTitle>Job Applications for Project</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className='flex justify-center p-8'>
+            <div className='text-center'>
+              <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4'></div>
+              <p>Loading applications...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className='w-full'>
+        <CardHeader>
+          <CardTitle>Job Applications for Project</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className='flex justify-center p-8'>
+            <div className='text-center text-red-500'>
+              <p className='font-medium'>Error loading applications</p>
+              <p className='text-sm mt-1'>{error}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const jobsArray = Object.entries(groupedApplications);
+
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>Job Applications</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <div className="flex justify-center p-4">Loading...</div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Job Title</TableHead>
-                <TableHead>Project ID</TableHead>
-                <TableHead>Applicant</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Applied Date</TableHead>
-              </TableRow>
-            </TableHeader>
-          <TableBody>
-              {applications.map((application: any) => (
-                <TableRow key={application._id}>
-                  <TableCell className="font-medium">
-                    {application.jobId.title || "Empty"}
-                  </TableCell>
-                  <TableCell>
-                    {" "}
-                    <Link href={`/projects/${application.jobId.projectId}`} className=" text-blue-500 underline">
-                      {application.jobId.projectId || "Empty"}
-                    </Link>
-                  </TableCell>
-                  <TableCell>{application.userId.name || "Empty"}</TableCell>
-                  <TableCell>{application.userId.email || "Empty"}</TableCell>
-                  <TableCell>
-                    <Badge variant="default">
-                      {application.status || "Empty"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {formatDate(application.appliedAt) || "Empty"}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {applications.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-4">
-                    No applications found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <div className='w-full space-y-4'>
+      <Card>
+        <CardHeader>
+          <CardTitle className='flex items-center gap-2'>
+            <Users className='h-5 w-5' />
+            Job Applications Overview
+          </CardTitle>
+          <div className='text-sm text-muted-foreground'>
+            Total Applications: {getTotalApplicationsCount()} across{' '}
+            {jobsArray.length} job{jobsArray.length !== 1 ? 's' : ''}
+          </div>
+        </CardHeader>
+      </Card>
+
+      {jobsArray.length === 0 ? (
+        <Card>
+          <CardContent className='p-8'>
+            <div className='text-center'>
+              <Users className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
+              <h3 className='text-lg font-medium mb-2'>No Applications Yet</h3>
+              <p className='text-muted-foreground'>
+                No job applications have been received for this project yet.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        jobsArray.map(([jobId, jobData]) => (
+          <Card key={jobId} className='overflow-hidden'>
+            <Collapsible
+              open={expandedJobs.has(jobId)}
+              onOpenChange={() => toggleJobExpansion(jobId)}
+            >
+              <CollapsibleTrigger asChild>
+                <CardHeader className='cursor-pointer hover:bg-muted/50 transition-colors'>
+                  <div className='flex items-center justify-between'>
+                    <div className='flex items-center gap-3'>
+                      {expandedJobs.has(jobId) ? (
+                        <ChevronDown className='h-4 w-4' />
+                      ) : (
+                        <ChevronRight className='h-4 w-4' />
+                      )}
+                      <div>
+                        <CardTitle className='text-lg'>
+                          {jobData.jobInfo.title}
+                        </CardTitle>
+                        <div className='flex items-center gap-2 mt-1'>
+                          <Badge
+                            variant={
+                              jobData.jobInfo.status === 'published'
+                                ? 'default'
+                                : 'secondary'
+                            }
+                            className='text-xs'
+                          >
+                            {jobData.jobInfo.status}
+                          </Badge>
+                          <span className='text-sm text-muted-foreground'>
+                            {jobData.applications.length} application
+                            {jobData.applications.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <CardContent className='pt-0'>
+                  {jobData.applications.length === 0 ? (
+                    <div className='text-center py-8 text-muted-foreground'>
+                      <Users className='h-8 w-8 mx-auto mb-2 opacity-50' />
+                      <p>No applications for this job yet</p>
+                    </div>
+                  ) : (
+                    <div className='border rounded-lg overflow-hidden'>
+                      <Table>
+                        <TableHeader>
+                          <TableRow className='bg-muted/30'>
+                            <TableHead>Applicant</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Applied Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {jobData.applications.map((application) => (
+                            <TableRow
+                              key={application._id}
+                              className='hover:bg-muted/20'
+                            >
+                              <TableCell className='font-medium'>
+                                {application.userId?.name || 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                {application.userId?.email || 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant='outline' className='text-xs'>
+                                  {application.status || 'pending'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className='text-muted-foreground'>
+                                {application.appliedAt
+                                  ? formatDate(application.appliedAt)
+                                  : 'N/A'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
+        ))
+      )}
+    </div>
   );
 };
 
