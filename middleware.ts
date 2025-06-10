@@ -14,7 +14,6 @@ function addSecurityHeaders(response: NextResponse): void {
 
   // Now set our own headers
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'no-referrer');
 
