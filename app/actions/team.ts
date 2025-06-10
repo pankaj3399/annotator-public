@@ -8,6 +8,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 interface TeamData {
   name: string;
   description?: string;
+  logo?: string;
   members?: string[];
   createdBy: string;
 }
@@ -38,9 +39,46 @@ export async function createTeam(teamData: TeamData) {
     const newTeam = await Team.create(teamData);
     revalidatePath('/admin/teams');
     revalidateTag('teams');
-     return JSON.parse(JSON.stringify(newTeam));
+    return JSON.parse(JSON.stringify(newTeam));
   } catch (error) {
     console.error("Error creating team:", error);
     throw new Error('Error creating team');
+  }
+}
+
+// Action to update team logo
+export async function updateTeamLogo(teamId: string, logoUrl: string) {
+  try {
+    console.log('updateTeamLogo called with:', { teamId, logoUrl });
+
+    await connectToDatabase();
+    console.log('Database connected');
+
+    const updatedTeam = await Team.findByIdAndUpdate(
+      teamId,
+      { logo: logoUrl },
+      { new: true }
+    ).populate({
+      path: 'createdBy',
+      model: User,
+      select: 'name email'
+    });
+
+    console.log('Team updated in database:', updatedTeam);
+
+    if (!updatedTeam) {
+      throw new Error('Team not found');
+    }
+
+    revalidatePath('/admin/teams');
+    revalidateTag('teams');
+
+    const result = JSON.parse(JSON.stringify(updatedTeam));
+    console.log('Returning updated team:', result);
+
+    return result;
+  } catch (error) {
+    console.error("Error updating team logo:", error);
+    throw new Error(`Error updating team logo`);
   }
 }

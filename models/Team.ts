@@ -11,6 +11,10 @@ const teamSchema = new Schema(
       type: String,
       default: null,
     },
+    logo: {
+      type: String,
+      default: null,
+    },
     members: [
       {
         type: mongoose.Schema.Types.ObjectId,
