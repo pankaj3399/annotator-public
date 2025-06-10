@@ -31,21 +31,6 @@ projectSchema.index({ project_Manager: 1 }); // Find projects by manager
 projectSchema.index({ name: 1 }); // Search projects by name
 projectSchema.index({ project_Manager: 1, _id: 1 }); // Manager's specific project
 projectSchema.index({ created_at: -1 }); // Sort by creation date (newest first)
-projectSchema.index({ templates: 1 }); // Find projects by template ID
-projectSchema.index({ trainings: 1 }); // Find projects by training ID
-projectSchema.index({ labels: 1 }); // Find projects by labels
-projectSchema.index({ earnings_per_task: 1 }); // Filter by earnings range
-
-// === COMPOUND INDEXES FOR COMMON QUERY COMBINATIONS ===
-projectSchema.index({ project_Manager: 1, created_at: -1 }); // Manager's projects sorted by date
-projectSchema.index({ project_Manager: 1, name: 1 }); // Manager's projects by name
-projectSchema.index({ labels: 1, created_at: -1 }); // Projects by label, sorted by date
-projectSchema.index({ earnings_per_task: 1, created_at: -1 }); // Projects by earnings, sorted by date
-projectSchema.index({ project_Manager: 1, labels: 1 }); // Manager's projects by label
-projectSchema.index({ project_Manager: 1, earnings_per_task: 1 }); // Manager's projects by earnings
-
-// === TEXT INDEX FOR NAME SEARCH ===
-projectSchema.index({ name: 'text' }); // Text search on project names
 
 projectSchema.pre('findOneAndDelete', async function (next) {
   const projectId = this.getFilter()._id

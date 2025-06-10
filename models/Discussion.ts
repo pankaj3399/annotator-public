@@ -68,32 +68,6 @@ const discussionSchema = new Schema({
   }
 });
 
-// === OPTIMIZED INDEXES FOR DISCUSSION QUERIES ===
-discussionSchema.index({ project: 1, created_at: -1 }); // Existing: Project discussions sorted by date
-discussionSchema.index({ author: 1 }); // Find discussions by author
-discussionSchema.index({ visibility: 1 }); // Filter by visibility level
-discussionSchema.index({ tags: 1 }); // Find discussions by tags
-discussionSchema.index({ likes: 1 }); // Find discussions liked by user
-discussionSchema.index({ created_at: -1 }); // Sort all discussions by date
-discussionSchema.index({ updated_at: -1 }); // Sort by last updated
-
-// === COMPOUND INDEXES FOR COMMON QUERY COMBINATIONS ===
-discussionSchema.index({ project: 1, visibility: 1 }); // Project discussions by visibility
-discussionSchema.index({ project: 1, author: 1 }); // Project discussions by author
-discussionSchema.index({ project: 1, tags: 1 }); // Project discussions by tags
-discussionSchema.index({ author: 1, created_at: -1 }); // Author's discussions sorted by date
-discussionSchema.index({ visibility: 1, created_at: -1 }); // Discussions by visibility, sorted by date
-discussionSchema.index({ tags: 1, created_at: -1 }); // Discussions by tags, sorted by date
-discussionSchema.index({ project: 1, visibility: 1, created_at: -1 }); // Project discussions by visibility, sorted
-discussionSchema.index({ project: 1, tags: 1, created_at: -1 }); // Project discussions by tags, sorted
-
-// === TEXT INDEXES FOR SEARCH ===
-discussionSchema.index({ title: 'text', content: 'text' }); // Text search on title and content
-
-// === INDEXES FOR EMBEDDED COMMENTS ===
-discussionSchema.index({ 'comments.author': 1 }); // Find discussions with comments by specific user
-discussionSchema.index({ 'comments.created_at': -1 }); // Sort by comment dates
-
 // Virtual to get comment count
 discussionSchema.virtual('commentCount').get(function() {
   return this.comments.length;
