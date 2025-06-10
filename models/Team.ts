@@ -43,6 +43,10 @@ const teamSchema = new Schema(
   }
 );
 
+// === OPTIMIZED INDEXES BASED ON SERVER FILE USAGE ===
+teamSchema.index({ name: 1 }); // For unique constraint
+teamSchema.index({ _id: 1 }); // For findByIdAndUpdate operations (MongoDB default, but explicit)
+
 teamSchema.pre("save", function (next) {
   this.updated_at = new Date();
   next();

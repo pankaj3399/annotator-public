@@ -1,4 +1,3 @@
-// Template.ts
 import { Schema, model, models } from 'mongoose';
 
 const templateSchema = new Schema({
@@ -13,9 +12,8 @@ const templateSchema = new Schema({
     groundTruthTask: { type: Schema.Types.ObjectId, ref: 'Task', required: false },
 });
 
-// === OPTIMIZED INDEXES FOR TEMPLATE QUERIES ===
-templateSchema.index({ project: 1 }); // Find templates by project
-templateSchema.index({ type: 1 }); // Filter by template type
-templateSchema.index({ private: 1 }); // Filter by private/public status
+// === OPTIMIZED INDEXES BASED ON SERVER FILE USAGE ===
+templateSchema.index({ _id: 1 }); // For findById and findOneAndUpdate by _id (MongoDB default, but explicit)
+templateSchema.index({ project: 1 }); // For Template.findOne({ project: projectid }) in getATemplate
 
 export const Template = models?.Template || model('Template', templateSchema);

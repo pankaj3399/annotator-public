@@ -53,8 +53,8 @@ const participantSchema = new Schema<IParticipant>({
 const webinarSessionSchema = new Schema<IWebinarSession>({
   title: { type: String, required: true },
   description: { type: String, default: "" },
-  roomId: { type: String, default: null, index: true }, // Index for faster webhook lookup
-  sessionId: { type: String, default: null, index: true },
+  roomId: { type: String, default: null },
+  sessionId: { type: String, default: null },
   scheduledAt: { type: Date, default: null },
   duration: { type: Number, default: 60 },
   status: {
@@ -72,18 +72,21 @@ const trainingSchema = new Schema<ITraining>(
     description: { type: String, default: "" },
     project: {
         type: Schema.Types.ObjectId,
-        ref: "Project", // *** Adjust ref name if your Project model is different ***
+        ref: "Project",
         required: true,
-        index: true
     },
     webinars: [webinarSessionSchema], // Embed webinar sessions
     isActive: { type: Boolean, default: true },
-    invitedAnnotators: [{ type: Schema.Types.ObjectId, ref: 'User' }], // *** ADDED FIELD ***
+    invitedAnnotators: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   {
     timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
   }
 );
+
+// === OPTIMIZED INDEXES BASED ON SERVER FILE USAGE ===
+trainingSchema.index({ _id: 1 }); // For findById and updateOne by _id operations (MongoDB default, but explicit)
+trainingSchema.index({ project: 1 }); // For queries filtering by project when doing revalidation path lookups
 
 // Export the model, ensuring it's not re-declared during hot-reloading
 export const Training = models?.Training || model<ITraining>("Training", trainingSchema);
