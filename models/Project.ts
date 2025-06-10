@@ -12,12 +12,12 @@ const projectSchema = new Schema({
   templates: [{ type: Schema.Types.ObjectId, ref: 'Template' }],
   labels: { type: [String], default: [] },
   trainings: [{ type: Schema.Types.ObjectId, ref: 'Training' }],
-  earnings_per_task: { 
-    type: Number, 
+  earnings_per_task: {
+    type: Number,
     default: 0,
     min: 0,
     validate: {
-      validator: function(value: number) {
+      validator: function (value: number) {
         // Ensures value is not negative and has at most 2 decimal places
         return value >= 0 && /^\d+(\.\d{1,2})?$/.test(value.toString());
       },
@@ -26,11 +26,26 @@ const projectSchema = new Schema({
   }
 });
 
-// === INDEXES FOR PROJECT QUERIES ===
-projectSchema.index({ project_Manager: 1 });
-projectSchema.index({ name: 1 });
-projectSchema.index({ project_Manager: 1, _id: 1 });
-projectSchema.index({ created_at: -1 }); // For sorting by creation date
+// === OPTIMIZED INDEXES FOR PROJECT QUERIES ===
+projectSchema.index({ project_Manager: 1 }); // Find projects by manager
+projectSchema.index({ name: 1 }); // Search projects by name
+projectSchema.index({ project_Manager: 1, _id: 1 }); // Manager's specific project
+projectSchema.index({ created_at: -1 }); // Sort by creation date (newest first)
+projectSchema.index({ templates: 1 }); // Find projects by template ID
+projectSchema.index({ trainings: 1 }); // Find projects by training ID
+projectSchema.index({ labels: 1 }); // Find projects by labels
+projectSchema.index({ earnings_per_task: 1 }); // Filter by earnings range
+
+// === COMPOUND INDEXES FOR COMMON QUERY COMBINATIONS ===
+projectSchema.index({ project_Manager: 1, created_at: -1 }); // Manager's projects sorted by date
+projectSchema.index({ project_Manager: 1, name: 1 }); // Manager's projects by name
+projectSchema.index({ labels: 1, created_at: -1 }); // Projects by label, sorted by date
+projectSchema.index({ earnings_per_task: 1, created_at: -1 }); // Projects by earnings, sorted by date
+projectSchema.index({ project_Manager: 1, labels: 1 }); // Manager's projects by label
+projectSchema.index({ project_Manager: 1, earnings_per_task: 1 }); // Manager's projects by earnings
+
+// === TEXT INDEX FOR NAME SEARCH ===
+projectSchema.index({ name: 'text' }); // Text search on project names
 
 projectSchema.pre('findOneAndDelete', async function (next) {
   const projectId = this.getFilter()._id
@@ -41,7 +56,7 @@ projectSchema.pre('findOneAndDelete', async function (next) {
   try {
     // Delete all associated templates
     await Template.deleteMany({ project: projectId });
-    
+
     // Delete associated tasks 
     await Task.deleteMany({ project: projectId });
 
@@ -50,7 +65,7 @@ projectSchema.pre('findOneAndDelete', async function (next) {
 
     // Delete associated guidelines
     await Guideline.deleteOne({ project: projectId });
-    
+
     next();
   } catch (error) {
     console.error('Error deleting project:', error);

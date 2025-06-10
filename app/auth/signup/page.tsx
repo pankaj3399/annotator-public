@@ -61,6 +61,7 @@ interface Team {
   _id: string;
   name: string;
   description: string | null;
+  logo: string | null;
 }
 
 type Step = 'role' | 'invitation' | 'details';
@@ -69,6 +70,17 @@ type UserRole =
   | 'project manager'
   | 'agency owner'
   | 'data scientist';
+
+// Custom Team Select Component with Logo Support
+interface TeamSelectProps {
+  teams: Team[];
+  value: string;
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+}
+
+// Removed the TeamSelect component since we're using inline Select now
 
 // This internal component uses searchParams
 function AuthPageContent() {
@@ -152,12 +164,6 @@ function AuthPageContent() {
   const locationOptions: Option[] = locations.map((location) => ({
     value: location.toLowerCase(),
     label: location,
-  }));
-
-  // Create team options for select dropdown
-  const teamOptions: Option[] = teams.map((team) => ({
-    value: team._id,
-    label: team.name,
   }));
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -767,158 +773,189 @@ function AuthPageContent() {
 
           <form
             onSubmit={handleSubmit}
-            className={`grid ${
-              formData.role === 'annotator' ||
-              formData.role === 'agency owner' ||
-              formData.role === 'data scientist'
-                ? 'grid-cols-2'
-                : 'grid-cols-1'
-            } gap-6`}
+            className="space-y-6"
           >
-            <div className='space-y-2'>
-              <Label htmlFor='name'>Name</Label>
-              <Input
-                id='name'
-                type='text'
-                value={formData.name}
-                onChange={handleChange}
-                placeholder='Enter your name'
-                required
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='email'>Email</Label>
-              <Input
-                id='email'
-                type='email'
-                value={formData.email}
-                onChange={handleChange}
-                placeholder='Enter your email'
-                required
-                disabled={
-                  formData.role === 'project manager' &&
-                  invitationMode === 'request' &&
-                  isRequestSubmitted
-                }
-              />
-            </div>
-            <div className='space-y-2'>
-              <Label htmlFor='password'>Password</Label>
-              <Input
-                id='password'
-                type='password'
-                value={formData.password}
-                minLength={6}
-                onChange={handleChange}
-                placeholder='Enter your password'
-                required
-              />
-            </div>
-
-            {/* Team Selection - Added for all users */}
-            <div className='space-y-2'>
-              <Label htmlFor='team' className='flex items-center'>
-                Select Team
-                {isTeamSelectionDisabled && (
-                  <Lock className='ml-2 h-4 w-4 text-gray-400' />
-                )}
-              </Label>
-              <Select
-                value={formData.team_id}
-                onValueChange={handleTeamSelection}
-                disabled={isTeamSelectionDisabled}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder='Select a team' />
-                </SelectTrigger>
-                <SelectContent>
-                  {teams.map((team) => (
-                    <SelectItem key={team._id} value={team._id}>
-                      <div className='flex items-center'>
-                        <Users className='mr-2 h-4 w-4' />
-                        {team.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Phone field - For annotators, agency owners and data scientists */}
-            {(formData.role === 'annotator' ||
-              formData.role === 'agency owner' ||
-              formData.role === 'data scientist') && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className='space-y-2'>
-                <Label htmlFor='phone'>Phone number</Label>
+                <Label htmlFor='name'>Name</Label>
                 <Input
-                  id='phone'
-                  type='tel'
-                  value={formData.phone}
+                  id='name'
+                  type='text'
+                  value={formData.name}
                   onChange={handleChange}
-                  placeholder='Enter your phone number'
+                  placeholder='Enter your name'
                   required
                 />
               </div>
-            )}
-
-            {/* Location/Country field - For annotators, agency owners and data scientists */}
-            {(formData.role === 'annotator' ||
-              formData.role === 'agency owner' ||
-              formData.role === 'data scientist') && (
+              
               <div className='space-y-2'>
-                <Label htmlFor='location'>Country</Label>
-                <Combobox
-                  options={locationOptions}
-                  value={formData.location}
-                  onChange={(value) =>
-                    setFormData({ ...formData, location: value })
+                <Label htmlFor='email'>Email</Label>
+                <Input
+                  id='email'
+                  type='email'
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder='Enter your email'
+                  required
+                  disabled={
+                    formData.role === 'project manager' &&
+                    invitationMode === 'request' &&
+                    isRequestSubmitted
                   }
-                  placeholder='Select country'
                 />
               </div>
-            )}
+              
+              <div className='space-y-2'>
+                <Label htmlFor='password'>Password</Label>
+                <Input
+                  id='password'
+                  type='password'
+                  value={formData.password}
+                  minLength={6}
+                  onChange={handleChange}
+                  placeholder='Enter your password'
+                  required
+                />
+              </div>
 
-            {/* Fields specific to annotators and agency owners only */}
-            {(formData.role === 'annotator' ||
-              formData.role === 'agency owner') && (
-              <>
+              {/* Team Selection */}
+              <div className='space-y-2'>
+                <Label htmlFor='team flex flex-col items-center'>
+                  Select Team
+
+                </Label>
+                <Select
+                  value={formData.team_id}
+                  onValueChange={handleTeamSelection}
+                  disabled={isTeamSelectionDisabled}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a team">
+                      {(() => {
+                        const selectedTeam = teams.find(team => team._id === formData.team_id);
+                        if (selectedTeam) {
+                          return (
+                            <div className="flex items-center gap-2">
+                              {selectedTeam.logo ? (
+                                <img
+                                  src={selectedTeam.logo}
+                                  alt={`${selectedTeam.name} logo`}
+                                  className="w-6 h-6 rounded-full object-cover flex-shrink-0"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const fallback = target.nextElementSibling as HTMLElement;
+                                    if (fallback) fallback.style.display = 'inline-block';
+                                  }}
+                                />
+                              ) : null}
+                              <Users 
+                                className={`w-4 h-4 flex-shrink-0 ${selectedTeam.logo ? 'hidden' : 'inline-block'}`} 
+                              />
+                              <span className="truncate">{selectedTeam.name}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {teams.map((team) => (
+                      <SelectItem key={team._id} value={team._id}>
+                        <div className="flex items-center gap-2">
+                          {team.logo ? (
+                            <img
+                              src={team.logo}
+                              alt={`${team.name} logo`}
+                              className="w-4 h-4 rounded-full object-cover flex-shrink-0"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallback = target.nextElementSibling as HTMLElement;
+                                if (fallback) fallback.style.display = 'inline-block';
+                              }}
+                            />
+                          ) : null}
+                          <Users 
+                            className={`w-4 h-4 flex-shrink-0 ${team.logo ? 'hidden' : 'inline-block'}`} 
+                          />
+                          <span>{team.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Phone field - For annotators, agency owners and data scientists */}
+              {(formData.role === 'annotator' ||
+                formData.role === 'agency owner' ||
+                formData.role === 'data scientist') && (
                 <div className='space-y-2'>
-                  <Label htmlFor='domain'>Domain</Label>
-                  <MultiCombobox
-                    options={domainOptions}
-                    value={formData.domain}
-                    onChange={(value) =>
-                      setFormData({ ...formData, domain: value })
-                    }
-                    placeholder='Select domain'
-                    allowCustom={true}
+                  <Label htmlFor='phone'>Phone number</Label>
+                  <Input
+                    id='phone'
+                    type='tel'
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder='Enter your phone number'
+                    required
                   />
                 </div>
+              )}
+
+              {/* Location/Country field - For annotators, agency owners and data scientists */}
+              {(formData.role === 'annotator' ||
+                formData.role === 'agency owner' ||
+                formData.role === 'data scientist') && (
                 <div className='space-y-2'>
-                  <Label htmlFor='lang'>Language</Label>
-                  <MultiCombobox
-                    options={languageOptions}
-                    value={formData.lang}
+                  <Label htmlFor='location'>Country</Label>
+                  <Combobox
+                    options={locationOptions}
+                    value={formData.location}
                     onChange={(value) =>
-                      setFormData({ ...formData, lang: value })
+                      setFormData({ ...formData, location: value })
                     }
-                    placeholder='Select language'
+                    placeholder='Select country'
                   />
                 </div>
-              </>
-            )}
+              )}
+
+              {/* Fields specific to annotators and agency owners only */}
+              {(formData.role === 'annotator' ||
+                formData.role === 'agency owner') && (
+                <>
+                  <div className='space-y-2'>
+                    <Label htmlFor='domain'>Domain</Label>
+                    <MultiCombobox
+                      options={domainOptions}
+                      value={formData.domain}
+                      onChange={(value) =>
+                        setFormData({ ...formData, domain: value })
+                      }
+                      placeholder='Select domain'
+                      allowCustom={true}
+                    />
+                  </div>
+                  <div className='space-y-2'>
+                    <Label htmlFor='lang'>Language</Label>
+                    <MultiCombobox
+                      options={languageOptions}
+                      value={formData.lang}
+                      onChange={(value) =>
+                        setFormData({ ...formData, lang: value })
+                      }
+                      placeholder='Select language'
+                    />
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* Terms and conditions and Submit button */}
-            <div
-              className={
-                formData.role === 'annotator' ||
-                formData.role === 'agency owner' ||
-                formData.role === 'data scientist'
-                  ? 'col-span-2'
-                  : ''
-              }
-            >
-              <div className='flex items-center space-x-2 mb-4'>
+            <div className="space-y-4">
+              <div className='flex items-center space-x-2'>
                 <Checkbox
                   id='terms'
                   checked={formData.termsAccepted}

@@ -1,138 +1,31 @@
-// User.ts - Minimal version
-import { SUPPORTED_COUNTRIES, SUPPORTED_CURRENCIES } from "@/lib/constants";
 import mongoose, { Schema, model, models } from "mongoose";
 
-
-
-
-const userSchema = new Schema(
+const teamSchema = new Schema(
   {
     name: {
       type: String,
       required: true,
-    },
-    email: {
-      type: String,
-      required: true,
       unique: true,
     },
-    password: {
-      type: String,
-      required: true,
-    },
-    domain: [
-      {
-        type: String,
-        default: [],
-      },
-    ],
-    location: {
+    description: {
       type: String,
       default: null,
     },
-    phone: {
+    logo: {
       type: String,
       default: null,
     },
-    isReadyToWork: {
-      type: Boolean,
-      default: false,
-    },
-    lang: [
-      {
-        type: String,
-        default: [],
-      },
-    ],
-    role: {
-      type: String,
-      enum: ["project manager", "annotator", "system admin", "agency owner", "data scientist"],
-      required: true,
-    },
-    invitation: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Invitation",
-      default: null,
-    },
-    enrolledCourses: [
+    members: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "EnrolledCourse",
-      },
+        ref: "User",
+      }
     ],
-    linkedin: {
-      type: String,
-      default: null,
-    },
-    resume: {
-      type: String,
-      default: null,
-    },
-    nda: {
-      type: String,
-      default: null,
-    },
-    team_id: {
+    createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Team",
-      default: null,
+      ref: "User",
+      required: true,
     },
-    permission: {
-      type: [String],
-      enum: ["canReview"],
-      default: [],
-    },
-    lastLogin: {
-      type: Date,
-      default: Date.now,
-    },
-    customFields: {
-      type: Map,
-      of: Schema.Types.Mixed,
-      default: {},
-    },
-    
-    // === ESSENTIAL STRIPE CONNECT FIELDS ===
-    stripeAccountId: {
-      type: String,
-      default: null,
-      index: true,
-    },
-    stripeAccountStatus: {
-      type: String,
-      enum: ['pending', 'active', 'rejected', 'incomplete'],
-      default: null,
-    },
-    stripeAccountCountry: {
-      type: String,
-      enum: SUPPORTED_COUNTRIES,
-      default: null,
-      uppercase: true,
-    },
-    stripeOnboardingComplete: {
-      type: Boolean,
-      default: false,
-    },
-    
-    // === OPTIONAL: For currency preferences ===
-    preferredCurrency: {
-      type: String,
-      enum: SUPPORTED_CURRENCIES,
-      default: 'usd',
-      lowercase: true,
-    },
-    
-    // === STRIPE CUSTOMER FIELDS (for project managers) ===
-    stripeCustomerId: {
-      type: String,
-      default: null,
-      index: true,
-    },
-    defaultPaymentMethod: {
-      type: String,
-      default: null,
-    },
-    
     created_at: {
       type: Date,
       default: Date.now,
@@ -147,21 +40,20 @@ const userSchema = new Schema(
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
-    minimize: false,
   }
 );
 
-// === ESSENTIAL INDEXES ===
-userSchema.index({ role: 1 });
-userSchema.index({ team_id: 1 });
-userSchema.index({ lastLogin: -1 });
-userSchema.index({ created_at: -1 });
-userSchema.index({ stripeAccountStatus: 1 });
-userSchema.index({ stripeAccountCountry: 1 });
+// Indexes for performance optimization
+teamSchema.index({ name: 1 }); // Single field index for unique constraint and searches
+teamSchema.index({ createdBy: 1 }); // Index for queries filtering by creator
+teamSchema.index({ members: 1 }); // Index for member lookups
+teamSchema.index({ created_at: -1 }); // Index for sorting by creation date (newest first)
+teamSchema.index({ createdBy: 1, created_at: -1 }); // Compound index for creator's teams sorted by date
+teamSchema.index({ members: 1, created_at: -1 }); // Compound index for member's teams sorted by date
 
-userSchema.pre("save", function (next) {
+teamSchema.pre("save", function (next) {
   this.updated_at = new Date();
   next();
 });
 
-export const User = models?.User || model("User", userSchema);
+export const Team = models?.Team || model("Team", teamSchema);

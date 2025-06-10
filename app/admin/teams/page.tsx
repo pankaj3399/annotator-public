@@ -1,20 +1,21 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Users } from 'lucide-react';
+import { PlusCircle, Users, Upload, X, Image } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
-import { createTeam, getTeams } from '@/app/actions/team';
+import { createTeam, getTeams, updateTeamLogo } from '@/app/actions/team';
 
 interface Team {
   _id: string;
   name: string;
   description: string | null;
+  logo: string | null;
   members: string[];
   createdBy: {
     _id: string;
@@ -29,11 +30,15 @@ const TeamsPage = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
   });
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -62,6 +67,75 @@ const TeamsPage = () => {
     }));
   };
 
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+
+      // Validate file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+
+      setLogoFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setLogoPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadLogo = async (teamId: string): Promise<string | null> => {
+    if (!logoFile) return null;
+
+    try {
+      // Get signed URL for upload
+      const response = await fetch('/api/teamLogos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: logoFile.name,
+          contentType: logoFile.type,
+          teamId: teamId,
+        }),
+      });
+
+      const { uploadUrl, publicUrl } = await response.json();
+
+      if (!response.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      // Upload file to S3
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: logoFile,
+        headers: {
+          'Content-Type': logoFile.type,
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload logo');
+      }
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -82,7 +156,28 @@ const TeamsPage = () => {
         members: [session.user.id],
       };
 
-      await createTeam(teamData);
+      // Create team first
+      const newTeam = await createTeam(teamData);
+
+      // Upload logo if provided
+      if (logoFile) {
+        try {
+          console.log('Uploading logo for new team:', newTeam._id);
+          const logoUrl = await uploadLogo(newTeam._id);
+          console.log('Logo uploaded to S3:', logoUrl);
+
+          if (logoUrl) {
+            console.log('Updating team logo in database');
+            await updateTeamLogo(newTeam._id, logoUrl);
+            console.log('Team logo updated in database');
+          } else {
+            throw new Error('No logo URL returned from upload');
+          }
+        } catch (error) {
+          console.error('Error uploading logo:', error);
+          toast.error('Team created but logo upload failed');
+        }
+      }
 
       // Refresh the teams list
       const updatedTeams = await getTeams();
@@ -90,10 +185,80 @@ const TeamsPage = () => {
 
       setIsModalOpen(false);
       setFormData({ name: '', description: '' });
+      setLogoPreview(null);
+      setLogoFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       toast.success('Team created successfully!');
     } catch (error) {
       console.error('Error creating team:', error);
       toast.error('Failed to create team');
+    }
+  };
+
+  const handleLogoUpload = async (teamId: string, file: File) => {
+    setUploadingLogo(teamId);
+    try {
+      // Store the current logoFile temporarily
+      const originalLogoFile = logoFile;
+      setLogoFile(file);
+
+      const logoUrl = await uploadLogo(teamId);
+      console.log('Logo uploaded to S3:', logoUrl);
+
+      if (logoUrl) {
+        console.log('Updating team logo in database for team:', teamId);
+        const updatedTeam = await updateTeamLogo(teamId, logoUrl);
+        console.log('Team updated:', updatedTeam);
+
+        // Refresh teams to show new logo
+        const updatedTeams = await getTeams();
+        setTeams(updatedTeams);
+        toast.success('Logo uploaded successfully!');
+      } else {
+        throw new Error('No logo URL returned from upload');
+      }
+
+      // Restore original logoFile
+      setLogoFile(originalLogoFile);
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error('Failed to upload logo');
+    } finally {
+      setUploadingLogo(null);
+    }
+  };
+
+  const triggerLogoUpload = (teamId: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        // Validate file
+        if (!file.type.startsWith('image/')) {
+          toast.error('Please select an image file');
+          return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error('File size must be less than 5MB');
+          return;
+        }
+
+        setLogoFile(file);
+        handleLogoUpload(teamId, file);
+      }
+    };
+    input.click();
+  };
+
+  const clearLogo = () => {
+    setLogoPreview(null);
+    setLogoFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -125,10 +290,37 @@ const TeamsPage = () => {
             <Card key={team._id} className='overflow-hidden'>
               <CardHeader className='bg-gray-50'>
                 <CardTitle className='flex justify-between items-center'>
-                  <div className='flex items-center gap-2'>
-                    <Users className='h-5 w-5 text-blue-500' />
+                  <div className='flex items-center gap-3'>
+                    {team.logo ? (
+                      <img
+                        src={team.logo}
+                        alt={`${team.name} logo`}
+                        className='h-12 w-12 rounded-full object-cover'
+                      />
+                    ) : (
+                      <Users className='h-10 w-10 text-blue-500' />
+                    )}
                     <span>{team.name}</span>
                   </div>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => triggerLogoUpload(team._id)}
+                    disabled={uploadingLogo === team._id}
+                    className='flex items-center gap-2'
+                  >
+                    {uploadingLogo === team._id ? (
+                      <>
+                        <div className='w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className='w-4 h-4' />
+                        {team.logo ? 'Change Logo' : 'Add Logo'}
+                      </>
+                    )}
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className='pt-4'>
@@ -156,7 +348,7 @@ const TeamsPage = () => {
       {/* Add Team Modal */}
       {isModalOpen && (
         <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white p-6 rounded-lg max-w-md w-full'>
+          <div className='bg-white p-6 rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto'>
             <h2 className='text-xl font-bold mb-4'>Add New Team</h2>
             <form onSubmit={handleSubmit}>
               <div className='space-y-4'>
@@ -184,11 +376,60 @@ const TeamsPage = () => {
                   />
                 </div>
 
+                <div className='space-y-2'>
+                  <Label htmlFor='logo'>Team Logo (Optional)</Label>
+                  <div className='flex flex-col gap-3'>
+                    <input
+                      ref={fileInputRef}
+                      type='file'
+                      accept='image/*'
+                      onChange={handleLogoSelect}
+                      className='hidden'
+                      id='logo-upload'
+                    />
+
+                    {logoPreview ? (
+                      <div className='relative inline-block'>
+                        <img
+                          src={logoPreview}
+                          alt='Logo preview'
+                          className='h-20 w-20 rounded-lg object-cover border-2 border-gray-200'
+                        />
+                        <button
+                          type='button'
+                          onClick={clearLogo}
+                          className='absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600'
+                        >
+                          <X className='w-3 h-3' />
+                        </button>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor='logo-upload'
+                        className='flex flex-col items-center justify-center h-20 w-20 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400'
+                      >
+                        <Image className='w-6 h-6 text-gray-400' />
+                        <span className='text-xs text-gray-400 mt-1'>
+                          Add Logo
+                        </span>
+                      </label>
+                    )}
+
+                    <p className='text-xs text-gray-500'>
+                      Maximum file size: 5MB. Supported formats: JPG, PNG, GIF
+                    </p>
+                  </div>
+                </div>
+
                 <div className='flex justify-end space-x-2 pt-4'>
                   <Button
                     type='button'
                     variant='outline'
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      clearLogo();
+                      setFormData({ name: '', description: '' });
+                    }}
                   >
                     Cancel
                   </Button>
