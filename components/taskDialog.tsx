@@ -293,13 +293,12 @@ export function TaskDialog({
   useEffect(() => {
     try {
       const content = JSON.parse(template.content);
-      const extractedPlaceholders: Placeholder[] = [];
+      const extractedPlaceholders = [];
 
-      const extractPlaceholders = (item: any) => {
-        if (Array.isArray(item.content)) {
-          item.content.forEach(extractPlaceholders);
-        } else if (item.type && item.type.startsWith('dynamic')) {
-          let type: 'text' | 'video' | 'img' | 'audio' | 'upload' | 'carousel';
+      const extractPlaceholders = (item) => {
+        // Check for dynamic type FIRST, before checking for array content
+        if (item.type && item.type.startsWith('dynamic')) {
+          let type;
           switch (item.type) {
             case 'dynamicText':
               type = 'text';
@@ -320,13 +319,22 @@ export function TaskDialog({
               type = 'carousel';
               break;
             default:
+              // Still recurse into content for unknown dynamic types
+              if (Array.isArray(item.content)) {
+                item.content.forEach(extractPlaceholders);
+              }
               return;
           }
+
           extractedPlaceholders.push({
             type,
             index: extractedPlaceholders.length,
             name: item.name,
           });
+        }
+        // THEN check for array content to recurse
+        else if (Array.isArray(item.content)) {
+          item.content.forEach(extractPlaceholders);
         }
       };
 
@@ -729,7 +737,7 @@ export function TaskDialog({
     setApiKey(apiKey);
     setCurrentTask(task);
     setCurrentPlaceholder(placeholder);
-    
+
     // Immediately generate AI response
     try {
       setIsLoading(true);
@@ -740,10 +748,10 @@ export function TaskDialog({
         projectId,
         apiKey
       );
-      
+
       // Update the task with the generated response
       handleInputChange(task.id, placeholder, response);
-      
+
       // Close the modal
       setIsAiModalOpen(false);
       setIsGeneratingForAll(false);
@@ -774,11 +782,10 @@ export function TaskDialog({
     setApiKey(apiKey);
     setSelectedPlaceholder(placeholder);
     setNumberOfTasks(numberOfTasks);
-    
+
     // Trigger generation with a single state change
     setIsGeneratingForAll(true);
   };
-  
 
   const renderFilledTemplate = (values: {
     [key: string]: TaskValue | CarouselContent;
@@ -787,14 +794,13 @@ export function TaskDialog({
       let content = JSON.parse(template.content);
 
       const fillContent = (item: any): any => {
-        if (Array.isArray(item.content)) {
-          return { ...item, content: item.content.map(fillContent) };
-        } else if (item.type && item.type.startsWith('dynamic')) {
+        if (item.type && item.type.startsWith('dynamic')) {
           const placeholder = placeholders.find((p) => p.name === item.name);
           if (placeholder) {
-            // Handle carousel specifically
             if (item.type === 'dynamicCarousel') {
-              const carouselValue = values[placeholder.index] as CarouselContent;
+              const carouselValue = values[
+                placeholder.index
+              ] as CarouselContent;
               return {
                 ...item,
                 content: {
@@ -803,21 +809,22 @@ export function TaskDialog({
                 },
               };
             }
-      
-            // Handle dynamicAudio specifically to preserve transcription settings
             if (item.type === 'dynamicAudio') {
               const currentContent = item.content || {};
               return {
                 ...item,
                 content: {
                   ...currentContent,
-                  src: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
-                  // Preserve transcription settings
+                  src:
+                    (values[placeholder.index] as TaskValue)?.content ||
+                    `{{${placeholder.type}}}`,
                   transcribeEnabled: currentContent.transcribeEnabled || false,
-                  transcriptionModel: currentContent.transcriptionModel || 'openai-whisper-large-v2',
+                  transcriptionModel:
+                    currentContent.transcriptionModel ||
+                    'openai-whisper-large-v2',
                   apiKey: currentContent.apiKey || '',
                   language: currentContent.language || 'en',
-                  transcription: currentContent.transcription || ''
+                  transcription: currentContent.transcription || '',
                 },
               };
             }
@@ -827,21 +834,27 @@ export function TaskDialog({
                 ...item,
                 content: {
                   ...currentContent,
-                  innerText: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
-                  // Preserve translation settings
-                  translationEnabled: currentContent.translationEnabled || false,
+                  innerText:
+                    (values[placeholder.index] as TaskValue)?.content ||
+                    `{{${placeholder.type}}}`,
+                  translationEnabled:
+                    currentContent.translationEnabled || false,
                   translationModel: currentContent.translationModel || 'deepl',
                   translationApiKey: currentContent.translationApiKey || '',
                   sourceLanguage: currentContent.sourceLanguage || 'auto',
                   targetLanguage: currentContent.targetLanguage || 'en',
-                  translation: currentContent.translation || ''
+                  translation: currentContent.translation || '',
                 },
-              }}
-            // Handle dynamicUpload
+              };
+            }
             if (item.type === 'dynamicUpload') {
-              const fileType = (values[placeholder.index] as TaskValue)?.fileType || 'document';
+              const fileType =
+                (values[placeholder.index] as TaskValue)?.fileType ||
+                'document';
               if (fileType === 'document') {
-                const textContent = (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`;
+                const textContent =
+                  (values[placeholder.index] as TaskValue)?.content ||
+                  `{{${placeholder.type}}}`;
                 return {
                   ...item,
                   type: 'dynamicText',
@@ -859,7 +872,9 @@ export function TaskDialog({
                 type: dynamicType,
                 content: {
                   ...item.content,
-                  src: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
+                  src:
+                    (values[placeholder.index] as TaskValue)?.content ||
+                    `{{${placeholder.type}}}`,
                 },
               };
             } else if (item.type === 'dynamicText') {
@@ -867,20 +882,26 @@ export function TaskDialog({
                 ...item,
                 content: {
                   ...item.content,
-                  innerText: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
+                  innerText:
+                    (values[placeholder.index] as TaskValue)?.content ||
+                    `{{${placeholder.type}}}`,
                 },
               };
             } else {
-              // Other dynamic types
               return {
                 ...item,
                 content: {
                   ...item.content,
-                  src: (values[placeholder.index] as TaskValue)?.content || `{{${placeholder.type}}}`,
+                  src:
+                    (values[placeholder.index] as TaskValue)?.content ||
+                    `{{${placeholder.type}}}`,
                 },
               };
             }
           }
+        }
+        if (Array.isArray(item.content)) {
+          return { ...item, content: item.content.map(fillContent) };
         }
         return item;
       };
@@ -964,7 +985,12 @@ export function TaskDialog({
   };
   const generateFilledTemplates = async () => {
     try {
-      if (!project || !project._id || typeof project._id !== 'string' || project._id === 'data') {
+      if (
+        !project ||
+        !project._id ||
+        typeof project._id !== 'string' ||
+        project._id === 'data'
+      ) {
         toast({
           title: 'Invalid Project',
           description: 'Project ID is invalid or missing',
@@ -972,7 +998,7 @@ export function TaskDialog({
         });
         return;
       }
-  
+
       const filledTasks: FilledTask[] = [];
       const repeatTasks: RepeatTask[] = [];
       let repeatTaskCount;
@@ -1162,7 +1188,7 @@ export function TaskDialog({
       selectedModel,
       hasPlaceholder: !!selectedPlaceholder,
       systemPrompt,
-      isGeneratingForAll
+      isGeneratingForAll,
     });
     console.log('=== Starting Task Generation ===');
     console.log('Initial state:', {
@@ -1173,7 +1199,7 @@ export function TaskDialog({
       hasPlaceholder: !!selectedPlaceholder,
       systemPrompt,
     });
-  
+
     if (
       !provider ||
       !selectedModel ||
@@ -1185,14 +1211,14 @@ export function TaskDialog({
       console.error('Missing required parameters for AI generation');
       return;
     }
-  
+
     try {
       const modifiedPrompt = `You are supposed to give help me assign student tasks, your response should be seperated by numbers & 
       limited to this many numbers ${numberOfTasks}. what I want is: ${systemPrompt}. remember to follow the order & 
       the total response quantity should be: ${numberOfTasks}`;
-  
+
       console.log('Modified prompt:', modifiedPrompt);
-  
+
       const response = await generateAiResponse(
         provider,
         selectedModel,
@@ -1200,15 +1226,15 @@ export function TaskDialog({
         projectId,
         apiKey
       );
-  
+
       const allMatches = response.match(/^\d+\.\s*.+$/gm) || [];
       const parsedQuestions = allMatches
         .slice(0, numberOfTasks)
         .map((match: any) => match.replace(/^\d+\.\s*/, '').trim());
-  
+
       setAiResponse(parsedQuestions);
       updateTaskHelper(parsedQuestions);
-  
+
       // Don't reset system prompt here to avoid state change triggering more calls
       return parsedQuestions;
     } catch (error) {
@@ -1225,8 +1251,8 @@ export function TaskDialog({
       apiKey &&
       // For bulk generation, we need selectedPlaceholder
       // For single field generation, we need currentTask and currentPlaceholder
-      ((selectedPlaceholder && numberOfTasks) || 
-       (currentTask && currentPlaceholder)) &&
+      ((selectedPlaceholder && numberOfTasks) ||
+        (currentTask && currentPlaceholder)) &&
       !isLoading
     ) {
       console.log('Triggering AI generation from useEffect');
@@ -1385,7 +1411,6 @@ export function TaskDialog({
                     setIsLoading(true);
 
                     try {
-               
                       // Fetch the CSV content
                       const response = await fetch(fileUrl, {
                         headers: {
@@ -1502,36 +1527,36 @@ export function TaskDialog({
                   }
                 }}
               />
-             <Button onClick={() => fileInputRef.current?.click()}>
-                <Upload className="mr-2 h-4 w-4" /> Upload CSV
+              <Button onClick={() => fileInputRef.current?.click()}>
+                <Upload className='mr-2 h-4 w-4' /> Upload CSV
               </Button>
               <input
-                type="file"
+                type='file'
                 ref={fileInputRef}
-                className="hidden"
-                accept=".csv"
+                className='hidden'
+                accept='.csv'
                 onChange={handleFileUpload}
               />
               <Button onClick={generateFilledTemplates}>
                 Save Tasks ({tasks.length * globalRepeat} total)
               </Button>
               <Button
-  onClick={() => {
-    // Reset all previous state
-    setCurrentTask(null);
-    setCurrentPlaceholder(null);
-    setProvider('');
-    setSelectedModel('');
-    setSystemPrompt('');
-    setApiKey('');
-    setIsGeneratingForAll(false);
-    
-    // Then open modal
-    setIsMultiAiModalOpen(true);
-  }}
->
-  Bulk Data Generation with AI
-</Button>
+                onClick={() => {
+                  // Reset all previous state
+                  setCurrentTask(null);
+                  setCurrentPlaceholder(null);
+                  setProvider('');
+                  setSelectedModel('');
+                  setSystemPrompt('');
+                  setApiKey('');
+                  setIsGeneratingForAll(false);
+
+                  // Then open modal
+                  setIsMultiAiModalOpen(true);
+                }}
+              >
+                Bulk Data Generation with AI
+              </Button>
             </div>
           </DialogFooter>
         </DialogContent>

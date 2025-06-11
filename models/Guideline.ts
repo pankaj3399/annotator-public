@@ -28,25 +28,25 @@ const guidelineMessageSchema = new Schema({
 }, { timestamps: true });
 
 const guidelineSchema = new Schema({
-  project: { 
-    type: Schema.Types.ObjectId, 
-    ref: 'Project', 
+  project: {
+    type: Schema.Types.ObjectId,
+    ref: 'Project',
     required: true,
     unique: true // Ensures only one guideline per project
   },
-  description: { 
-    type: String, 
-    default: '' 
+  description: {
+    type: String,
+    default: ''
   },
   messages: [guidelineMessageSchema],
   files: [uploadedFileSchema]  // Use the extended file schema with upload metadata
 }, { timestamps: true });
 
-// Ensure a project can have only one guideline
-guidelineSchema.index({ project: 1 }, { unique: true });
+// === OPTIMIZED INDEXES BASED ON SERVER FILE USAGE ===
+guidelineSchema.index({ project: 1 }, { unique: true }); // For Guideline.findOne({ project: params.projectId }) queries
 
 // Pre-remove hook to clean up associated data if needed
-guidelineSchema.pre('deleteOne', async function(next) {
+guidelineSchema.pre('deleteOne', async function (next) {
   try {
     // Optional: Additional cleanup logic can be added here
     next();
