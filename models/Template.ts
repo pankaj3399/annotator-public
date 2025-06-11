@@ -13,7 +13,6 @@ const templateSchema = new Schema({
 });
 
 // === OPTIMIZED INDEXES BASED ON SERVER FILE USAGE ===
-templateSchema.index({ _id: 1 }); // For findById and findOneAndUpdate by _id (MongoDB default, but explicit)
 templateSchema.index({ project: 1 }); // For Template.findOne({ project: projectid }) in getATemplate
 
 export const Template = models?.Template || model('Template', templateSchema);

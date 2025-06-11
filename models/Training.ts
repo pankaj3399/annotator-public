@@ -85,7 +85,6 @@ const trainingSchema = new Schema<ITraining>(
 );
 
 // === OPTIMIZED INDEXES BASED ON SERVER FILE USAGE ===
-trainingSchema.index({ _id: 1 }); // For findById and updateOne by _id operations (MongoDB default, but explicit)
 trainingSchema.index({ project: 1 }); // For queries filtering by project when doing revalidation path lookups
 
 // Export the model, ensuring it's not re-declared during hot-reloading

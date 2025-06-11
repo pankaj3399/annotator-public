@@ -73,7 +73,6 @@ discussionSchema.index({ created_at: -1 }); // For .sort({ created_at: -1 }) que
 discussionSchema.index({ project: 1 }); // For filtering by project: filter.project = projectId
 discussionSchema.index({ author: 1 }); // For author-based filtering in role-based access control
 discussionSchema.index({ visibility: 1 }); // For visibility filtering in project manager queries
-discussionSchema.index({ _id: 1 }); // For findById operations (MongoDB default, but explicit)
 
 // Virtual to get comment count
 discussionSchema.virtual('commentCount').get(function() {
