@@ -83,9 +83,12 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
         <div className="py-4 px-6">
           {/* Title and description section */}
           <div className="flex items-start mb-6">
-            <Link href={`/projects/${projectId}`} className="mr-3 mt-1">
-              <ArrowLeft className="h-5 w-5 text-gray-500" />
-            </Link>
+           <div 
+  onClick={() => router.back()} 
+  className="mr-3 mt-1 cursor-pointer hover:bg-gray-100 p-1 rounded inline-block"
+>
+  <ArrowLeft className="h-5 w-5 text-gray-500" />
+</div>
             <div>
               <h1 className="text-xl font-semibold text-gray-800">Create Template</h1>
               <p className="text-sm text-gray-500">
