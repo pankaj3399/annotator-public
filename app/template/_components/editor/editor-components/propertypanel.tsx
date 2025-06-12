@@ -16,8 +16,9 @@ import {
 import { EditorBtns } from '@/lib/constants';
 import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Plus, Minus, Loader2, X } from 'lucide-react';
+import { Plus, Minus, Loader2, X, Trash } from 'lucide-react';
 import TranscriptionFormatTip from '@/components/LandingPage/TranscriptionFormatTip';
+import { Textarea } from '@/components/ui/textarea';
 
 type ElementContent = {
   href?: string;
@@ -56,6 +57,21 @@ type ElementContent = {
   fillerWordRemoval?: boolean;
   silenceRemoval?: boolean;
   fileName?: string;
+  instructions?: string;
+  labelCategories?: Array<{
+    id: string;
+    name: string;
+    color: string;
+  }>;
+  annotations?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    label: string;
+    color: string;
+  }>;
 };
 type ModelOption = {
   value: string;
@@ -375,9 +391,20 @@ const PropertyPanel = () => {
   };
 
   const handlePropertyChange = (property: string, value: any) => {
+    console.log('PropertyPanel: handlePropertyChange called', {
+      property,
+      value,
+      elementType: element.type,
+    });
+
     if (property.startsWith('content.')) {
       const contentKey = property.split('.')[1];
+      console.log('PropertyPanel: Updating content property', {
+        contentKey,
+        value,
+      });
 
+      // Update local state
       setElementProperties((prev) => ({
         ...prev,
         content: {
@@ -386,35 +413,49 @@ const PropertyPanel = () => {
         },
       }));
 
-      dispatch({
-        type: 'UPDATE_ELEMENT',
-        payload: {
-          elementDetails: {
-            ...element,
-            content: !Array.isArray(element.content)
-              ? {
-                  ...((element.content as ElementContent) || {}),
-                  [contentKey]: value,
-                }
-              : element.content, // Should not happen for elements that have 'content' object
-          },
+      // Create the updated element - CRITICAL FIX: Ensure content is always an object
+      const currentContent = !Array.isArray(element.content)
+        ? element.content
+        : {};
+
+      const updatedElement = {
+        ...element,
+        content: {
+          ...currentContent,
+          [contentKey]: value,
         },
-      });
+      };
+
+      console.log('PropertyPanel: Dispatching UPDATE_ELEMENT', updatedElement);
+
+      // Use setTimeout to prevent infinite loops
+      setTimeout(() => {
+        dispatch({
+          type: 'UPDATE_ELEMENT',
+          payload: {
+            elementDetails: updatedElement,
+          },
+        });
+      }, 0);
+
       return;
     }
 
+    // Handle non-content properties
     setElementProperties((prev) => ({ ...prev, [property]: value }));
 
     if (property === 'name') {
-      dispatch({
-        type: 'UPDATE_ELEMENT',
-        payload: {
-          elementDetails: {
-            ...element,
-            [property]: value,
+      setTimeout(() => {
+        dispatch({
+          type: 'UPDATE_ELEMENT',
+          payload: {
+            elementDetails: {
+              ...element,
+              [property]: value,
+            },
           },
-        },
-      });
+        });
+      }, 0);
       return;
     }
   };
@@ -1387,6 +1428,168 @@ const PropertyPanel = () => {
                 </div>
               )}
             </div>
+          </div>
+        );
+      }
+
+      case 'imageAnnotation': {
+        const content = !Array.isArray(elementProperties.content)
+          ? elementProperties.content
+          : {};
+        const labelCategories = content?.labelCategories || [
+          { id: '1', name: 'PERSON', color: '#ff0000' },
+          { id: '2', name: 'VEHICLE', color: '#00ff00' },
+        ];
+
+        return (
+          <div className='space-y-4'>
+            {/* Name */}
+            <div className='space-y-2'>
+              <Label>Name</Label>
+              <Input
+                value={elementProperties.name}
+                onChange={(e) => handlePropertyChange('name', e.target.value)}
+                placeholder='Element name'
+              />
+            </div>
+
+            {/* Image URL */}
+            <div className='space-y-2'>
+              <Label>Image URL</Label>
+              <Input
+                type='url'
+                value={content?.src || ''}
+                onChange={(e) =>
+                  handlePropertyChange('content.src', e.target.value)
+                }
+                placeholder='https://example.com/image.jpg'
+              />
+            </div>
+
+            {/* Instructions */}
+            <div className='space-y-2'>
+              <Label>Instructions for Annotators</Label>
+              <Textarea
+                value={content?.instructions || ''}
+                onChange={(e) =>
+                  handlePropertyChange('content.instructions', e.target.value)
+                }
+                placeholder='Draw bounding boxes around the objects and select the appropriate label.'
+                rows={3}
+              />
+            </div>
+
+            {/* Label Categories */}
+            <div className='space-y-2'>
+              <div className='flex items-center justify-between'>
+                <Label>Label Categories</Label>
+                <Button
+                  size='sm'
+                  onClick={() => {
+                    const newCategory = {
+                      id: `category-${Date.now()}`,
+                      name: `LABEL_${labelCategories.length + 1}`,
+                      color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+                    };
+                    const updatedCategories = [...labelCategories, newCategory];
+                    handlePropertyChange(
+                      'content.labelCategories',
+                      updatedCategories
+                    );
+                  }}
+                >
+                  <Plus className='w-4 h-4 mr-1' />
+                  Add Label
+                </Button>
+              </div>
+
+              <div className='space-y-3 max-h-40 overflow-y-auto'>
+                {labelCategories.map((category) => (
+                  <div
+                    key={category.id}
+                    className='flex items-center gap-2 p-2 border rounded'
+                  >
+                    <Input
+                      placeholder='Label name'
+                      value={category.name}
+                      onChange={(e) => {
+                        const updatedCategories = labelCategories.map((cat) =>
+                          cat.id === category.id
+                            ? { ...cat, name: e.target.value.toUpperCase() }
+                            : cat
+                        );
+                        handlePropertyChange(
+                          'content.labelCategories',
+                          updatedCategories
+                        );
+                      }}
+                      className='flex-1'
+                    />
+                    <div className='flex items-center gap-1'>
+                      <input
+                        type='color'
+                        value={category.color}
+                        onChange={(e) => {
+                          const updatedCategories = labelCategories.map(
+                            (cat) =>
+                              cat.id === category.id
+                                ? { ...cat, color: e.target.value }
+                                : cat
+                          );
+                          handlePropertyChange(
+                            'content.labelCategories',
+                            updatedCategories
+                          );
+                        }}
+                        className='w-8 h-8 rounded border cursor-pointer'
+                        title='Choose color'
+                      />
+                      <Button
+                        size='sm'
+                        variant='destructive'
+                        onClick={() => {
+                          if (labelCategories.length > 1) {
+                            const updatedCategories = labelCategories.filter(
+                              (cat) => cat.id !== category.id
+                            );
+                            handlePropertyChange(
+                              'content.labelCategories',
+                              updatedCategories
+                            );
+                          }
+                        }}
+                        disabled={labelCategories.length <= 1}
+                      >
+                        <Trash className='w-4 h-4' />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {labelCategories.length === 0 && (
+                <div className='text-sm text-gray-500 text-center py-4 border border-dashed rounded'>
+                  No label categories. Add at least one label.
+                </div>
+              )}
+            </div>
+
+            {/* Clear All Annotations */}
+            {content?.annotations && content.annotations.length > 0 && (
+              <div className='space-y-2'>
+                <Label>Annotations ({content.annotations.length})</Label>
+                <Button
+                  variant='destructive'
+                  size='sm'
+                  onClick={() => {
+                    handlePropertyChange('content.annotations', []);
+                  }}
+                  className='w-full'
+                >
+                  Clear All Annotations
+                </Button>
+              </div>
+            )}
           </div>
         );
       }

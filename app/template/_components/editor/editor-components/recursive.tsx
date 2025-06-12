@@ -27,6 +27,7 @@ const RecordAudioComponent = lazy(() => import('./recordAudio'))
 const RecordVideoComponent = lazy(() => import('./recordVideo'))
 const UploadComponent = lazy(()=>import('./upload'))
 const UploadInputComponent = lazy(()=>import('./upload-input'))
+const ImageAnnotation = lazy(()=>import('./imageAnnotation'))
 type Props = {
   element: EditorElement
 }
@@ -55,7 +56,8 @@ const COMPONENT_MAP = {
   inputRecordVideo: InputRecordVideoComponent,
   dynamicUpload: DynamicUploadComponent, 
   Upload:UploadComponent,
-  UploadInput:UploadInputComponent
+  UploadInput:UploadInputComponent,
+  imageAnnotation: ImageAnnotation
 } as const
 
 const Recursive = ({ element }: Props) => {
