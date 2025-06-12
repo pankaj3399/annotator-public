@@ -74,7 +74,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
               onClick={handleOnSave} 
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
-              Save Test
+              Save Template
             </Button>
           </div>
         </div>
@@ -122,7 +122,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
                 onClick={handleOnSave} 
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                Save Test
+                Save Template
               </Button>
             </div>
           </div>

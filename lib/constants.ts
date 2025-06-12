@@ -26,6 +26,7 @@ export type EditorBtns =
   | 'dynamicUpload'
   | 'dynamicCarousel'
   | 'UploadInput'
+  | 'imageAnnotation'
 
 export const defaultStyles: React.CSSProperties = {
   backgroundPosition: 'center',
@@ -33,6 +34,20 @@ export const defaultStyles: React.CSSProperties = {
   backgroundRepeat: 'no-repeat',
   textAlign: 'left',
   opacity: '100%',
+}
+
+export const elementDefaultStyles = {
+  imageAnnotation: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '16px',
+    padding: '16px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    minHeight: '300px',
+    width: '100%',
+  },
 }
 
 export const defaultContent = JSON.stringify([
@@ -56,14 +71,8 @@ export function extractElementNames(content: any[]) {
         case 'inputText':
         case 'text':
         case 'dynamicText':
-        // case 'dynamicVideo':
-        // case 'dynamicImage':
-        // case 'dynamicAudio':
-        // case 'recordAudio':
-        // case 'recordVideo':
-        // case 'inputRecordAudio':
-        // case 'inputRecordVideo':
         case 'checkbox':
+        case 'imageAnnotation':
           elements.push(node.name);
           break;
         default:

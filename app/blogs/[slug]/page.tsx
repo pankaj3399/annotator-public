@@ -290,6 +290,7 @@ const components: Partial<PortableTextReactComponents> = {
       );
     },
   },
+  
   types: {
     image: ({ value }) => {
       const imageUrl = urlFor(value)?.width(800).url();
@@ -309,4 +310,5 @@ const components: Partial<PortableTextReactComponents> = {
       ) : null;
     },
   },
+  
 };
