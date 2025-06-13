@@ -7,7 +7,7 @@ import { getAdminPaymentNotificationTemplate, sendEmail } from "@/lib/email";
 
 // Initialize Stripe with updated API version to match your stripe function
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia", // Updated to match your stripe function
+  apiVersion: "2024-12-18.acacia", // Updated to match your stripe function
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
