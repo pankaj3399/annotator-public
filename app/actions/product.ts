@@ -199,19 +199,54 @@ export async function updatePaymentStatus(
   }
 ) {
   try {
+    console.log(`[updatePaymentStatus] Starting payment status update:
+      - wishlistId: ${wishlistId}
+      - itemId: ${itemId}
+      - paymentDetails: ${JSON.stringify(paymentDetails)}`);
+
     await connectToDatabase();
+
+    // First, let's verify the wishlist and item exist
+    const existingWishlist = await Wishlist.findById(wishlistId);
+    if (!existingWishlist) {
+      console.error(`[updatePaymentStatus] Wishlist not found: ${wishlistId}`);
+      throw new Error(`Wishlist not found with ID: ${wishlistId}`);
+    }
+
+    const existingItem = existingWishlist.items.find(
+      (item: any) => item._id.toString() === itemId.toString()
+    );
+    if (!existingItem) {
+      console.error(`[updatePaymentStatus] Item not found: ${itemId} in wishlist: ${wishlistId}`);
+      console.log(`[updatePaymentStatus] Available items in wishlist: ${existingWishlist.items.map((item: any) => item._id.toString()).join(', ')}`);
+      throw new Error(`Item not found with ID: ${itemId} in wishlist: ${wishlistId}`);
+    }
+
+    console.log(`[updatePaymentStatus] Found item to update:
+      - Item ID: ${existingItem._id}
+      - Current status: ${existingItem.status}
+      - Is external request: ${existingItem.is_external_request}
+      - Current payment status: ${existingItem.payment_data?.payment_status || 'none'}`);
+
+    // Ensure wishlistId and itemId are proper ObjectIds for MongoDB query
+    const wishlistObjectId = new mongoose.Types.ObjectId(wishlistId);
+    const itemObjectId = new mongoose.Types.ObjectId(itemId);
+
+    console.log(`[updatePaymentStatus] Using ObjectIds:
+      - wishlistObjectId: ${wishlistObjectId}
+      - itemObjectId: ${itemObjectId}`);
 
     const updatedWishlist = await Wishlist.findOneAndUpdate(
       {
-        _id: wishlistId,
-        "items._id": itemId,
+        _id: wishlistObjectId,
+        "items._id": itemObjectId,
       },
       {
         $set: {
           "items.$.payment_data": {
             stripe_payment_intent: paymentDetails.stripe_payment_intent,
             payment_status: paymentDetails.payment_status,
-            total_price_paid: paymentDetails.total_price_paid / 100,
+            total_price_paid: paymentDetails.total_price_paid / 100, // Convert from cents
             paid_at: new Date(),
             paid_by: paymentDetails.paid_by,
           },
@@ -221,21 +256,46 @@ export async function updatePaymentStatus(
               : "pending",
         },
       },
-      { new: true }
+      { 
+        new: true,
+        runValidators: true // Ensure schema validation runs
+      }
     );
 
     if (!updatedWishlist) {
-      throw new Error("Wishlist or Item not found");
+      console.error(`[updatePaymentStatus] Failed to update wishlist - findOneAndUpdate returned null`);
+      throw new Error("Failed to update wishlist - no matching document found");
     }
 
+    console.log(`[updatePaymentStatus] Successfully updated wishlist`);
+
+    // Find the updated item to return
+    const updatedItem = updatedWishlist.items.find(
+      (item: any) => item._id.toString() === itemId.toString()
+    );
+
+    if (updatedItem) {
+      console.log(`[updatePaymentStatus] Updated item details:
+        - Item ID: ${updatedItem._id}
+        - New status: ${updatedItem.status}
+        - Payment status: ${updatedItem.payment_data?.payment_status}
+        - Amount paid: ${updatedItem.payment_data?.total_price_paid}
+        - Paid at: ${updatedItem.payment_data?.paid_at}`);
+    }
+
+    // Revalidate the paths to update the UI
     revalidatePath("/wishlist");
+    revalidatePath("/pm/wishlists");
+
+    console.log(`[updatePaymentStatus] Payment status update completed successfully`);
+
     return {
       success: true,
-      item: updatedWishlist.items.find(
-        (item: any) => item._id.toString() === itemId
-      ),
+      item: updatedItem,
+      message: "Payment status updated successfully"
     };
   } catch (error) {
+    console.error(`[updatePaymentStatus] Error updating payment status:`, error);
     return {
       success: false,
       error: (error as Error).message,
