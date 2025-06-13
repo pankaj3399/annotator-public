@@ -58,6 +58,7 @@ import {
   UserCheck,
   LayoutDashboardIcon,
   User2Icon,
+  Package,
 } from 'lucide-react';
 import { BookIcon } from '@/components/BookIcon'; // Adjust path if needed
 
@@ -409,6 +410,12 @@ export function getMenuList(
             active: pathname === '/admin/dashboard',
             icon: LayoutDashboardIcon,
           },
+           {
+          href: '/admin/products', 
+          label: 'Products',
+          active: pathname.includes('/admin/products'),
+          icon: Package,
+        },
           {
             href: '/admin/orders',
             label: 'View Orders',
