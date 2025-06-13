@@ -5,9 +5,9 @@ import { headers } from "next/headers";
 import { updatePaymentStatus } from "@/app/actions/product";
 import { getAdminPaymentNotificationTemplate, sendEmail } from "@/lib/email";
 
-// Initialize Stripe with proper typing for the secret key
+// Initialize Stripe with updated API version to match your stripe function
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2025-02-24.acacia", // Updated to match your stripe function
 });
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -167,6 +167,17 @@ export async function POST(req: NextRequest) {
                 Product Name: ${productName}
                 Payment: ${price / 100} ${successSession.currency?.toUpperCase() || 'USD'}`);
               
+              // Add additional logging before calling updatePaymentStatus
+              console.log(`[Standard Webhook] Calling updatePaymentStatus with parameters:
+                - wishlistId: ${wishlistId}
+                - itemId: ${itemId}
+                - paymentDetails: {
+                    stripe_payment_intent: ${payment_intent},
+                    payment_status: "succeeded",
+                    total_price_paid: ${price},
+                    paid_by: ${userId}
+                  }`);
+              
               const status = await updatePaymentStatus(
                 wishlistId,
                 itemId,
@@ -177,6 +188,14 @@ export async function POST(req: NextRequest) {
                   paid_by: userId,
                 }
               );
+
+              console.log(`[Standard Webhook] updatePaymentStatus returned: ${JSON.stringify(status)}`);
+
+              // Check if the update was successful
+              if (!status.success) {
+                console.error(`[Standard Webhook] Failed to update payment status: ${status.error}`);
+                throw new Error(`Payment status update failed: ${status.error}`);
+              }
 
               // Send email notification to admin
               try {
@@ -199,7 +218,7 @@ export async function POST(req: NextRequest) {
                 console.error(`[Standard Webhook] Failed to send email notification: ${emailError.message}`, emailError);
               }
 
-              console.log(`[Standard Webhook] Product payment update completed with status: ${JSON.stringify(status)}`);
+              console.log(`[Standard Webhook] Product payment update completed successfully`);
               return NextResponse.json({
                 received: true,
                 status,
