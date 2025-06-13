@@ -35,7 +35,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import AddProductForm from '@/components/AddProduct';
 import { Badge } from '@/components/ui/badge';
 
 // Import the server action to get teams
@@ -69,7 +68,6 @@ const CustomFieldsPage = () => {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamsLoading, setTeamsLoading] = useState(true);
-  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   
   // For edit modal
   const [editField, setEditField] = useState<CustomField | null>(null);
@@ -316,13 +314,7 @@ const CustomFieldsPage = () => {
     <>
       <div className='flex justify-between items-center mb-8'>
         <div className='flex gap-4'>
-          <Button
-            onClick={() => setIsAddProductModalOpen(true)}
-            variant='outline'
-            className='flex items-center gap-2'
-          >
-            Add products
-          </Button>
+       
           <Button
             onClick={handleAddField}
             variant='outline'
@@ -609,13 +601,6 @@ const CustomFieldsPage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {isAddProductModalOpen && (
-        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-          <div className='bg-white p-6 rounded-lg max-w-md w-full'>
-            <AddProductForm onClose={() => setIsAddProductModalOpen(false)} />
-          </div>
-        </div>
-      )}
     </>
   );
 };
