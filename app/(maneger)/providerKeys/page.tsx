@@ -84,6 +84,23 @@ const modelOptions = {
   ],
 };
 
+// Helper function to safely mask API keys
+const maskApiKey = (apiKey: string): string => {
+  if (!apiKey || typeof apiKey !== 'string') return '••••••••••••';
+
+  const keyLength = apiKey.length;
+  if (keyLength <= 8) {
+    // For very short keys, just show dots
+    return '••••••••••••';
+  }
+
+  const startChars = apiKey.substring(0, 4);
+  const endChars = apiKey.substring(keyLength - 4);
+  const middleLength = Math.max(0, Math.min(10, keyLength - 8));
+
+  return `${startChars}${'•'.repeat(middleLength)}${endChars}`;
+};
+
 export default function ProviderKeysPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [providerKeys, setProviderKeys] = useState<ProviderKeysData>({
@@ -113,6 +130,7 @@ export default function ProviderKeysPage() {
     // Fetch provider keys on component mount
     fetchProviderKeys();
   }, []);
+
   const fetchProviderKeys = async () => {
     try {
       setLoading(true);
@@ -586,13 +604,7 @@ export default function ProviderKeysPage() {
                             </div>
                             <div className='flex items-center space-x-2'>
                               <div className='bg-gray-50 px-2 sm:px-3 py-2 rounded-lg flex-1 font-mono text-xs sm:text-sm text-gray-700 border border-gray-200 group-hover:border-gray-300 transition-colors overflow-x-auto'>
-                                {model.apiKey.substring(0, 4)}
-                                {'•'.repeat(
-                                  Math.min(10, model.apiKey.length - 8)
-                                )}
-                                {model.apiKey.substring(
-                                  model.apiKey.length - 4
-                                )}
+                                {maskApiKey(model.apiKey)}
                               </div>
                               <Button
                                 variant='outline'
@@ -731,13 +743,7 @@ export default function ProviderKeysPage() {
                         </div>
                         <div className='flex items-center space-x-2'>
                           <div className='bg-gray-50 px-3 py-2 rounded-lg flex-1 font-mono text-sm text-gray-700 border border-gray-200 group-hover:border-gray-300 transition-colors'>
-                            {savedKey.apiKey.substring(0, 4)}
-                            {'•'.repeat(
-                              Math.min(10, savedKey.apiKey.length - 8)
-                            )}
-                            {savedKey.apiKey.substring(
-                              savedKey.apiKey.length - 4
-                            )}
+                            {maskApiKey(savedKey.apiKey)}
                           </div>
                           <Button
                             variant='outline'
