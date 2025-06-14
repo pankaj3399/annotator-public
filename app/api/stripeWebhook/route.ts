@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
               console.log(`[Standard Webhook] Course enrollment completed with status: ${JSON.stringify(status)}`);
               return NextResponse.json({ received: true, status });
             }
-            else if (type === "product") {
+             else if (type === "product") {
               const wishlistId = successSession.metadata?.wishlistId as string;
               const itemId = successSession.metadata?.itemId as string;
               const productName = successSession.metadata?.name as string;
@@ -166,6 +166,9 @@ export async function POST(req: NextRequest) {
                 Item ID: ${itemId}
                 Product Name: ${productName}
                 Payment: ${price / 100} ${successSession.currency?.toUpperCase() || 'USD'}`);
+              
+              // Add this logging line
+              console.log(`[Standard Webhook] About to call updatePaymentStatus`);
               
               const status = await updatePaymentStatus(
                 wishlistId,
@@ -177,6 +180,9 @@ export async function POST(req: NextRequest) {
                   paid_by: userId,
                 }
               );
+
+              // Add this logging line
+              console.log(`[Standard Webhook] updatePaymentStatus result:`, status);
 
               // Send email notification to admin
               try {

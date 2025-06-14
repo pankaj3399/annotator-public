@@ -199,6 +199,8 @@ export async function updatePaymentStatus(
   }
 ) {
   try {
+    console.log(`[updatePaymentStatus] Called with wishlistId: ${wishlistId}, itemId: ${itemId}`);
+    
     await connectToDatabase();
 
     const updatedWishlist = await Wishlist.findOneAndUpdate(
@@ -225,10 +227,14 @@ export async function updatePaymentStatus(
     );
 
     if (!updatedWishlist) {
+      console.error(`[updatePaymentStatus] No wishlist found for ID: ${wishlistId}, itemId: ${itemId}`);
       throw new Error("Wishlist or Item not found");
     }
 
+    console.log(`[updatePaymentStatus] Successfully updated payment status to: ${paymentDetails.payment_status}`);
+
     revalidatePath("/wishlist");
+    revalidatePath("/pm/wishlists"); // Add this line
     return {
       success: true,
       item: updatedWishlist.items.find(
@@ -236,6 +242,7 @@ export async function updatePaymentStatus(
       ),
     };
   } catch (error) {
+    console.error(`[updatePaymentStatus] Error:`, error);
     return {
       success: false,
       error: (error as Error).message,

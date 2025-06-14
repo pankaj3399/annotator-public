@@ -17,7 +17,7 @@ import { getWishlists } from "@/app/actions/stripe";
 import Loader from "@/components/ui/NewLoader/Loader";
 
 export default function PMWishlistsPage() {
-  const [wishlists, setWishlists] = useState([]);
+  const [wishlists, setWishlists] = useState<any[]>([]);;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
