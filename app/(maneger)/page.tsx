@@ -333,45 +333,61 @@ export default function ProjectDashboard() {
     router.push(`/projects/pipeline/${projectId}`);
   };
 
-  const handleCreateProject = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    fetch(`/api/projects`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name: newProjectName.trim() }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const error = await res.json();
-          toast({
-            variant: 'destructive',
-            title: 'Uh oh! Something went wrong.',
-            description: error.message,
-          });
-        } else {
-          const data = await res.json();
-          setProjects([...projects, data.project]);
-          setFilteredProjects([...projects, data.project]);
-          setNewProjectName('');
-          setCreateProjectDialogOpen(false); // Close the dialog
-          toast({
-            title: 'Project created successfully',
-          });
-        }
-        setIsLoading(false);
-      })
-      .catch((error) => {
+const handleCreateProject = (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  fetch(`/api/projects`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ name: newProjectName.trim() }),
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json();
         toast({
           variant: 'destructive',
           title: 'Uh oh! Something went wrong.',
           description: error.message,
         });
-        setIsLoading(false);
+      } else {
+        const data = await res.json();
+        
+        // Update the projects list
+        setProjects([...projects, data.project]);
+        setFilteredProjects([...projects, data.project]);
+        
+        // Set the new project ID in localStorage
+        try {
+          localStorage.setItem('currentProjectId', data.project._id);
+        } catch (e) {
+          console.error('Error storing projectId in localStorage:', e);
+        }
+        
+        // Reset form state
+        setNewProjectName('');
+        setCreateProjectDialogOpen(false);
+        
+        // Show success message
+        toast({
+          title: 'Project created successfully',
+        });
+        
+        // Navigate to the pipeline page for the new project
+        router.push(`/projects/pipeline/${data.project._id}`);
+      }
+      setIsLoading(false);
+    })
+    .catch((error) => {
+      toast({
+        variant: 'destructive',
+        title: 'Uh oh! Something went wrong.',
+        description: error.message,
       });
-  };
+      setIsLoading(false);
+    });
+};
 
   const handledownload = async (e: React.MouseEvent, project: Project) => {
     e.stopPropagation();
