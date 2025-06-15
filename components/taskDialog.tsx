@@ -309,6 +309,9 @@ export function TaskDialog({
             case 'dynamicImage':
               type = 'img';
               break;
+            case 'dynamicImageAnnotation':
+              type = 'img';
+              break;
             case 'dynamicAudio':
               type = 'audio';
               break;
