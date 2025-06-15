@@ -1432,167 +1432,184 @@ const PropertyPanel = () => {
         );
       }
 
-      case 'imageAnnotation': {
-        const content = !Array.isArray(elementProperties.content)
-          ? elementProperties.content
-          : {};
-        const labelCategories = content?.labelCategories || [
-          { id: '1', name: 'PERSON', color: '#ff0000' },
-          { id: '2', name: 'VEHICLE', color: '#00ff00' },
-        ];
+      case 'dynamicImageAnnotation': {
+  const content = !Array.isArray(elementProperties.content)
+    ? elementProperties.content
+    : {};
+  const labelCategories = content?.labelCategories || [
+    { id: '1', name: 'PERSON', color: '#ff0000' },
+    { id: '2', name: 'VEHICLE', color: '#00ff00' },
+    { id: '3', name: 'ANIMAL', color: '#0000ff' }
+  ];
 
-        return (
-          <div className='space-y-4'>
-            {/* Name */}
-            <div className='space-y-2'>
-              <Label>Name</Label>
+  return (
+    <div className='space-y-4'>
+      {/* Name */}
+      <div className='space-y-2'>
+        <Label>Name</Label>
+        <Input
+          value={elementProperties.name}
+          onChange={(e) => handlePropertyChange('name', e.target.value)}
+          placeholder='Element name'
+        />
+      </div>
+
+      {/* Template Image URL (Optional - for preview during template design) */}
+      <div className='space-y-2'>
+        <Label>Preview Image URL (Optional)</Label>
+        <Input
+          type='url'
+          value={content?.src || ''}
+          onChange={(e) =>
+            handlePropertyChange('content.src', e.target.value)
+          }
+          placeholder='https://example.com/preview-image.jpg (for template preview only)'
+        />
+        <div className="text-xs text-gray-500">
+          💡 This URL is for template preview only. Actual image URLs will be provided when creating tasks.
+        </div>
+      </div>
+
+      {/* Instructions */}
+      <div className='space-y-2'>
+        <Label>Instructions for Annotators</Label>
+        <Textarea
+          value={content?.instructions || ''}
+          onChange={(e) =>
+            handlePropertyChange('content.instructions', e.target.value)
+          }
+          placeholder='Draw bounding boxes around the objects and select the appropriate label.'
+          rows={3}
+        />
+        <div className="text-xs text-gray-500">
+          These instructions will be shown to annotators during the annotation task.
+        </div>
+      </div>
+
+      {/* Label Categories */}
+      <div className='space-y-2'>
+        <div className='flex items-center justify-between'>
+          <Label>Label Categories</Label>
+          <Button
+            size='sm'
+            onClick={() => {
+              const newCategory = {
+                id: `category-${Date.now()}`,
+                name: `LABEL_${labelCategories.length + 1}`,
+                color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+              };
+              const updatedCategories = [...labelCategories, newCategory];
+              handlePropertyChange(
+                'content.labelCategories',
+                updatedCategories
+              );
+            }}
+          >
+            <Plus className='w-4 h-4 mr-1' />
+            Add Label
+          </Button>
+        </div>
+
+        <div className="text-xs text-gray-500 mb-2">
+          ⚠️ These labels will be fixed for all tasks created from this template.
+        </div>
+
+        <div className='space-y-3 max-h-60 overflow-y-auto'>
+          {labelCategories.map((category) => (
+            <div
+              key={category.id}
+              className='flex items-center gap-2 p-3 border rounded bg-white hover:bg-gray-50'
+            >
               <Input
-                value={elementProperties.name}
-                onChange={(e) => handlePropertyChange('name', e.target.value)}
-                placeholder='Element name'
+                placeholder='Label name'
+                value={category.name}
+                onChange={(e) => {
+                  const updatedCategories = labelCategories.map((cat) =>
+                    cat.id === category.id
+                      ? { ...cat, name: e.target.value.toUpperCase() }
+                      : cat
+                  );
+                  handlePropertyChange(
+                    'content.labelCategories',
+                    updatedCategories
+                  );
+                }}
+                className='flex-1'
               />
-            </div>
-
-            {/* Image URL */}
-            <div className='space-y-2'>
-              <Label>Image URL</Label>
-              <Input
-                type='url'
-                value={content?.src || ''}
-                onChange={(e) =>
-                  handlePropertyChange('content.src', e.target.value)
-                }
-                placeholder='https://example.com/image.jpg'
-              />
-            </div>
-
-            {/* Instructions */}
-            <div className='space-y-2'>
-              <Label>Instructions for Annotators</Label>
-              <Textarea
-                value={content?.instructions || ''}
-                onChange={(e) =>
-                  handlePropertyChange('content.instructions', e.target.value)
-                }
-                placeholder='Draw bounding boxes around the objects and select the appropriate label.'
-                rows={3}
-              />
-            </div>
-
-            {/* Label Categories */}
-            <div className='space-y-2'>
-              <div className='flex items-center justify-between'>
-                <Label>Label Categories</Label>
-                <Button
-                  size='sm'
-                  onClick={() => {
-                    const newCategory = {
-                      id: `category-${Date.now()}`,
-                      name: `LABEL_${labelCategories.length + 1}`,
-                      color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
-                    };
-                    const updatedCategories = [...labelCategories, newCategory];
+              <div className='flex items-center gap-2'>
+                <input
+                  type='color'
+                  value={category.color}
+                  onChange={(e) => {
+                    const updatedCategories = labelCategories.map(
+                      (cat) =>
+                        cat.id === category.id
+                          ? { ...cat, color: e.target.value }
+                          : cat
+                    );
                     handlePropertyChange(
                       'content.labelCategories',
                       updatedCategories
                     );
                   }}
-                >
-                  <Plus className='w-4 h-4 mr-1' />
-                  Add Label
-                </Button>
-              </div>
-
-              <div className='space-y-3 max-h-40 overflow-y-auto'>
-                {labelCategories.map((category) => (
-                  <div
-                    key={category.id}
-                    className='flex items-center gap-2 p-2 border rounded'
-                  >
-                    <Input
-                      placeholder='Label name'
-                      value={category.name}
-                      onChange={(e) => {
-                        const updatedCategories = labelCategories.map((cat) =>
-                          cat.id === category.id
-                            ? { ...cat, name: e.target.value.toUpperCase() }
-                            : cat
-                        );
-                        handlePropertyChange(
-                          'content.labelCategories',
-                          updatedCategories
-                        );
-                      }}
-                      className='flex-1'
-                    />
-                    <div className='flex items-center gap-1'>
-                      <input
-                        type='color'
-                        value={category.color}
-                        onChange={(e) => {
-                          const updatedCategories = labelCategories.map(
-                            (cat) =>
-                              cat.id === category.id
-                                ? { ...cat, color: e.target.value }
-                                : cat
-                          );
-                          handlePropertyChange(
-                            'content.labelCategories',
-                            updatedCategories
-                          );
-                        }}
-                        className='w-8 h-8 rounded border cursor-pointer'
-                        title='Choose color'
-                      />
-                      <Button
-                        size='sm'
-                        variant='destructive'
-                        onClick={() => {
-                          if (labelCategories.length > 1) {
-                            const updatedCategories = labelCategories.filter(
-                              (cat) => cat.id !== category.id
-                            );
-                            handlePropertyChange(
-                              'content.labelCategories',
-                              updatedCategories
-                            );
-                          }
-                        }}
-                        disabled={labelCategories.length <= 1}
-                      >
-                        <Trash className='w-4 h-4' />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {labelCategories.length === 0 && (
-                <div className='text-sm text-gray-500 text-center py-4 border border-dashed rounded'>
-                  No label categories. Add at least one label.
-                </div>
-              )}
-            </div>
-
-            {/* Clear All Annotations */}
-            {content?.annotations && content.annotations.length > 0 && (
-              <div className='space-y-2'>
-                <Label>Annotations ({content.annotations.length})</Label>
+                  className='w-10 h-10 rounded border cursor-pointer'
+                  title='Choose color'
+                />
                 <Button
-                  variant='destructive'
                   size='sm'
+                  variant='destructive'
                   onClick={() => {
-                    handlePropertyChange('content.annotations', []);
+                    if (labelCategories.length > 1) {
+                      const updatedCategories = labelCategories.filter(
+                        (cat) => cat.id !== category.id
+                      );
+                      handlePropertyChange(
+                        'content.labelCategories',
+                        updatedCategories
+                      );
+                    }
                   }}
-                  className='w-full'
+                  disabled={labelCategories.length <= 1}
+                  title={labelCategories.length <= 1 ? 'Must have at least one label' : 'Delete label'}
                 >
-                  Clear All Annotations
+                  <Trash className='w-4 h-4' />
                 </Button>
               </div>
-            )}
+            </div>
+          ))}
+        </div>
+
+        {labelCategories.length === 0 && (
+          <div className='text-sm text-gray-500 text-center py-4 border border-dashed rounded'>
+            No label categories. Add at least one label.
           </div>
-        );
-      }
+        )}
+      </div>
+
+      {/* Show current annotations count if any exist */}
+      {content?.annotations && content.annotations.length > 0 && (
+        <div className='space-y-2'>
+          <Label>Current Annotations</Label>
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="text-sm text-amber-800 mb-2">
+              📝 {content.annotations.length} annotation(s) from template preview
+            </div>
+            <Button
+              variant='outline'
+              size='sm'
+              onClick={() => {
+                handlePropertyChange('content.annotations', []);
+              }}
+              className='text-amber-700 border-amber-300 hover:bg-amber-100'
+            >
+              Clear Preview Annotations
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
       default:
         return (
           <div className='space-y-2'>

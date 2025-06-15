@@ -7,6 +7,7 @@ import { lazy } from 'react'
 import Container from './container'
 import TextComponent from './text'
 import VideoComponent from './video'
+import DynamicImageAnnotation from './imageAnnotation'
 
 // Lazy imports for other components to improve initial load time
 const AudioComponent = lazy(() => import('./audio'))
@@ -27,7 +28,6 @@ const RecordAudioComponent = lazy(() => import('./recordAudio'))
 const RecordVideoComponent = lazy(() => import('./recordVideo'))
 const UploadComponent = lazy(()=>import('./upload'))
 const UploadInputComponent = lazy(()=>import('./upload-input'))
-const ImageAnnotation = lazy(()=>import('./imageAnnotation'))
 type Props = {
   element: EditorElement
 }
@@ -57,7 +57,7 @@ const COMPONENT_MAP = {
   dynamicUpload: DynamicUploadComponent, 
   Upload:UploadComponent,
   UploadInput:UploadInputComponent,
-  imageAnnotation: ImageAnnotation
+  dynamicImageAnnotation: DynamicImageAnnotation
 } as const
 
 const Recursive = ({ element }: Props) => {

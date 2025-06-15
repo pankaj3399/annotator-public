@@ -26,7 +26,7 @@ export type EditorBtns =
   | 'dynamicUpload'
   | 'dynamicCarousel'
   | 'UploadInput'
-  | 'imageAnnotation'
+  | 'dynamicImageAnnotation'
 
 export const defaultStyles: React.CSSProperties = {
   backgroundPosition: 'center',

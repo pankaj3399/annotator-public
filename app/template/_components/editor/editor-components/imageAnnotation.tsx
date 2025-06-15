@@ -2,7 +2,7 @@
 
 import { EditorElement, useEditor } from '@/providers/editor/editor-provider';
 import { cn } from '@/lib/utils';
-import { Trash, Settings, X, Plus, Minus, AlertCircle } from 'lucide-react';
+import { Trash, Settings, X, Plus, Minus, AlertCircle, ExternalLink } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel';
 import { Button } from '@/components/ui/button';
@@ -23,10 +23,10 @@ interface Annotation {
   id: string;
   x: number;
   y: number;
-  width?: number; // Optional for non-rectangle shapes
-  height?: number; // Optional for non-rectangle shapes
-  radius?: number; // For circles
-  points?: { x: number; y: number }[]; // For polygons
+  width?: number;
+  height?: number;
+  radius?: number;
+  points?: { x: number; y: number }[];
   label: string;
   color: string;
   shape: 'rectangle' | 'circle' | 'polygon' | 'point';
@@ -38,15 +38,15 @@ interface LabelCategory {
   color: string;
 }
 
-interface AnnotationContent {
-  src?: string;
+interface DynamicAnnotationContent {
+  src?: string; // This will be dynamically populated
   instructions?: string;
-  labelCategories: LabelCategory[]; // Remove ? to make it always an array
-  annotations: Annotation[]; // Remove ? to make it always an array
+  labelCategories: LabelCategory[]; // Static - set during template creation
+  annotations: Annotation[]; // Dynamic - created during task execution
 }
 
-const ImageAnnotation = (props: Props) => {
-  const { dispatch, state, pageDetails } = useEditor(); // Add pageDetails here
+const DynamicImageAnnotation = (props: Props) => {
+  const { dispatch, state, pageDetails } = useEditor();
   const [showSettings, setShowSettings] = useState(false);
   const componentRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -67,50 +67,51 @@ const ImageAnnotation = (props: Props) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageDimensions, setImageDimensions] = useState({ width: 0, height: 0 });
 
-  const [elementContent, setElementContent] = useState<AnnotationContent>({
+  const [elementContent, setElementContent] = useState<DynamicAnnotationContent>({
     src: !Array.isArray(props.element.content) ? (props.element.content as any)?.src || '' : '',
     instructions: !Array.isArray(props.element.content) ? (props.element.content as any)?.instructions || 'Draw bounding boxes around the objects and select the appropriate label.' : 'Draw bounding boxes around the objects and select the appropriate label.',
     labelCategories: !Array.isArray(props.element.content) ? (props.element.content as any)?.labelCategories || [
-      { id: '1', name: 'Label1', color: '#ff0000' },
-      { id: '2', name: 'Label2', color: '#00ff00' }
+      { id: '1', name: 'label1', color: '#ff0000' },
+      { id: '2', name: 'label2', color: '#00ff00' },
+      { id: '3', name: 'label3', color: '#0000ff' }
     ] : [
-      { id: '1', name: 'Label1', color: '#ff0000' },
-      { id: '2', name: 'Label2', color: '#00ff00' }
+      { id: '1', name: 'label1', color: '#ff0000' },
+      { id: '2', name: 'label2', color: '#00ff00' },
+      { id: '3', name: 'label3', color: '#0000ff' }
     ],
     annotations: !Array.isArray(props.element.content) ? (props.element.content as any)?.annotations || [] : []
   });
 
-  // Add this effect to reset image state when URL changes
+  // Reset image state when URL changes
   useEffect(() => {
-    // Reset image states when src changes
     setImageLoading(false);
     setImageError(null);
     setImageLoaded(false);
-    console.log('🔄 Image URL changed, resetting states:', elementContent.src);
+    console.log('🔄 Dynamic Image URL changed, resetting states:', elementContent.src);
   }, [elementContent.src]);
+
   useEffect(() => {
     const content = !Array.isArray(props.element.content) ? (props.element.content as any) : {};
     
-    // Only update if there are actual changes to prevent infinite loops
     const newContent = {
       src: content?.src || '',
       instructions: content?.instructions || 'Draw bounding boxes around the objects and select the appropriate label.',
       labelCategories: content?.labelCategories || [
-        { id: '1', name: 'Label1', color: '#ff0000' },
-        { id: '2', name: 'Label2', color: '#00ff00' }
+        { id: '1', name: 'label1', color: '#ff0000' },
+        { id: '2', name: 'label2', color: '#00ff00' },
+        { id: '3', name: 'label3', color: '#0000ff' }
       ],
       annotations: content?.annotations || []
     };
 
-    // Use JSON.stringify for deep comparison to prevent unnecessary updates
     const currentContentString = JSON.stringify(elementContent);
     const newContentString = JSON.stringify(newContent);
     
     if (currentContentString !== newContentString) {
-      console.log('ImageAnnotation: Content changed, updating local state');
+      console.log('DynamicImageAnnotation: Content changed, updating local state');
       setElementContent(newContent);
     }
-  }, [props.element.content]); // Only watch for content changes from PropertyPanel
+  }, [props.element.content]);
 
   // Handle clicks outside the component
   useEffect(() => {
@@ -163,16 +164,12 @@ const ImageAnnotation = (props: Props) => {
     setImageLoading(false);
     setImageError(null);
     setImageLoaded(true);
-    console.log('✅ Image loaded successfully:', elementContent.src);
+    console.log('✅ Dynamic Image loaded successfully:', elementContent.src);
     
     if (imageRef.current) {
       setImageDimensions({
         width: imageRef.current.clientWidth,
         height: imageRef.current.clientHeight
-      });
-      console.log('📐 Image dimensions:', {
-        natural: { width: imageRef.current.naturalWidth, height: imageRef.current.naturalHeight },
-        display: { width: imageRef.current.clientWidth, height: imageRef.current.clientHeight }
       });
     }
   };
@@ -182,19 +179,20 @@ const ImageAnnotation = (props: Props) => {
     setImageLoaded(false);
     const errorMsg = `Failed to load image: ${elementContent.src}`;
     setImageError(errorMsg);
-    console.error('❌ Image loading error:', errorMsg, e);
-    console.error('🔍 Error details:', {
-      src: elementContent.src,
-      isValidUrl: isValidUrl(elementContent.src||''),
-      isLiveMode,
-      event: e
-    });
+    console.error('❌ Dynamic Image loading error:', errorMsg, e);
   };
 
   const handleImageLoadStart = () => {
     setImageLoading(true);
     setImageError(null);
-    console.log('🔄 Started loading image:', elementContent.src);
+    console.log('🔄 Started loading dynamic image:', elementContent.src);
+  };
+
+  // Function to open image in new tab for debugging
+  const openImageInNewTab = () => {
+    if (elementContent.src) {
+      window.open(elementContent.src, '_blank');
+    }
   };
 
   // Get mouse position relative to image
@@ -213,14 +211,12 @@ const ImageAnnotation = (props: Props) => {
 
   // Mouse event handlers for drawing
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only allow drawing in live mode when not submitted (not in review mode)
     if (!state.editor.liveMode || !selectedLabel || pageDetails.submitted) return;
     
     e.preventDefault();
     const pos = getMousePosition(e);
     
     if (selectedShape === 'point') {
-      // For points, create annotation immediately
       createPointAnnotation(pos);
       return;
     }
@@ -230,7 +226,6 @@ const ImageAnnotation = (props: Props) => {
       return;
     }
     
-    // For rectangle and circle
     setStartPoint(pos);
     setIsDrawing(true);
   };
@@ -265,21 +260,17 @@ const ImageAnnotation = (props: Props) => {
 
   const handlePolygonClick = (pos: { x: number; y: number }) => {
     if (!isDrawingPolygon) {
-      // Start new polygon
       setPolygonPoints([pos]);
       setIsDrawingPolygon(true);
     } else {
-      // Add point to current polygon
       setPolygonPoints(prev => [...prev, pos]);
     }
   };
 
   const finishPolygon = () => {
-    if (polygonPoints.length < 3) return; // Need at least 3 points for a polygon
+    if (polygonPoints.length < 3) return;
     
     const selectedCategory = (elementContent.labelCategories || []).find(cat => cat.name === selectedLabel);
-    
-    // Calculate bounding box for the polygon
     const minX = Math.min(...polygonPoints.map(p => p.x));
     const minY = Math.min(...polygonPoints.map(p => p.y));
     
@@ -308,7 +299,6 @@ const ImageAnnotation = (props: Props) => {
       }
     });
 
-    // Reset polygon state
     setPolygonPoints([]);
     setIsDrawingPolygon(false);
   };
@@ -319,7 +309,6 @@ const ImageAnnotation = (props: Props) => {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    // Only allow drawing in live mode when not submitted (not in review mode)
     if (!isDrawing || !startPoint || !selectedLabel || pageDetails.submitted) return;
     
     const pos = getMousePosition(e);
@@ -360,7 +349,6 @@ const ImageAnnotation = (props: Props) => {
       return;
     }
 
-    // Check minimum size for rectangles and circles
     if (selectedShape === 'rectangle' && (currentBox.width! < 10 || currentBox.height! < 10)) {
       setIsDrawing(false);
       setStartPoint(null);
@@ -385,7 +373,6 @@ const ImageAnnotation = (props: Props) => {
     
     setElementContent(updatedContent);
     
-    // Update the element in the editor
     dispatch({
       type: 'UPDATE_ELEMENT',
       payload: {
@@ -401,7 +388,6 @@ const ImageAnnotation = (props: Props) => {
     setCurrentBox(null);
   };
 
-  // Delete annotation
   const deleteAnnotation = (annotationId: string) => {
     const updatedAnnotations = (elementContent.annotations || []).filter(ann => ann.id !== annotationId);
     const updatedContent = { ...elementContent, annotations: updatedAnnotations };
@@ -622,12 +608,17 @@ const ImageAnnotation = (props: Props) => {
     });
 
     if (!elementContent.src) {
-      console.log('⚠️ No image URL provided');
+      console.log('⚠️ No image URL provided for dynamic annotation');
       return (
         <div className="w-full h-64 bg-muted rounded-lg flex flex-col items-center justify-center">
           <div className="text-sm text-muted-foreground text-center">
-            No image URL provided
+            {isLiveMode ? 'No image URL provided' : 'Image URL will be populated from task data, set up the labels from settings'}
           </div>
+          {!isLiveMode && (
+            <div className="text-xs text-gray-500 mt-2">
+              Template placeholder: {"{{img}}"}
+            </div>
+          )}
         </div>
       );
     }
@@ -641,11 +632,20 @@ const ImageAnnotation = (props: Props) => {
           <div className="text-xs text-red-500 text-center mt-1 break-all">
             {elementContent.src}
           </div>
+          {elementContent.src && (
+            <button 
+              onClick={openImageInNewTab}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline mt-2"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Open in new tab
+            </button>
+          )}
         </div>
       );
     }
 
-    console.log('✅ Valid URL, rendering image component');
+    console.log('✅ Valid URL, rendering dynamic annotation image');
     return (
       <div className="relative w-full">
         {imageLoading && (
@@ -661,6 +661,13 @@ const ImageAnnotation = (props: Props) => {
             <div className="text-xs text-red-500 text-center break-all max-w-[300px]">
               {elementContent.src}
             </div>
+            <button 
+              onClick={openImageInNewTab}
+              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 underline mt-2"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Open in new tab
+            </button>
           </div>
         )}
 
@@ -669,7 +676,7 @@ const ImageAnnotation = (props: Props) => {
             <img
               ref={imageRef}
               src={elementContent.src}
-              alt="Annotation target"
+              alt="Dynamic annotation target"
               className="w-full h-auto object-contain rounded"
               onLoad={handleImageLoad}
               onError={handleImageError}
@@ -706,6 +713,14 @@ const ImageAnnotation = (props: Props) => {
       {isSelected && !isLiveMode && (
         <div className="absolute -top-[25px] right-[0px] z-50">
           <div className="bg-primary px-2.5 py-1 text-xs font-bold rounded-t-lg !text-white flex items-center gap-2">
+            {elementContent.src && (
+              <ExternalLink
+                className="cursor-pointer hover:text-blue-200"
+                size={16}
+                onClick={openImageInNewTab}
+                title="Open image in new tab"
+              />
+            )}
             <Settings
               className={clsx("cursor-pointer hover:text-blue-200", {
                 "text-blue-200": showSettings
@@ -731,7 +746,7 @@ const ImageAnnotation = (props: Props) => {
         )}
 
         {/* Shape Selector - Only show to annotators in live mode, not during review */}
-        {isLiveMode && !pageDetails.submitted && (
+        {isLiveMode && !pageDetails.submitted && elementContent.src && (
           <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
             <span className="text-sm font-medium text-gray-700">Select shape:</span>
             {[
@@ -744,7 +759,6 @@ const ImageAnnotation = (props: Props) => {
                 key={shape.value}
                 onClick={() => {
                   setSelectedShape(shape.value as any);
-                  // Reset polygon state when changing shapes
                   if (isDrawingPolygon) {
                     cancelPolygon();
                   }
@@ -763,7 +777,7 @@ const ImageAnnotation = (props: Props) => {
         )}
 
         {/* Label Selector - Only show to annotators in live mode, not during review */}
-        {isLiveMode && !pageDetails.submitted && (elementContent.labelCategories || []).length > 0 && (
+        {isLiveMode && !pageDetails.submitted && elementContent.src && (elementContent.labelCategories || []).length > 0 && (
           <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg">
             <span className="text-sm font-medium text-gray-700">Select label:</span>
             {(elementContent.labelCategories || []).map((category) => (
@@ -788,7 +802,7 @@ const ImageAnnotation = (props: Props) => {
         )}
 
         {/* Polygon Instructions */}
-        {isLiveMode && !pageDetails.submitted && selectedShape === 'polygon' && (
+        {isLiveMode && !pageDetails.submitted && selectedShape === 'polygon' && elementContent.src && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
               🔷 <strong>Polygon Mode:</strong> Click to add points. You need at least 3 points to create a polygon.
@@ -861,10 +875,18 @@ const ImageAnnotation = (props: Props) => {
         {/* Editor Mode Preview */}
         {!isLiveMode && (
           <div className="p-4 bg-gray-50 rounded-lg text-center">
-            <div className="text-sm text-gray-600 mb-2">Image Annotation Element</div>
+            <div className="text-sm text-gray-600 mb-2">Dynamic Image Annotation Element</div>
             <div className="text-xs text-gray-500">
               {(elementContent.labelCategories || []).length} label categories configured
-              {elementContent.src && <span className="block mt-1">Image: {elementContent.src}</span>}
+              <span className="block mt-1 text-blue-600">
+                Image URL will be populated from task data: {"{{img}}"} <br/>
+                Set up the labels from settings 
+              </span>
+              {elementContent.src && (
+                <span className="block mt-1 text-green-600">
+                  Preview URL: {elementContent.src}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -877,7 +899,7 @@ const ImageAnnotation = (props: Props) => {
           onClick={handlePropertyPanelClick}
         >
           <div className="flex items-center justify-between p-3 border-b">
-            <h3 className="font-medium">Image Annotation Settings</h3>
+            <h3 className="font-medium">Dynamic Image Annotation Settings</h3>
             <button 
               onClick={handleToggleSettings}
               className="p-1 hover:bg-gray-100 rounded-full"
@@ -887,6 +909,24 @@ const ImageAnnotation = (props: Props) => {
           </div>
           <div className="p-4">
             <PropertyPanel />
+            
+            {/* Debug information */}
+            {elementContent.src && (
+              <div className="mt-4 p-3 bg-gray-50 rounded text-xs">
+                <div className="font-medium mb-2">Debug Info:</div>
+                <div>URL: <span className="break-all">{elementContent.src}</span></div>
+                <div>Valid URL: {isValidUrl(elementContent.src) ? 'Yes' : 'No'}</div>
+                <div>Loading: {imageLoading ? 'Yes' : 'No'}</div>
+                <div>Loaded: {imageLoaded ? 'Yes' : 'No'}</div>
+                {imageError && <div className="text-red-600">Error: {imageError}</div>}
+                <button 
+                  onClick={openImageInNewTab}
+                  className="mt-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
+                >
+                  Test URL in new tab
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -894,4 +934,4 @@ const ImageAnnotation = (props: Props) => {
   );
 };
 
-export default ImageAnnotation;
+export default DynamicImageAnnotation;

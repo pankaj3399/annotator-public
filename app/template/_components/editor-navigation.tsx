@@ -100,7 +100,7 @@ const EditorNavigation = ({ pageId, pageDetails, projectId }: Props) => {
           {/* Test title and buttons */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">Test Title</span>
+              <span className="text-sm font-medium">Template Title</span>
               <Input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
