@@ -27,6 +27,7 @@ export type EditorBtns =
   | 'dynamicCarousel'
   | 'UploadInput'
   | 'dynamicImageAnnotation'
+  | 'videoAnnotation'
 
 export const defaultStyles: React.CSSProperties = {
   backgroundPosition: 'center',
@@ -46,6 +47,17 @@ export const elementDefaultStyles = {
     borderRadius: '8px',
     backgroundColor: '#ffffff',
     minHeight: '300px',
+    width: '100%',
+  },
+    videoAnnotation: { 
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '16px',
+    padding: '16px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    backgroundColor: '#ffffff',
+    minHeight: '400px',
     width: '100%',
   },
 }
