@@ -8,7 +8,7 @@ import Container from './container'
 import TextComponent from './text'
 import VideoComponent from './video'
 import DynamicImageAnnotation from './imageAnnotation'
-import VideoAnnotation from './videoAnnotation'
+
 // Lazy imports for other components to improve initial load time
 const AudioComponent = lazy(() => import('./audio'))
 const Checkbox = lazy(() => import('./checkbox'))
@@ -59,7 +59,6 @@ const COMPONENT_MAP = {
   Upload:UploadComponent,
   UploadInput:UploadInputComponent,
   dynamicImageAnnotation: DynamicImageAnnotation,
-  videoAnnotation: VideoAnnotation
 } as const
 
 const Recursive = ({ element }: Props) => {
