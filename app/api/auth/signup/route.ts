@@ -5,6 +5,7 @@ import { InvitedUsers } from "@/models/InvitedUsers"; // Import InvitedUsers mod
 import saltAndHashPassword from "@/utils/password";
 import { NextResponse } from "next/server";
 import mongoose from "mongoose";
+import { Invitation } from "@/models/Invitation";
 
 export async function POST(req: Request) {
   try {
@@ -122,6 +123,14 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = saltAndHashPassword(password);
 
+      let invitationId = null;
+    if (invitationCode) {
+      const invitation = await Invitation.findOne({ code: invitationCode });
+      if (invitation) {
+        invitationId = invitation._id; // Use the ObjectId of the invitation document
+      }
+    }
+
     // Define user data with all fields including team_id
     const userData = {
       name,
@@ -139,7 +148,7 @@ export async function POST(req: Request) {
       team_id,
       permission: [],
       lastLogin: new Date(),
-      invitation: invitationCode ? invitationCode : null, // Set to null if empty string or falsy
+      invitation: invitationId,
     };
 
     // Create new user using the model
