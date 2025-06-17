@@ -48,7 +48,6 @@ export const elementDefaultStyles = {
     minHeight: '300px',
     width: '100%',
   },
-
 }
 
 export const defaultContent = JSON.stringify([

@@ -58,7 +58,7 @@ const COMPONENT_MAP = {
   dynamicUpload: DynamicUploadComponent, 
   Upload:UploadComponent,
   UploadInput:UploadInputComponent,
-  dynamicImageAnnotation: DynamicImageAnnotation,
+  dynamicImageAnnotation: DynamicImageAnnotation
 } as const
 
 const Recursive = ({ element }: Props) => {

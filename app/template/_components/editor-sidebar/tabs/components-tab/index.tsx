@@ -181,7 +181,6 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     id: 'dynamicImageAnnotation',
     group: 'Dynamic Elements',
   },  
-   
   ];
 
   const handleDragStart = (
