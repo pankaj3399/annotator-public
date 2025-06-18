@@ -503,142 +503,120 @@ function AuthPageContent() {
     }
   };
 
-  if (step === 'role') {
+if (step === 'role') {
     return (
-      <div className='h-screen flex justify-center items-center'>
-        <div>
-          <h1 className='text-4xl font-bold text-left mb-8'>
+      <div className=' flex justify-center items-center px-8 py-10'>
+        <div className='max-w-5xl w-full'>
+          <h1 className='text-5xl font-bold text-center mb-4'>
             What's Your Mission?
           </h1>
-          <p className='text-left mb-8 text-muted-foreground'>
+          <p className='text-center mb-5 text-gray-600 text-lg'>
             Choose the role that aligns with your goals.
           </p>
-          <div className='grid md:grid-cols-4 gap-6'>
+          <div className='grid md:grid-cols-2 gap-5'>
             <Card
-              className='cursor-pointer hover:border-primary'
+              className='cursor-pointer hover:shadow-lg transition-shadow p-5'
               onClick={() => handleRoleSelect('annotator')}
             >
-              <CardHeader>
-                <CardTitle className='flex items-center'>
-                  <Pencil className='mr-2 h-6 w-6' />
-                  Domain Expert
-                </CardTitle>
-                <CardDescription>
-                  Sign up and earn on your terms.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className='mt-4 space-y-2'>
-                  <li className='flex items-center'>
-                    <CheckCircle2 className='mr-2 h-4 w-4 text-green-500' />
-                    Complete meaningful tasks and get paid fast.
-                  </li>
-                  <li className='flex items-center'>
-                    <DollarSign className='mr-2 h-4 w-4 text-green-500' />
-                    Work whenever, wherever - total flexibility.
-                  </li>
-                  <li className='flex items-center'>
-                    <Clock className='mr-2 h-4 w-4 text-green-500' />
-                    Your skills, your schedule, your rewards.
-                  </li>
-                </ul>
-              </CardContent>
+              <div className='text-center mb-6'>
+                <Pencil className='h-8 w-8 mx-auto mb-4' />
+                <h3 className='text-xl font-bold mb-2'>Domain Expert</h3>
+                <p className='text-gray-600 text-md'>Sign up and earn on your terms.</p>
+              </div>
+              <div className='space-y-3'>
+                <div className='flex items-start'>
+                  <CheckCircle2 className='mr-3 h-4 w-4 text-green-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Complete meaningful tasks and get paid fast.</span>
+                </div>
+                <div className='flex items-start'>
+                  <Clock className='mr-3 h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Work whenever, wherever - total flexibility.</span>
+                </div>
+                <div className='flex items-start'>
+                  <span className='mr-2 text-md flex-shrink-0'>✨</span>
+                  <span className='text-gray-700 text-sm'>Your skills, your schedule, your rewards.</span>
+                </div>
+              </div>
             </Card>
             <Card
-              className='cursor-pointer hover:border-primary'
-              onClick={() => handleRoleSelect('data scientist')}
-            >
-              <CardHeader>
-                <CardTitle className='flex items-center'>
-                  <FlaskConical className='mr-2 h-6 w-6' />
-                  Data Scientist
-                </CardTitle>
-                <CardDescription>
-                  Analyze and transform data into insights
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className='mt-4 space-y-2'>
-                  <li className='flex items-center'>
-                    <BarChart className='mr-2 h-4 w-4 text-indigo-500' />
-                    Discover patterns in complex datasets
-                  </li>
-                  <li className='flex items-center'>
-                    <LineChart className='mr-2 h-4 w-4 text-indigo-500' />
-                    Create predictive models
-                  </li>
-                  <li className='flex items-center'>
-                    <Brain className='mr-2 h-4 w-4 text-indigo-500' />
-                    Leverage AI for data-driven decisions
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card
-              className='cursor-pointer hover:border-primary'
+              className='cursor-pointer hover:shadow-lg transition-shadow p-5'
               onClick={() => handleRoleSelect('project manager')}
             >
-              <CardHeader>
-                <CardTitle className='flex items-center'>
-                  <Building2 className='mr-2 h-6 w-6' />
-                  AI Innovator
-                </CardTitle>
-                <CardDescription>I need data for my projects</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className='mt-4 space-y-2'>
-                  <li className='flex items-center'>
-                    <Database className='mr-2 h-4 w-4 text-blue-500' />
-                    Get data labeled
-                  </li>
-                  <li className='flex items-center'>
-                    <FileSpreadsheet className='mr-2 h-4 w-4 text-blue-500' />
-                    Run surveys
-                  </li>
-                  <li className='flex items-center'>
-                    <Globe className='mr-2 h-4 w-4 text-blue-500' />
-                    Collect online data
-                  </li>
-                  <li className='flex items-center'>
-                    <MapPin className='mr-2 h-4 w-4 text-blue-500' />
-                    Gather field data
-                  </li>
-                </ul>
-              </CardContent>
+              <div className='text-center mb-6'>
+                <Brain className='h-8 w-8 mx-auto mb-4' />
+                <h3 className='text-xl font-bold mb-2'>AI Innovator</h3>
+                <p className='text-gray-600 text-md'>I need data for my projects.</p>
+              </div>
+              <div className='space-y-3'>
+                <div className='flex items-start'>
+                  <Database className='mr-3 h-4 w-4 text-teal-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Get data labeled.</span>
+                </div>
+                <div className='flex items-start'>
+                  <Users className='mr-3 h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Run surveys.</span>
+                </div>
+                <div className='flex items-start'>
+                  <Globe className='mr-3 h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Collect online data.</span>
+                </div>
+                <div className='flex items-start'>
+                  <MapPin className='mr-3 h-4 w-4 text-teal-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Gather field data.</span>
+                </div>
+              </div>
             </Card>
             <Card
-              className='cursor-pointer hover:border-primary'
+              className='cursor-pointer hover:shadow-lg transition-shadow p-5'
               onClick={() => handleRoleSelect('agency owner')}
             >
-              <CardHeader>
-                <CardTitle className='flex items-center'>
-                  <Briefcase className='mr-2 h-6 w-6' />
-                  Agency Owner
-                </CardTitle>
-                <CardDescription>
-                  Manage a team of domain experts
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className='mt-4 space-y-2'>
-                  <li className='flex items-center'>
-                    <Users className='mr-2 h-4 w-4 text-purple-500' />
-                    Build and lead specialized teams
-                  </li>
-                  <li className='flex items-center'>
-                    <Globe className='mr-2 h-4 w-4 text-purple-500' />
-                    Access global annotation projects
-                  </li>
-                  <li className='flex items-center'>
-                    <DollarSign className='mr-2 h-4 w-4 text-purple-500' />
-                    Scale your agency's revenue
-                  </li>
-                  <li className='flex items-center'>
-                    <CheckCircle2 className='mr-2 h-4 w-4 text-purple-500' />
-                    Deliver high-quality work at scale
-                  </li>
-                </ul>
-              </CardContent>
+              <div className='text-center mb-6'>
+                <Building2 className='h-8 w-8 mx-auto mb-4' />
+                <h3 className='text-xl font-bold mb-2'>Agency Owner</h3>
+                <p className='text-gray-600 text-md'>Manage a team of domain experts.</p>
+              </div>
+              <div className='space-y-3'>
+                <div className='flex items-start'>
+                  <Users className='mr-3 h-4 w-4 text-pink-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Build and lead specialized teams.</span>
+                </div>
+                <div className='flex items-start'>
+                  <Globe className='mr-3 h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Access global annotation projects.</span>
+                </div>
+                <div className='flex items-start'>
+                  <BarChart className='mr-3 h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Scale your agency's revenue.</span>
+                </div>
+                <div className='flex items-start'>
+                  <span className='mr-2 text-md flex-shrink-0'>✨</span>
+                  <span className='text-gray-700 text-sm'>Deliver high-quality work at scale.</span>
+                </div>
+              </div>
+            </Card>
+            <Card
+              className='cursor-pointer hover:shadow-lg transition-shadow p-5'
+              onClick={() => handleRoleSelect('data scientist')}
+            >
+              <div className='text-center mb-6'>
+                <FlaskConical className='h-8 w-8 mx-auto mb-4' />
+                <h3 className='text-xl font-bold mb-2'>Data Scientist</h3>
+                <p className='text-gray-600 text-md'>Analyze and transform data into insights.</p>
+              </div>
+              <div className='space-y-3'>
+                <div className='flex items-start'>
+                  <BarChart className='mr-3 h-4 w-4 text-purple-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Discover patterns in complex datasets.</span>
+                </div>
+                <div className='flex items-start'>
+                  <LineChart className='mr-3 h-4 w-4 text-teal-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Create predictive models.</span>
+                </div>
+                <div className='flex items-start'>
+                  <Brain className='mr-3 h-4 w-4 text-teal-500 mt-0.5 flex-shrink-0' />
+                  <span className='text-gray-700 text-sm'>Leverage AI for data-driven decisions.</span>
+                </div>
+              </div>
             </Card>
           </div>
         </div>
@@ -689,7 +667,7 @@ function AuthPageContent() {
           {isTeamSelectionDisabled && formData.role === 'annotator' && (
             <Alert className='mb-6 bg-blue-50 border-blue-200'>
               <AlertDescription className='flex items-center'>
-                <Users className='mr-2 h-5 w-5 text-blue-500' />
+                <Users className='mr-2 h-4 w-4 text-blue-500' />
                 <span>
                 You've been invited to join as a <strong>Domain Expert</strong>
                 </span>
@@ -700,7 +678,7 @@ function AuthPageContent() {
           {formData.role === 'data scientist' && (
             <Alert className='mb-6 bg-indigo-50 border-indigo-200'>
               <AlertDescription className='flex items-center'>
-                <FlaskConical className='mr-2 h-5 w-5 text-indigo-500' />
+                <FlaskConical className='mr-2 h-4 w-4 text-indigo-500' />
                 <span>
                   Join our platform as a <strong>Data Scientist</strong> to
                   analyze datasets, build models, and extract valuable insights.
@@ -713,7 +691,7 @@ function AuthPageContent() {
           {isAcoladTeam() && (
             <Alert className='mb-6 bg-amber-50 border-amber-200'>
               <AlertDescription className='flex items-center'>
-                <Shield className='mr-2 h-5 w-5 text-amber-600' />
+                <Shield className='mr-2 h-4 w-4 text-amber-600' />
                 <span>
                   <strong>Acolad Partnership:</strong> Additional privacy
                   policies apply for this team.

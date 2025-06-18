@@ -11,20 +11,22 @@ type Props = {
 }
 
 const CheckboxComponent = (props: Props) => {
-  const { dispatch, state } = useEditor()
+  const { dispatch, state, pageDetails } = useEditor() // Added pageDetails
   // Local state to track if settings panel is visible for this specific element
   const [showSettings, setShowSettings] = useState(false)
   // Refs to detect clicks outside
   const componentRef = useRef<HTMLDivElement>(null)
 
   const [elementContent, setElementContent] = React.useState({
-    innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || 'Checkbox' : 'Checkbox',
+    title: !Array.isArray(props.element.content) ? props.element.content?.title || 'Checkbox Group' : 'Checkbox Group',
+    checkboxes: !Array.isArray(props.element.content) ? props.element.content?.checkboxes || ['Option 1'] : ['Option 1'],
     selectedCheckbox: !Array.isArray(props.element.content) ? props.element.content?.selectedCheckbox || [] : []
   })
 
   React.useEffect(() => {
     setElementContent({
-      innerText: !Array.isArray(props.element.content) ? props.element.content?.innerText || 'Checkbox' : 'Checkbox',
+      title: !Array.isArray(props.element.content) ? props.element.content?.title || 'Checkbox Group' : 'Checkbox Group',
+      checkboxes: !Array.isArray(props.element.content) ? props.element.content?.checkboxes || ['Option 1'] : ['Option 1'],
       selectedCheckbox: !Array.isArray(props.element.content) ? props.element.content?.selectedCheckbox || [] : []
     })
   }, [props.element])
@@ -32,27 +34,20 @@ const CheckboxComponent = (props: Props) => {
   // Handle clicks outside the component to maintain selection
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      // Only handle this logic if settings are showing
       if (!showSettings) return;
-      
-      // Check if the click was outside our component
       if (componentRef.current && !componentRef.current.contains(event.target as Node)) {
-        // Close settings when clicking outside the entire component
         setShowSettings(false);
       }
     };
 
-    // Add event listener
     document.addEventListener('mousedown', handleClickOutside);
-    
-    // Clean up
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showSettings]);
 
   const handleDeleteElement = (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent the click from bubbling
+    e.stopPropagation()
     dispatch({
       type: 'DELETE_ELEMENT',
       payload: { elementDetails: props.element },
@@ -60,23 +55,18 @@ const CheckboxComponent = (props: Props) => {
   }
 
   const handleToggleSettings = (e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent the click from bubbling
-    
-    // First select the element
+    e.stopPropagation()
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
       payload: {
         elementDetails: props.element,
       },
     })
-    
-    // Toggle settings visibility
     setShowSettings(prev => !prev)
   }
 
   const handleOnClickBody = (e: React.MouseEvent) => {
     e.stopPropagation()
-    // Always select this element when clicked
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
       payload: {
@@ -85,17 +75,25 @@ const CheckboxComponent = (props: Props) => {
     })
   }
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.stopPropagation()
-    const isChecked = e.target.checked
+  const handleCheckboxChange = (option: string, isChecked: boolean) => {
+    // Prevent changes if page is submitted
+    if (pageDetails.submitted) return;
+
+    let newSelectedCheckbox: string[]
     
-    // Update local state
+    if (isChecked) {
+      newSelectedCheckbox = elementContent.selectedCheckbox.includes(option) 
+        ? elementContent.selectedCheckbox 
+        : [...elementContent.selectedCheckbox, option]
+    } else {
+      newSelectedCheckbox = elementContent.selectedCheckbox.filter(item => item !== option)
+    }
+    
     setElementContent(prev => ({
       ...prev,
-      selectedCheckbox: isChecked ? [elementContent.innerText] : []
+      selectedCheckbox: newSelectedCheckbox
     }))
     
-    // Update element in the editor state
     if (!Array.isArray(props.element.content)) {
       dispatch({
         type: 'UPDATE_ELEMENT',
@@ -104,7 +102,7 @@ const CheckboxComponent = (props: Props) => {
             ...props.element,
             content: {
               ...props.element.content,
-              selectedCheckbox: isChecked ? [elementContent.innerText] : []
+              selectedCheckbox: newSelectedCheckbox
             }
           }
         }
@@ -115,10 +113,8 @@ const CheckboxComponent = (props: Props) => {
   const isSelected = state.editor.selectedElement.id === props.element.id
   const isLiveMode = state.editor.liveMode
 
-  // Handle clicks on the property panel to prevent closing
   const handlePropertyPanelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Ensure element stays selected
     dispatch({
       type: 'CHANGE_CLICKED_ELEMENT',
       payload: {
@@ -160,17 +156,43 @@ const CheckboxComponent = (props: Props) => {
           </div>
         )}
 
-        <div className="flex items-center gap-2 p-2">
-          <input
-            type="checkbox"
-            checked={elementContent.selectedCheckbox.includes(elementContent.innerText)}
-            onChange={handleCheckboxChange}
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-            disabled={isLiveMode ? false : true}
-          />
-          <label className="ml-2 text-sm font-medium text-gray-700">
-            {elementContent.innerText}
-          </label>
+        <div className="p-3">
+          {/* Title */}
+          {elementContent.title && (
+            <div className="mb-3">
+              <h3 className="text-sm font-medium text-gray-900">
+                {elementContent.title}
+              </h3>
+            </div>
+          )}
+          
+          {/* Checkbox Options */}
+          <div className="space-y-2">
+            {elementContent.checkboxes.map((option, index) => (
+              <div key={`${option}-${index}`} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id={`checkbox-${props.element.id}-${index}`}
+                  checked={elementContent.selectedCheckbox.includes(option)}
+                  onChange={(e) => handleCheckboxChange(option, e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  disabled={!isLiveMode || pageDetails.submitted} // Added pageDetails.submitted check
+                />
+                <label 
+                  htmlFor={`checkbox-${props.element.id}-${index}`}
+                  className="text-sm font-medium text-gray-700 cursor-pointer"
+                >
+                  {option}
+                </label>
+              </div>
+            ))}
+          </div>
+          
+          {elementContent.checkboxes.length === 0 && (
+            <div className="text-sm text-gray-500 italic">
+              No checkbox options configured. Add options in settings.
+            </div>
+          )}
         </div>
       </div>
 
@@ -190,7 +212,6 @@ const CheckboxComponent = (props: Props) => {
             </button>
           </div>
           <div className="p-4">
-            {/* Using PropertyPanel without passing the element prop */}
             <PropertyPanel />
           </div>
         </div>
