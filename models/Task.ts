@@ -33,13 +33,11 @@ taskSchema.index({ project: 1, type: 1 });
 
 // === NEW INDEXES FOR DASHBOARD QUERIES ===
 // Single field indexes for common queries
-taskSchema.index({ project_Manager: 1 });
 taskSchema.index({ status: 1 });
 taskSchema.index({ submitted: 1 });
 taskSchema.index({ timeTaken: 1 });
 
 // Compound indexes for aggregation queries
-taskSchema.index({ project_Manager: 1, project: 1 });
 taskSchema.index({ project_Manager: 1, timeTaken: 1 });
 taskSchema.index({ project: 1, project_Manager: 1, timeTaken: 1 });
 taskSchema.index({ project_Manager: 1, project: 1, timeTaken: 1 });

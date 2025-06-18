@@ -27,7 +27,6 @@ const projectSchema = new Schema({
 });
 
 // === OPTIMIZED INDEXES FOR PROJECT QUERIES ===
-projectSchema.index({ project_Manager: 1 }); // Find projects by manager
 projectSchema.index({ name: 1 }); // Search projects by name
 projectSchema.index({ project_Manager: 1, _id: 1 }); // Manager's specific project
 projectSchema.index({ created_at: -1 }); // Sort by creation date (newest first)
