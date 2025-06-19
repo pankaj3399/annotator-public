@@ -648,15 +648,6 @@ export default function AnnotatorPaymentHistoryPage() {
         </CardContent>
       </Card>
 
-      {/* Platform fee information */}
-      <Alert className="mb-8 bg-blue-50 border-blue-100">
-        <Info className="h-4 w-4 text-blue-600" />
-        <AlertTitle className="text-blue-800">About Platform Fees</AlertTitle>
-        <AlertDescription className="text-blue-700">
-          A 10% platform fee is deducted from each payment you receive. This fee covers payment processing, platform maintenance, and customer support services.
-        </AlertDescription>
-      </Alert>
-
       {/* Tabs and filters */}
       <div className="mb-6">
         <Tabs defaultValue="all" className="w-full" onValueChange={setActiveTab}>

@@ -67,6 +67,7 @@ function needsCrossBorderHandling(
   // Different countries definitely need special handling
   return expertCountry !== platformCountry;
 }
+
 // Get capabilities for each country
 function getCapabilitiesForCountry(country: SupportedCountry) {
   const baseCapabilities: Record<string, { requested: boolean }> = {
@@ -290,7 +291,6 @@ function convertToMinorUnits(amount: number, currency: string): number {
   return Math.round(amount * 100);
 }
 
-// Create Stripe account for expert
 export async function createConnectAccount(country?: SupportedCountry) {
   try {
     await connectToDatabase();
@@ -351,10 +351,7 @@ export async function createConnectAccount(country?: SupportedCountry) {
     // Get capabilities for the country
     const capabilities = getCapabilitiesForCountry(country);
 
-    // Determine if we need recipient service agreement
-    const needsRecipientAgreement = !capabilities.card_payments;
-
-    // Enhanced account creation with better cross-border support
+    // Enhanced account creation
     const accountConfig: Stripe.AccountCreateParams = {
       type: 'express',
       country: country,
@@ -381,6 +378,8 @@ export async function createConnectAccount(country?: SupportedCountry) {
     };
 
     // For countries that don't support card_payments, use recipient service agreement
+    const noCardPaymentsCountries: SupportedCountry[] = ['MX', 'HK', 'TH', 'IS'];
+    const needsRecipientAgreement = noCardPaymentsCountries.includes(country);
     if (needsRecipientAgreement) {
       accountConfig.tos_acceptance = {
         service_agreement: 'recipient',
@@ -416,6 +415,7 @@ export async function createConnectAccount(country?: SupportedCountry) {
     return { error: 'Failed to create Stripe account' };
   }
 }
+
 // Get Connect account status
 export async function getConnectAccountStatus() {
   try {
@@ -906,6 +906,6 @@ export async function getMyPayments() {
     return { data: JSON.stringify(payments) };
   } catch (error) {
     console.error('Error fetching payments:', error);
-    return { error: 'Failed to get payments' };
+    return { error: 'Failed to get payments.' };
   }
 }

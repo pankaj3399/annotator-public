@@ -1,3 +1,4 @@
+//app/api/aiModel/route.ts
 import { authOptions } from '@/auth';
 import { connectToDatabase } from '@/lib/db';
 import { AImodel } from '@/models/aiModel';
