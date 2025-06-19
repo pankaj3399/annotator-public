@@ -38,15 +38,10 @@ function needsCrossBorderHandling(expertCountry: string, platformCountry: string
 }
 // Get capabilities for each country
 function getCapabilitiesForCountry(country: SupportedCountry) {
-
   const baseCapabilities: Record<string, { requested: boolean }> = {
     transfers: { requested: true },
+    card_payments: { requested: true }, // Add card payments for all countries
   };
-
-  // Only add card_payments for supported countries
-  if (!noCardPaymentsCountries.includes(country)) {
-    baseCapabilities.card_payments = { requested: true };
-  }
 
   const countrySpecificCapabilities: Record<SupportedCountry, Record<string, { requested: boolean }>> = {
     // North America
@@ -110,7 +105,6 @@ function getCapabilitiesForCountry(country: SupportedCountry) {
     ...(countrySpecificCapabilities[country] || {}),
   };
 }
-
 // Get supported currencies for each country
 function getSupportedCurrencies(country: SupportedCountry): string[] {
   const currencyMap: Record<SupportedCountry, string[]> = {
@@ -206,7 +200,6 @@ function convertToMinorUnits(amount: number, currency: string): number {
   return Math.round(amount * 100);
 }
 
-// Create Stripe account for expert
 export async function createConnectAccount(country?: SupportedCountry) {
   try {
     await connectToDatabase();
@@ -265,10 +258,7 @@ export async function createConnectAccount(country?: SupportedCountry) {
     // Get capabilities for the country
     const capabilities = getCapabilitiesForCountry(country);
 
-    // Determine if we need recipient service agreement
-    const needsRecipientAgreement = !capabilities.card_payments;
-
-    // Enhanced account creation with better cross-border support
+    // Enhanced account creation - REMOVE the recipient service agreement
     const accountConfig: Stripe.AccountCreateParams = {
       type: 'express',
       country: country,
@@ -294,12 +284,8 @@ export async function createConnectAccount(country?: SupportedCountry) {
       },
     };
 
-    // For countries that don't support card_payments, use recipient service agreement
-    if (needsRecipientAgreement) {
-      accountConfig.tos_acceptance = {
-        service_agreement: 'recipient'
-      };
-    }
+    // REMOVED: Don't set the recipient service agreement
+    // This allows full payment capabilities including card_payments
 
     const account = await stripe.accounts.create(accountConfig);
 
