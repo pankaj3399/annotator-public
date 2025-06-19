@@ -905,6 +905,6 @@ export async function getMyPayments() {
     return { data: JSON.stringify(payments) };
   } catch (error) {
     console.error('Error fetching payments:', error);
-    return { error: 'Failed to get payments' };
+    return { error: 'Failed to get payments.' };
   }
 }
