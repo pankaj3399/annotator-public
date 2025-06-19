@@ -536,10 +536,11 @@ export async function createPaymentIntent(
     );
     if (!supportedCurrencies.includes(normalizedCurrency)) {
       return {
-        error: `Currency ${normalizedCurrency.toUpperCase()} is not supported for ${expertAccount.country
-          }. Supported currencies: ${supportedCurrencies
-            .join(', ')
-            .toUpperCase()}`,
+        error: `Currency ${normalizedCurrency.toUpperCase()} is not supported for ${
+          expertAccount.country
+        }. Supported currencies: ${supportedCurrencies
+          .join(', ')
+          .toUpperCase()}`,
         supportedCurrencies: supportedCurrencies,
       };
     }
