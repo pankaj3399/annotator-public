@@ -25,8 +25,8 @@ import DynamicUploadPlaceholder from './DynamicUploadPlaceholder'; // Adjust rel
 import DynamicCarousel from './carousal-placeholder'; // Adjust relative path
 import UploadPlaceholder from './upload-placeholder'; // Adjust relative path
 import UploadInputPlaceholder from './upload-input-placeholder'; // Adjust relative path
-import ImageAnnotationPlaceholder from '../imageAnnotationPlaceholder';
 import DynamicImageAnnotationPlaceholder from '../imageAnnotationPlaceholder';
+import VideoAnnotationPlaceholder from '../videoAnnotationPlaceholder';
 
 // Define the structure of an element
 interface ElementDefinition {
@@ -180,6 +180,12 @@ const ComponentsTab = ({ searchTerm }: ComponentsTabProps) => {
     label: 'Image Annotation (Dynamic)',
     id: 'dynamicImageAnnotation',
     group: 'Dynamic Elements',
+  },  
+   {
+    Component: <VideoAnnotationPlaceholder />,
+    label: 'Video Annotation ',
+    id: 'videoAnnotation',
+    group: 'elements',
   },
   ];
 
