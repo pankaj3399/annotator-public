@@ -40,7 +40,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { addJob, deleteJobByTaskid } from '@/app/actions/aiModel';
-import { Judge } from '../../ai-config/[projectId]/page';
 import { Annotator, Task } from './page';
 import {
   Pagination,
@@ -67,7 +66,21 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 
-// Updated interface with all navigation parameters
+// KEEP the original Judge interface - no changes needed here
+export interface Judge {
+  _id: string;
+  user: string;
+  projectid: string;
+  name: string;
+  model: string;
+  provider: string;
+  enabled: boolean;
+  apiKey: string;
+  systemPrompt?: string;
+  created_at: string;
+}
+
+// KEEP the original interface - no changes needed
 interface TaskTableProps {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
@@ -75,12 +88,12 @@ interface TaskTableProps {
   setSelectedTask: React.Dispatch<React.SetStateAction<Task[]>>;
   annotators: Annotator[];
   reviewers: Annotator[];
-  judges: Judge[];
+  judges: Judge[]; // KEEP as Judge[]
   handleAssignUser: (
     annotatorId: string,
     taskId: string,
     ai: boolean,
-    isReviewer?: boolean,
+    isReviewer?: boolean
   ) => void;
   handleDeleteTemplate: (e: React.MouseEvent, _id: string) => void;
   router: any;
@@ -112,7 +125,7 @@ export function TaskTable({
   setSelectedTask,
   annotators,
   reviewers,
-  judges,
+  judges, // KEEP as judges
   handleAssignUser,
   handleDeleteTemplate,
   router,
@@ -163,7 +176,7 @@ export function TaskTable({
 
   const handleAssigneeChange = async (value: string, task: Task) => {
     try {
-      // Check if selecting AI model
+      // Check if selecting AI model (judges)
       const exist = judges.find((judge) => judge._id === value);
       if (exist) {
         if (getJobs().some((job) => job.taskid === task._id)) {
@@ -209,7 +222,7 @@ export function TaskTable({
       toast.error('Failed to assign annotator');
     }
   };
-  
+
   const handleSelect = (task: Task) => {
     setSelectedTask((prev) =>
       prev.some((selectedTask) => selectedTask._id === task._id)
@@ -337,7 +350,7 @@ export function TaskTable({
               </TableHead>{' '}
               <TableHead className='min-w-[150px]'>Tasks Name</TableHead>
               <TableHead className='min-w-[150px]'>Created Date</TableHead>
-              <TableHead className='min-w-[150px]'>Assignee</TableHead>
+              <TableHead className='min-w-[225px]'>Assignee</TableHead>
               <TableHead className='min-w-[300px]'>Reviewer</TableHead>
               <TableHead className='min-w-[120px]'>Status</TableHead>
               <TableHead className='text-center min-w-[50px]'>
@@ -365,6 +378,7 @@ export function TaskTable({
                       permission: ['canReview'],
                     } as Annotator)
                   : null);
+              // KEEP the original variable name
               const assignedJudge = judges.find((j) => j._id === task.ai);
 
               return (
@@ -373,24 +387,24 @@ export function TaskTable({
                   onClick={() => {
                     // Construct URL with all necessary context parameters
                     const params = new URLSearchParams();
-                    
+
                     // Basic navigation context
                     params.set('tab', activeTab || 'all');
                     params.set('projectId', projectId);
                     if (taskType) {
                       params.set('type', taskType);
                     }
-                    
+
                     // Add all filter parameters
                     if (statusFilter) params.set('status', statusFilter);
                     if (expertFilter) params.set('expert', expertFilter);
                     if (reviewerFilter) params.set('reviewer', reviewerFilter);
-                    
+
                     // Add sorting parameter
                     if (inactiveTimeSort && inactiveTimeSort !== 'none') {
                       params.set('inactiveTimeSort', inactiveTimeSort);
                     }
-                    
+
                     router.push(`/task/${task._id}?${params.toString()}`);
                   }}
                   className='cursor-pointer hover:bg-gray-50'
@@ -417,10 +431,10 @@ export function TaskTable({
                       <PopoverTrigger asChild>
                         <Button
                           variant='outline'
-                          className='w-[180px] justify-between'
+                          className='w-[240px] justify-between'
                         >
                           {task.ai
-                            ? assignedJudge?.name
+                            ? assignedJudge?.name // KEEP the original reference
                             : task.annotator
                               ? assignedAnnotator?.name
                               : 'Unassigned'}
@@ -445,17 +459,21 @@ export function TaskTable({
                               >
                                 Unassigned
                               </CommandItem>
-                              {judges.map((judge) => (
-                                <CommandItem
-                                  key={judge._id}
-                                  value={judge.name}
-                                  onSelect={() =>
-                                    handleAssigneeChange(judge._id, task)
-                                  }
-                                >
-                                  {judge.name} (AI)
-                                </CommandItem>
-                              ))}
+                              {judges.map(
+                                (
+                                  judge // KEEP the original mapping
+                                ) => (
+                                  <CommandItem
+                                    key={judge._id}
+                                    value={judge.name}
+                                    onSelect={() =>
+                                      handleAssigneeChange(judge._id, task)
+                                    }
+                                  >
+                                    {judge.name} (AI)
+                                  </CommandItem>
+                                )
+                              )}
                               {annotators
                                 .filter(
                                   (annotator) =>

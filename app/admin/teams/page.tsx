@@ -93,10 +93,15 @@ const TeamsPage = () => {
     }
   };
 
-  const uploadLogo = async (teamId: string): Promise<string | null> => {
-    if (!logoFile) return null;
+  // Replace your uploadLogo and handleLogoUpload functions with these fixed versions:
 
+  const uploadLogoFile = async (
+    file: File,
+    teamId: string
+  ): Promise<string | null> => {
     try {
+      console.log('Starting logo upload for team:', teamId, 'file:', file.name);
+
       // Get signed URL for upload
       const response = await fetch('/api/teamLogos', {
         method: 'POST',
@@ -104,38 +109,104 @@ const TeamsPage = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          filename: logoFile.name,
-          contentType: logoFile.type,
+          filename: file.name,
+          contentType: file.type,
           teamId: teamId,
         }),
       });
 
-      const { uploadUrl, publicUrl } = await response.json();
+      console.log('API response status:', response.status);
 
       if (!response.ok) {
-        throw new Error('Failed to get upload URL');
+        const errorText = await response.text();
+        console.error('API response error:', errorText);
+        throw new Error(`API request failed: ${response.status} ${errorText}`);
       }
+
+      const responseData = await response.json();
+      console.log('API response data:', responseData);
+
+      // Handle the response structure from your API
+      if (!responseData.success) {
+        throw new Error(responseData.error || 'API returned success: false');
+      }
+
+      const { uploadUrl, publicUrl } = responseData;
+
+      if (!uploadUrl || !publicUrl) {
+        throw new Error('Missing uploadUrl or publicUrl in response');
+      }
+
+      console.log('Uploading to S3 URL:', uploadUrl);
 
       // Upload file to S3
       const uploadResponse = await fetch(uploadUrl, {
         method: 'PUT',
-        body: logoFile,
+        body: file,
         headers: {
-          'Content-Type': logoFile.type,
+          'Content-Type': file.type,
         },
       });
 
+      console.log('S3 upload response status:', uploadResponse.status);
+
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload logo');
+        const errorText = await uploadResponse.text();
+        console.error('S3 upload error:', errorText);
+        throw new Error(
+          `S3 upload failed: ${uploadResponse.status} ${errorText}`
+        );
       }
 
+      console.log('Logo uploaded successfully to:', publicUrl);
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      console.error('Error in uploadLogoFile:', error);
       throw error;
     }
   };
 
+  // Updated uploadLogo function for new team creation
+  const uploadLogo = async (teamId: string): Promise<string | null> => {
+    if (!logoFile) {
+      console.log('No logoFile found, returning null');
+      return null;
+    }
+
+    return await uploadLogoFile(logoFile, teamId);
+  };
+
+  // Fixed handleLogoUpload function for existing teams
+  const handleLogoUpload = async (teamId: string, file: File) => {
+    setUploadingLogo(teamId);
+    try {
+      console.log('Starting logo upload for existing team:', teamId);
+
+      // Upload the logo directly without modifying state
+      const logoUrl = await uploadLogoFile(file, teamId);
+      console.log('Logo uploaded to S3:', logoUrl);
+
+      if (logoUrl) {
+        console.log('Updating team logo in database for team:', teamId);
+        const updatedTeam = await updateTeamLogo(teamId, logoUrl);
+        console.log('Team updated:', updatedTeam);
+
+        // Refresh teams to show new logo
+        const updatedTeams = await getTeams();
+        setTeams(updatedTeams);
+        toast.success('Logo uploaded successfully!');
+      } else {
+        throw new Error('No logo URL returned from upload');
+      }
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      toast.error(
+        `Failed to upload logo: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    } finally {
+      setUploadingLogo(null);
+    }
+  };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -194,39 +265,6 @@ const TeamsPage = () => {
     } catch (error) {
       console.error('Error creating team:', error);
       toast.error('Failed to create team');
-    }
-  };
-
-  const handleLogoUpload = async (teamId: string, file: File) => {
-    setUploadingLogo(teamId);
-    try {
-      // Store the current logoFile temporarily
-      const originalLogoFile = logoFile;
-      setLogoFile(file);
-
-      const logoUrl = await uploadLogo(teamId);
-      console.log('Logo uploaded to S3:', logoUrl);
-
-      if (logoUrl) {
-        console.log('Updating team logo in database for team:', teamId);
-        const updatedTeam = await updateTeamLogo(teamId, logoUrl);
-        console.log('Team updated:', updatedTeam);
-
-        // Refresh teams to show new logo
-        const updatedTeams = await getTeams();
-        setTeams(updatedTeams);
-        toast.success('Logo uploaded successfully!');
-      } else {
-        throw new Error('No logo URL returned from upload');
-      }
-
-      // Restore original logoFile
-      setLogoFile(originalLogoFile);
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      toast.error('Failed to upload logo');
-    } finally {
-      setUploadingLogo(null);
     }
   };
 

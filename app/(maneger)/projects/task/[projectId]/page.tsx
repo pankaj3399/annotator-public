@@ -14,8 +14,8 @@ import { SheetMenu } from '@/components/admin-panel/sheet-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Filter } from 'lucide-react';
-import Loader from '@/components/ui/NewLoader/Loader'; // <<< KEEP ORIGINAL LOADER IMPORT
-import { DataLoadingSpinner } from '@/components/ui/DataLoadingSpinner'; // <<< ADDED LOADER IMPORT
+import Loader from '@/components/ui/NewLoader/Loader';
+import { DataLoadingSpinner } from '@/components/ui/DataLoadingSpinner';
 import {
   Dialog,
   DialogContent,
@@ -30,12 +30,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Bot, FileDown, Mail, PlusCircle, Shuffle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react'; // <<< Keep original useState/useEffect import
-import { Judge } from '../../ai-config/[projectId]/page';
+import { useEffect, useState } from 'react';
 import { TaskTable } from './table';
 import TaskProgress from './TaskProgress';
 import { format, parseISO } from 'date-fns';
-// import Task from '@/models/Task'; // Keep original commented/uncommented state
 import {
   Select,
   SelectContent,
@@ -60,6 +58,7 @@ import {
 import { Search } from 'lucide-react';
 import ReviewerDialogComponent from './reviewer-dialog';
 import AnnotatorDialog from './annotator-dialog';
+import { getProviderAIModels } from '@/app/actions/providerAIModel';
 
 // --- KEEP ORIGINAL INTERFACES ---
 export interface Task {
@@ -72,7 +71,7 @@ export interface Task {
   submitted: boolean;
   annotator?: string;
   assignedAt: string;
-  reviewer?: string; // Added reviewer field
+  reviewer?: string;
   timeTaken: number;
   feedback: string;
   ai: string;
@@ -85,6 +84,20 @@ export interface Annotator {
   role: string | null;
   lastLogin: string;
   permission?: string[];
+}
+
+// KEEP the Judge interface - just change how we populate it
+export interface Judge {
+  _id: string;
+  user: string;
+  projectid: string;
+  name: string;
+  model: string;
+  provider: string;
+  enabled: boolean;
+  apiKey: string;
+  systemPrompt?: string;
+  created_at: string;
 }
 
 type taskType = 'core' | 'training' | 'test';
@@ -100,7 +113,7 @@ export default function Component() {
   );
   const [isMailDialogOpen, setIsMailDialogOpen] = useState(false);
   const [annotators, setAnnotators] = useState<Annotator[]>([]);
-  const [judges, setJudges] = useState<Judge[]>([]);
+  const [judges, setJudges] = useState<Judge[]>([]); // KEEP judges state
   const [activeTab, setActiveTab] = useState('all');
   const [allReviewers, setAllReviewers] = useState<Annotator[]>([]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -110,7 +123,7 @@ export default function Component() {
   const projectId = pathName.split('/')[3];
   const router = useRouter();
   const { data: session } = useSession();
-  const [isLoading, setIsLoading] = useState(false); // Keep original isLoading state
+  const [isLoading, setIsLoading] = useState(false);
   const [taskType, setTaskType] = useState<taskType>('test');
   const [activeFiltersCount, setActiveFiltersCount] = useState(0);
   const [statusFilter, setStatusFilter] = useState('');
@@ -124,28 +137,59 @@ export default function Component() {
   const [isReviewerDialogOpen, setIsReviewerDialogOpen] = useState(false);
   const { toast } = useToast();
   const [selectedTask, setSelectedTask] = useState<Task[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(true); // <<< ADDED LOADER STATE
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // --- KEEP ORIGINAL fetchJudges ---
+  // UPDATED fetchJudges to use getProviderAIModels
   const fetchJudges = async () => {
-    if (!projectId) return; // Keep guard clause if added previously or add for safety
-    const res = await fetch(`/api/aiModel?projectId=${projectId}`);
-    const judgesData = await res.json(); // Keep original variable name 'judges'
-    if (judgesData.error) {
+    try {
+      console.log('Fetching AI models for user (as judges)');
+
+      const response = await getProviderAIModels();
+      console.log('ProviderAI models response:', response);
+
+      if (!response.success) {
+        console.error('Failed to fetch AI models:', response.error);
+        toast({
+          variant: 'destructive',
+          title: 'Fetching AI models failed',
+          description: response.error || 'An unexpected error occurred',
+        });
+        setJudges([]);
+        return;
+      }
+
+      if (response.models && Array.isArray(response.models)) {
+        console.log(`Found ${response.models.length} AI models`);
+
+        // Transform ProviderAIModel to Judge interface
+        const transformedJudges = response.models.map((model) => ({
+          _id: model.id,
+          user: model.id, // ProviderAIModel doesn't have user field, using id
+          projectid: projectId, // Current project
+          name: model.name,
+          model: model.model,
+          provider: model.provider,
+          enabled: true, // All ProviderAIModels are considered enabled
+          apiKey: model.apiKey,
+          systemPrompt: model.systemPrompt || '',
+          created_at: model.createdAt.toISOString(),
+        }));
+
+        setJudges(transformedJudges);
+        console.log(
+          `Transformed ${transformedJudges.length} AI models to judges`
+        );
+      } else {
+        console.log('No AI models found');
+        setJudges([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching AI models:', error);
       toast({
         variant: 'destructive',
-        title: 'Fetching judges failed',
-        description: judgesData.error,
+        title: 'Fetching AI models failed',
+        description: error.message || 'An unexpected error occurred',
       });
-      setJudges([]); // Keep setting empty on error
-      return;
-    }
-    // Keep original filter logic
-    if (judgesData.models && Array.isArray(judgesData.models)) {
-      setJudges(
-        judgesData.models.filter((judge: Judge) => judge.enabled == true)
-      );
-    } else {
       setJudges([]);
     }
   };
@@ -161,61 +205,54 @@ export default function Component() {
     setActiveFiltersCount(count);
   }, [statusFilter, expertFilter, reviewerFilter, inactiveTimeSort]);
 
-  // --- MODIFIED main data fetching effect (to add loading state) ---
+  // --- KEEP ORIGINAL main data fetching effect ---
   useEffect(() => {
-    let isMounted = true; // Prevent state update on unmounted component
+    let isMounted = true;
     async function init() {
-      if (!projectId) return; // Keep guard if present
-      setIsDataLoading(true); // <<< SET LOADING TRUE
+      if (!projectId) return;
+      setIsDataLoading(true);
       try {
-        // Keep original sequential fetch calls
-        await fetchTask(projectId, currentPage); // Use currentPage state
-        await fetchJudges();
+        await fetchTask(projectId, currentPage);
+        await fetchJudges(); // Now uses getProviderAIModels
       } catch (error) {
         console.error('Error during initial data fetch:', error);
-        // fetchTask and fetchJudges should handle their own toasts
       } finally {
         if (isMounted) {
-          // Check mount status
-          setIsDataLoading(false); // <<< SET LOADING FALSE
+          setIsDataLoading(false);
         }
       }
     }
     if (session && projectId) {
-      // Keep original check
       init();
     } else {
-      // Ensure loading stops if session/projectId not available
       if (isMounted) setIsDataLoading(false);
     }
-    // Cleanup function
     return () => {
       isMounted = false;
     };
-  }, [projectId, session, activeTab, taskType, pageSize, currentPage]); // Keep original dependencies + currentPage
+  }, [projectId, session, activeTab, taskType, pageSize, currentPage]);
 
   // --- KEEP ORIGINAL Session Check ---
   if (!session) {
-    return <Loader />; // Use original Loader
+    return <Loader />;
   }
 
   // --- KEEP ORIGINAL Role Check ---
   if (session?.user?.role === 'annotator') {
     router.push('/tasks');
-    return <Loader />; // Use original Loader during redirect
+    return <Loader />;
   }
 
-  // <<< ADDED Data Loading Check >>>
+  // --- KEEP ORIGINAL Data Loading Check ---
   if (isDataLoading) {
-    return <Loader/>;
+    return <Loader />;
   }
 
   // --- KEEP ORIGINAL fetchTask function ---
   async function fetchTask(projectId: string, page: number) {
-    if (!session?.user) return; // Keep original check
+    if (!session?.user) return;
 
     try {
-      // Keep original try/catch if it was there, or add basic one
       const paginatedResponseStr = await getPaginatedTasks(
         projectId,
         page,
@@ -223,19 +260,17 @@ export default function Component() {
         taskType,
         pageSize
       );
-      const annotatorsDataStr = await getAllAnnotators(); // Keep fetching annotators here
+      const annotatorsDataStr = await getAllAnnotators();
 
       const paginatedResponse = JSON.parse(paginatedResponseStr);
       const annotatorsData = JSON.parse(annotatorsDataStr) as Annotator[];
 
-      // Keep original validation or lack thereof
       if (!paginatedResponse || typeof paginatedResponse !== 'object')
         throw new Error('Invalid task response');
       if (!Array.isArray(annotatorsData))
         throw new Error('Invalid annotator data');
 
       const projectManager: Annotator = {
-        // Keep original PM object
         _id: session.user.id,
         name: session.user.name || 'Project Manager',
         email: session.user.email || '',
@@ -246,29 +281,26 @@ export default function Component() {
       const tasksList =
         paginatedResponse.tasks && Array.isArray(paginatedResponse.tasks)
           ? paginatedResponse.tasks
-          : []; // Keep original tasks assignment
+          : [];
 
-      // Keep original state updates
       setCurrentPage(paginatedResponse.page ?? 1);
       setTotalPages(paginatedResponse.pages ?? 0);
       setTotalItems(paginatedResponse.total ?? 0);
       setTasks(
         tasksList.map((task: Task) => ({
           ...task,
-          reviewer: task.reviewer || projectManager._id, // Keep original reviewer logic
+          reviewer: task.reviewer || projectManager._id,
         }))
       );
       setAnnotators([projectManager, ...annotatorsData]);
       setAllReviewers([projectManager, ...annotatorsData]);
     } catch (error: any) {
-      // Keep original error handling
       console.error('Failed to fetch tasks:', error);
       toast({
         variant: 'destructive',
         title: 'Error Loading Tasks',
         description: error.message,
       });
-      // Keep original state reset on error
       setTasks([]);
       setAnnotators([]);
       setAllReviewers([]);
@@ -278,37 +310,30 @@ export default function Component() {
     }
   }
 
-  // --- KEEP ORIGINAL handlePageChange ---
+  // --- KEEP ALL OTHER ORIGINAL FUNCTIONS ---
   async function handlePageChange(newPage: number) {
-    // fetchTask(projectId, newPage); // Keep original logic (fetching handled by useEffect now)
-    setCurrentPage(newPage); // Keep original state update
+    setCurrentPage(newPage);
   }
 
-  // --- KEEP ORIGINAL handlePageSizeChange ---
   const handlePageSizeChange = (newSize: number) => {
     setPageSize(newSize);
-    setCurrentPage(1); // Keep original state update
-    // fetchTask(projectId, 1); // Keep original logic (fetching handled by useEffect now)
+    setCurrentPage(1);
   };
 
-  // --- KEEP ORIGINAL handleAssignUser ---
   async function handleAssignUser(
     annotatorId: string,
     taskId: string,
     ai: boolean,
     isReviewer: boolean = false
   ) {
-    // Keep original try/catch and logic
     try {
       const res = JSON.parse(
         await changeAnnotator(taskId, annotatorId, ai, isReviewer)
       );
-      // Keep original state update logic
       if (res && res._id) {
         setTasks((currentTasks) =>
           currentTasks.map((task) => {
             if (task._id === taskId) {
-              // Keep original update logic
               return isReviewer
                 ? { ...task, reviewer: annotatorId }
                 : { ...task, ...res };
@@ -317,7 +342,6 @@ export default function Component() {
           })
         );
       } else {
-        // Keep original error handling
         console.error('Invalid response from changeAnnotator:', res);
         toast({
           variant: 'destructive',
@@ -326,7 +350,6 @@ export default function Component() {
         });
       }
     } catch (error: any) {
-      // Keep original error handling
       console.error('Error assigning user:', error);
       toast({
         variant: 'destructive',
@@ -336,52 +359,50 @@ export default function Component() {
     }
   }
 
-const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
-  setIsLoading(true);
-  try {
-    const response = await fetch('/api/sendNotificationEmail/custom', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        selectedAnnotators: selectedAnnotators.map(
-          (annotator) => annotator._id
-        ),
-        projectId: projectId,
-      }),
-    });
-    
-    const result = await response.json();
-    
-    if (response.ok && result.success) {
-      setIsMailDialogOpen(false);
-      toast({ 
-        title: 'Email sent successfully', 
-        description: result.msg,
-        variant: 'default' 
+  const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/sendNotificationEmail/custom', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedAnnotators: selectedAnnotators.map(
+            (annotator) => annotator._id
+          ),
+          projectId: projectId,
+        }),
       });
-    } else {
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setIsMailDialogOpen(false);
+        toast({
+          title: 'Email sent successfully',
+          description: result.msg,
+          variant: 'default',
+        });
+      } else {
+        toast({
+          title: `Error: ${result.msg || 'Configure custom template in notifications'}`,
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Email sending error:', error);
       toast({
-        title: `Error: ${result.msg || 'Configure custom template in notifications'}`,
+        title: 'An unexpected error occurred. Please try again later.',
         variant: 'destructive',
       });
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Email sending error:', error);
-    toast({
-      title: 'An unexpected error occurred. Please try again later.',
-      variant: 'destructive',
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
-  // --- KEEP ORIGINAL handleCreateTemplate ---
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTemplateName.trim()) {
-      // Keep original check
-      toast({ title: 'Template name cannot be empty', variant: 'destructive' }); // Keep original variant if it was destructive
+      toast({ title: 'Template name cannot be empty', variant: 'destructive' });
       return;
     }
     const defaultTemplate = {
@@ -389,37 +410,33 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
       project: projectId,
     };
     const createdTemplate: template & { _id?: string } = JSON.parse(
-      // Keep original type assertion
       await upsertTemplate(
         projectId as string,
         defaultTemplate as template,
         undefined,
         true
-      ) // Keep original type assertion
+      )
     );
     if (createdTemplate?._id) {
-      // Keep original check
       router.push(`/template?Id=${createdTemplate._id}`);
     } else {
-      toast({ title: 'Failed to create template', variant: 'destructive' }); // Keep original toast
+      toast({ title: 'Failed to create template', variant: 'destructive' });
     }
   };
 
-  // --- KEEP ORIGINAL filteredReviewers calculation ---
   const filteredReviewers = allReviewers.filter(
     (reviewer) =>
       (reviewer.permission && reviewer.permission.includes('canReview')) ||
       (session?.user && reviewer._id === session.user.id)
   );
 
-  // --- KEEP ORIGINAL handleDeleteTemplate ---
   const handleDeleteTemplate = async (e: React.MouseEvent, _id: string) => {
     e.stopPropagation();
     try {
       await deleteTask(_id);
-      removeJobByTaskid(_id); // Keep original context usage
-      setTasks(tasks.filter((project) => project._id !== _id)); // Keep original state update (using project variable name)
-      toast({ title: 'Task deleted' }); // Keep original toast
+      removeJobByTaskid(_id);
+      setTasks(tasks.filter((project) => project._id !== _id));
+      toast({ title: 'Task deleted' });
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -437,7 +454,6 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
 
     if (unassignedTasks.length === 0) {
       toast({
-        // Keep original toast
         variant: 'destructive',
         title: 'AI assignment failed',
         description: 'No unassigned tasks found.',
@@ -445,84 +461,69 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
       return;
     }
     if (judges.length === 0) {
-      // Keep original check
       toast({
-        // Keep original toast
-        title: 'No AI Judges Enabled',
-        variant: 'destructive', // Keep original variant if it was destructive
-        description: 'Please configure AI judges first.',
+        title: 'No AI Models Available',
+        variant: 'destructive',
+        description: 'Please configure AI models first.',
       });
       return;
     }
 
     let judgeIndex = 0;
-    const updatedTasks: Task[] = [...tasks]; // Keep original mutable copy
-    let assignedCount = 0; // Keep original counter if present
-    setIsLoading(true); // Keep original action loader usage
+    const updatedTasks: Task[] = [...tasks];
+    let assignedCount = 0;
+    setIsLoading(true);
 
     for (const task of unassignedTasks) {
-      const currentJudge = judges[judgeIndex % judges.length]; // Keep original modulo logic
+      const currentJudge = judges[judgeIndex % judges.length];
       if (!currentJudge?._id) {
-        // Keep original check
         toast({
-          // Keep original toast
           variant: 'destructive',
           title: 'Fetching judges',
-          description: 'Please wait...', // Keep original message
+          description: 'Please wait...',
         });
-        // Decide if original code returned or continued
-        setIsLoading(false); // Ensure loading stops if returning early
-        return; // Keep original return if present
+        setIsLoading(false);
+        return;
       }
 
       try {
-        // Keep original try/catch structure if present
         const res = await addJob(currentJudge._id, task._id, projectId);
         if (res.error) {
-          // Keep original error check
           toast({
-            // Keep original toast
             variant: 'destructive',
             title: 'AI assignment failed',
             description: res.error,
           });
-          // Decide if original code returned or continued
-          // return; // Keep original return if present
-          continue; // Assume original code continued
+          continue;
         } else {
-          // Keep original success logic
-          setJob(JSON.parse(res.model as string)); // Keep original context usage
-          await handleAssignUser(currentJudge._id, task._id, true); // Keep original call
+          setJob(JSON.parse(res.model as string));
+          await handleAssignUser(currentJudge._id, task._id, true);
           const taskIndex = updatedTasks.findIndex((t) => t._id === task._id);
           if (taskIndex !== -1) {
-            // Keep original check
             updatedTasks[taskIndex] = {
               ...updatedTasks[taskIndex],
               ai: currentJudge._id,
-            }; // Keep original update
+            };
           }
-          assignedCount++; // Keep original counter increment if present
+          assignedCount++;
         }
       } catch (jobError: any) {
-        // Keep original catch block if present
         toast({
           variant: 'destructive',
           title: `Error assigning AI to ${task.name}`,
           description: jobError.message,
         });
       }
-      judgeIndex++; // Keep original increment logic
+      judgeIndex++;
     }
 
-    setTasks(updatedTasks); // Keep original state update
-    setIsLoading(false); // Keep original action loader usage
+    setTasks(updatedTasks);
+    setIsLoading(false);
 
     if (assignedCount > 0) {
-      // Keep original check
       toast({
-        // Keep original toast
         title: 'AI assigned',
-        description: `${assignedCount > 0 ? assignedCount : unassignedTasks.length} tasks have been assigned to AI. Please refresh the page to see the changes.`, // Keep original message structure
+        description: `${assignedCount} tasks have been assigned to AI. Please refresh the page to see the changes.`,
       });
     }
   }
@@ -530,7 +531,6 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
   // --- KEEP ORIGINAL handleExport ---
   const handleExport = (exportFormat: string) => {
     const dataToExport = tasks.map((task) => ({
-      // Keep original mapping logic
       name: task.name,
       project: task.project,
       status: task.status,
@@ -538,43 +538,39 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
       annotator:
         annotators.find((a) => a._id === task.annotator)?.name || 'Unassigned',
       annotatorEmailAddress:
-        annotators.find((a) => a._id === task.annotator)?.email || 'Unassigned', // Keep original 'Unassigned'
+        annotators.find((a) => a._id === task.annotator)?.email || 'Unassigned',
       reviewer:
-        annotators.find((a) => a._id === task.reviewer)?.name || 'Unassigned', // Keep original reviewer lookup
+        annotators.find((a) => a._id === task.reviewer)?.name || 'Unassigned',
       reviewerEmailAddress:
-        annotators.find((a) => a._id === task.reviewer)?.email || 'Unassigned', // Keep original 'Unassigned'
+        annotators.find((a) => a._id === task.reviewer)?.email || 'Unassigned',
       ai: task.ai
         ? (judges.find((j) => j._id === task.ai)?.name ?? 'Not Assigned')
-        : 'Not Assigned', // Keep original AI lookup
+        : 'Not Assigned',
       created_at: task.created_at
         ? format(parseISO(task.created_at), 'PPPpp')
-        : 'N/A', // Keep original format
+        : 'N/A',
       timeTaken: `${task.timeTaken || 0} minutes`,
       feedback: task.feedback || 'No feedback',
     }));
 
     if (dataToExport.length === 0) {
-      // Keep original check
       toast({ title: 'No tasks to export', variant: 'default' });
       setIsExportDialogOpen(false);
       return;
     }
 
-    // Keep original JSON export logic
     if (exportFormat === 'json') {
       const dataStr = JSON.stringify(dataToExport, null, 2);
       const dataUri =
         'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
-      const exportFileDefaultName = `tasks_${activeTab}.json`; // Keep original name
+      const exportFileDefaultName = `tasks_${activeTab}.json`;
       const linkElement = document.createElement('a');
       linkElement.setAttribute('href', dataUri);
       linkElement.setAttribute('download', exportFileDefaultName);
       linkElement.click();
       linkElement.remove();
     } else {
-      // Keep original CSV export logic
       const headers = [
-        // Keep original headers array
         'name',
         'project',
         'status',
@@ -590,34 +586,30 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
       ];
       const csvContent = [
         headers.join(','),
-        ...dataToExport.map(
-          (
-            row: any // Keep original mapping
-          ) =>
-            headers
-              .map(
-                (header) =>
-                  `"${String(row[header as keyof typeof row] ?? '').replace(/"/g, '""')}"`
-              )
-              .join(',') // Keep original escaping
+        ...dataToExport.map((row: any) =>
+          headers
+            .map(
+              (header) =>
+                `"${String(row[header as keyof typeof row] ?? '').replace(/"/g, '""')}"`
+            )
+            .join(',')
         ),
       ].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `tasks_${activeTab}.csv`); // Keep original name
+      link.setAttribute('download', `tasks_${activeTab}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(link.href);
     }
-    setIsExportDialogOpen(false); // Keep original state update
+    setIsExportDialogOpen(false);
   };
 
   // --- KEEP ORIGINAL filteredTasks calculation ---
   const filteredTasks = tasks
     .filter((task) => {
-      // Keep original filter logic
       const matchesStatus =
         statusFilter !== 'all'
           ? statusFilter === 'assigned'
@@ -625,7 +617,7 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
               task.annotator !== undefined &&
               task.annotator !== ''
             : statusFilter
-              ? task.status?.toLowerCase() === statusFilter.toLowerCase() // Keep optional chain
+              ? task.status?.toLowerCase() === statusFilter.toLowerCase()
               : true
           : true;
       const matchesExpert = expertFilter
@@ -638,11 +630,8 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
       return matchesStatus && matchesExpert && matchesReviewer;
     })
     .sort((a, b) => {
-      // Keep original sort logic
       if (inactiveTimeSort && a.assignedAt && b.assignedAt) {
-        // Keep original check
         try {
-          // Keep original try/catch if present
           const inactiveA = Date.now() - new Date(a.assignedAt).getTime();
           const inactiveB = Date.now() - new Date(b.assignedAt).getTime();
           if (inactiveTimeSort === 'asc') return inactiveA - inactiveB;
@@ -656,7 +645,6 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
         }
       }
       try {
-        // Keep original fallback sort
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
@@ -680,8 +668,7 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
               onValueChange={(value: taskType) => setTaskType(value)}
             >
               <SelectTrigger className='w-32'>
-                <SelectValue placeholder='Core' />{' '}
-                {/* Keep original placeholder */}
+                <SelectValue placeholder='Core' />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value='core'>Core</SelectItem>
@@ -744,15 +731,12 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
                     <Filter className='h-5 w-5' />
                     {activeFiltersCount > 0 && (
                       <span className='ml-1 text-xs text-red-500'>
-                        {' '}
-                        {/* Keep original style */}
                         {activeFiltersCount}
                       </span>
                     )}
                   </PopoverTrigger>
                   <PopoverContent className='p-4 bg-white border rounded-md shadow-lg w-[300px]'>
                     <div className='flex flex-col gap-4'>
-                      {/* Keep original Filters */}
                       <Select
                         value={statusFilter || 'all'}
                         onValueChange={(v) =>
@@ -772,7 +756,6 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
                           <SelectItem value='reassigned'>Reassigned</SelectItem>
                           <SelectItem value='pending'>Pending</SelectItem>
                           <SelectItem value='rejected'>Rejected</SelectItem>
-                          {/* Keep original items */}
                         </SelectContent>
                       </Select>
                       <Select
@@ -941,22 +924,11 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
                     <Shuffle className='mr-2 h-4 w-4' /> Auto-assign Reviewers (
                     {selectedTask.length > 0 ? selectedTask.length : 'All'})
                   </Button>
-                  {judges.length > 0 && (
-                    <Button
-                      onClick={handleAssignAI}
-                      variant='outline'
-                      size='sm'
-                      disabled={isLoading}
-                    >
-                      <Bot className='mr-2 h-4 w-4' /> Assign AI
-                    </Button>
-                  )}
                 </div>
               </div>
             </div>
 
             {/* --- Tabs Content --- */}
-            {/* Keep original TaskTable props, including passing unfiltered 'filteredTasks' */}
             <TabsContent value='all'>
               <TaskTable
                 selectedTask={selectedTask}
@@ -976,7 +948,7 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
                 totalItems={totalItems}
                 pageSize={pageSize}
                 onPageSizeChange={handlePageSizeChange}
-                activeTab="all" 
+                activeTab='all'
                 taskType={taskType}
                 statusFilter={statusFilter}
                 expertFilter={expertFilter}
@@ -1003,7 +975,7 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
                 pageSize={pageSize}
                 onPageSizeChange={handlePageSizeChange}
                 totalItems={totalItems}
-                activeTab="submitted" 
+                activeTab='submitted'
                 taskType={taskType}
                 statusFilter={statusFilter}
                 expertFilter={expertFilter}
@@ -1030,7 +1002,7 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
                 pageSize={pageSize}
                 onPageSizeChange={handlePageSizeChange}
                 totalItems={totalItems}
-                activeTab="unassigned" 
+                activeTab='unassigned'
                 taskType={taskType}
                 statusFilter={statusFilter}
                 expertFilter={expertFilter}
@@ -1043,7 +1015,6 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
       </main>
 
       {/* --- Dialogs --- */}
-      {/* Keep original Dialogs */}
       <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -1085,8 +1056,7 @@ const handleSendEmail = async (selectedAnnotators: Annotator[]) => {
           selectedMembers={selectedMembers}
           setSelectedMembers={setSelectedMembers}
           handleSendEmail={handleSendEmail}
-          isLoading={isLoading} // Keep original isLoading prop
-          // Keep annotators prop removed as per previous fix unless component definition changes
+          isLoading={isLoading}
         />
       </div>
     </div>

@@ -96,23 +96,29 @@ export default function ReviewerDialog({
     setCurrentPage(1);
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      const fetchAllTasks = async () => {
-        if (selectedTasks.length === 0) {
-          const tasksFromAPI = await getAllUnassignedTasks(projectId);
-          const parsedTasks = JSON.parse(tasksFromAPI);
-          setAllTasks(parsedTasks);
-          setTotalTasks(parsedTasks.length);
-        } else {
-          setTotalTasks(selectedTasks.length);
-          setAllTasks(selectedTasks);
-        }
-      };
-      fetchAllTasks();
-      resetState();
-    }
-  }, [selectedTasks, projectId, isOpen]);
+useEffect(() => {
+  if (isOpen) {
+    const fetchAllTasks = async () => {
+      if (selectedTasks.length === 0) {
+        // Filter tasks locally for reviewer assignment
+        const availableTasks = tasks.filter(task => 
+          (!task.reviewer || // Tasks without reviewers
+          task.status === 'pending' || // Pending tasks can be reassigned
+          task.status === 'rejected') && // Rejected tasks can be reassigned
+          task.annotator // Must have an annotator assigned first
+        );
+        
+        setAllTasks(availableTasks);
+        setTotalTasks(availableTasks.length);
+      } else {
+        setTotalTasks(selectedTasks.length);
+        setAllTasks(selectedTasks);
+      }
+    };
+    fetchAllTasks();
+    resetState();
+  }
+}, [selectedTasks, projectId, isOpen, tasks]); 
 
   useEffect(() => {
     validateAssignment();

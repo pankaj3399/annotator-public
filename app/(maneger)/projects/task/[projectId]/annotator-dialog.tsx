@@ -100,24 +100,33 @@ export default function AnnotatorDialog({
     setCurrentPage(1);
     setAssignReviewers(true);
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchAllTasks = async () => {
-        if (selectedTasks.length === 0) {
-          const tasksFromAPI = await getAllUnassignedTasks(projectId);
-          const parsedTasks = JSON.parse(tasksFromAPI);
-          setAllTasks(parsedTasks);
-          setTotalTasks(parsedTasks.length);
-        } else {
-          setTotalTasks(selectedTasks.length);
-          setAllTasks(selectedTasks);
-        }
-      };
-      fetchAllTasks();
-      resetState();
-    }
-  }, [selectedTasks, projectId, isOpen]);
+useEffect(() => {
+  if (isOpen) {
+    const fetchAllTasks = async () => {
+      if (selectedTasks.length === 0) {
+        // REMOVE THE API CALL - REPLACE WITH LOCAL FILTERING
+        // const tasksFromAPI = await getAllUnassignedTasks(projectId);
+        // const parsedTasks = JSON.parse(tasksFromAPI);
+        
+        // NEW: Filter tasks locally for annotator assignment
+        const availableTasks = tasks.filter(task => 
+          !task.annotator || // Tasks without annotators
+          !task.submitted || // Unsubmitted tasks can be reassigned
+          task.status === 'pending' || // Pending tasks can be reassigned
+          task.status === 'rejected' // Rejected tasks can be reassigned
+        );
+        
+        setAllTasks(availableTasks);
+        setTotalTasks(availableTasks.length);
+      } else {
+        setTotalTasks(selectedTasks.length);
+        setAllTasks(selectedTasks);
+      }
+    };
+    fetchAllTasks();
+    resetState();
+  }
+}, [selectedTasks, projectId, isOpen, tasks])
 
   useEffect(() => {
     validateAssignment();

@@ -23,6 +23,8 @@ export async function stripe(data: any) {
       return { error: 'Missing required data fields' };
     }
 
+    await connectToDatabase(); // Add this line
+
     let course;
     let dbWishlist;
     if (data.type === 'course') {
@@ -30,12 +32,20 @@ export async function stripe(data: any) {
       data.price = parseFloat(course.price);
     } else if (data.type === 'product') {
       dbWishlist = await Wishlist.findById(data.id);
-      // data.itemId
+      
+      // Fix the ObjectId comparison
       const item = (dbWishlist.items || []).find(
-        (it: any) => it._id === data.itemId
+        (it: any) => it._id.toString() === data.itemId.toString()
       );
+      
+      // Add error handling
+      if (!item) {
+        return { error: 'Wishlist item not found' };
+      }
+      
       data.price = parseFloat(item.catalog_details.price) || 0;
     }
+    
     const metadata = {
       ...(data.type === 'product'
         ? {
@@ -56,6 +66,10 @@ export async function stripe(data: any) {
       apiVersion: '2024-12-18.acacia',
     });
 
+    // Fix URL handling
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const formattedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
     // Create Stripe session
     const session = await stripe.checkout.sessions.create({
       line_items: [
@@ -73,12 +87,12 @@ export async function stripe(data: any) {
       mode: 'payment',
       success_url:
         data.type === 'product'
-          ? `${process.env.NEXTAUTH_URL}wishlist?payment=success`
-          : `${process.env.NEXTAUTH_URL}tasks/myCourses`,
+          ? `${formattedBaseUrl}/wishlist?payment=success`
+          : `${formattedBaseUrl}/tasks/myCourses`,
       cancel_url:
         data.type === 'product'
-          ? `${process.env.NEXTAUTH_URL}wishlist?payment=cancelled`
-          : `${process.env.NEXTAUTH_URL}tasks/viewCourses?payment=cancelled`,
+          ? `${formattedBaseUrl}/wishlist?payment=cancelled`
+          : `${formattedBaseUrl}/tasks/viewCourses?payment=cancelled`,
       metadata: metadata,
       payment_intent_data: {
         shipping: {

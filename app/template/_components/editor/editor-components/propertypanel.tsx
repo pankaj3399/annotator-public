@@ -96,11 +96,6 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({
   loading,
   apiKeyExists,
 }) => {
-  // Enhanced debug logging
-  // console.log(`Rendering ModelSelector for ${modelType}:`, {
-  // currentValue,
-  // hasApiKey: !!apiKeyExists,
-  // });
 
   return (
     <div className='space-y-2'>
@@ -144,7 +139,7 @@ const PropertyPanel = () => {
   const { state, dispatch } = useEditor();
   const element = state.editor.selectedElement;
   const [loading, setLoading] = useState(false);
-
+  const [checkboxOptionsInput, setCheckboxOptionsInput] = useState('');
   const [elementProperties, setElementProperties] = useState<{
     id: string;
     name: string;
@@ -232,6 +227,14 @@ const PropertyPanel = () => {
         : ({} as ElementContent),
     });
   }, [element.id]); // <--- THE CRITICAL FIX: Depend on element.id
+
+  useEffect(() => {
+  if (!Array.isArray(elementProperties.content) && elementProperties.content.checkboxes) {
+    setCheckboxOptionsInput(elementProperties.content.checkboxes.join(', '));
+  } else {
+    setCheckboxOptionsInput('');
+  }
+}, [elementProperties.id]);
 
   const findAllElementsOfType = (
     elements: EditorElement[],
@@ -734,57 +737,83 @@ const PropertyPanel = () => {
           </div>
         );
 
-      case 'checkbox':
-      case 'dynamicCheckbox':
-        return (
-          <div className='space-y-4'>
-            <div className='space-y-2'>
-              <Label>Name</Label>
-              <Input
-                value={elementProperties.name}
-                onChange={(e) => handlePropertyChange('name', e.target.value)}
-                placeholder='Element name'
-              />
-            </div>
+case 'checkbox':
+case 'dynamicCheckbox':
+  return (
+    <div className='space-y-4'>
+      <div className='space-y-2'>
+        <Label>Name</Label>
+        <Input
+          value={elementProperties.name}
+          onChange={(e) => handlePropertyChange('name', e.target.value)}
+          placeholder='Element name'
+        />
+      </div>
 
-            <div className='space-y-2'>
-              <Label>Title</Label>
-              <Input
-                value={
-                  !Array.isArray(elementProperties.content)
-                    ? (elementProperties.content.title ?? '')
-                    : ''
-                }
-                onChange={(e) =>
-                  handlePropertyChange('content.title', e.target.value)
-                }
-                placeholder='Enter checkbox title'
-              />
-            </div>
+      <div className='space-y-2'>
+        <Label>Title</Label>
+        <Input
+          value={
+            !Array.isArray(elementProperties.content)
+              ? (elementProperties.content.title ?? '')
+              : ''
+          }
+          onChange={(e) =>
+            handlePropertyChange('content.title', e.target.value)
+          }
+          placeholder='Enter checkbox title'
+        />
+      </div>
 
-            <div className='space-y-2'>
-              <Label>Options (comma-separated)</Label>
-              <Input
-                value={
-                  !Array.isArray(elementProperties.content)
-                    ? (elementProperties.content.checkboxes || []).join(', ')
-                    : ''
-                }
-                onChange={(e) =>
-                  handlePropertyChange(
-                    'content.checkboxes',
-                    e.target.value
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter((s) => s) // Ensure no empty strings
-                  )
-                }
-                placeholder='Option 1, Option 2, Option 3'
-              />
-            </div>
+      <div className='space-y-2'>
+        <Label>Options (comma-separated)</Label>
+        <Input
+          value={checkboxOptionsInput}
+          onChange={(e) => {
+            // Allow natural typing without immediate processing
+            setCheckboxOptionsInput(e.target.value);
+          }}
+          onBlur={(e) => {
+            // Process the input when user finishes editing
+            const processedOptions = e.target.value
+              .split(',')
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0); // Remove empty strings
+            
+            handlePropertyChange('content.checkboxes', processedOptions);
+          }}
+          onKeyDown={(e) => {
+            // Also process on Enter key
+            if (e.key === 'Enter') {
+              const processedOptions = e.currentTarget.value
+                .split(',')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+              
+              handlePropertyChange('content.checkboxes', processedOptions);
+            }
+          }}
+          placeholder='Option 1, Option 2, Option 3'
+        />
+        <div className='text-xs text-muted-foreground'>
+          Separate multiple options with commas. Press Enter or click outside to apply changes.
+        </div>
+        
+        {/* Preview of current options */}
+        {!Array.isArray(elementProperties.content) && 
+         elementProperties.content.checkboxes && 
+         elementProperties.content.checkboxes.length > 0 && (
+          <div className='text-xs text-muted-foreground'>
+            <strong>Current options:</strong> {elementProperties.content.checkboxes.map((option, index) => (
+              <span key={index} className="inline-block bg-gray-100 px-2 py-1 rounded mr-1 mb-1">
+                {option}
+              </span>
+            ))}
           </div>
-        );
-
+        )}
+      </div>
+    </div>
+  );
       case 'video':
       case 'dynamicVideo':
         return (
