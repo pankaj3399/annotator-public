@@ -14,8 +14,9 @@ import nodemailer from 'nodemailer';
 import { AIJob } from "@/models/aiModel";
 import { Project } from "@/models/Project";
 import AnnotatorHistory from "@/models/points";
-import { RepeatTask } from "@/components/taskDialog";
+import { Annotator, RepeatTask } from "@/components/taskDialog";
 import { sendEmail } from "@/lib/email";
+import { getAllAnnotators } from "./annotator";
 
 
 export async function getTestTemplateTasks() {
@@ -846,13 +847,13 @@ export async function sendNotificationEmail(taskId: string, action: string) {
 export async function sendCustomNotificationEmail(userIds: string[], projectId: string) {
   console.log("🚀 Starting sendCustomNotificationEmail");
   console.log("📧 Input params:", { userIds, projectId });
-  
+
   try {
     // Step 1: Fetch notification templates for the project
     console.log("📁 Fetching custom notification template for project:", projectId);
     const response = await getCustomNotificationTemplatesByProject(projectId);
     console.log("📁 Template fetch response:", response);
-    
+
     if (!response.success || !response.templates) {
       console.error("❌ Failed to fetch custom notification template");
       console.error("❌ Response:", response);
@@ -863,7 +864,7 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
     console.log("🔍 Parsing template data");
     const template = JSON.parse(response.templates);
     console.log("🔍 Parsed template:", template);
-    
+
     if (!template.triggerTitle || !template.triggerBody) {
       console.error("❌ Custom template is incomplete");
       console.error("❌ Template triggerTitle:", template.triggerTitle);
@@ -875,7 +876,7 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
     console.log("👥 Fetching users with IDs:", userIds);
     const users = await User.find({ '_id': { $in: userIds } }).exec();
     console.log("👥 Found users:", users);
-    
+
     if (!users || users.length === 0) {
       console.error("❌ No users found with provided IDs");
       throw new Error("No users found with the provided IDs.");
@@ -888,27 +889,27 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
         console.log(`\n📧 Processing user ${index + 1}/${users.length}:`);
         console.log(`📧 User ID: ${user._id}`);
         console.log(`📧 User email: ${user.email}`);
-        
+
         if (!user.email) {
           console.warn(`⚠️ No email found for user ${user._id}`);
           return { userId: user._id, success: false, reason: 'No email address' };
         }
-        
+
         try {
           console.log(`📧 Attempting to send email to: ${user.email}`);
           console.log(`📧 Email subject: ${template.triggerTitle}`);
           console.log(`📧 Email body length: ${template.triggerBody?.length || 0} characters`);
-          
+
           const emailResult = await sendEmail({
             to: user.email,
             subject: template.triggerTitle,
             html: template.triggerBody
           });
-          
+
           console.log(`📧 Email result for ${user.email}:`, emailResult);
-          
-          return { 
-            userId: user._id, 
+
+          return {
+            userId: user._id,
             success: emailResult.success,
             messageId: emailResult.messageId,
             email: user.email,
@@ -916,9 +917,9 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
           };
         } catch (emailError) {
           console.error(`❌ Failed to send email to ${user.email}:`, emailError);
-          return { 
-            userId: user._id, 
-            success: false, 
+          return {
+            userId: user._id,
+            success: false,
             reason: emailError instanceof Error ? emailError.message : 'Unknown email error',
             email: user.email,
             error: emailError
@@ -936,8 +937,8 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
     console.log(`📊 Failed sends: ${failureCount}`);
     console.log("📊 Detailed results:", results);
 
-    return { 
-      success: successCount > 0, 
+    return {
+      success: successCount > 0,
       results,
       summary: {
         total: users.length,
@@ -955,7 +956,7 @@ export async function sendCustomNotificationEmail(userIds: string[], projectId: 
 export async function getCustomNotificationTemplatesByProject(projectId: string) {
   console.log("🔍 Starting getCustomNotificationTemplatesByProject");
   console.log("🔍 Project ID:", projectId);
-  
+
   await connectToDatabase();
   const session = await getServerSession(authOptions);
   const userId = session?.user.id;
@@ -964,7 +965,7 @@ export async function getCustomNotificationTemplatesByProject(projectId: string)
     console.error("❌ Unauthorized access - no session or user");
     throw new Error("Unauthorized");
   }
-  
+
   try {
     if (!projectId) {
       console.error("❌ Project ID is required but not provided");
@@ -1221,7 +1222,7 @@ export async function getReviewerByTaskId(taskId: string) {
   }
 }
 // Consolidated repeat task creation function
-export async function createRepeatTask(repeatTasks: RepeatTask[]) {
+export async function createRepeatTask(repeatTasks: RepeatTask[], filteredAnnotators?: Annotator[]) {
   try {
     await connectToDatabase();
     const session = await getServerSession(authOptions);
@@ -1229,24 +1230,43 @@ export async function createRepeatTask(repeatTasks: RepeatTask[]) {
     if (!session || !session.user) {
       throw new Error("Unauthorized");
     }
+
     for (const task of repeatTasks) {
       if (!mongoose.Types.ObjectId.isValid(task.project)) {
         throw new Error(`Invalid project ID format: ${task.project}`);
       }
     }
-    // Prepare tasks for creation
-    const tasksToCreate = repeatTasks.map((task) => ({
-      project: task.project,
-      name: task.name,
-      content: task.content,
-      timer: task.timer,
-      reviewer: task.reviewer || null,
-      template: task.template,
-      type: task.type,
-      project_Manager: session.user.id,
-      submitted: false,
-      status: "pending"
-    }));
+
+    // Get annotators - use filtered list if provided, otherwise get all
+    let annotatorsToAssign: Annotator[];
+    if (filteredAnnotators && filteredAnnotators.length > 0) {
+      annotatorsToAssign = filteredAnnotators;
+    } else {
+      // Fallback to getting all annotators if no filtered list provided
+      const allAnnotators = await getAllAnnotators(); // You'll need to import this
+      annotatorsToAssign = JSON.parse(allAnnotators);
+    }
+
+    // Create tasks for each filtered annotator
+    const tasksToCreate: any[] = [];
+
+    for (const repeatTask of repeatTasks) {
+      for (const annotator of annotatorsToAssign) {
+        tasksToCreate.push({
+          project: repeatTask.project,
+          name: `${repeatTask.name} - ${annotator.name}`,
+          content: repeatTask.content,
+          timer: repeatTask.timer,
+          annotator: annotator._id, // Assign to specific annotator
+          reviewer: repeatTask.reviewer || null,
+          template: repeatTask.template,
+          type: repeatTask.type,
+          project_Manager: session.user.id,
+          submitted: false,
+          status: "pending"
+        });
+      }
+    }
 
     // Create tasks in TaskRepeat collection
     const createdTasks = await TaskRepeat.insertMany(tasksToCreate);
@@ -1255,7 +1275,7 @@ export async function createRepeatTask(repeatTasks: RepeatTask[]) {
       success: true,
       createdTasks: createdTasks.length,
       tasks: createdTasks,
-      message: 'Repeat tasks created successfully'
+      message: `Repeat tasks created successfully for ${annotatorsToAssign.length} annotators`
     };
 
   } catch (error) {

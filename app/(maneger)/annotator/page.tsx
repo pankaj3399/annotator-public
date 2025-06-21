@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { format, parseISO, isValid } from 'date-fns'; // Added isValid
+import { format, parseISO, isValid } from 'date-fns';
 import {
   CalendarIcon,
   Save,
@@ -24,11 +24,13 @@ import {
   DollarSign,
   LineChart as LineChartIcon,
   CheckCircle2,
+  CreditCard,
+  Columns as ColumnsIcon, // Added for column visibility icon
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import MultiCombobox from '@/components/ui/multi-combobox';
 import { Button } from '@/components/ui/button';
-import { CreditCard } from 'lucide-react';
+
 
 import {
   Dialog,
@@ -51,8 +53,16 @@ import { domains, languages, locations } from '@/lib/constants';
 import { Badge } from '@/components/ui/badge';
 import { DeleteUserButton } from '@/components/DeleteUserButton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DailyExpertsStats } from '@/components/ProjectManagerDashboard/DailyExpertsStats'; // Using this based on your last code
+import { DailyExpertsStats } from '@/components/ProjectManagerDashboard/DailyExpertsStats';
 import { ActiveUsersChart } from '@/components/ProjectManagerDashboard/ActiveUsersChart';
+// --- NEW: Imports for Column Visibility Popover ---
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 // --- Interfaces ---
 interface User {
@@ -113,11 +123,23 @@ const locationOptions: Option[] = locations.map((l) => ({
   label: l.charAt(0).toUpperCase() + l.slice(1),
 }));
 
+// --- NEW: Column definitions for the visibility popover ---
+const allColumns = [
+  { id: 'name', label: 'Name', isToggleable: true },
+  { id: 'email', label: 'Email', isToggleable: false },
+  { id: 'permission', label: 'Permission', isToggleable: true },
+  { id: 'domains', label: 'Domains', isToggleable: true },
+  { id: 'languages', label: 'Languages', isToggleable: true },
+  { id: 'location', label: 'Location', isToggleable: true },
+  { id: 'lastLogin', label: 'Last Login', isToggleable: true },
+  { id: 'joinedDate', label: 'Joined Date', isToggleable: true },
+] as const;
+
 // --- Component ---
 export default function AnnotatorsPage() {
   // --- State ---
   const [annotators, setAnnotators] = useState<User[]>([]);
-  const [isFetchingAnnotators, setIsFetchingAnnotators] = useState(true); // Loading state for table
+  const [isFetchingAnnotators, setIsFetchingAnnotators] = useState(true);
   const [onOpen, setOnOpen] = useState(false);
   const [id, setId] = useState('');
   const [filteredAnnotators, setFilteredAnnotators] = useState<User[]>([]);
@@ -144,6 +166,42 @@ export default function AnnotatorsPage() {
   const { toast } = useToast();
   const router = useRouter();
 
+  // --- NEW: State for column visibility with new defaults ---
+  const [columnVisibility, setColumnVisibility] = useState({
+    name: true,
+    permission: false,
+    domains: false,
+    languages: false,
+    location: false,
+    lastLogin: false,
+    joinedDate: true,
+  });
+
+  // --- NEW: Handlers for Show/Hide All ---
+  const handleShowAll = () => {
+    setColumnVisibility({
+      name: true,
+      permission: true,
+      domains: true,
+      languages: true,
+      location: true,
+      lastLogin: true,
+      joinedDate: true,
+    });
+  };
+
+  const handleHideAll = () => {
+    setColumnVisibility({
+      name: false,
+      permission: false,
+      domains: false,
+      languages: false,
+      location: false,
+      lastLogin: false,
+      joinedDate: false,
+    });
+  };
+
   // --- Fetch Annotators ---
   const fetchAnnotators = useCallback(async () => {
     console.log('[AnnotatorsPage] Fetching annotators list...');
@@ -151,44 +209,45 @@ export default function AnnotatorsPage() {
     try {
       const rawData = await getAllAnnotators();
       if (typeof rawData !== 'string' || !rawData.trim().startsWith('[')) {
-        console.error(
-          '[AnnotatorsPage] Invalid raw data from getAllAnnotators:',
-          rawData
-        );
+
+
+
+
         throw new Error('Invalid data format for annotators.');
       }
       const data = JSON.parse(rawData);
       if (!Array.isArray(data)) {
-        console.error(
-          '[AnnotatorsPage] Parsed annotator data is not an array:',
-          data
-        );
+
+
+
+
         throw new Error('Expected an array of annotators.');
       }
-      console.log(
-        `[AnnotatorsPage] Received ${data.length} raw annotator records.`
-      );
+
+
+
 
       const transformedData = data.map((annotator: any): User => {
-        // Ensure dates are Date objects, provide defaults for missing/invalid values
+
         let lastLoginDate = new Date(0);
         if (annotator.lastLogin) {
           const parsed = parseISO(annotator.lastLogin);
           if (isValid(parsed)) lastLoginDate = parsed;
-          else
-            console.warn(
-              `[AnnotatorsPage] Invalid lastLogin date format for user ${annotator._id}: ${annotator.lastLogin}`
-            );
+
+
+
+
         }
 
         let createdAtDate = new Date(0);
-        if (annotator.createdAt) {
-          const parsed = parseISO(annotator.createdAt);
+        const creationDate = annotator.created_at || annotator.createdAt;
+        if (creationDate) {
+          const parsed = parseISO(creationDate);
           if (isValid(parsed)) createdAtDate = parsed;
-          else
-            console.warn(
-              `[AnnotatorsPage] Invalid createdAt date format for user ${annotator._id}: ${annotator.createdAt}`
-            );
+
+
+
+
         }
 
         const currentPermissions = Array.isArray(annotator.permission)
@@ -199,7 +258,7 @@ export default function AnnotatorsPage() {
         );
 
         return {
-          _id: annotator._id || `unknown-${Math.random()}`, // Provide fallback ID if missing
+          _id: annotator._id || `unknown-${Math.random()}`,
           name: annotator.name || 'Unknown Name',
           email: annotator.email || 'Unknown Email',
           permission: transformedPermissions,
@@ -212,9 +271,9 @@ export default function AnnotatorsPage() {
       });
 
       setAnnotators(transformedData);
-      console.log(
-        `[AnnotatorsPage] Transformed ${transformedData.length} annotators.`
-      );
+
+
+
 
       const initialPermissionsState = transformedData.reduce(
         (acc: { [key: string]: string[] }, user: User) => {
@@ -225,36 +284,36 @@ export default function AnnotatorsPage() {
       );
       setReviewPermissionsState(initialPermissionsState);
     } catch (error: any) {
-      console.error(
-        '[AnnotatorsPage] Error fetching/processing annotators:',
-        error
-      );
-      const description =
-        error instanceof SyntaxError
-          ? 'Failed to parse annotator data. Check server logs.'
-          : error.message || 'Failed to fetch annotators';
+      console.error('[AnnotatorsPage] Error fetching annotators:', error);
+
+
+
+
+
+
+
       toast({
         variant: 'destructive',
         title: 'Error Loading Experts',
-        description,
+        description: error.message || 'Failed to fetch annotators',
       });
-      setAnnotators([]); // Clear on error
-      setFilteredAnnotators([]);
+
+
     } finally {
-      setIsFetchingAnnotators(false); // Done loading
+      setIsFetchingAnnotators(false);
     }
-  }, [toast]); // Add toast as dependency
+  }, [toast]);
 
   useEffect(() => {
     fetchAnnotators();
-  }, [fetchAnnotators]); // Depend on the memoized fetchAnnotators
+  }, [fetchAnnotators]);
 
   // --- Filtering Logic ---
   useEffect(() => {
-    // No need to log here every time annotators state changes, focus on filter values
-    console.log(
-      `[AnnotatorsPage] Filtering annotators based on: Search='${searchTerm}', Domain=${selectedDomain.length}, Lang=${selectedLanguage.length}, Loc=${selectedLocation.length}`
-    );
+
+
+
+
     const filtered = annotators.filter((user) => {
       const nameLower = user.name?.toLowerCase() || '';
       const emailLower = user.email?.toLowerCase() || '';
@@ -262,7 +321,7 @@ export default function AnnotatorsPage() {
       const matchesSearch =
         !searchTerm ||
         nameLower.includes(searchTermLower) ||
-        emailLower.includes(searchTermLower); // Check if searchTerm exists
+        emailLower.includes(searchTermLower);
 
       const userDomainsLower =
         user.domain?.map((d) => d?.toLowerCase() ?? '') || [];
@@ -291,12 +350,12 @@ export default function AnnotatorsPage() {
         matchesSearch && matchesDomain && matchesLanguage && matchesLocation
       );
     });
-    console.log(
-      `[AnnotatorsPage] Filtering resulted in ${filtered.length} annotators.`
-    );
+
+
+
     setFilteredAnnotators(filtered);
     if (currentPage !== 1) {
-      // Reset page only if not already 1
+
       setCurrentPage(1);
     }
   }, [
@@ -306,16 +365,16 @@ export default function AnnotatorsPage() {
     selectedLocation,
     annotators,
     currentPage,
-  ]); // Added currentPage to dependencies
+  ]);
 
   // --- Fetch Chart Data ---
   const fetchChartData = useCallback(async () => {
-    console.log(
-      `[AnnotatorsPage] Starting fetchChartData for granularity: ${chartGranularity}`
-    );
+
+
+
     setIsLoadingChart(true);
     setChartError(null);
-    setChartData([]);
+
 
     try {
       const filters = {
@@ -323,99 +382,100 @@ export default function AnnotatorsPage() {
         lang: selectedLanguage,
         location: selectedLocation,
       };
-      console.log(
-        `[AnnotatorsPage] Fetching chart data with filters: ${JSON.stringify(filters)}`
-      );
+
+
+
 
       const statsJson = await getUserStats(filters, chartGranularity);
-      console.log(
-        '[AnnotatorsPage] Raw response from getUserStats:',
-        statsJson
-      );
+      const stats = JSON.parse(statsJson);
+      if (stats.error) throw new Error(stats.error);
+      if (!Array.isArray(stats))
 
-      let stats: ChartDataPoint[] | StatError;
-      try {
-        stats = JSON.parse(statsJson);
-      } catch (e) {
-        console.error(
-          '[AnnotatorsPage] Failed to parse chart data JSON:',
-          statsJson,
-          e
-        );
-        throw new Error('Received invalid chart data format from server.');
-      }
 
-      console.log('[AnnotatorsPage] Parsed chart data/error object:', stats);
 
-      // Check for error structure returned from server action
-      if (
-        typeof stats === 'object' &&
-        stats !== null &&
-        'error' in stats &&
-        typeof stats.error === 'string'
-      ) {
-        console.error(
-          '[AnnotatorsPage] Server action returned error:',
-          stats.error
-        );
-        throw new Error(stats.error); // Use error message from server
-      }
 
-      if (!Array.isArray(stats)) {
-        console.error(
-          '[AnnotatorsPage] Parsed chart data is not an array:',
-          stats
-        );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         throw new Error('Expected an array for chart data.');
-      }
+      setChartData(stats);
 
-      // Filter out any potential invalid data points (optional but safer)
-      const validChartData = stats.filter(
-        (dp) =>
-          typeof dp.date === 'string' &&
-          typeof dp.newExperts === 'number' &&
-          typeof dp.cumulativeExperts === 'number'
-      );
-      if (validChartData.length !== stats.length) {
-        console.warn(
-          '[AnnotatorsPage] Filtered out invalid data points from chart data.'
-        );
-      }
 
-      console.log(
-        `[AnnotatorsPage] Setting ${validChartData.length} valid chart data points.`
-      );
-      setChartData(validChartData);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     } catch (error: any) {
-      console.error(
-        '[AnnotatorsPage] Client-side error during fetchChartData:',
-        error
-      );
+
+
+
+
       setChartError(error.message || 'Could not load chart data.');
-      setChartData([]); // Ensure data is cleared on error
+
     } finally {
-      console.log('[AnnotatorsPage] Finished fetchChartData.');
+
       setIsLoadingChart(false);
     }
-  }, [selectedDomain, selectedLanguage, selectedLocation, chartGranularity]); // Dependencies
+  }, [selectedDomain, selectedLanguage, selectedLocation, chartGranularity]);
 
-  // --- Effect for Chart Data ---
+
   useEffect(() => {
     if (isChartDialogOpen) {
-      console.log(
-        '[AnnotatorsPage] Chart dialog opened/granularity changed, triggering fetchChartData.'
-      );
+
+
+
       fetchChartData();
-    } else {
-      // Optional: log dialog close if needed
-      // console.log("[AnnotatorsPage] Chart dialog closed.");
+
+
+
     }
-  }, [isChartDialogOpen, fetchChartData]); // Depends on dialog state and the memoized fetch function
+  }, [isChartDialogOpen, fetchChartData]);
+
   const fetchReadyWorkData = useCallback(async () => {
-    console.log(`[AnnotatorsPage] Starting fetchReadyWorkData`);
+
     setIsLoadingReadyChart(true);
     setReadyChartError(null);
-    setReadyWorkData([]);
+
 
     try {
       const filters = {
@@ -423,71 +483,73 @@ export default function AnnotatorsPage() {
         lang: selectedLanguage,
         location: selectedLocation,
       };
-      console.log(
-        `[AnnotatorsPage] Fetching readiness data with filters: ${JSON.stringify(filters)}`
-      );
+      const statsJson = await getReadyToWorkStats(filters);
+      const stats = JSON.parse(statsJson);
+      if (stats.error) throw new Error(stats.error);
+      if (!Array.isArray(stats))
 
-      const statsJson = await getReadyToWorkStats(filters); // Call the new action
-      console.log(
-        '[AnnotatorsPage] Raw response from getReadyToWorkStats:',
-        statsJson
-      );
 
-      let stats: ReadyWorkDataPoint[] | StatError = JSON.parse(statsJson);
-      console.log(
-        '[AnnotatorsPage] Parsed readiness data/error object:',
-        stats
-      );
 
-      if (typeof stats === 'object' && stats !== null && 'error' in stats) {
-        throw new Error(stats.error);
-      }
-      if (!Array.isArray(stats)) {
+
+
+
+
+
+
+
+
+
+
+
+
+
         throw new Error('Expected an array for readiness data.');
-      }
 
-      console.log(
-        `[AnnotatorsPage] Setting ${stats.length} readiness data points.`
-      );
+
+
+
+
       setReadyWorkData(stats);
     } catch (error: any) {
-      console.error(
-        '[AnnotatorsPage] Client-side error during fetchReadyWorkData:',
-        error
-      );
+
+
+
+
       setReadyChartError(error.message || 'Could not load readiness data.');
-      setReadyWorkData([]);
+
     } finally {
-      console.log('[AnnotatorsPage] Finished fetchReadyWorkData.');
+
       setIsLoadingReadyChart(false);
     }
-  }, [selectedDomain, selectedLanguage, selectedLocation]); // Dependencies
+  }, [selectedDomain, selectedLanguage, selectedLocation]);
+
   useEffect(() => {
     if (isReadyChartDialogOpen) {
-      console.log(
-        '[AnnotatorsPage] Readiness chart dialog opened, triggering fetchReadyWorkData.'
-      );
+
+
+
       fetchReadyWorkData();
     }
   }, [isReadyChartDialogOpen, fetchReadyWorkData]);
+
   // --- Handlers ---
   const handleViewDetails = (user: User) => {
     router.push(`/annotator/profileView/${user._id}`);
   };
 
   const savePermissions = async (userId: string) => {
-    console.log(
-      `[AnnotatorsPage] Attempting to save permissions for user: ${userId}`
-    );
+
+
+
     const currentPermissions = reviewPermissionsState[userId] || [
       'No Permission',
     ];
     const backendPermissions = currentPermissions
       .filter((permission) => permission !== 'No Permission')
       .map((permission) => permissionMapping[permission] || permission);
-    console.log(
-      `[AnnotatorsPage] Permissions to save: ${JSON.stringify(backendPermissions)}`
-    );
+
+
+
 
     try {
       const response = await fetch(`/api/annotator`, {
@@ -499,14 +561,14 @@ export default function AnnotatorsPage() {
         }),
       });
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          message: 'Failed to update permissions and parse error response.',
-        }));
-        console.error(
-          `[AnnotatorsPage] Save permission failed (${response.status}):`,
-          errorData
-        );
-        throw new Error(errorData.message || `HTTP error ${response.status}`);
+        const errorData = await response
+          .json()
+          .catch(() => ({ message: 'Failed to update permissions.' }));
+        throw new Error(errorData.message);
+
+
+
+
       }
       const data = await response.json();
       toast({
@@ -514,27 +576,27 @@ export default function AnnotatorsPage() {
         title: 'Success!',
         description: data.message || 'Permissions updated.',
       });
-      console.log(
-        `[AnnotatorsPage] Permissions saved for ${userId}. Refreshing list.`
-      );
-      fetchAnnotators(); // Refresh list for consistency
+      fetchAnnotators();
+
+
+
     } catch (error: any) {
-      console.error(
-        `[AnnotatorsPage] Error saving permissions for ${userId}:`,
-        error
-      );
+
+
+
+
       toast({
         variant: 'destructive',
         title: 'Save Failed',
-        description: error.message || 'An unexpected error occurred.',
+        description: error.message,
       });
     }
   };
 
   const handleExport = (exportFormat: string) => {
-    console.log(
-      `[AnnotatorsPage] Exporting ${filteredAnnotators.length} filtered annotators as ${exportFormat}`
-    );
+
+
+
     const dataToExport = filteredAnnotators.map((user) => ({
       name: user.name,
       email: user.email,
@@ -542,12 +604,12 @@ export default function AnnotatorsPage() {
       domains: user.domain?.join(', ') || '',
       languages: user.lang?.join(', ') || '',
       location: user.location || '',
-      // Format dates safely, checking validity
+
       lastLogin:
         isValid(user.lastLogin) && user.lastLogin.getFullYear() > 1970
           ? format(user.lastLogin, 'PPPpp')
           : 'N/A',
-      createdAt:
+      joinedDate:
         isValid(user.createdAt) && user.createdAt.getFullYear() > 1970
           ? format(user.createdAt, 'PPPpp')
           : 'N/A',
@@ -560,7 +622,7 @@ export default function AnnotatorsPage() {
       'languages',
       'location',
       'lastLogin',
-      'createdAt',
+      'joinedDate',
     ];
 
     try {
@@ -575,7 +637,7 @@ export default function AnnotatorsPage() {
         link.click();
         document.body.removeChild(link);
       } else {
-        // CSV
+
         const csvContent = [
           headers.join(','),
           ...dataToExport.map((row) =>
@@ -596,12 +658,12 @@ export default function AnnotatorsPage() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(link.href); // Clean up blob URL
+        URL.revokeObjectURL(link.href);
       }
-      console.log('[AnnotatorsPage] Export successful.');
+
       setIsExportDialogOpen(false);
     } catch (error) {
-      console.error('[AnnotatorsPage] Export failed:', error);
+
       toast({
         variant: 'destructive',
         title: 'Export Failed',
@@ -610,46 +672,46 @@ export default function AnnotatorsPage() {
     }
   };
 
-  function handleTransfer(id: string) {
-    console.log(`[AnnotatorsPage] Opening transfer dialog for user: ${id}`);
-    setId(id);
-    setOnOpen((v) => !v);
-  }
+
+
+
+
+
 
   const handleUserDeleted = (userId: string) => {
-    console.log(
-      `[AnnotatorsPage] User ${userId} reported as deleted. Refreshing list.`
-    );
-    fetchAnnotators(); // Re-fetch list after deletion
+    fetchAnnotators();
+
+
+
     toast({
       variant: 'default',
       title: 'Success',
       description: 'Expert removed.',
     });
   };
-const handleStripePayment = (expertId: string) => {
-  console.log(`[AnnotatorsPage] Navigating to payment page for expert: ${expertId}`);
-  router.push(`/pay/${expertId}`);
-};
-  // --- Pagination Calculation ---
+
+  const handleStripePayment = (expertId: string) => {
+    router.push(`/pay/${expertId}`);
+  };
+
   const totalPages = Math.ceil(filteredAnnotators.length / pageSize);
   const startIndex = (currentPage - 1) * pageSize;
   const endIndex = startIndex + pageSize;
   const currentAnnotators = filteredAnnotators.slice(startIndex, endIndex);
 
-  // --- Render ---
-  console.log('[AnnotatorsPage] Rendering component...');
+
+
   return (
     <div className='min-h-screen'>
-      {/* Header */}
+
       <header className='bg-white shadow-sm sticky top-0 z-10'>
-        {' '}
-        {/* Added shadow and sticky */}
+
+
         <div className='max-w-7xl mx-auto py-4 px-4 flex justify-between items-center'>
           <h1 className='text-2xl font-semibold text-gray-900'>Experts</h1>
           <div className='flex items-center gap-2 sm:gap-3'>
-            {' '}
-            {/* Reduced gap slightly */}
+
+
             <Dialog
               open={isReadyChartDialogOpen}
               onOpenChange={setIsReadyChartDialogOpen}
@@ -657,15 +719,15 @@ const handleStripePayment = (expertId: string) => {
               <DialogTrigger asChild>
                 <Button variant='outline' size='sm'>
                   <CheckCircle2 className='h-4 w-4 mr-1 sm:mr-2' />{' '}
-                  {/* New Icon */}
+
                   <span className='hidden sm:inline'>Active Users</span>
-                  <span className='sm:hidden'>Ready?</span>{' '}
-                  {/* Shorter for mobile */}
+                  <span className='sm:hidden'>Ready?</span>
+
                 </Button>
               </DialogTrigger>
               <DialogContent className='max-w-lg'>
-                {' '}
-                {/* Slightly smaller dialog */}
+
+
                 <DialogHeader>
                   <DialogTitle>Active and Inactive Users</DialogTitle>
                   <DialogDescription>
@@ -681,7 +743,7 @@ const handleStripePayment = (expertId: string) => {
                 </div>
               </DialogContent>
             </Dialog>
-            {/* Chart Button & Dialog */}
+
             <Dialog
               open={isChartDialogOpen}
               onOpenChange={setIsChartDialogOpen}
@@ -689,10 +751,10 @@ const handleStripePayment = (expertId: string) => {
               <DialogTrigger asChild>
                 <Button variant='outline' size='sm'>
                   <LineChartIcon className='h-4 w-4 mr-1 sm:mr-2' />
-                  <span className='hidden sm:inline'>Stats</span>{' '}
-                  {/* Show text on larger screens */}
-                  <span className='sm:hidden'>Stats</span>{' '}
-                  {/* Show text always for clarity */}
+                  <span className='hidden sm:inline'>Stats</span>
+                  <span className='sm:hidden'>Stats</span>
+
+
                 </Button>
               </DialogTrigger>
               <DialogContent className='max-w-3xl sm:max-w-4xl'>
@@ -717,9 +779,9 @@ const handleStripePayment = (expertId: string) => {
                   </TabsList>
                 </Tabs>
                 <div className='mt-4 min-h-[400px] flex items-center justify-center'>
-                  {' '}
-                  {/* Centering content */}
-                  {/* ***** Ensure this Component Name/Import is Correct ***** */}
+
+
+
                   <DailyExpertsStats
                     data={chartData}
                     isLoading={isLoadingChart}
@@ -729,7 +791,7 @@ const handleStripePayment = (expertId: string) => {
                 </div>
               </DialogContent>
             </Dialog>
-            {/* Export Button & Dialog */}
+
             <Dialog
               open={isExportDialogOpen}
               onOpenChange={setIsExportDialogOpen}
@@ -758,29 +820,102 @@ const handleStripePayment = (expertId: string) => {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-            {/* Add Expert Button */}
+            {/* --- NEW: Column Visibility Popover --- */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant='outline' size='sm'>
+                  <ColumnsIcon className='h-4 w-4 mr-1 sm:mr-2' />{' '}
+                  <span className='hidden sm:inline'>Columns</span>
+                  <span className='sm:hidden'>Columns</span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className='w-80' align='end'>
+                <div className='grid gap-4'>
+                  <div className='space-y-1'>
+                    <h4 className='font-medium leading-none'>
+                      Column Visibility
+                    </h4>
+                    <p className='text-sm text-muted-foreground'>
+                      Select the columns to display.
+                    </p>
+                  </div>
+                  <div className='grid grid-cols-2 gap-2'>
+                    {allColumns.map((column) => (
+                      <div
+                        key={column.id}
+                        className='flex items-center space-x-2'
+                      >
+                        <Checkbox
+                          id={column.id}
+                          checked={
+                            column.isToggleable
+                              ? columnVisibility[
+                                  column.id as keyof typeof columnVisibility
+                                ]
+                              : true
+                          }
+                          disabled={!column.isToggleable}
+                          onCheckedChange={(value) => {
+                            if (column.isToggleable) {
+                              setColumnVisibility((prev) => ({
+                                ...prev,
+                                [column.id]: !!value,
+                              }));
+                            }
+                          }}
+                        />
+                        <Label
+                          htmlFor={column.id}
+                          className='text-sm font-normal'
+                        >
+                          {column.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  <div className='flex items-center space-x-2 mt-2'>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='w-full'
+                      onClick={handleShowAll}
+                    >
+                      Show All
+                    </Button>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='w-full'
+                      onClick={handleHideAll}
+                    >
+                      Hide All
+                    </Button>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
             <SheetMenu />
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+
       <main className='max-w-7xl mx-auto px-2 py-6'>
-        {/* Filters */}
+
         <div className='mb-6 grid grid-cols-1 md:grid-cols-4 gap-4'>
           <div className='relative md:col-span-1'>
-            {' '}
-            {/* Search takes less space */}
+
+
             <Input
               type='text'
               placeholder='Search name/email...'
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className='pl-9 text-sm'
-            />{' '}
-            {/* Smaller text */}
-            <Search className='absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4' />{' '}
-            {/* Adjusted icon pos */}
+            />
+            <Search className='absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4' />
+
+
           </div>
           <MultiCombobox
             options={domainOptions}
@@ -802,20 +937,20 @@ const handleStripePayment = (expertId: string) => {
           />
         </div>
 
-        {/* Table / Loading / No Results */}
+
         {isFetchingAnnotators ? (
           <div className='text-center py-10 text-gray-500'>
             Loading experts...
           </div>
-        ) : annotators.length === 0 ? ( // Check if initial fetch yielded nothing
-          <div className='text-center py-10'>
-            <h2 className='text-xl font-semibold'>No Experts Found</h2>
-            <p className='mt-2 text-gray-600'>
-              No experts have been added to your team yet.
-            </p>
-            {/* Optionally add a link/button to add experts */}
-          </div>
-        ) : filteredAnnotators.length === 0 ? ( // Check if filters yield nothing
+        ) : filteredAnnotators.length === 0 ? (
+
+
+
+
+
+
+
+
           <div className='text-center py-10'>
             <h2 className='text-xl font-semibold'>No Experts Match Filters</h2>
             <p className='mt-2 text-gray-600'>
@@ -824,20 +959,30 @@ const handleStripePayment = (expertId: string) => {
           </div>
         ) : (
           <div className='bg-white shadow-md rounded-lg overflow-x-auto'>
-            {' '}
-            {/* Allow horizontal scroll on small screens */}
+
+
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Permission</TableHead>
-                  <TableHead>Domains</TableHead>
-                  <TableHead>Languages</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Last Login</TableHead>
-                  <TableHead className='text-right'>Actions</TableHead>
-                  {/* Align Actions */}
+                  {/* --- UPDATED: Conditional Column Headers --- */}
+                  {columnVisibility.name && <TableHead>Name</TableHead>}
+                  <TableHead>Email</TableHead> {/* Mandatory */}
+                  {columnVisibility.permission && (
+                    <TableHead>Permission</TableHead>
+                  )}
+                  {columnVisibility.domains && <TableHead>Domains</TableHead>}
+                  {columnVisibility.languages && (
+                    <TableHead>Languages</TableHead>
+                  )}
+                  {columnVisibility.location && <TableHead>Location</TableHead>}
+                  {columnVisibility.lastLogin && (
+                    <TableHead>Last Login</TableHead>
+                  )}
+                  {columnVisibility.joinedDate && (
+                    <TableHead>Joined Date</TableHead>
+                  )}
+                  <TableHead className='text-right'>Actions</TableHead>{' '}
+                  {/* Mandatory */}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -848,107 +993,148 @@ const handleStripePayment = (expertId: string) => {
                   const lastLoginValid =
                     isValid(user.lastLogin) &&
                     user.lastLogin.getFullYear() > 1970;
+                  const joinedDateValid =
+                    isValid(user.createdAt) &&
+                    user.createdAt.getFullYear() > 1970;
                   return (
                     <TableRow
                       key={user._id}
                       className='hover:bg-gray-50 text-sm'
                     >
-                      {' '}
-                      {/* Smaller base text */}
-                      <TableCell className='font-medium whitespace-nowrap'>
-                        {user.name || 'N/A'}
-                      </TableCell>
+                      {/* --- UPDATED: Conditional Table Cells --- */}
+                      {columnVisibility.name && (
+                        <TableCell className='font-medium whitespace-nowrap'>
+                          {user.name || 'N/A'}
+                        </TableCell>
+                      )}
                       <TableCell className='whitespace-nowrap'>
                         {user.email || 'N/A'}
                       </TableCell>
-                      <TableCell>
-                        <MultiCombobox
-                          options={permissionOptions}
-                          value={localPerm}
-                          onChange={(v: string[]) =>
-                            setReviewPermissionsState((p) => ({
-                              ...p,
-                              [user._id]: v,
-                            }))
-                          }
-                          placeholder='Select'
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex flex-wrap gap-1 max-w-[100px]'>
-                          {user.domain?.length > 0 ? (
-                            user.domain.map((d, i) => (
-                              <Badge
-                                key={i}
-                                variant='secondary'
-                                className='text-xs px-1.5 py-0.5'
-                              >
-                                {d}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className='text-xs text-gray-500 italic'>
-                              None
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className='flex flex-wrap gap-1 max-w-[120px]'>
-                          {user.lang?.length > 0 ? (
-                            user.lang.map((l, i) => (
-                              <Badge
-                                key={i}
-                                variant='outline'
-                                className='text-xs px-1.5 py-0.5'
-                              >
-                                {l}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className='text-xs text-gray-500 italic'>
-                              None
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className='font-medium whitespace-nowrap'>
-                        {user.location ? (
-                          user.location.charAt(0).toUpperCase() +
-                          user.location.slice(1)
-                        ) : (
-                          <span className='text-xs text-gray-500 italic'>
-                            N/A
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className='whitespace-nowrap'>
-                        {lastLoginValid ? (
-                          <div className='flex items-center text-gray-600'>
-                            <CalendarIcon className='mr-1.5 h-3.5 w-3.5 shrink-0' />
-                            {format(user.lastLogin, 'PP p')}
+                      {columnVisibility.permission && (
+                        <TableCell>
+                          <MultiCombobox
+                            options={permissionOptions}
+                            value={localPerm}
+                            onChange={(v: string[]) =>
+                              setReviewPermissionsState((p) => ({
+                                ...p,
+                                [user._id]: v,
+                              }))
+                            }
+                            placeholder='Select'
+                          />
+                        </TableCell>
+                      )}
+                      {columnVisibility.domains && (
+                        <TableCell>
+                          <div className='flex flex-wrap gap-1 max-w-[100px]'>
+                            {user.domain?.length > 0 ? (
+                              user.domain.map((d, i) => (
+                                <Badge
+                                  key={i}
+                                  variant='secondary'
+                                  className='text-xs px-1.5 py-0.5'
+                                >
+                                  {d}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className='text-xs text-gray-500 italic'>
+                                None
+                              </span>
+                            )}
                           </div>
-                        ) : (
-                          <span className='text-xs text-gray-500 italic'>
-                            Never
-                          </span>
-                        )}
-                      </TableCell>
+                        </TableCell>
+                      )}
+                      {columnVisibility.languages && (
+                        <TableCell>
+                          <div className='flex flex-wrap gap-1 max-w-[120px]'>
+                            {user.lang?.length > 0 ? (
+                              user.lang.map((l, i) => (
+                                <Badge
+                                  key={i}
+                                  variant='outline'
+                                  className='text-xs px-1.5 py-0.5'
+                                >
+                                  {l}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className='text-xs text-gray-500 italic'>
+                                None
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                      {columnVisibility.location && (
+                        <TableCell className='font-medium whitespace-nowrap'>
+                          {user.location ? (
+                            user.location.charAt(0).toUpperCase() +
+                            user.location.slice(1)
+                          ) : (
+                            <span className='text-xs text-gray-500 italic'>
+                              N/A
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                      {columnVisibility.lastLogin && (
+                        <TableCell className='whitespace-nowrap'>
+                          {lastLoginValid ? (
+                            <div className='flex items-center text-gray-600'>
+                              <CalendarIcon className='mr-1.5 h-3.5 w-3.5 shrink-0' />
+                              {format(user.lastLogin, 'PP p')}
+                            </div>
+
+
+
+
+
+                          ) : (
+                            <span className='text-xs text-gray-500 italic'>
+                              Never
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+                      {columnVisibility.joinedDate && (
+                        <TableCell className='whitespace-nowrap'>
+                          {joinedDateValid ? (
+                            format(user.createdAt, 'PP')
+                          ) : (
+                            <span className='text-xs text-gray-500 italic'>
+                              N/A
+                            </span>
+                          )}
+                        </TableCell>
+                      )}
+
+
+
+
+
+
+
+
+
+
+
                       <TableCell className='text-right'>
-                        {' '}
-                        {/* Actions aligned right */}
+
+
                         <div className='flex items-center justify-end space-x-1'>
-                          {' '}
-                     
+
+
                           <Button
-  size='icon'
-  variant='ghost'
-  className='h-7 w-7 text-green-600 hover:text-green-700'
-  onClick={() => handleStripePayment(user._id)}
-  title='Pay Expert'
->
-  <CreditCard className='h-4 w-4' />
-</Button>
+                            size='icon'
+                            variant='ghost'
+                            className='h-7 w-7 text-green-600 hover:text-green-700'
+                            onClick={() => handleStripePayment(user._id)}
+                            title='Pay Expert'
+                          >
+                            <CreditCard className='h-4 w-4' />
+                          </Button>
                           <Button
                             size='icon'
                             variant='ghost'
@@ -980,10 +1166,10 @@ const handleStripePayment = (expertId: string) => {
                 })}
               </TableBody>
             </Table>
-            {/* Pagination */}
+
             <div className='flex items-center justify-between p-3 border-t text-sm'>
-              {' '}
-              {/* Reduced padding */}
+
+
               <div className='flex items-center space-x-3'>
                 <Select
                   value={pageSize.toString()}
@@ -994,8 +1180,8 @@ const handleStripePayment = (expertId: string) => {
                 >
                   <SelectTrigger className='w-[110px] h-8 text-xs'>
                     <SelectValue />
-                  </SelectTrigger>{' '}
-                  {/* Smaller trigger */}
+                  </SelectTrigger>
+
                   <SelectContent>
                     {PAGE_SIZES.map((s) => (
                       <SelectItem
