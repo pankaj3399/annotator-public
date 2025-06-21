@@ -58,6 +58,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ErrorBoundary, useErrorHandler } from '@/components/ErrorBoundaryWrapper';
 
 export interface Project {
   _id: string;
@@ -70,12 +71,13 @@ type ExportItem = {
   name: string;
   content: string;
 };
+
 interface Template {
   _id: string;
   name: string;
 }
 
-export default function ProjectDashboard() {
+function ProjectDashboardContent() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [newProjectName, setNewProjectName] = useState('');
   const [open, setOpen] = useState(false);
@@ -103,6 +105,7 @@ export default function ProjectDashboard() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const { toast } = useToast();
+  const { handleError } = useErrorHandler();
 
   // Get pagination parameters from URL
   useEffect(() => {
@@ -123,66 +126,82 @@ export default function ProjectDashboard() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (session) {
-      if (session?.user?.role === 'annotator') router.push('/tasks');
-      if (session?.user?.role === 'system admin') router.push('/admin/');
-      if (session?.user?.role === 'agency owner') router.push('/agencyOwner');
-      if (session?.user?.role === 'data scientist')
-        router.push('/dataScientist/dashboard');
+useEffect(() => {
+  if (session) {
+    if (session?.user?.role === 'annotator') router.push('/tasks');
+    if (session?.user?.role === 'system admin') router.push('/admin/');
+    if (session?.user?.role === 'agency owner') router.push('/agencyOwner');
+    if (session?.user?.role === 'data scientist')
+      router.push('/dataScientist/dashboard');
 
-      setIsLoading(true);
-      fetch('/api/projects')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setProjects(data.projects);
-          }
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          toast({
-            variant: 'destructive',
-            title: 'Uh oh! Something went wrong.',
-            description: error.message,
+    setIsLoading(true);
+    fetch('/api/projects')
+      .then(async (res) => {
+        // FIXED: Better error handling for non-JSON responses
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: Database connection failed`);
+        }
+        
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonError) {
+          throw new Error('Database connection timeout - invalid response format');
+        }
+        
+        if (data.success) {
+          setProjects(data.projects);
+        } else {
+          throw new Error(data.error || 'Failed to load projects');
+        }
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        handleError(error);
+      });
+  }
+}, [session, router, handleError])
+
+useEffect(() => {
+  if (session) {
+    setIsLoading(true);
+    fetch('/api/projects')
+      .then(async (res) => {
+        // FIXED: Better error handling for non-JSON responses
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: Database connection failed`);
+        }
+        
+        let data;
+        try {
+          data = await res.json();
+        } catch (jsonError) {
+          throw new Error('Database connection timeout - invalid response format');
+        }
+        
+        if (data.success) {
+          // Use project labels directly
+          const labelMap: Record<string, string[]> = {};
+          const allLabels = new Set<string>();
+
+          data.projects.forEach((project: Project) => {
+            labelMap[project._id] = project.labels || [];
+            project.labels?.forEach((label) => allLabels.add(label));
           });
-          setIsLoading(false);
-        });
-    }
-  }, [session, router, toast]);
 
-  useEffect(() => {
-    if (session) {
-      setIsLoading(true);
-      fetch('/api/projects')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            // Use project labels directly
-            const labelMap: Record<string, string[]> = {};
-            const allLabels = new Set<string>();
-
-            data.projects.forEach((project: Project) => {
-              labelMap[project._id] = project.labels || [];
-              project.labels?.forEach((label) => allLabels.add(label));
-            });
-
-            setProjectLabels(labelMap);
-            setAvailableLabels(Array.from(allLabels));
-            setProjects(data.projects);
-          }
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          toast({
-            variant: 'destructive',
-            title: 'Error loading project labels',
-            description: error.message,
-          });
-          setIsLoading(false);
-        });
-    }
-  }, [session]);
+          setProjectLabels(labelMap);
+          setAvailableLabels(Array.from(allLabels));
+          setProjects(data.projects);
+        } else {
+          throw new Error(data.error || 'Failed to load project labels');
+        }
+        setIsLoading(false);
+      })
+      .catch((error) => {
+        handleError(error);
+      });
+  }
+}, [session, handleError]);
 
   useEffect(() => {
     setFilteredProjects(getFilteredProjects());
@@ -266,47 +285,48 @@ export default function ProjectDashboard() {
   const endIndex = startIndex + pageSize;
   const currentPageProjects = filteredProjects.slice(startIndex, endIndex);
 
-  const fetchProjects = async (labels: string[] = []) => {
-    try {
-      setIsLoading(true);
-      const queryParams = new URLSearchParams();
+const fetchProjects = async (labels: string[] = []) => {
+  setIsLoading(true);
+  const queryParams = new URLSearchParams();
 
-      if (labels.length > 0) {
-        queryParams.append('labels', labels.join(','));
-      }
+  if (labels.length > 0) {
+    queryParams.append('labels', labels.join(','));
+  }
 
-      const res = await fetch(`/api/projects?${queryParams}`);
-      const data = await res.json();
+  const res = await fetch(`/api/projects?${queryParams}`);
+  
+  // FIXED: Better error handling for non-JSON responses
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: Database connection failed`);
+  }
+  
+  let data;
+  try {
+    data = await res.json();
+  } catch (jsonError) {
+    throw new Error('Database connection timeout - invalid response format');
+  }
 
-      if (data.success) {
-        setProjects(data.projects);
+  if (data.success) {
+    setProjects(data.projects);
 
-        // Collect all unique labels from projects
-        const allLabels = new Set<string>();
-        data.projects.forEach((project: Project) => {
-          project.labels?.forEach((label) => allLabels.add(label));
-        });
-        setAvailableLabels(Array.from(allLabels));
-      }
-      setIsLoading(false);
-    } catch (error: unknown) {
-      // Properly type the error and provide a fallback message
-      const errorMessage =
-        error instanceof Error ? error.message : 'An unknown error occurred';
-      toast({
-        variant: 'destructive',
-        title: 'Error loading projects',
-        description: errorMessage,
-      });
-      setIsLoading(false);
-    }
-  };
+    // Collect all unique labels from projects
+    const allLabels = new Set<string>();
+    data.projects.forEach((project: Project) => {
+      project.labels?.forEach((label) => allLabels.add(label));
+    });
+    setAvailableLabels(Array.from(allLabels));
+  } else {
+    throw new Error(data.error || 'Failed to fetch projects');
+  }
+  setIsLoading(false);
+};
 
   useEffect(() => {
     if (session) {
-      fetchProjects();
+      fetchProjects().catch(handleError);
     }
-  }, [session]);
+  }, [session, handleError]);
 
   const toggleLabel = (label: string) => {
     const newLabels = selectedLabels.includes(label)
@@ -314,7 +334,7 @@ export default function ProjectDashboard() {
       : [...selectedLabels, label];
 
     setSelectedLabels(newLabels);
-    fetchProjects(newLabels);
+    fetchProjects(newLabels).catch(handleError);
   };
 
   if (!session || isLoading) {
@@ -333,92 +353,83 @@ export default function ProjectDashboard() {
     router.push(`/projects/pipeline/${projectId}`);
   };
 
-const handleCreateProject = (e: React.FormEvent) => {
+const handleCreateProject = async (e: React.FormEvent) => {
   e.preventDefault();
   setIsLoading(true);
-  fetch(`/api/projects`, {
+  
+  const res = await fetch(`/api/projects`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ name: newProjectName.trim() }),
-  })
-    .then(async (res) => {
-      if (!res.ok) {
-        const error = await res.json();
-        toast({
-          variant: 'destructive',
-          title: 'Uh oh! Something went wrong.',
-          description: error.message,
-        });
-      } else {
-        const data = await res.json();
-        
-        // Update the projects list
-        setProjects([...projects, data.project]);
-        setFilteredProjects([...projects, data.project]);
-        
-        // Set the new project ID in localStorage
-        try {
-          localStorage.setItem('currentProjectId', data.project._id);
-        } catch (e) {
-          console.error('Error storing projectId in localStorage:', e);
-        }
-        
-        // Reset form state
-        setNewProjectName('');
-        setCreateProjectDialogOpen(false);
-        
-        // Show success message
-        toast({
-          title: 'Project created successfully',
-        });
-        
-        // Navigate to the pipeline page for the new project
-        router.push(`/projects/pipeline/${data.project._id}`);
-      }
-      setIsLoading(false);
-    })
-    .catch((error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: error.message,
-      });
-      setIsLoading(false);
-    });
+  });
+
+  // FIXED: Better error handling for non-JSON responses
+  if (!res.ok) {
+    let errorMessage = `HTTP ${res.status}: Database connection failed`;
+    try {
+      const error = await res.json();
+      errorMessage = error.message || errorMessage;
+    } catch (jsonError) {
+      // If we can't parse JSON, use the default message
+    }
+    throw new Error(errorMessage);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (jsonError) {
+    throw new Error('Database connection timeout - invalid response format');
+  }
+  
+  // Update the projects list
+  setProjects([...projects, data.project]);
+  setFilteredProjects([...projects, data.project]);
+  
+  // Set the new project ID in localStorage
+  try {
+    localStorage.setItem('currentProjectId', data.project._id);
+  } catch (e) {
+    console.error('Error storing projectId in localStorage:', e);
+  }
+  
+  // Reset form state
+  setNewProjectName('');
+  setCreateProjectDialogOpen(false);
+  
+  // Show success message
+  toast({
+    title: 'Project created successfully',
+  });
+  
+  // Navigate to the pipeline page for the new project
+  router.push(`/projects/pipeline/${data.project._id}`);
+  setIsLoading(false);
 };
 
   const handledownload = async (e: React.MouseEvent, project: Project) => {
     e.stopPropagation();
     setIsLoading(true);
-    try {
-      const res = JSON.parse(await getAllAcceptedTasks(project._id));
-      if (res.length === 0) {
-        toast({
-          variant: 'destructive',
-          title: 'No submitted tasks found',
-        });
-        setIsLoading(false);
-        return;
-      }
-      const extractedElements = extractElementDetails(
-        JSON.parse(res[0].content)
-      );
-      setRes(res);
-      setName(project.name);
-      setExportItems(extractedElements);
-      setOpen(true);
-    } catch (error) {
+    
+    const res = JSON.parse(await getAllAcceptedTasks(project._id));
+    if (res.length === 0) {
       toast({
         variant: 'destructive',
-        title: 'Error downloading project data',
-        description:
-          error instanceof Error ? error.message : 'An unknown error occurred',
+        title: 'No submitted tasks found',
       });
-    } finally {
       setIsLoading(false);
+      return;
     }
+    const extractedElements = extractElementDetails(
+      JSON.parse(res[0].content)
+    );
+    setRes(res);
+    setName(project.name);
+    setExportItems(extractedElements);
+    setOpen(true);
+    setIsLoading(false);
   };
 
   const handleExport = (format: string) => {
@@ -450,46 +461,42 @@ const handleCreateProject = (e: React.FormEvent) => {
     setDeleteConfirmOpen(true);
   };
 
-  const confirmDeleteProject = () => {
-    if (projectToDelete) {
-      setIsLoading(true);
-      fetch(`/api/projects`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ _id: projectToDelete }),
-      })
-        .then(async (res) => {
-          if (!res.ok) {
-            const error = await res.json();
-            toast({
-              variant: 'destructive',
-              title: 'Uh oh! Something went wrong.',
-              description: error.message,
-            });
-          } else {
-            setProjects(
-              projects.filter((project) => project._id !== projectToDelete)
-            );
-            toast({
-              title: 'Project deleted successfully',
-            });
-          }
-          setIsLoading(false);
-        })
-        .catch((error) => {
-          toast({
-            variant: 'destructive',
-            title: 'Uh oh! Something went wrong.',
-            description: error.message,
-          });
-          setIsLoading(false);
-        });
-      setDeleteConfirmOpen(false);
-      setProjectToDelete(null);
+const confirmDeleteProject = async () => {
+  if (projectToDelete) {
+    setIsLoading(true);
+    
+    const res = await fetch(`/api/projects`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ _id: projectToDelete }),
+    });
+
+    // FIXED: Better error handling for non-JSON responses
+    if (!res.ok) {
+      let errorMessage = `HTTP ${res.status}: Database connection failed`;
+      try {
+        const error = await res.json();
+        errorMessage = error.message || errorMessage;
+      } catch (jsonError) {
+        // If we can't parse JSON, use the default message
+      }
+      throw new Error(errorMessage);
     }
-  };
+
+    setProjects(
+      projects.filter((project) => project._id !== projectToDelete)
+    );
+    toast({
+      title: 'Project deleted successfully',
+    });
+    
+    setIsLoading(false);
+    setDeleteConfirmOpen(false);
+    setProjectToDelete(null);
+  }
+};
 
   if (session?.user?.role === 'project manager')
     return (
@@ -640,7 +647,7 @@ const handleCreateProject = (e: React.FormEvent) => {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={(e) => handledownload(e, project)}
+                          onClick={(e) => handledownload(e, project).catch(handleError)}
                           disabled={isLoading}
                         >
                           <FileDown className='h-4 w-4' />
@@ -755,7 +762,7 @@ const handleCreateProject = (e: React.FormEvent) => {
                 Enter a name for your new project.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateProject}>
+            <form onSubmit={(e) => handleCreateProject(e).catch(handleError)}>
               <div className='grid gap-4 py-4'>
                 <div className='grid grid-cols-4 items-center gap-4'>
                   <Label htmlFor='projectName' className='text-right'>
@@ -854,7 +861,10 @@ const handleCreateProject = (e: React.FormEvent) => {
               >
                 Cancel
               </Button>
-              <Button variant='destructive' onClick={confirmDeleteProject}>
+              <Button 
+                variant='destructive' 
+                onClick={() => confirmDeleteProject().catch(handleError)}
+              >
                 Delete
               </Button>
             </DialogFooter>
@@ -891,4 +901,12 @@ const handleCreateProject = (e: React.FormEvent) => {
         </Dialog>
       </div>
     );
+}
+
+export default function ProjectDashboard() {
+  return (
+    <ErrorBoundary>
+      <ProjectDashboardContent />
+    </ErrorBoundary>
+  );
 }
