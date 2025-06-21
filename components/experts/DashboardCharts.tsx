@@ -122,7 +122,7 @@ export const ExpertPerformanceTable: React.FC<{
 }> = ({ data, isLoading, error }) => {
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-32">
+      <div className="flex items-center justify-center h-[300px]">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
       </div>
     );
@@ -130,7 +130,7 @@ export const ExpertPerformanceTable: React.FC<{
 
   if (error) {
     return (
-      <div className="text-red-500 text-center p-4">
+      <div className="text-red-500 text-center p-4 h-[300px] flex items-center justify-center">
         Error: {error}
       </div>
     );
@@ -138,7 +138,7 @@ export const ExpertPerformanceTable: React.FC<{
 
   if (!data || data.length === 0) {
     return (
-      <div className="text-gray-500 text-center p-4">
+      <div className="text-gray-500 text-center p-4 h-[300px] flex items-center justify-center">
         No experts found
       </div>
     );
@@ -148,7 +148,7 @@ export const ExpertPerformanceTable: React.FC<{
   const sortedData = [...data].sort((a, b) => b.stats.totalTasks - a.stats.totalTasks);
 
   return (
-    <div className="space-y-3">
+    <div className="h-[300px] overflow-y-auto space-y-3">
       {sortedData.map((expert, index) => (
         <div
           key={expert._id}
