@@ -154,6 +154,8 @@ userSchema.index({ lastLogin: -1 });
 userSchema.index({ created_at: -1 });
 userSchema.index({ stripeAccountStatus: 1 });
 userSchema.index({ stripeAccountCountry: 1 });
+userSchema.index({ role: 1, team_id: 1 });
+
 
 userSchema.pre("save", function (next) {
   this.updated_at = new Date();

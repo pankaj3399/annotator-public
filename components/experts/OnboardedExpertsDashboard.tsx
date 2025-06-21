@@ -387,8 +387,8 @@ const OnboardedExpertsDashboard: React.FC = () => {
                   Download NDAs
                 </Button>
               </DialogTrigger>
-              <DialogContent className='max-w-2xl'>
-                <DialogHeader>
+              <DialogContent className='max-w-2xl max-h-[80vh] overflow-hidden flex flex-col'>
+                <DialogHeader className='flex-shrink-0'>
                   <DialogTitle>Download NDA Documents</DialogTitle>
                   <DialogDescription>
                     Select experts whose NDAs you want to download. All selected
@@ -396,144 +396,148 @@ const OnboardedExpertsDashboard: React.FC = () => {
                   </DialogDescription>
                 </DialogHeader>
 
-                {ndaLoading ? (
-                  <div className='flex items-center justify-center py-8'>
-                    <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-                  </div>
-                ) : ndaStatus ? (
-                  <div className='space-y-4'>
-                    {/* Summary */}
-                    <div className='bg-gray-50 p-4 rounded-lg'>
-                      <div className='flex items-center justify-between'>
-                        <div className='flex items-center space-x-4'>
-                          <div className='flex items-center space-x-2'>
-                            <CheckCircle className='w-5 h-5 text-green-600' />
-                            <span className='font-medium'>
-                              {ndaStatus.uploaded.length} NDAs uploaded
-                            </span>
-                          </div>
-                          <div className='flex items-center space-x-2'>
-                            <XCircle className='w-5 h-5 text-red-600' />
-                            <span className='font-medium'>
-                              {ndaStatus.notUploaded.length} pending
-                            </span>
-                          </div>
-                        </div>
-                        <div className='flex space-x-2'>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => handleSelectAllNDAs(true)}
-                            disabled={ndaStatus.uploaded.length === 0}
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => handleSelectAllNDAs(false)}
-                          >
-                            Select None
-                          </Button>
-                        </div>
-                      </div>
+                <div className='flex-1 overflow-y-auto'>
+                  {ndaLoading ? (
+                    <div className='flex items-center justify-center py-8'>
+                      <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
                     </div>
-
-                    {/* Experts with NDAs */}
-                    {ndaStatus.uploaded.length > 0 ? (
-                      <div className='space-y-2 max-h-64 overflow-y-auto'>
-                        <h4 className='font-medium text-gray-900'>
-                          Available NDAs:
-                        </h4>
-                        {ndaStatus.uploaded.map((expert) => (
-                          <div
-                            key={expert._id}
-                            className='flex items-center space-x-3 p-2 hover:bg-gray-50 rounded'
-                          >
-                            <Checkbox
-                              id={expert._id}
-                              checked={selectedExpertsForDownload.includes(
-                                expert._id
-                              )}
-                              onCheckedChange={(checked) =>
-                                handleExpertSelection(
-                                  expert._id,
-                                  checked as boolean
-                                )
-                              }
-                            />
-                            <label
-                              htmlFor={expert._id}
-                              className='flex-1 cursor-pointer'
-                            >
-                              <div className='font-medium'>{expert.name}</div>
-                              <div className='text-sm text-gray-500'>
-                                {expert.email}
-                              </div>
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className='text-center py-4 text-gray-500'>
-                        No NDAs have been uploaded yet.
-                      </div>
-                    )}
-
-                    {/* Experts without NDAs */}
-                    {ndaStatus.notUploaded.length > 0 && (
-                      <div className='space-y-2'>
-                        <h4 className='font-medium text-red-600'>
-                          Pending NDAs:
-                        </h4>
-                        <div className='bg-red-50 p-3 rounded max-h-32 overflow-y-auto'>
-                          {ndaStatus.notUploaded.map((expert) => (
-                            <div
-                              key={expert._id}
-                              className='text-sm text-red-700'
-                            >
-                              {expert.name} ({expert.email})
+                  ) : ndaStatus ? (
+                    <div className='space-y-4'>
+                      {/* Summary */}
+                      <div className='bg-gray-50 p-4 rounded-lg flex-shrink-0'>
+                        <div className='flex items-center justify-between'>
+                          <div className='flex items-center space-x-4'>
+                            <div className='flex items-center space-x-2'>
+                              <CheckCircle className='w-5 h-5 text-green-600' />
+                              <span className='font-medium'>
+                                {ndaStatus.uploaded.length} NDAs uploaded
+                              </span>
                             </div>
-                          ))}
+                            <div className='flex items-center space-x-2'>
+                              <XCircle className='w-5 h-5 text-red-600' />
+                              <span className='font-medium'>
+                                {ndaStatus.notUploaded.length} pending
+                              </span>
+                            </div>
+                          </div>
+                          <div className='flex space-x-2'>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => handleSelectAllNDAs(true)}
+                              disabled={ndaStatus.uploaded.length === 0}
+                            >
+                              Select All
+                            </Button>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => handleSelectAllNDAs(false)}
+                            >
+                              Select None
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    )}
 
-                    <div className='flex justify-end space-x-2 pt-4'>
-                      <Button
-                        variant='outline'
-                        onClick={() => setIsNDADialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={handleDownloadNDAs}
-                        disabled={
-                          selectedExpertsForDownload.length === 0 ||
-                          downloadingNDAs
-                        }
-                        className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                      >
-                        {downloadingNDAs ? (
-                          <>
-                            <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2'></div>
-                            Downloading...
-                          </>
-                        ) : (
-                          <>
-                            <Download className='w-4 h-4 mr-2' />
-                            Download Selected (
-                            {selectedExpertsForDownload.length})
-                          </>
-                        )}
-                      </Button>
+                      {/* Experts with NDAs */}
+                      {ndaStatus.uploaded.length > 0 ? (
+                        <div className='space-y-2'>
+                          <h4 className='font-medium text-gray-900'>
+                            Available NDAs:
+                          </h4>
+                          <div className='max-h-48 overflow-y-auto space-y-2'>
+                            {ndaStatus.uploaded.map((expert) => (
+                              <div
+                                key={expert._id}
+                                className='flex items-center space-x-3 p-2 hover:bg-gray-50 rounded'
+                              >
+                                <Checkbox
+                                  id={expert._id}
+                                  checked={selectedExpertsForDownload.includes(
+                                    expert._id
+                                  )}
+                                  onCheckedChange={(checked) =>
+                                    handleExpertSelection(
+                                      expert._id,
+                                      checked as boolean
+                                    )
+                                  }
+                                />
+                                <label
+                                  htmlFor={expert._id}
+                                  className='flex-1 cursor-pointer'
+                                >
+                                  <div className='font-medium'>
+                                    {expert.name}
+                                  </div>
+                                  <div className='text-sm text-gray-500'>
+                                    {expert.email}
+                                  </div>
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className='text-center py-4 text-gray-500'>
+                          No NDAs have been uploaded yet.
+                        </div>
+                      )}
+
+                      {/* Experts without NDAs */}
+                      {ndaStatus.notUploaded.length > 0 && (
+                        <div className='space-y-2'>
+                          <h4 className='font-medium text-red-600'>
+                            Pending NDAs:
+                          </h4>
+                          <div className='bg-red-50 p-3 rounded max-h-32 overflow-y-auto'>
+                            {ndaStatus.notUploaded.map((expert) => (
+                              <div
+                                key={expert._id}
+                                className='text-sm text-red-700'
+                              >
+                                {expert.name} ({expert.email})
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className='text-center py-4 text-red-500'>
-                    Failed to load NDA status
-                  </div>
-                )}
+                  ) : (
+                    <div className='text-center py-4 text-red-500'>
+                      Failed to load NDA status
+                    </div>
+                  )}
+                </div>
+
+                <div className='flex justify-end space-x-2 pt-4 border-t flex-shrink-0'>
+                  <Button
+                    variant='outline'
+                    onClick={() => setIsNDADialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleDownloadNDAs}
+                    disabled={
+                      selectedExpertsForDownload.length === 0 || downloadingNDAs
+                    }
+                    className='bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                  >
+                    {downloadingNDAs ? (
+                      <>
+                        <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2'></div>
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className='w-4 h-4 mr-2' />
+                        Download Selected ({selectedExpertsForDownload.length})
+                      </>
+                    )}
+                  </Button>
+                </div>
               </DialogContent>
             </Dialog>
           </div>

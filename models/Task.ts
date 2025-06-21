@@ -43,6 +43,30 @@ taskSchema.index({ project: 1, project_Manager: 1, timeTaken: 1 });
 taskSchema.index({ project_Manager: 1, project: 1, timeTaken: 1 });
 taskSchema.index({ project_Manager: 1, status: 1 });
 taskSchema.index({ project_Manager: 1, submitted: 1 });
+taskSchema.index({ 
+  annotator: 1, 
+  submitted: 1, 
+  updatedAt: -1, 
+  status: 1 
+});
+taskSchema.index({ 
+  project_Manager: 1, 
+  submitted: 1, 
+  updatedAt: -1, 
+  type: 1 
+});
+taskSchema.index({ 
+  annotator: 1, 
+  project_Manager: 1, 
+  submitted: 1, 
+  updatedAt: -1, 
+  type: 1 
+});
+taskSchema.index({ 
+  annotator: 1, 
+  submitted: 1, 
+  updatedAt: -1 
+});
 
 const Task = mongoose.models?.Task || mongoose.model('Task', taskSchema);
 export default Task;
