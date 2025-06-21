@@ -59,6 +59,7 @@ import {
   LayoutDashboardIcon,
   User2Icon,
   Package,
+  UserCircleIcon,
 } from 'lucide-react';
 import { BookIcon } from '@/components/BookIcon'; // Adjust path if needed
 
@@ -552,18 +553,11 @@ export function getMenuList(
             : pathname.startsWith(`/projects/benchmark-proposals/`),
           icon: TrendingUp,
         },
-        {
-          href: `/projects/training`,
-          label: 'Kickoff Session',
-          active: effectiveProjectId
-            ? pathname.includes(`/projects/training/${effectiveProjectId}`)
-            : pathname.startsWith(`/projects/training/`),
-          icon: GraduationCap,
-        },
+
       ],
     },
     {
-      groupLabel: 'Resources',
+      groupLabel: 'Job Management',
       visibleTo: ['project manager'],
       menus: [
         {
@@ -594,6 +588,31 @@ export function getMenuList(
             pathname.includes('/projects/job-list/create'),
           icon: FilePlus,
         },
+      ],
+    },
+        {
+      groupLabel: 'Onboarding Management',
+      visibleTo: ['project manager'],
+      menus: [
+     
+                {
+          href: `/projects/training`,
+          label: 'Kickoff Session',
+          active: effectiveProjectId
+            ? pathname.includes(`/projects/training/${effectiveProjectId}`)
+            : pathname.startsWith(`/projects/training/`),
+          icon: GraduationCap,
+        },
+        {
+           href: `/annotator/onboardedExperts`,
+          label: 'Onboarded Experts',
+          active: effectiveProjectId
+            ? pathname.includes(`/annotator/onboardedExperts`)
+            : pathname.startsWith(`/annotator/onboardedExperts`),
+          icon: UserCircleIcon,
+        }
+
+ 
       ],
     },
     {

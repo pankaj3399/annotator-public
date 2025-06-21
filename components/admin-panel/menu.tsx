@@ -279,7 +279,7 @@ case 'UI Builder':
 return LayoutTemplate;
 case 'Task Management':
 return Briefcase;
-case 'Resources':
+case 'Job Management':
 return PersonStanding;
 case 'Analytics':
 return LineChart;
