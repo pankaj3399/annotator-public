@@ -58,6 +58,10 @@ import { getAllAnnotators } from '@/app/actions/annotator';
 import { changeAnnotator } from '@/app/actions/task';
 import ProjectLabelManager from '@/components/LabelManager';
 import { getAIModels } from '@/app/actions/aiModel';
+import {
+  ErrorBoundary,
+  useErrorHandler,
+} from '@/components/ErrorBoundaryWrapper';
 
 interface Model {
   _id: string;
@@ -69,13 +73,14 @@ interface Model {
   enabled: boolean;
   model: string;
 }
+
 type CreateTemplateInput = {
   name: string;
   project: string;
   type: 'test' | 'training' | 'core';
 };
 
-export default function TemplatesByType() {
+function TemplatesByTypeContent() {
   // Get URL parameters using useParams hook
   const params = useParams();
   const projectId = params.projectId as string;
@@ -84,7 +89,6 @@ export default function TemplatesByType() {
   const [templates, setTemplates] = useState<template[]>([]);
   const [project, setProject] = useState<Project>();
   const [newTemplateName, setNewTemplateName] = useState('');
-  // Removed newTemplateType state since type is determined by URL
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDialogOpen2, setIsDialogOpen2] = useState(false);
   const [template, setTemplate] = useState<template>();
@@ -94,29 +98,21 @@ export default function TemplatesByType() {
   const { data: session } = useSession();
   const { toast } = useToast();
   const [isDataLoading, setIsDataLoading] = useState(true);
-  // NEW: Add state for create template dialog
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] =
     useState(false);
+  const { handleError } = useErrorHandler();
 
   // Fetch annotators and AI models
   useEffect(() => {
     if (session) {
       const fetchAnnotators = async () => {
-        try {
-          const annotatorsData = JSON.parse(await getAllAnnotators());
-          setAnnotators(annotatorsData);
-        } catch (error: any) {
-          toast({
-            variant: 'destructive',
-            title: 'Failed to fetch annotators',
-            description: error.message,
-          });
-        }
+        const annotatorsData = JSON.parse(await getAllAnnotators());
+        setAnnotators(annotatorsData);
       };
-      fetchAnnotators();
-      fetchAIModels(projectId);
+      fetchAnnotators().catch(handleError);
+      fetchAIModels(projectId).catch(handleError);
     }
-  }, [session, projectId, toast]);
+  }, [session, projectId, handleError]);
 
   // Fetch project data and filter templates by type
   useEffect(() => {
@@ -124,8 +120,20 @@ export default function TemplatesByType() {
     if (session && projectId) {
       setIsDataLoading(true);
       fetch('/api/projects?projectId=' + projectId)
-        .then((res) => res.json())
-        .then((data) => {
+        .then(async (res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}: Database connection failed`);
+          }
+
+          let data;
+          try {
+            data = await res.json();
+          } catch (jsonError) {
+            throw new Error(
+              'Database connection timeout - invalid response format'
+            );
+          }
+
           if (isMounted) {
             if (data.success) {
               setProject(data.project);
@@ -140,21 +148,13 @@ export default function TemplatesByType() {
                 setTemplates(filteredTemplates);
               }
             } else {
-              toast({
-                variant: 'destructive',
-                title: 'Failed to load project',
-                description: data.error || 'Unknown error',
-              });
+              throw new Error(data.error || 'Failed to load project');
             }
           }
         })
         .catch((error) => {
           if (isMounted) {
-            toast({
-              variant: 'destructive',
-              title: 'Uh oh! Something went wrong.',
-              description: error.message,
-            });
+            handleError(error);
           }
         })
         .finally(() => {
@@ -168,7 +168,7 @@ export default function TemplatesByType() {
     return () => {
       isMounted = false;
     };
-  }, [session, projectId, templateType, toast]);
+  }, [session, projectId, templateType, handleError]);
 
   async function handleAssignUser(
     annotatorId: string,
@@ -176,37 +176,23 @@ export default function TemplatesByType() {
     ai: boolean,
     isReviewer: boolean = false
   ) {
-    try {
-      const res = JSON.parse(
-        await changeAnnotator(taskId, annotatorId, ai, isReviewer)
-      );
-      return res;
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to assign user',
-        description: error.message,
-      });
-      throw error;
-    }
+    const res = JSON.parse(
+      await changeAnnotator(taskId, annotatorId, ai, isReviewer)
+    );
+    return res;
   }
 
   const fetchAIModels = async (projectid: string) => {
     if (session) {
-      try {
-        const response = await getAIModels(projectid);
-        if (typeof response === 'string') {
-          const parsedResponse = JSON.parse(response);
-          if (parsedResponse.error) {
-            console.error('Error fetching AI models:', parsedResponse.error);
-            return;
-          }
-          setModels(parsedResponse.models);
-        } else {
-          console.error('Unexpected response format:', response);
+      const response = await getAIModels(projectid);
+      if (typeof response === 'string') {
+        const parsedResponse = JSON.parse(response);
+        if (parsedResponse.error) {
+          throw new Error(parsedResponse.error);
         }
-      } catch (error) {
-        console.error('Error during fetchAIModels:', error);
+        setModels(parsedResponse.models);
+      } else {
+        throw new Error('Unexpected response format from AI models API');
       }
     }
   };
@@ -231,7 +217,7 @@ export default function TemplatesByType() {
     setIsDialogOpen(true);
   };
 
-  // UPDATED: Handle create template with dialog (using templateType from URL)
+  // Handle create template with dialog (using templateType from URL)
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const defaultTemplate: CreateTemplateInput = {
@@ -240,27 +226,19 @@ export default function TemplatesByType() {
       type: templateType, // Use templateType from URL params, not state
     };
 
-    try {
-      const template: template = JSON.parse(
-        await upsertTemplate(
-          projectId as string,
-          defaultTemplate as template,
-          undefined,
-          true
-        )
-      );
-      setCreateTemplateDialogOpen(false); // Close the dialog
-      toast({
-        title: 'Template created successfully',
-      });
-      router.push(`/template?Id=${template._id}`);
-    } catch (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Failed to create template',
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
+    const template: template = JSON.parse(
+      await upsertTemplate(
+        projectId as string,
+        defaultTemplate as template,
+        undefined,
+        true
+      )
+    );
+    setCreateTemplateDialogOpen(false); // Close the dialog
+    toast({
+      title: 'Template created successfully',
+    });
+    router.push(`/template?Id=${template._id}`);
   };
 
   const handleEditTemplate = (e: React.MouseEvent, _id: string) => {
@@ -278,11 +256,7 @@ export default function TemplatesByType() {
     e.stopPropagation();
     const res = await DeleteTemplate(_id);
     if (!res.success) {
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: res.error,
-      });
+      throw new Error(res.error || 'Failed to delete template');
     } else {
       setTemplates(templates.filter((project) => project._id !== _id));
     }
@@ -295,11 +269,7 @@ export default function TemplatesByType() {
 
     const res = await UpdateVisibilityTemplate(_id, newVisibility);
     if (!res.success) {
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: res.error,
-      });
+      throw new Error(res.error || 'Failed to update template visibility');
     } else {
       setTemplates(
         templates.map((template) =>
@@ -341,7 +311,7 @@ export default function TemplatesByType() {
       </header>
 
       <main className='max-w-7xl mx-auto sm:px-6 lg:px-8'>
-        {/* UPDATED: Button aligned to right */}
+        {/* Button aligned to right */}
         <div className='mb-6 flex justify-end'>
           <Button onClick={() => setCreateTemplateDialogOpen(true)}>
             <PlusCircle className='mr-2 h-4 w-4' /> Create Template
@@ -399,7 +369,9 @@ export default function TemplatesByType() {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={(e) => handleVisibility(e, template._id)}
+                          onClick={(e) =>
+                            handleVisibility(e, template._id).catch(handleError)
+                          }
                         >
                           {template.private ? (
                             <EyeOff className='h-4 w-4' />
@@ -410,7 +382,9 @@ export default function TemplatesByType() {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={(e) => handleCopyTemplate(e, template)}
+                          onClick={(e) =>
+                            handleCopyTemplate(e, template).catch(handleError)
+                          }
                         >
                           <Copy className='h-4 w-4' />
                         </Button>
@@ -424,7 +398,11 @@ export default function TemplatesByType() {
                         <Button
                           variant='ghost'
                           size='sm'
-                          onClick={(e) => handleDeleteTemplate(e, template._id)}
+                          onClick={(e) =>
+                            handleDeleteTemplate(e, template._id).catch(
+                              handleError
+                            )
+                          }
                         >
                           <Trash2Icon className='h-4 w-4' />
                         </Button>
@@ -437,7 +415,7 @@ export default function TemplatesByType() {
           )
         )}
 
-        {/* NEW: Create Template Dialog */}
+        {/* Create Template Dialog */}
         <Dialog
           open={createTemplateDialogOpen}
           onOpenChange={setCreateTemplateDialogOpen}
@@ -449,7 +427,7 @@ export default function TemplatesByType() {
                 Enter a name for your new {templateType} template.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleCreateTemplate}>
+            <form onSubmit={(e) => handleCreateTemplate(e).catch(handleError)}>
               <div className='grid gap-4 py-4'>
                 <div className='grid grid-cols-4 items-center gap-4'>
                   <Label htmlFor='templateName' className='text-right'>
@@ -487,7 +465,9 @@ export default function TemplatesByType() {
         {/* Task Creation Dialog */}
         {project && template && (
           <TaskDialog
-            onConfigure={fetchAIModels}
+            onConfigure={(projectId) =>
+              fetchAIModels(projectId).catch(handleError)
+            }
             aiModels={models}
             template={template}
             setIsDialogOpen={setIsDialogOpen}
@@ -521,45 +501,64 @@ export function Suggesion({
   const [isLoading, setIsLoading] = useState(false);
   const [end, setEnd] = useState(false);
   const router = useRouter();
+  const { handleError } = useErrorHandler();
 
   async function fetchTemplates() {
     setIsLoading(true);
+    const res = await fetch(`/api/template/recent?type=${templateType}`);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: Database connection failed`);
+    }
+
+    let data;
     try {
-      const res = await fetch(`/api/template/recent?type=${templateType}`);
-      const data = await res.json();
-      if (data.success) {
-        setTemplates(data.templates);
-      }
-    } catch (error) {
-      console.error('Error fetching templates:', error);
+      data = await res.json();
+    } catch (jsonError) {
+      throw new Error('Database connection timeout - invalid response format');
+    }
+
+    if (data.success) {
+      setTemplates(data.templates);
+    } else {
+      throw new Error(data.error || 'Failed to fetch templates');
     }
     setIsLoading(false);
   }
 
   async function ViewMore() {
     setIsLoading(true);
+    const res = await fetch(
+      `/api/template/recent?limit=20&type=${templateType}&time=` +
+        new Date(templates[templates.length - 1].created_at).toISOString()
+    );
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: Database connection failed`);
+    }
+
+    let data;
     try {
-      const res = await fetch(
-        `/api/template/recent?limit=20&type=${templateType}&time=` +
-          new Date(templates[templates.length - 1].created_at).toISOString()
-      );
-      const data = await res.json();
-      if (data.success) {
-        if (data.templates.length == 0) {
-          setEnd(true);
-          return;
-        }
-        setTemplates((p) => [...p, ...data.templates]);
+      data = await res.json();
+    } catch (jsonError) {
+      throw new Error('Database connection timeout - invalid response format');
+    }
+
+    if (data.success) {
+      if (data.templates.length == 0) {
+        setEnd(true);
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching templates:', error);
+      setTemplates((p) => [...p, ...data.templates]);
+    } else {
+      throw new Error(data.error || 'Failed to fetch more templates');
     }
     setIsLoading(false);
   }
 
   useEffect(() => {
-    fetchTemplates();
-  }, [templateType]);
+    fetchTemplates().catch(handleError);
+  }, [templateType, handleError]);
 
   function onclick(template: template) {
     router.push(`/preview?projectId=${projectId}&templateId=${template._id}`);
@@ -588,7 +587,7 @@ export function Suggesion({
       </div>
       {!end && templates.length >= 6 && (
         <Button
-          onClick={() => ViewMore()}
+          onClick={() => ViewMore().catch(handleError)}
           variant='outline'
           className='mt-4'
           disabled={isLoading}
@@ -600,5 +599,13 @@ export function Suggesion({
         </Button>
       )}
     </div>
+  );
+}
+
+export default function TemplatesByType() {
+  return (
+    <ErrorBoundary>
+      <TemplatesByTypeContent />
+    </ErrorBoundary>
   );
 }
