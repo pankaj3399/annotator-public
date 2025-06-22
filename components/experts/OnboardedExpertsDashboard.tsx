@@ -34,6 +34,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  RefreshCw,
+  AlertCircle,
 } from 'lucide-react';
 import { format, subDays, startOfMonth, subMonths } from 'date-fns';
 import { useSession } from 'next-auth/react';
@@ -49,8 +51,168 @@ import {
   ExpertPerformanceTable,
   TasksOverTimeChart,
 } from './DashboardCharts';
+import { ErrorBoundary } from '@/components/ErrorBoundaryWrapper';
 
-// Import our new components and actions
+// TypeScript interfaces for ErrorBoundary
+interface SectionErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+interface SectionErrorBoundaryProps {
+  children: React.ReactNode;
+  onRetry?: () => void;
+}
+
+// Section Error Component using your UI style
+const SectionRefreshError: React.FC<{
+  error?: Error;
+  onRetry?: () => void;
+  title?: string;
+  message?: string;
+}> = ({
+  error,
+  onRetry,
+  title = 'Section Failed to Load',
+  message = 'This section encountered an issue. Please try refreshing it.',
+}) => {
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      if (onRetry) {
+        onRetry();
+      }
+      setIsRefreshing(false);
+    }, 300);
+  };
+
+  const isTimeoutError =
+    error?.message?.toLowerCase().includes('timeout') ||
+    error?.message?.toLowerCase().includes('connection') ||
+    error?.message?.toLowerCase().includes('database') ||
+    error?.message?.toLowerCase().includes('fetch');
+
+  return (
+    <div className='bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6 rounded-lg min-h-[200px]'>
+      <div className='bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 max-w-md w-full text-center border border-white/20'>
+        {/* Animated Icon */}
+        <div className='mb-6 relative'>
+          <div className='mx-auto w-16 h-16 bg-gradient-to-br from-red-400 via-orange-400 to-amber-400 rounded-full flex items-center justify-center shadow-lg'>
+            {isRefreshing ? (
+              <RefreshCw className='w-8 h-8 text-white animate-spin' />
+            ) : isTimeoutError ? (
+              <AlertCircle className='w-8 h-8 text-white' />
+            ) : (
+              <XCircle className='w-8 h-8 text-white' />
+            )}
+          </div>
+
+          {/* Pulse rings */}
+          <div className='absolute inset-0 w-16 h-16 mx-auto'>
+            <div className='w-full h-full bg-orange-300 rounded-full animate-ping opacity-20'></div>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h3 className='text-xl font-bold text-gray-800 mb-3 bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent'>
+          {isRefreshing ? 'Refreshing...' : title}
+        </h3>
+
+        {/* Message */}
+        <p className='text-gray-600 mb-6 text-sm leading-relaxed'>
+          {isRefreshing
+            ? 'Please wait while we refresh this section...'
+            : message}
+        </p>
+
+        {/* Error details (only in dev mode) */}
+        {process.env.NODE_ENV === 'development' && error && (
+          <div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-left'>
+            <div className='flex items-center gap-2 mb-1'>
+              <AlertCircle className='w-3 h-3 text-red-500' />
+              <span className='text-xs font-semibold text-red-700'>
+                Error Details
+              </span>
+            </div>
+            <code className='text-xs text-red-600 break-all'>
+              {error.message}
+            </code>
+          </div>
+        )}
+
+        {/* Refresh Button */}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className={`
+            w-full py-3 px-6 rounded-xl font-semibold text-sm transition-all duration-300 transform
+            ${
+              isRefreshing
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-500 via-purple-500 to-indigo-600 hover:from-blue-600 hover:via-purple-600 hover:to-indigo-700 hover:scale-105 hover:shadow-lg active:scale-95'
+            }
+            text-white shadow-md
+            flex items-center justify-center gap-2
+          `}
+        >
+          <RefreshCw
+            className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+          />
+          {isRefreshing ? 'Refreshing...' : 'Try Again'}
+        </button>
+
+        {/* Status indicator */}
+        <div className='mt-4 pt-3 border-t border-gray-200'>
+          <div className='flex items-center justify-center gap-2 text-xs text-gray-500'>
+            <div
+              className={`w-2 h-2 rounded-full ${isTimeoutError ? 'bg-red-400' : 'bg-orange-400'}`}
+            ></div>
+            <span>{isTimeoutError ? 'Connection Issue' : 'Loading Error'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple ErrorBoundary component for individual sections
+class SectionErrorBoundary extends React.Component<
+  SectionErrorBoundaryProps,
+  SectionErrorBoundaryState
+> {
+  constructor(props: SectionErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): SectionErrorBoundaryState {
+    // Catch all errors for sections - let them try their best first
+    console.log('Section error caught:', error.message);
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Section error details:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SectionRefreshError
+          error={this.state.error}
+          onRetry={() => {
+            this.setState({ hasError: false, error: null });
+            this.props.onRetry?.();
+          }}
+        />
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Interfaces
 interface Expert {
@@ -103,6 +265,61 @@ interface DashboardStatsData {
   successRate: number;
 }
 
+// Skeleton Components
+const StatsSkeleton = () => (
+  <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6'>
+    {Array.from({ length: 5 }).map((_, index) => (
+      <Card key={index} className='border-0 shadow-lg'>
+        <CardContent className='p-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg'>
+          <div className='animate-pulse space-y-3'>
+            <div className='h-4 bg-gray-300 rounded w-2/3'></div>
+            <div className='h-8 bg-gray-300 rounded w-1/2'></div>
+            <div className='h-3 bg-gray-300 rounded w-1/3'></div>
+          </div>
+        </CardContent>
+      </Card>
+    ))}
+  </div>
+);
+
+const ChartSkeleton = () => (
+  <div className='h-64 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center'>
+    <div className='text-gray-400'>Loading chart...</div>
+  </div>
+);
+
+const TableSkeleton = () => (
+  <div className='space-y-3'>
+    {Array.from({ length: 5 }).map((_, index) => (
+      <div key={index} className='animate-pulse'>
+        <div className='flex items-center justify-between p-4 bg-gray-100 rounded-lg'>
+          <div className='flex items-center space-x-3'>
+            <div className='w-8 h-8 bg-gray-300 rounded-full'></div>
+            <div className='space-y-2'>
+              <div className='h-4 bg-gray-300 rounded w-32'></div>
+              <div className='h-3 bg-gray-300 rounded w-24'></div>
+            </div>
+          </div>
+          <div className='flex space-x-6'>
+            <div className='text-center space-y-1'>
+              <div className='h-3 bg-gray-300 rounded w-8'></div>
+              <div className='h-4 bg-gray-300 rounded w-6'></div>
+            </div>
+            <div className='text-center space-y-1'>
+              <div className='h-3 bg-gray-300 rounded w-12'></div>
+              <div className='h-4 bg-gray-300 rounded w-8'></div>
+            </div>
+            <div className='text-center space-y-1'>
+              <div className='h-3 bg-gray-300 rounded w-16'></div>
+              <div className='h-6 bg-gray-300 rounded w-12'></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 const OnboardedExpertsDashboard: React.FC = () => {
   // State management
   const [experts, setExperts] = useState<Expert[]>([]);
@@ -113,17 +330,22 @@ const OnboardedExpertsDashboard: React.FC = () => {
   const [dashboardStats, setDashboardStats] =
     useState<DashboardStatsData | null>(null);
 
-  // Loading states
-  const [expertsLoading, setExpertsLoading] = useState(true);
-  const [ndaLoading, setNDALoading] = useState(true);
-  const [chartsLoading, setChartsLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [downloadingNDAs, setDownloadingNDAs] = useState(false);
+  // Loading states - Sequential loading
+  const [ndaLoading, setNDALoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [expertsLoading, setExpertsLoading] = useState(false);
+  const [chartsLoading, setChartsLoading] = useState(false);
 
   // Error states
+  const [ndaError, setNDAError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [expertsError, setExpertsError] = useState<string | null>(null);
   const [chartsError, setChartsError] = useState<string | null>(null);
-  const [statsError, setStatsError] = useState<string | null>(null);
+
+  // Loading phases
+  const [currentPhase, setCurrentPhase] = useState<
+    'nda' | 'stats' | 'experts' | 'charts' | 'complete'
+  >('nda');
 
   // Filter states
   const [dateRange, setDateRange] = useState(() => ({
@@ -134,9 +356,11 @@ const OnboardedExpertsDashboard: React.FC = () => {
     'daily' | 'weekly' | 'monthly'
   >('daily');
   const [taskType, setTaskType] = useState<
-    'test' | 'training' | 'core' | 'all'
-  >('all');
-  const [selectedExpertId, setSelectedExpertId] = useState<string>('all');
+    'test' | 'training' | 'core' | undefined
+  >(undefined);
+  const [selectedExpertId, setSelectedExpertId] = useState<string | undefined>(
+    undefined
+  );
   const [showTimeInsteadOfCount, setShowTimeInsteadOfCount] = useState(false);
 
   // NDA download state
@@ -144,6 +368,7 @@ const OnboardedExpertsDashboard: React.FC = () => {
     string[]
   >([]);
   const [isNDADialogOpen, setIsNDADialogOpen] = useState(false);
+  const [downloadingNDAs, setDownloadingNDAs] = useState(false);
 
   const { data: session } = useSession();
   const router = useRouter();
@@ -156,8 +381,13 @@ const OnboardedExpertsDashboard: React.FC = () => {
     }
   }, [session, router]);
 
-  // Date range presets
-  const dateRangePresets = [
+  // Date range presets with proper typing
+  const dateRangePresets: Array<{
+    label: string;
+    value: string;
+    start: Date;
+    end: Date;
+  }> = [
     {
       label: 'Last 7 days',
       value: 'week',
@@ -190,67 +420,27 @@ const OnboardedExpertsDashboard: React.FC = () => {
     },
   ];
 
-  // Fetch experts data
-  const fetchExperts = useCallback(async () => {
-    try {
-      setExpertsLoading(true);
-      setExpertsError(null);
-
-      const response = await getTeamExpertsWithStats(dateRange);
-      const data = JSON.parse(response);
-      setExperts(data);
-    } catch (error: any) {
-      console.error('Error fetching experts:', error);
-      setExpertsError(error.message || 'Failed to load experts data');
-    } finally {
-      setExpertsLoading(false);
-    }
-  }, [dateRange]);
-
-  // Fetch NDA status
+  // PHASE 1: Fetch NDA status (fastest)
   const fetchNDAStatus = useCallback(async () => {
     try {
       setNDALoading(true);
-
+      setNDAError(null);
       const response = await getNDAStatus();
       const data = JSON.parse(response);
       setNDAStatus(data);
     } catch (error: any) {
       console.error('Error fetching NDA status:', error);
-      toast.error('Failed to load NDA status');
+      setNDAError(error.message || 'Failed to load NDA status');
     } finally {
       setNDALoading(false);
     }
   }, []);
 
-  // Fetch tasks over time data
-  const fetchTasksOverTime = useCallback(async () => {
-    try {
-      setChartsLoading(true);
-      setChartsError(null);
-
-      const response = await getTasksOverTimeData(
-        dateRange,
-        granularity,
-        taskType !== 'all' ? taskType : undefined,
-        selectedExpertId !== 'all' ? selectedExpertId : undefined
-      );
-      const data = JSON.parse(response);
-      setTasksOverTimeData(data);
-    } catch (error: any) {
-      console.error('Error fetching tasks over time:', error);
-      setChartsError(error.message || 'Failed to load chart data');
-    } finally {
-      setChartsLoading(false);
-    }
-  }, [dateRange, granularity, taskType, selectedExpertId]);
-
-  // Fetch dashboard stats
+  // PHASE 2: Fetch dashboard stats (cached)
   const fetchDashboardStats = useCallback(async () => {
     try {
       setStatsLoading(true);
       setStatsError(null);
-
       const response = await getDashboardStats(dateRange);
       const data = JSON.parse(response);
       setDashboardStats(data);
@@ -262,26 +452,120 @@ const OnboardedExpertsDashboard: React.FC = () => {
     }
   }, [dateRange]);
 
-  // Initial data fetch
-  useEffect(() => {
-    if (session && session.user?.role === 'project manager') {
-      fetchExperts();
-      fetchNDAStatus();
-      fetchDashboardStats();
+  // PHASE 3: Fetch experts (optimized)
+  const fetchExperts = useCallback(async () => {
+    try {
+      setExpertsLoading(true);
+      setExpertsError(null);
+      const response = await getTeamExpertsWithStats(dateRange);
+      const data = JSON.parse(response);
+      setExperts(data);
+    } catch (error: any) {
+      console.error('Error fetching experts:', error);
+      setExpertsError(error.message || 'Failed to load experts data');
+    } finally {
+      setExpertsLoading(false);
     }
-  }, [session, fetchExperts, fetchNDAStatus, fetchDashboardStats]);
+  }, [dateRange]);
 
-  // Fetch charts data when filters change
+  // PHASE 4: Fetch charts data
+  const fetchTasksOverTime = useCallback(async () => {
+    try {
+      setChartsLoading(true);
+      setChartsError(null);
+      const response = await getTasksOverTimeData(
+        dateRange,
+        granularity,
+        taskType,
+        selectedExpertId
+      );
+      const data = JSON.parse(response);
+      setTasksOverTimeData(data);
+    } catch (error: any) {
+      console.error('Error fetching tasks over time:', error);
+      setChartsError(error.message || 'Failed to load chart data');
+    } finally {
+      setChartsLoading(false);
+    }
+  }, [dateRange, granularity, taskType, selectedExpertId]);
+
+  // Sequential loading orchestrator - Let each section try independently
+  const startSequentialLoading = useCallback(async () => {
+    if (!session || session.user?.role !== 'project manager') return;
+
+    // Phase 1: NDA Status (try independently)
+    setCurrentPhase('nda');
+    fetchNDAStatus().catch((err) => {
+      console.log('NDA section will handle its own error:', err.message);
+    });
+
+    // Small delay for better UX
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Phase 2: Dashboard Stats (try independently)
+    setCurrentPhase('stats');
+    fetchDashboardStats().catch((err) => {
+      console.log('Stats section will handle its own error:', err.message);
+    });
+
+    // Small delay for better UX
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Phase 3: Experts (try independently)
+    setCurrentPhase('experts');
+    fetchExperts().catch((err) => {
+      console.log('Experts section will handle its own error:', err.message);
+    });
+
+    // Small delay for better UX
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Phase 4: Charts (try independently)
+    setCurrentPhase('charts');
+    fetchTasksOverTime().catch((err) => {
+      console.log('Charts section will handle its own error:', err.message);
+    });
+
+    // Mark as complete after all sections have had their chance
+    setTimeout(() => setCurrentPhase('complete'), 1000);
+  }, [
+    session,
+    fetchNDAStatus,
+    fetchDashboardStats,
+    fetchExperts,
+    fetchTasksOverTime,
+  ]);
+
+  // Initial sequential load
   useEffect(() => {
-    if (session && session.user?.role === 'project manager') {
+    startSequentialLoading();
+  }, [startSequentialLoading]);
+
+  // Refresh charts when filters change (but only if we've completed initial load)
+  useEffect(() => {
+    if (currentPhase === 'complete') {
       fetchTasksOverTime();
     }
-  }, [session, fetchTasksOverTime]);
+  }, [fetchTasksOverTime, currentPhase]);
+
+  // Refresh stats and experts when date range changes
+  useEffect(() => {
+    if (currentPhase === 'complete') {
+      fetchDashboardStats();
+      fetchExperts();
+    }
+  }, [dateRange, fetchDashboardStats, fetchExperts, currentPhase]);
 
   // Handle date range preset selection
   const handleDateRangePreset = (preset: (typeof dateRangePresets)[0]) => {
     setDateRange({ start: preset.start, end: preset.end });
   };
+
+  // Individual retry handlers
+  const retryNDA = () => fetchNDAStatus();
+  const retryStats = () => fetchDashboardStats();
+  const retryExperts = () => fetchExperts();
+  const retryCharts = () => fetchTasksOverTime();
 
   // Handle NDA download
   const handleDownloadNDAs = async () => {
@@ -378,6 +662,21 @@ const OnboardedExpertsDashboard: React.FC = () => {
               <p className='text-gray-600 mt-1'>
                 Monitor and manage your team's performance
               </p>
+              {/* Loading indicator */}
+              {currentPhase !== 'complete' && (
+                <div className='flex items-center mt-2 text-sm text-blue-600'>
+                  <RefreshCw className='w-4 h-4 mr-2 animate-spin' />
+                  Loading{' '}
+                  {currentPhase === 'nda'
+                    ? 'NDA status'
+                    : currentPhase === 'stats'
+                      ? 'dashboard stats'
+                      : currentPhase === 'experts'
+                        ? 'expert data'
+                        : 'charts'}
+                  ...
+                </div>
+              )}
             </div>
 
             <Dialog open={isNDADialogOpen} onOpenChange={setIsNDADialogOpen}>
@@ -545,27 +844,132 @@ const OnboardedExpertsDashboard: React.FC = () => {
       </div>
 
       <div className='max-w-7xl mx-auto px-4 py-8 space-y-8'>
-        {/* Dashboard Stats Cards */}
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6'>
-          {statsLoading ? (
-            // Loading skeleton
-            Array.from({ length: 5 }).map((_, index) => (
-              <Card key={index} className='border-0 shadow-lg'>
-                <CardContent className='p-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg'>
-                  <div className='animate-pulse space-y-3'>
-                    <div className='h-4 bg-gray-300 rounded w-2/3'></div>
-                    <div className='h-8 bg-gray-300 rounded w-1/2'></div>
-                    <div className='h-3 bg-gray-300 rounded w-1/3'></div>
+        {/* PHASE 1: NDA Status Overview - Loads First */}
+        <SectionErrorBoundary onRetry={retryNDA}>
+          <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <FileText className='w-5 h-5' />
+                NDA Status Overview
+                {ndaLoading && <RefreshCw className='w-4 h-4 animate-spin' />}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {ndaLoading ? (
+                <div className='flex items-center justify-center py-8'>
+                  <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+                </div>
+              ) : ndaError ? (
+                <SectionRefreshError
+                  error={new Error(ndaError)}
+                  onRetry={retryNDA}
+                  title='NDA Status Failed'
+                  message='Unable to load NDA status. This might be a temporary connection issue.'
+                />
+              ) : ndaStatus ? (
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
+                  {/* Uploaded NDAs */}
+                  <div className='space-y-3'>
+                    <div className='flex items-center gap-2'>
+                      <CheckCircle className='w-5 h-5 text-green-600' />
+                      <h3 className='font-semibold text-green-700'>
+                        NDAs Uploaded ({ndaStatus.uploaded.length})
+                      </h3>
+                    </div>
+                    <div className='space-y-2 max-h-64 overflow-y-auto'>
+                      {ndaStatus.uploaded.length > 0 ? (
+                        ndaStatus.uploaded.map((expert) => (
+                          <div
+                            key={expert._id}
+                            className='flex items-center justify-between p-3 bg-green-50 rounded-lg'
+                          >
+                            <div>
+                              <p className='font-medium text-green-900'>
+                                {expert.name}
+                              </p>
+                              <p className='text-sm text-green-600'>
+                                {expert.email}
+                              </p>
+                            </div>
+                            <Badge
+                              variant='default'
+                              className='bg-green-100 text-green-800'
+                            >
+                              <CheckCircle className='w-3 h-3 mr-1' />
+                              Uploaded
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className='text-green-600 text-center py-4'>
+                          No NDAs uploaded yet
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))
+
+                  {/* Pending NDAs */}
+                  <div className='space-y-3'>
+                    <div className='flex items-center gap-2'>
+                      <Clock className='w-5 h-5 text-orange-600' />
+                      <h3 className='font-semibold text-orange-700'>
+                        Pending NDAs ({ndaStatus.notUploaded.length})
+                      </h3>
+                    </div>
+                    <div className='space-y-2 max-h-64 overflow-y-auto'>
+                      {ndaStatus.notUploaded.length > 0 ? (
+                        ndaStatus.notUploaded.map((expert) => (
+                          <div
+                            key={expert._id}
+                            className='flex items-center justify-between p-3 bg-orange-50 rounded-lg'
+                          >
+                            <div>
+                              <p className='font-medium text-orange-900'>
+                                {expert.name}
+                              </p>
+                              <p className='text-sm text-orange-600'>
+                                {expert.email}
+                              </p>
+                            </div>
+                            <Badge
+                              variant='secondary'
+                              className='bg-orange-100 text-orange-800'
+                            >
+                              <Clock className='w-3 h-3 mr-1' />
+                              Pending
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className='text-orange-600 text-center py-4'>
+                          All NDAs have been uploaded!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        </SectionErrorBoundary>
+
+        {/* PHASE 2: Dashboard Stats Cards - Loads Second */}
+        <SectionErrorBoundary onRetry={retryStats}>
+          {statsLoading && currentPhase === 'stats' ? (
+            <StatsSkeleton />
           ) : statsError ? (
-            <div className='col-span-full text-center py-8 text-red-500'>
-              {statsError}
-            </div>
+            <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
+              <CardContent className='p-6'>
+                <SectionRefreshError
+                  error={new Error(statsError)}
+                  onRetry={retryStats}
+                  title='Dashboard Stats Failed'
+                  message='Unable to load dashboard statistics. This might be a temporary connection issue.'
+                />
+              </CardContent>
+            </Card>
           ) : dashboardStats ? (
-            <>
+            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6'>
               {/* Total Experts */}
               <Card className='border-0 shadow-lg hover:shadow-xl transition-all duration-300'>
                 <CardContent className='p-6 bg-gradient-to-br from-blue-100 via-blue-200 to-indigo-200 rounded-lg h-full'>
@@ -669,275 +1073,228 @@ const OnboardedExpertsDashboard: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
-            </>
-          ) : (
-            <div className='col-span-full text-center py-8 text-gray-500'>
-              No data available
             </div>
-          )}
-        </div>
+          ) : currentPhase !== 'nda' ? (
+            <StatsSkeleton />
+          ) : null}
+        </SectionErrorBoundary>
 
-        {/* Filters Section */}
-        <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              <Filter className='w-5 h-5' />
-              Filters & Controls
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4'>
-              {/* Date Range Presets */}
-              <div className='lg:col-span-2'>
-                <Label>Date Range</Label>
-                <Select
-                  value=''
-                  onValueChange={(value) => {
-                    const preset = dateRangePresets.find(
-                      (p) => p.value === value
-                    );
-                    if (preset) handleDateRangePreset(preset);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Select date range' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dateRangePresets.map((preset) => (
-                      <SelectItem key={preset.value} value={preset.value}>
-                        {preset.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Granularity */}
-              <div>
-                <Label>Granularity</Label>
-                <Select
-                  value={granularity}
-                  onValueChange={(value: any) => setGranularity(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='daily'>Daily</SelectItem>
-                    <SelectItem value='weekly'>Weekly</SelectItem>
-                    <SelectItem value='monthly'>Monthly</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Task Type */}
-              <div>
-                <Label>Task Type</Label>
-                <Select
-                  value={taskType}
-                  onValueChange={(value: any) => setTaskType(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='All types' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='all'>All Types</SelectItem>
-                    <SelectItem value='test'>Test</SelectItem>
-                    <SelectItem value='training'>Training</SelectItem>
-                    <SelectItem value='core'>Core</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Expert Filter */}
-              <div>
-                <Label>Expert</Label>
-                <Select
-                  value={selectedExpertId}
-                  onValueChange={setSelectedExpertId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='All experts' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='all'>All Experts</SelectItem>
-                    {experts.map((expert) => (
-                      <SelectItem key={expert._id} value={expert._id}>
-                        {expert.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Chart Type Toggle */}
-              <div className='flex items-end'>
-                <Button
-                  variant={showTimeInsteadOfCount ? 'default' : 'outline'}
-                  onClick={() =>
-                    setShowTimeInsteadOfCount(!showTimeInsteadOfCount)
-                  }
-                  className='w-full'
-                >
-                  <ArrowUpDown className='w-4 h-4 mr-2' />
-                  {showTimeInsteadOfCount ? 'Time' : 'Count'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Current date range display */}
-            <div className='mt-4 text-sm text-gray-600'>
-              Showing data from {format(dateRange.start, 'MMM dd, yyyy')} to{' '}
-              {format(dateRange.end, 'MMM dd, yyyy')}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Charts Section */}
-        <div className='grid grid-cols-1 lg:grid-cols-2 gap-8'>
-          {/* Tasks Over Time Chart */}
+        {/* Filters Section - Only show after stats are loaded */}
+        {(currentPhase === 'experts' ||
+          currentPhase === 'charts' ||
+          currentPhase === 'complete') && (
           <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
-                <BarChart3 className='w-5 h-5' />
-                {showTimeInsteadOfCount
-                  ? 'Time Spent Over Time'
-                  : 'Tasks Completed Over Time'}
+                <Filter className='w-5 h-5' />
+                Filters & Controls
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <TasksOverTimeChart
-                data={tasksOverTimeData}
-                isLoading={chartsLoading}
-                error={chartsError}
-                showTimeInstead={showTimeInsteadOfCount}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Expert Performance Rankings */}
-          <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Users className='w-5 h-5' />
-                Expert Performance Rankings
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ExpertPerformanceTable
-                data={experts}
-                isLoading={expertsLoading}
-                error={expertsError}
-              />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* NDA Status Overview */}
-        <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
-          <CardHeader>
-            <CardTitle className='flex items-center gap-2'>
-              <FileText className='w-5 h-5' />
-              NDA Status Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {ndaLoading ? (
-              <div className='flex items-center justify-center py-8'>
-                <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
-              </div>
-            ) : ndaStatus ? (
-              <div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
-                {/* Uploaded NDAs */}
-                <div className='space-y-3'>
-                  <div className='flex items-center gap-2'>
-                    <CheckCircle className='w-5 h-5 text-green-600' />
-                    <h3 className='font-semibold text-green-700'>
-                      NDAs Uploaded ({ndaStatus.uploaded.length})
-                    </h3>
-                  </div>
-                  <div className='space-y-2 max-h-64 overflow-y-auto'>
-                    {ndaStatus.uploaded.length > 0 ? (
-                      ndaStatus.uploaded.map((expert) => (
-                        <div
-                          key={expert._id}
-                          className='flex items-center justify-between p-3 bg-green-50 rounded-lg'
-                        >
-                          <div>
-                            <p className='font-medium text-green-900'>
-                              {expert.name}
-                            </p>
-                            <p className='text-sm text-green-600'>
-                              {expert.email}
-                            </p>
-                          </div>
-                          <Badge
-                            variant='default'
-                            className='bg-green-100 text-green-800'
-                          >
-                            <CheckCircle className='w-3 h-3 mr-1' />
-                            Uploaded
-                          </Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className='text-green-600 text-center py-4'>
-                        No NDAs uploaded yet
-                      </p>
-                    )}
-                  </div>
+              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4'>
+                {/* Date Range Presets */}
+                <div className='lg:col-span-2'>
+                  <Label>Date Range</Label>
+                  <Select
+                    value=''
+                    onValueChange={(value) => {
+                      const preset = dateRangePresets.find(
+                        (p) => p.value === value
+                      );
+                      if (preset) handleDateRangePreset(preset);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder='Select date range' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dateRangePresets.map((preset) => (
+                        <SelectItem key={preset.value} value={preset.value}>
+                          {preset.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {/* Pending NDAs */}
-                <div className='space-y-3'>
-                  <div className='flex items-center gap-2'>
-                    <Clock className='w-5 h-5 text-orange-600' />
-                    <h3 className='font-semibold text-orange-700'>
-                      Pending NDAs ({ndaStatus.notUploaded.length})
-                    </h3>
-                  </div>
-                  <div className='space-y-2 max-h-64 overflow-y-auto'>
-                    {ndaStatus.notUploaded.length > 0 ? (
-                      ndaStatus.notUploaded.map((expert) => (
-                        <div
-                          key={expert._id}
-                          className='flex items-center justify-between p-3 bg-orange-50 rounded-lg'
-                        >
-                          <div>
-                            <p className='font-medium text-orange-900'>
-                              {expert.name}
-                            </p>
-                            <p className='text-sm text-orange-600'>
-                              {expert.email}
-                            </p>
-                          </div>
-                          <Badge
-                            variant='secondary'
-                            className='bg-orange-100 text-orange-800'
-                          >
-                            <Clock className='w-3 h-3 mr-1' />
-                            Pending
-                          </Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className='text-orange-600 text-center py-4'>
-                        All NDAs have been uploaded!
-                      </p>
-                    )}
-                  </div>
+                {/* Granularity */}
+                <div>
+                  <Label>Granularity</Label>
+                  <Select
+                    value={granularity}
+                    onValueChange={(value: 'daily' | 'weekly' | 'monthly') =>
+                      setGranularity(value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='daily'>Daily</SelectItem>
+                      <SelectItem value='weekly'>Weekly</SelectItem>
+                      <SelectItem value='monthly'>Monthly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Task Type */}
+                <div>
+                  <Label>Task Type</Label>
+                  <Select
+                    value={taskType || 'all'}
+                    onValueChange={(value) => {
+                      setTaskType(
+                        value === 'all'
+                          ? undefined
+                          : (value as 'test' | 'training' | 'core')
+                      );
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder='All types' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='all'>All Types</SelectItem>
+                      <SelectItem value='test'>Test</SelectItem>
+                      <SelectItem value='training'>Training</SelectItem>
+                      <SelectItem value='core'>Core</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Expert Filter */}
+                <div>
+                  <Label>Expert</Label>
+                  <Select
+                    value={selectedExpertId || 'all'}
+                    onValueChange={(value) => {
+                      setSelectedExpertId(value === 'all' ? undefined : value);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder='All experts' />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value='all'>All Experts</SelectItem>
+                      {experts.map((expert) => (
+                        <SelectItem key={expert._id} value={expert._id}>
+                          {expert.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Chart Type Toggle */}
+                <div className='flex items-end'>
+                  <Button
+                    variant={showTimeInsteadOfCount ? 'default' : 'outline'}
+                    onClick={() =>
+                      setShowTimeInsteadOfCount(!showTimeInsteadOfCount)
+                    }
+                    className='w-full'
+                  >
+                    <ArrowUpDown className='w-4 h-4 mr-2' />
+                    {showTimeInsteadOfCount ? 'Time' : 'Count'}
+                  </Button>
                 </div>
               </div>
-            ) : (
-              <div className='text-center py-4 text-red-500'>
-                Failed to load NDA status
+
+              {/* Current date range display */}
+              <div className='mt-4 text-sm text-gray-600'>
+                Showing data from {format(dateRange.start, 'MMM dd, yyyy')} to{' '}
+                {format(dateRange.end, 'MMM dd, yyyy')}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* PHASE 4: Charts Section - Loads Last */}
+        {(currentPhase === 'charts' || currentPhase === 'complete') && (
+          <SectionErrorBoundary onRetry={retryCharts}>
+            <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                  <BarChart3 className='w-5 h-5' />
+                  {showTimeInsteadOfCount
+                    ? 'Time Spent Over Time'
+                    : 'Tasks Completed Over Time'}
+                  {chartsLoading && (
+                    <RefreshCw className='w-4 h-4 animate-spin' />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {chartsLoading ? (
+                  <ChartSkeleton />
+                ) : chartsError ? (
+                  <SectionRefreshError
+                    error={new Error(chartsError)}
+                    onRetry={retryCharts}
+                    title='Charts Failed'
+                    message='Unable to load chart data. This might be a temporary connection issue.'
+                  />
+                ) : (
+                  <TasksOverTimeChart
+                    data={tasksOverTimeData}
+                    isLoading={false}
+                    error={null}
+                    showTimeInstead={showTimeInsteadOfCount}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </SectionErrorBoundary>
+        )}
+
+        {/* PHASE 3: Expert Performance - Loads Third */}
+        {(currentPhase === 'experts' ||
+          currentPhase === 'charts' ||
+          currentPhase === 'complete') && (
+          <SectionErrorBoundary onRetry={retryExperts}>
+            <Card className='bg-white/70 backdrop-blur-sm shadow-lg border-white/20'>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                  <Users className='w-5 h-5' />
+                  Expert Performance Rankings
+                  {expertsLoading && (
+                    <RefreshCw className='w-4 h-4 animate-spin' />
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {expertsLoading ? (
+                  <TableSkeleton />
+                ) : expertsError ? (
+                  <SectionRefreshError
+                    error={new Error(expertsError)}
+                    onRetry={retryExperts}
+                    title='Expert Data Failed'
+                    message='Unable to load expert performance data. This might be a temporary connection issue.'
+                  />
+                ) : (
+                  <ExpertPerformanceTable
+                    data={experts}
+                    isLoading={false}
+                    error={null}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </SectionErrorBoundary>
+        )}
       </div>
     </div>
   );
 };
 
-export default OnboardedExpertsDashboard;
+// Wrap with your existing ErrorBoundary
+const OnboardedExpertsDashboardWithErrorBoundary: React.FC = () => {
+  return (
+    <ErrorBoundary>
+      <OnboardedExpertsDashboard />
+    </ErrorBoundary>
+  );
+};
+
+export default OnboardedExpertsDashboardWithErrorBoundary;
