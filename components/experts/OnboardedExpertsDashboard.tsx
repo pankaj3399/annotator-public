@@ -55,6 +55,10 @@ interface SectionErrorBoundaryProps {
   onRetry?: () => void;
 }
 
+interface OnboardedExpertsDashboardProps {
+  projectId: string;
+}
+
 // Section Error Component using your UI style
 const SectionRefreshError: React.FC<{
   error?: Error;
@@ -295,14 +299,12 @@ const TableSkeleton = () => (
   </div>
 );
 
-const OnboardedExpertsDashboard: React.FC = () => {
+const OnboardedExpertsDashboard: React.FC<OnboardedExpertsDashboardProps> = ({ projectId }) => {
   // State management
   const [experts, setExperts] = useState<Expert[]>([]);
   const [tasksOverTimeData, setTasksOverTimeData] = useState<TasksOverTimeData[]>([]);
   const [dashboardStats, setDashboardStats] = useState<DashboardStatsData | null>(null);
 
-  // Project state - get from localStorage
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState<string>('');
 
   // Loading states - Sequential loading
@@ -337,15 +339,6 @@ const OnboardedExpertsDashboard: React.FC = () => {
       router.push('/unauthorized');
       return;
     }
-
-    // Get project ID from localStorage
-    const projectId = localStorage.getItem('currentProjectId');
-    if (!projectId) {
-      toast.error('No project selected. Please select a project first.');
-      return;
-    }
-
-    setCurrentProjectId(projectId);
     
   getProjectDetails(projectId)
     .then((response) => {
@@ -400,12 +393,12 @@ const OnboardedExpertsDashboard: React.FC = () => {
 
   // PHASE 1: Fetch dashboard stats for project
   const fetchDashboardStats = useCallback(async () => {
-    if (!currentProjectId) return;
+    if (!projectId) return;
     
     try {
       setStatsLoading(true);
       setStatsError(null);
-      const response = await getDashboardStatsForProject(currentProjectId, dateRange);
+      const response = await getDashboardStatsForProject(projectId, dateRange);
       const data = JSON.parse(response);
       setDashboardStats(data);
     } catch (error: any) {
@@ -414,16 +407,16 @@ const OnboardedExpertsDashboard: React.FC = () => {
     } finally {
       setStatsLoading(false);
     }
-  }, [currentProjectId, dateRange]);
+  }, [projectId, dateRange]);
 
   // PHASE 2: Fetch onboarded experts for project
   const fetchExperts = useCallback(async () => {
-    if (!currentProjectId) return;
+    if (!projectId) return;
     
     try {
       setExpertsLoading(true);
       setExpertsError(null);
-      const response = await getOnboardedExpertsForProject(currentProjectId, dateRange);
+      const response = await getOnboardedExpertsForProject(projectId, dateRange);
       const data = JSON.parse(response);
       setExperts(data);
     } catch (error: any) {
@@ -432,17 +425,17 @@ const OnboardedExpertsDashboard: React.FC = () => {
     } finally {
       setExpertsLoading(false);
     }
-  }, [currentProjectId, dateRange]);
+  }, [projectId, dateRange]);
 
   // PHASE 3: Fetch charts data for project
   const fetchTasksOverTime = useCallback(async () => {
-    if (!currentProjectId) return;
+    if (!projectId) return;
     
     try {
       setChartsLoading(true);
       setChartsError(null);
       const response = await getTasksOverTimeDataForProject(
-        currentProjectId,
+        projectId,
         dateRange,
         granularity,
         taskType,
@@ -456,11 +449,11 @@ const OnboardedExpertsDashboard: React.FC = () => {
     } finally {
       setChartsLoading(false);
     }
-  }, [currentProjectId, dateRange, granularity, taskType, selectedExpertId]);
+  }, [projectId, dateRange, granularity, taskType, selectedExpertId]);
 
   // Sequential loading orchestrator
   const startSequentialLoading = useCallback(async () => {
-    if (!session || session.user?.role !== 'project manager' || !currentProjectId) return;
+    if (!session || session.user?.role !== 'project manager' || !projectId) return;
 
     // Phase 1: Dashboard Stats
     setCurrentPhase('stats');
@@ -490,7 +483,7 @@ const OnboardedExpertsDashboard: React.FC = () => {
     setTimeout(() => setCurrentPhase('complete'), 1000);
   }, [
     session,
-    currentProjectId,
+    projectId,
     fetchDashboardStats,
     fetchExperts,
     fetchTasksOverTime,
@@ -498,25 +491,25 @@ const OnboardedExpertsDashboard: React.FC = () => {
 
   // Initial sequential load when project is available
   useEffect(() => {
-    if (currentProjectId) {
+    if (projectId) {
       startSequentialLoading();
     }
-  }, [currentProjectId, startSequentialLoading]);
+  }, [projectId, startSequentialLoading]);
 
   // Refresh charts when filters change (but only if we've completed initial load)
   useEffect(() => {
-    if (currentPhase === 'complete' && currentProjectId) {
+    if (currentPhase === 'complete' && projectId) {
       fetchTasksOverTime();
     }
-  }, [fetchTasksOverTime, currentPhase, currentProjectId]);
+  }, [fetchTasksOverTime, currentPhase, projectId]);
 
   // Refresh stats and experts when date range changes
   useEffect(() => {
-    if (currentPhase === 'complete' && currentProjectId) {
+    if (currentPhase === 'complete' && projectId) {
       fetchDashboardStats();
       fetchExperts();
     }
-  }, [dateRange, fetchDashboardStats, fetchExperts, currentPhase, currentProjectId]);
+  }, [dateRange, fetchDashboardStats, fetchExperts, currentPhase, projectId]);
 
   // Handle date range preset selection
   const handleDateRangePreset = (preset: (typeof dateRangePresets)[0]) => {
@@ -543,7 +536,7 @@ const OnboardedExpertsDashboard: React.FC = () => {
     );
   }
 
-  if (!currentProjectId) {
+  if (!projectId) {
     return (
       <div className='flex items-center justify-center min-h-screen'>
         <div className='text-center'>
@@ -554,7 +547,7 @@ const OnboardedExpertsDashboard: React.FC = () => {
           <p className='text-gray-600 mb-4'>
             Please select a project to view the onboarded experts dashboard.
           </p>
-          <Button onClick={() => router.push('/projects')}>
+          <Button onClick={() => router.push('/')}>
             Go to Projects
           </Button>
         </div>
@@ -941,10 +934,10 @@ const OnboardedExpertsDashboard: React.FC = () => {
 };
 
 // Wrap with your existing ErrorBoundary
-const OnboardedExpertsDashboardWithErrorBoundary: React.FC = () => {
+const OnboardedExpertsDashboardWithErrorBoundary: React.FC<OnboardedExpertsDashboardProps> = ({ projectId }) => {
   return (
     <ErrorBoundary>
-      <OnboardedExpertsDashboard />
+      <OnboardedExpertsDashboard projectId={projectId} />
     </ErrorBoundary>
   );
 };
