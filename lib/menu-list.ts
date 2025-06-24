@@ -126,6 +126,16 @@ function extractPotentialProjectIdFromPath(pathname: string): string | null {
   const segments = pathname.split('/');
   if (segments.length < 2) return null;
 
+  // NEW: Add a rule for the onboarded experts page
+  if (pathname.startsWith('/annotator/onboardedExperts/')) {
+    if (segments.length > 3) { // e.g., /annotator/onboardedExperts/123
+      const potentialId = segments[3];
+      if (!PATH_KEYWORDS_NOT_IDS.includes(potentialId.toLowerCase())) {
+        return potentialId;
+      }
+    }
+  }
+
   // Pattern: /projects/{section}/{id} or /projects/{section}/{action}/{id}
   if (segments.includes('projects')) {
     const projectsIndex = segments.indexOf('projects');
@@ -607,7 +617,7 @@ export function getMenuList(
            href: `/annotator/onboardedExperts`,
           label: 'Onboarded Experts',
           active: effectiveProjectId
-            ? pathname.includes(`/annotator/onboardedExperts`)
+            ? pathname.includes(`/annotator/onboardedExperts/${effectiveProjectId}`)
             : pathname.startsWith(`/annotator/onboardedExperts`),
           icon: UserCircleIcon,
         }
@@ -733,7 +743,7 @@ export function getMenuList(
     'agencyOwner',
     'payments-manager',
   ];
-  if (!effectiveProjectId || nonProjectSpecificRoots.includes(fpath)) {
+  if (!effectiveProjectId || (nonProjectSpecificRoots.includes(fpath) && !effectiveProjectId)) {
     const homeMenu: Group[] = [
       {
         groupLabel: '',
@@ -776,7 +786,7 @@ export function getMenuList(
           {
             href: '/annotator',
             label: 'Expert',
-            active: pathname.includes('/annotator'),
+            active: pathname.includes('/annotator') && !pathname.includes('onboardedExperts'),
             icon: User,
           },
            {
