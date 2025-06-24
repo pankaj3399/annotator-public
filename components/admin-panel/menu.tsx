@@ -360,7 +360,7 @@ const inProjectContext =
 currentProjectId !== null &&
 !INVALID_ID_KEYWORDS.includes(currentProjectId.toLowerCase());
 const backToProjectsHref = inProjectContext
-? `/pipeline/${currentProjectId}`
+? `/projects/pipeline/${currentProjectId}`
 : '/';
 
 return (
