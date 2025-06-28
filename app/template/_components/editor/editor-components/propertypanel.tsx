@@ -765,56 +765,84 @@ case 'dynamicCheckbox':
         />
       </div>
 
+      {/* NEW: Individual Options Management - NO MORE COMMA INPUT */}
       <div className='space-y-2'>
-        <Label>Options (comma-separated)</Label>
-        <Input
-          value={checkboxOptionsInput}
-          onChange={(e) => {
-            // Allow natural typing without immediate processing
-            setCheckboxOptionsInput(e.target.value);
-          }}
-          onBlur={(e) => {
-            // Process the input when user finishes editing
-            const processedOptions = e.target.value
-              .split(',')
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0); // Remove empty strings
-            
-            handlePropertyChange('content.checkboxes', processedOptions);
-          }}
-          onKeyDown={(e) => {
-            // Also process on Enter key
-            if (e.key === 'Enter') {
-              const processedOptions = e.currentTarget.value
-                .split(',')
-                .map((s) => s.trim())
-                .filter((s) => s.length > 0);
-              
-              handlePropertyChange('content.checkboxes', processedOptions);
-            }
-          }}
-          placeholder='Option 1, Option 2, Option 3'
-        />
-        <div className='text-xs text-muted-foreground'>
-          Separate multiple options with commas. Press Enter or click outside to apply changes.
+        <div className='flex items-center justify-between'>
+          <Label>Checkbox Options</Label>
+          <Button
+            size='sm'
+            onClick={() => {
+              const currentOptions = !Array.isArray(elementProperties.content)
+                ? elementProperties.content.checkboxes || []
+                : [];
+              const newOptions = [...currentOptions, `Option ${currentOptions.length + 1}`];
+              handlePropertyChange('content.checkboxes', newOptions);
+            }}
+          >
+            <Plus className='w-4 h-4 mr-1' />
+            Add Option
+          </Button>
         </div>
-        
-        {/* Preview of current options */}
+
+        <div className='space-y-2 max-h-48 overflow-y-auto'>
+          {!Array.isArray(elementProperties.content) &&
+           elementProperties.content.checkboxes &&
+           elementProperties.content.checkboxes.length > 0 ? (
+            elementProperties.content.checkboxes.map((option, index) => (
+              <div
+                key={index}
+                className='flex items-center gap-2 p-2 border rounded bg-white hover:bg-gray-50'
+              >
+                <Input
+                  value={option}
+                  onChange={(e) => {
+                    const currentOptions = [...(elementProperties.content.checkboxes || [])];
+                    currentOptions[index] = e.target.value;
+                    handlePropertyChange('content.checkboxes', currentOptions);
+                  }}
+                  placeholder={`Option ${index + 1}`}
+                  className='flex-1'
+                />
+                <Button
+                  size='sm'
+                  variant='outline'
+                  onClick={() => {
+                    const currentOptions = [...(elementProperties.content.checkboxes || [])];
+                    if (currentOptions.length > 1) {
+                      currentOptions.splice(index, 1);
+                      handlePropertyChange('content.checkboxes', currentOptions);
+                    }
+                  }}
+                  disabled={!Array.isArray(elementProperties.content) && 
+                           (elementProperties.content.checkboxes?.length || 0) <= 1}
+                  title={!Array.isArray(elementProperties.content) && 
+                         (elementProperties.content.checkboxes?.length || 0) <= 1 
+                         ? 'Must have at least one option' 
+                         : 'Remove option'}
+                >
+                  <Trash className='w-4 h-4' />
+                </Button>
+              </div>
+            ))
+          ) : (
+            <div className='text-sm text-gray-500 text-center py-4 border border-dashed rounded'>
+              No options yet. Click "Add Option" to create checkbox options.
+            </div>
+          )}
+        </div>
+
+        {/* Summary */}
         {!Array.isArray(elementProperties.content) && 
          elementProperties.content.checkboxes && 
          elementProperties.content.checkboxes.length > 0 && (
-          <div className='text-xs text-muted-foreground'>
-            <strong>Current options:</strong> {elementProperties.content.checkboxes.map((option, index) => (
-              <span key={index} className="inline-block bg-gray-100 px-2 py-1 rounded mr-1 mb-1">
-                {option}
-              </span>
-            ))}
+          <div className='text-xs text-muted-foreground p-2 bg-gray-50 rounded'>
+            <strong>Total options:</strong> {elementProperties.content.checkboxes.length}
           </div>
         )}
       </div>
     </div>
-  );
-      case 'video':
+  );     
+  case 'video':
       case 'dynamicVideo':
         return (
           <div className='space-y-4'>
