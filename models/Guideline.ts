@@ -24,6 +24,7 @@ const guidelineMessageSchema = new Schema({
   isAiMessage: { type: Boolean, default: false },
   aiProvider: { type: String },
   aiModel: { type: String },
+  fileContent: { type: Boolean, default: false } ,
   attachments: [fileSchema]  // Use the common file schema
 }, { timestamps: true });
 

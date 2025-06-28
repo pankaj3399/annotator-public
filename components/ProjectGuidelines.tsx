@@ -51,6 +51,20 @@ interface AIError {
   message?: string;
 }
 
+interface GuidelineResponse {
+  success: boolean;
+  description: string;
+  messages: Message[];
+  files: File[];
+  aiProvider?: string;
+  aiModel?: string;
+  userRole: string;
+  canConfigureAI: boolean;
+  hasFiles: boolean;
+  pmMessages?: Message[];
+  hasFileContent?: boolean;
+}
+
 // Function to parse AI errors and create user-friendly messages
 const parseAIError = (
   error: any
@@ -234,6 +248,7 @@ interface Message {
   isAiMessage?: boolean;
   aiProvider?: string;
   aiModel?: string;
+  fileContent?: boolean;
 }
 
 interface File extends Attachment {
@@ -615,6 +630,9 @@ const ProjectGuidelines = () => {
   const params = useParams();
   const router = useRouter();
   const projectId = params.projectId as string;
+  // ✅ FIX: Use useRef for a flag that should persist across Strict Mode re-renders.
+  const introGeneratedRef = useRef(false);
+  const [fetchingGuidelines, setFetchingGuidelines] = useState(false);
 
   // Project data states
   const [projectName, setProjectName] = useState('');
@@ -623,7 +641,9 @@ const ProjectGuidelines = () => {
   const [guidelineData, setGuidelineData] = useState<GuidelineData | null>(
     null
   );
-
+  const [userRole, setUserRole] = useState<string>('');
+  const [canConfigureAI, setCanConfigureAI] = useState(false);
+  const [hasKnowledgeFiles, setHasKnowledgeFiles] = useState(false);
   // Message and file handling states
   const [newMessage, setNewMessage] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -684,7 +704,7 @@ const ProjectGuidelines = () => {
   const getFreshFileUrl = async (s3Path: string): Promise<string | null> => {
     try {
       const response = await fetch(
-        `/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}&regenerate=true`
+        `/api/projects/${projectId}/guidelines/files/s3?s3Path=${encodeURIComponent(s3Path)}®enerate=true`
       );
       const data = await response.json();
       if (data.success) {
@@ -792,7 +812,7 @@ const ProjectGuidelines = () => {
         '[API] ❌ Network error calling latest-ai-model API:',
         error
       );
-      console.log('[API] Error details:',error);
+      console.log('[API] Error details:', error);
       return null;
     }
   };
@@ -1029,14 +1049,128 @@ const ProjectGuidelines = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const generateAnnotatorIntroWithFileContent = async (
+    aiConfig: AIConfig,
+    projectId: string,
+    pmMessages: Message[]
+  ) => {
+    try {
+      console.log('[Annotator Intro] Using PM messages for file content...');
+      console.log(
+        `[Annotator Intro] Found ${pmMessages.length} file content messages`
+      );
+
+      if (pmMessages.length === 0) {
+        console.log('[Annotator Intro] No file content found in PM messages');
+        return;
+      }
+
+      // ✅ MUCH CLEARER PROMPT
+      let introPrompt = `
+CONTEXT: You are an AI assistant for the project "${projectName || 'this project'}". You are helping an annotator who needs guidance.
+
+IMPORTANT: Below is the COMPLETE CONTENT from files uploaded by the project manager. This is NOT a summary - this is the FULL TEXT that you have complete access to. You won't get any files further so do not ask for access to files. Work with the content you have.
+
+=== COMPLETE PROJECT DOCUMENTATION ===
+`;
+
+      pmMessages.forEach((msg, index) => {
+        // ✅ Remove the "📄 **Uploaded:" part and just include the actual content
+        const cleanContent = msg.content.replace(
+          /^📄 \*\*Uploaded:.*?\*\*\n\n/,
+          ''
+        );
+        introPrompt += `\n--- FILE ${index + 1} CONTENT (COMPLETE) ---\n${cleanContent}\n--- END FILE ${index + 1} ---\n`;
+      });
+
+      introPrompt += `
+=== END OF PROJECT DOCUMENTATION ===
+
+INSTRUCTIONS:
+1. You have COMPLETE ACCESS to all the documentation content shown above
+2. The content above contains FULL DETAILS about the project requirements
+3. Introduce yourself as the AI assistant for this project
+4. Mention that you have access to the complete project documentation
+5. Be specific about what you can help with based on the actual content you have
+6. Do NOT say you don't have access to the content - you clearly do have it above
+7. Be welcoming and helpful
+
+Please provide a professional introduction that demonstrates you understand the project content.
+`;
+
+      console.log(
+        '[Annotator Intro] Generating AI response with improved prompt...'
+      );
+      console.log('[DEBUG] Prompt length:', introPrompt.length);
+
+      // Generate AI response
+      const response = await generateAIResponseWithAttachments(
+        aiConfig.provider,
+        aiConfig.model,
+        introPrompt,
+        projectId,
+        aiConfig.apiKey,
+        undefined,
+        'annotator'
+      );
+
+      if (response) {
+        // Save intro message
+        const messageResponse = await fetch(
+          `/api/projects/${projectId}/guidelines`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: response,
+              isAiMessage: true,
+              aiProvider: aiConfig.provider,
+              aiModel: aiConfig.model,
+            }),
+          }
+        );
+
+        if (messageResponse.ok) {
+          const messageData = await messageResponse.json();
+          if (messageData.success) {
+            setMessages((prev) => [...prev, messageData.message]);
+            console.log(
+              '[Annotator Intro] ✅ Intro message with file content added'
+            );
+            toast.success('AI assistant ready with project knowledge base');
+          }
+        } else {
+          console.error('[Annotator Intro] Failed to save intro message');
+        }
+      } else {
+        console.error('[Annotator Intro] Failed to generate AI response');
+      }
+    } catch (error) {
+      console.error(
+        '[Annotator Intro] Error generating intro with file content:',
+        error
+      );
+    }
+  };
+
   const fetchGuidelines = async () => {
+    if (fetchingGuidelines) return;
     try {
       setLoading(true);
       const response = await fetch(`/api/projects/${projectId}/guidelines`);
-      const data = await response.json();
+      const data: GuidelineResponse = await response.json();
+      console.log(
+        '[fetchGuidelines] 🔍 Full response data:',
+        JSON.stringify(data, null, 2)
+      );
+
       if (data.success) {
         setMessages(data.messages || []);
-        setFiles(data.files || []);
+        setFiles(data.files || []); // Will be empty for annotators
+        setUserRole(data.userRole);
+        setCanConfigureAI(data.canConfigureAI);
+        setHasKnowledgeFiles(data.hasFiles);
+
         setGuidelineData({
           description: data.description || '',
           messages: data.messages || [],
@@ -1044,14 +1178,134 @@ const ProjectGuidelines = () => {
           aiProvider: data.aiProvider,
           aiModel: data.aiModel,
         });
-      } else {
-        toast.error('Failed to load guidelines');
+
+        if (data.aiProvider && data.aiModel) {
+          console.log(
+            '[fetchGuidelines] Auto-configuring AI from guideline data:',
+            {
+              aiProvider: data.aiProvider,
+              aiModel: data.aiModel,
+              userRole: data.userRole,
+            }
+          );
+
+          if (data.userRole === 'annotator') {
+            // ✅ For annotators: Get PM's actual AI model with API key
+            console.log(
+              '[fetchGuidelines] Annotator - fetching PM AI config...'
+            );
+
+            try {
+              const pmConfigResponse = await fetch(
+                `/api/projects/${projectId}/guidelines/pm-ai-config?provider=${encodeURIComponent(data.aiProvider)}&model=${encodeURIComponent(data.aiModel)}`
+              );
+              const pmConfigData = await pmConfigResponse.json();
+
+              if (pmConfigData.success && pmConfigData.aiModel) {
+                const modelConfig: AIConfig = {
+                  provider: pmConfigData.aiModel.provider,
+                  model: pmConfigData.aiModel.model,
+                  apiKey: pmConfigData.aiModel.apiKey,
+                  modelName: pmConfigData.aiModel.name,
+                };
+
+                setAiConfig(modelConfig);
+                setSavedAiConfig(modelConfig);
+                setIsAiConfigured(true);
+                setShowAiSetupPrompt(false);
+
+                console.log(
+                  '[fetchGuidelines] ✅ Annotator AI configuration loaded from PM model'
+                );
+
+                // ✅ FIX: Check the useRef flag to prevent re-running this effect.
+                if (
+                  data.messages.length === 0 &&
+                  data.hasFileContent &&
+                  !introGeneratedRef.current
+                ) {
+                  // ✅ FIX: Set the ref's current property to true immediately.
+                  introGeneratedRef.current = true;
+                  console.log(
+                    '[fetchGuidelines] Generating intro with PM file content...'
+                  );
+                  try {
+                    await generateAnnotatorIntroWithFileContent(
+                      modelConfig,
+                      projectId,
+                      data.pmMessages || []
+                    );
+                  } catch (error) {
+                    console.error(
+                      '[fetchGuidelines] Error generating intro:',
+                      error
+                    );
+                  }
+                }
+              } else {
+                console.log(
+                  '[fetchGuidelines] ❌ Failed to get PM AI config:',
+                  pmConfigData.error
+                );
+                toast.error(
+                  'Failed to load AI configuration from project manager'
+                );
+              }
+            } catch (error) {
+              console.error(
+                '[fetchGuidelines] Error fetching PM AI config:',
+                error
+              );
+              toast.error('Error loading AI configuration');
+            }
+          } else {
+            // ✅ For project managers: Use their own models (existing logic)
+            try {
+              const response = await getProviderAIModels();
+              if (response.success && response.models) {
+                const matchingModel = response.models.find(
+                  (model) =>
+                    model.provider === data.aiProvider &&
+                    model.model === data.aiModel
+                );
+
+                if (matchingModel) {
+                  const modelConfig: AIConfig = {
+                    provider: matchingModel.provider,
+                    model: matchingModel.model,
+                    apiKey: matchingModel.apiKey,
+                    modelName: matchingModel.name,
+                  };
+
+                  setAiConfig(modelConfig);
+                  setSavedAiConfig(modelConfig);
+                  setIsAiConfigured(true);
+                  setShowAiSetupPrompt(false);
+
+                  console.log(
+                    '[fetchGuidelines] ✅ PM AI configuration loaded from own models'
+                  );
+                } else {
+                  console.log(
+                    '[fetchGuidelines] ❌ No matching model found in PM models'
+                  );
+                }
+              }
+            } catch (error) {
+              console.error(
+                '[fetchGuidelines] Error loading PM AI config:',
+                error
+              );
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching guidelines:', error);
       toast.error('An error occurred while loading guidelines');
     } finally {
       setLoading(false);
+      setFetchingGuidelines(false);
     }
   };
 
@@ -1179,13 +1433,31 @@ const ProjectGuidelines = () => {
       const conversationContext = messages
         .map((msg) => `${msg.sender.name}: ${msg.content}`)
         .join('\n');
-      const prompt = `
+
+      let prompt = '';
+
+      if (userRole === 'annotator') {
+        prompt = `
+        Project Name: ${projectName}
+        User Role: Annotator
+        
+        Recent Conversation:
+        ${conversationContext}
+        
+        Annotator's Question: ${userMessage}
+        
+        Please provide a helpful response as an AI assistant for this project. Use the knowledge base files to answer questions about project guidelines, requirements, and procedures.
+      `;
+      } else {
+        prompt = `
         Project Name: ${projectName}
         Recent Conversation:
         ${conversationContext}
         User's message: ${userMessage}
         Please provide a helpful, professional response as the AI assistant for this project. If PDF files are attached, analyze their content and provide relevant insights.
       `;
+      }
+
       const attachments = additionalAttachments || [];
 
       const response = await generateAIResponseWithAttachments(
@@ -1194,7 +1466,8 @@ const ProjectGuidelines = () => {
         prompt,
         projectId,
         aiConfig.apiKey,
-        attachments.length > 0 ? attachments : undefined
+        attachments.length > 0 ? attachments : undefined,
+        userRole // Pass user role to AI function
       );
 
       if (response) {
@@ -1481,14 +1754,20 @@ const ProjectGuidelines = () => {
     }
   };
 
-  // Updated sendPDFContentMessage function with text truncation
+  // In ProjectGuidelines.tsx
   const sendPDFContentMessage = async (fileName, extractedText) => {
     try {
-      // Truncate text if it's too long
       const { text: truncatedText, wasTruncated } = truncateText(
         extractedText,
         MAX_PDF_TEXT_LENGTH
       );
+
+      console.log('[DEBUG] PDF Content:', {
+        originalLength: extractedText.length,
+        truncatedLength: truncatedText.length,
+        wasTruncated,
+        maxLength: MAX_PDF_TEXT_LENGTH,
+      });
 
       let content = `📄 **Uploaded: ${fileName}**\n\n${truncatedText}`;
 
@@ -1504,6 +1783,7 @@ const ProjectGuidelines = () => {
         body: JSON.stringify({
           content: content,
           isAiMessage: false,
+          fileContent: true, // ✅ Mark this message as containing file content
         }),
       });
 
@@ -1519,17 +1799,14 @@ const ProjectGuidelines = () => {
         };
         setMessages((prev) => [...prev, systemMessage]);
         return true;
-      } else {
-        console.error('Failed to send PDF content message:', data.error);
-        return false;
       }
+      return false;
     } catch (error) {
       console.error('Error sending PDF content message:', error);
       return false;
     }
   };
 
-  // Updated handleFileUpload function with size limit validation
   const handleFileUpload = async (files: FileList) => {
     if (!files.length) return;
 
@@ -1620,7 +1897,7 @@ const ProjectGuidelines = () => {
       const contentSent = await sendPDFContentMessage(file.name, extractedText);
 
       if (contentSent) {
-        // 7. Update files state
+        // 8. Update files state
         const newFile = {
           fileName: file.name,
           fileType: contentType,
@@ -1677,35 +1954,38 @@ const ProjectGuidelines = () => {
   };
 
   // FileInput component (for reuse)
-  const FileInput = () => (
-    <>
-      <Button
-        type='button'
-        size='icon'
-        variant='outline'
-        className='h-10 w-10 p-0'
-        onClick={() => fileInputRef.current?.click()}
-        disabled={uploading || !isAiConfigured}
-        title={
-          !isAiConfigured
-            ? 'Configure AI assistant to attach files'
-            : `Attach PDF file (max ${formatFileSize(MAX_PDF_SIZE)})`
-        }
-      >
-        <Upload className={`h-6 w-6 ${!isAiConfigured ? 'opacity-50' : ''}`} />
-        <span className='sr-only'>Attach PDF</span>
-      </Button>
-      <input
-        type='file'
-        ref={fileInputRef}
-        className='hidden'
-        accept='.pdf,application/pdf'
-        multiple
-        onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
-        disabled={!isAiConfigured}
-      />
-    </>
-  );
+  const FileInput = () =>
+    canConfigureAI ? (
+      <>
+        <Button
+          type='button'
+          size='icon'
+          variant='outline'
+          className='h-10 w-10 p-0'
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading || !isAiConfigured}
+          title={
+            !isAiConfigured
+              ? 'Configure AI assistant to attach files'
+              : `Attach PDF file (max ${formatFileSize(MAX_PDF_SIZE)})`
+          }
+        >
+          <Upload
+            className={`h-6 w-6 ${!isAiConfigured ? 'opacity-50' : ''}`}
+          />
+          <span className='sr-only'>Attach PDF</span>
+        </Button>
+        <input
+          type='file'
+          ref={fileInputRef}
+          className='hidden'
+          accept='.pdf,application/pdf'
+          multiple
+          onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+          disabled={!isAiConfigured}
+        />
+      </>
+    ) : null;
 
   // Render Loading state
   if (loading) {
@@ -1739,11 +2019,14 @@ const ProjectGuidelines = () => {
       <CardHeader className='flex flex-row items-center justify-between'>
         <div>
           <CardTitle className='text-2xl'>
-            Project Guidelines Assistant
+            Project Guidelines{' '}
+            {userRole === 'annotator' ? '(Annotator View)' : 'Assistant'}
           </CardTitle>
           <p className='text-muted-foreground text-sm mt-1'>
-            Ask questions about guidelines using your preferred AI model
-            {isAiConfigured && (
+            {userRole === 'annotator'
+              ? `Ask questions about project guidelines${hasKnowledgeFiles ? ' - AI has access to project knowledge files' : ''}`
+              : 'Ask questions about guidelines using your preferred AI model'}
+            {isAiConfigured && userRole === 'project_manager' && (
               <span className='ml-1'>
                 (Currently using:{' '}
                 <span className='font-medium'>
@@ -1761,25 +2044,29 @@ const ProjectGuidelines = () => {
           </p>
         </div>
         <div className='flex gap-2'>
-          {/* AI Settings Button - Now opens bottom sheet */}
-          <Button
-            size='sm'
-            variant='outline'
-            onClick={() => setAiBottomSheetOpen(true)}
-          >
-            <Settings className='h-4 w-4 mr-2' />
-            AI Settings
-          </Button>
+          {/* AI Settings Button - Only for project managers */}
+          {canConfigureAI && (
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => setAiBottomSheetOpen(true)}
+            >
+              <Settings className='h-4 w-4 mr-2' />
+              AI Settings
+            </Button>
+          )}
 
-          {/* Knowledge Files Button - Opens the sidebar */}
-          <Button
-            size='sm'
-            variant='outline'
-            onClick={() => setKnowledgeSidebarOpen(true)}
-          >
-            <FileText className='h-4 w-4 mr-2' />
-            Knowledge Files
-          </Button>
+          {/* Knowledge Files Button - Only for project managers */}
+          {canConfigureAI && (
+            <Button
+              size='sm'
+              variant='outline'
+              onClick={() => setKnowledgeSidebarOpen(true)}
+            >
+              <FileText className='h-4 w-4 mr-2' />
+              Knowledge Files
+            </Button>
+          )}
         </div>
       </CardHeader>
 
@@ -1789,21 +2076,41 @@ const ProjectGuidelines = () => {
           {/* Messages Container */}
           <div className='bg-muted/40 rounded-lg border'>
             {!isAiConfigured && showAiSetupPrompt && messages.length === 0 ? (
-              // Initial AI Setup Prompt
-              <div className='flex flex-col items-center justify-center h-[400px] text-center px-4'>
-                <Bot className='h-16 w-16 mb-4 opacity-60' />
-                <h3 className='text-xl font-medium mb-2'>
-                  Configure AI Assistant
-                </h3>
-                <p className='text-muted-foreground max-w-md mb-6'>
-                  To get started with project guidelines, select an AI model
-                  that will help manage conversations and answer questions about
-                  this project.
-                </p>
-                <Button onClick={() => setAiBottomSheetOpen(true)}>
-                  Select AI Model
-                </Button>
-              </div>
+              // Different prompts based on user role
+              canConfigureAI ? (
+                // Project Manager - AI Setup Prompt
+                <div className='flex flex-col items-center justify-center h-[400px] text-center px-4'>
+                  <Bot className='h-16 w-16 mb-4 opacity-60' />
+                  <h3 className='text-xl font-medium mb-2'>
+                    Configure AI Assistant
+                  </h3>
+                  <p className='text-muted-foreground max-w-md mb-6'>
+                    To get started with project guidelines, select an AI model
+                    that will help manage conversations and answer questions
+                    about this project.
+                  </p>
+                  <Button onClick={() => setAiBottomSheetOpen(true)}>
+                    Select AI Model
+                  </Button>
+                </div>
+              ) : (
+                // Annotator - Waiting for PM to configure AI
+                <div className='flex flex-col items-center justify-center h-[400px] text-center px-4'>
+                  <Bot className='h-16 w-16 mb-4 opacity-60' />
+                  <h3 className='text-xl font-medium mb-2'>
+                    AI Assistant Not Configured
+                  </h3>
+                  <p className='text-muted-foreground max-w-md mb-6'>
+                    The project manager needs to configure an AI model for this
+                    project before you can start asking questions about
+                    guidelines.
+                  </p>
+                  <p className='text-sm text-muted-foreground'>
+                    Please contact your project manager to set up the AI
+                    assistant.
+                  </p>
+                </div>
+              )
             ) : (
               // Chat Message Area
               <ScrollArea className='h-[400px] px-4 pt-4'>
@@ -2072,28 +2379,32 @@ const ProjectGuidelines = () => {
         </div>
       </CardContent>
 
-      {/* Knowledge Files Sidebar */}
-      <KnowledgeSidebar
-        isOpen={knowledgeSidebarOpen}
-        onClose={() => setKnowledgeSidebarOpen(false)}
-        files={files}
-        fileInputRef={fileInputRef}
-        showIframe={showIframe}
-        setShowIframe={setShowIframe}
-        handleConnect={handleConnect}
-        handleBackFromIframe={handleBackFromIframe}
-        onDownloadFile={handleDownloadFile}
-      />
+      {/* Knowledge Files Sidebar - Only for project managers */}
+      {canConfigureAI && (
+        <KnowledgeSidebar
+          isOpen={knowledgeSidebarOpen}
+          onClose={() => setKnowledgeSidebarOpen(false)}
+          files={files}
+          fileInputRef={fileInputRef}
+          showIframe={showIframe}
+          setShowIframe={setShowIframe}
+          handleConnect={handleConnect}
+          handleBackFromIframe={handleBackFromIframe}
+          onDownloadFile={handleDownloadFile}
+        />
+      )}
 
-      {/* AI Model Bottom Sheet */}
-      <AIModelBottomSheet
-        isOpen={aiBottomSheetOpen}
-        onClose={() => setAiBottomSheetOpen(false)}
-        onSelect={handleSelectedAIModel}
-        isLoading={isGeneratingAI}
-        currentConfig={savedAiConfig}
-        isConfigured={isAiConfigured}
-      />
+      {/* AI Model Bottom Sheet - Only for project managers */}
+      {canConfigureAI && (
+        <AIModelBottomSheet
+          isOpen={aiBottomSheetOpen}
+          onClose={() => setAiBottomSheetOpen(false)}
+          onSelect={handleSelectedAIModel}
+          isLoading={isGeneratingAI}
+          currentConfig={savedAiConfig}
+          isConfigured={isAiConfigured}
+        />
+      )}
 
       {/* Add overlay when sidebar is open for small screens */}
       {knowledgeSidebarOpen && (
