@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
 import {
+  Book,
   CalendarIcon,
   ClipboardList,
   GraduationCap,
@@ -335,6 +336,10 @@ export default function ProjectDashboard() {
   const handleTrainingClick = (projectId: string) => {
     router.push(`/projects/training/${projectId}`);
   };
+  const handleGuidelinesClick = (projectId: string) => {
+    router.push(`/projects/guidelines/${projectId}`);
+  };
+
   const handleDiscussionClick = (projectId: string) => {
     router.push(`/projects/discussion/${projectId}`);
   };
@@ -454,6 +459,18 @@ export default function ProjectDashboard() {
                                 Take Test
                               </Button>
                             )}
+
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleGuidelinesClick(project._id);
+                              }}
+                            >
+                              <Book className='mr-2 h-4 w-4' />
+                              Guidelines
+                            </Button>
 
                             <Button
                               variant='outline'
