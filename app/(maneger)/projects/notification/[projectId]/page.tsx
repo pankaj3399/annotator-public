@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import Loader from "@/components/ui/Loader/Loader";
 import NotificationCard from "@/components/global/NotificationCard";
 import { Button } from "@/components/ui/button";
+import { isProjectManager } from "@/lib/userRoles";
 
 interface NotificationTemplate {
   _id: string;
@@ -29,7 +30,7 @@ export default function NotificationTemplatePage() {
   useEffect(() => {
     if (!projectId || status === "loading") return;
 
-    if (!session || session.user.role !== "project manager") {
+    if (!session || !isProjectManager(session.user.role)) {
       router.push("/tasks");
       return;
     }

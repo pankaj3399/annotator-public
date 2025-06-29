@@ -14,6 +14,7 @@ import { authOptions } from '@/auth'; // Adjust path
 import { CreateWebinarForm } from '@/components/training/CreateWebinarForm'; // Adjust path
 import { TrainingWebinarList } from '@/components/training/TrainingWebinarList'; // Adjust path
 import Loader from '@/components/ui/NewLoader/Loader';
+import { isAnnotator } from '@/lib/userRoles';
 
 interface ProjectTrainingPageProps {
     params: { projectId: string };
@@ -105,7 +106,7 @@ export default async function ProjectTrainingPage({ params }: ProjectTrainingPag
 
     // Check if the user is an invited annotator ONLY if the user's role is 'annotator'
     // Added optional chaining for invitedAnnotators as it might not exist
-    const isInvitedAnnotator = user.role === 'annotator' &&
+    const isInvitedAnnotator = isAnnotator(user.role) &&
                                 !!trainingData?.invitedAnnotators?.includes(user.id);
 
     // --- Authorization Check ---

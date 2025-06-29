@@ -7,6 +7,7 @@ import { Project } from '@/models/Project';
 import { Training } from '@/models/Training';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
+import { isAnnotator, isProjectManager } from '@/lib/userRoles';
 interface CreateMessageData {
   sender: string;
   content: string;
@@ -106,7 +107,7 @@ export async function GET(
       projectId: params.projectId
     });
 
-    if (session.user.role === 'project manager') {
+    if (isProjectManager(session.user.role)) {
       console.log('[GET /guidelines] 📋 Processing PROJECT MANAGER request');
 
       console.log('[GET /guidelines] Fetching guideline for project:', params.projectId);
@@ -186,7 +187,7 @@ export async function GET(
       return NextResponse.json(response);
     }
 
-    else if (session.user.role === 'annotator') {
+    else if (isAnnotator(session.user.role)) {
       console.log('[GET /guidelines] 👤 Processing ANNOTATOR request');
 
       console.log('[GET /guidelines] Fetching parent guideline...');
@@ -418,7 +419,7 @@ export async function POST(
       );
     }
 
-    if (session.user.role === 'project manager') {
+    if (isProjectManager(session.user.role)) {
       console.log('[POST /guidelines] 📋 Processing PROJECT MANAGER message');
 
       console.log('[POST /guidelines] Finding/creating guideline...');
@@ -501,7 +502,7 @@ export async function POST(
         message: addedMessage
       });
 
-    } else if (session.user.role === 'annotator') {
+    } else if (isAnnotator(session.user.role)) {
       console.log('[POST /guidelines] 👤 Processing ANNOTATOR message');
 
       console.log('[POST /guidelines] Ensuring parent guideline exists...');
@@ -624,7 +625,7 @@ export async function PUT(
     });
 
     // Only project managers can update guidelines
-    if (session.user.role !== 'project manager') {
+    if (!isProjectManager(session.user.role)) {
       console.log('[PUT /guidelines] ❌ Non-PM trying to update guidelines:', session.user.role);
       return NextResponse.json({ error: 'Only project managers can update guidelines' }, { status: 403 });
     }

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { CustomField } from '@/models/CustomField';
+import { isAdmin } from '@/lib/userRoles';
 
 export async function GET(
   request: NextRequest,
@@ -46,7 +47,7 @@ export async function PUT(
       );
     }
 
-    if (session.user.id !== params.id && session.user.role !== 'system admin') {
+    if (session.user.id !== params.id && !isAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Forbidden' },
         { status: 403 }

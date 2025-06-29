@@ -4,6 +4,7 @@ import { User } from "@/models/User";
 import { authOptions } from "@/auth";
 import { ProviderKeys } from "@/models/ProviderKeysSchema";
 import { connectToDatabase } from "@/lib/db";
+import { isProjectManager } from "@/lib/userRoles";
 
 export async function GET(req: Request) {
     try {
@@ -55,7 +56,7 @@ export async function GET(req: Request) {
         }
 
         // For listing all keys - only project managers
-        if (user.role !== "project manager") {
+        if (!isProjectManager(user.role)) {
             return NextResponse.json({ error: "Permission denied" }, { status: 403 });
         }
 
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
 
         // Get the user to check their role
         const user = await User.findOne({ email: session.user.email });
-        if (!user || user.role !== "project manager") {
+        if (!user || !isProjectManager(user.role)) {
             return NextResponse.json({ error: "Permission denied" }, { status: 403 });
         }
 
@@ -173,7 +174,7 @@ export async function DELETE(req: Request) {
 
         // Get the user to check their role
         const user = await User.findOne({ email: session.user.email });
-        if (!user || user.role !== "project manager") {
+        if (!user || !isProjectManager(user.role)) {
             return NextResponse.json({ error: "Permission denied" }, { status: 403 });
         }
 

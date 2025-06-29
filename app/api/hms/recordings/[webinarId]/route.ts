@@ -6,6 +6,7 @@ import { Training } from '@/models/Training';
 import { getServerSession } from 'next-auth';
 import mongoose from 'mongoose';
 import { authOptions } from '@/auth';
+import { isAnnotator, isProjectManager } from '@/lib/userRoles';
 
 export async function GET(
   req: NextRequest,
@@ -74,11 +75,11 @@ export async function GET(
 
     // 5. Check user permissions
     // Allow only project managers and invited annotators
-    const isProjectManager = user.role === 'project manager';
-    const isInvitedAnnotator = user.role === 'annotator' && 
+    const isProjectManagerCheck = isProjectManager(user.role);
+    const isInvitedAnnotator = isAnnotator(user.role) && 
       trainingDoc.invitedAnnotators?.some(id => id.toString() === user.id);
     
-    if (!isProjectManager && !isInvitedAnnotator) {
+    if (!isProjectManagerCheck && !isInvitedAnnotator) {
       return NextResponse.json({ 
         error: 'Not authorized to view this recording' 
       }, { status: 403 });

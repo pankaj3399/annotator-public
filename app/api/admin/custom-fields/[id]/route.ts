@@ -4,6 +4,7 @@ import { CustomField } from "@/models/CustomField";
 import { connectToDatabase } from '@/lib/db';
 import { getServerSession } from "next-auth";
 import { authOptions } from '@/auth';
+import { isAdmin } from "@/lib/userRoles";
 
 // Define the CustomField type
 interface CustomFieldType {
@@ -53,7 +54,7 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "system admin") {
+    if (!session || !isAdmin(session.user.role)) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 403 }
@@ -122,7 +123,7 @@ export async function DELETE(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "system admin") {
+    if (!session || !isAdmin(session.user.role)) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 403 }

@@ -18,6 +18,7 @@ import { Switch } from "@/components/ui/switch"
 
 import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
+import { isProjectManager } from "@/lib/userRoles"
 type Annotator = {
   _id: string;
   name: string;
@@ -249,7 +250,7 @@ export function GroupList({
           )}
         </div>
       </ScrollArea>
-      {session?.user.role === 'project manager' && (
+      {isProjectManager(session?.user.role) && (
         <div className="p-4 border-t bg-muted/30">
           <Button onClick={onCreateGroup} className="w-full">
             <PlusCircle className="mr-2" size={16} />
@@ -260,7 +261,7 @@ export function GroupList({
 
       {/* Dialogs for toggling work status */}
       <Dialog open={isCommandOpen} onOpenChange={setIsCommandOpen}>
-        {session?.user.role === 'project manager' && (
+        {isProjectManager(session?.user.role) && (
           <DialogTrigger asChild>
             <Button
               variant="outline"

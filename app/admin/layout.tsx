@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Loader from '@/components/ui/NewLoader/Loader';
 import { Sidebar } from '@/components/admin-panel/sidebar';
+import { isAdmin } from '@/lib/userRoles';
 
 export default function AdminLayout({
   children,
@@ -20,7 +21,7 @@ export default function AdminLayout({
   useEffect(() => {
     if (status === 'loading') return;
 
-    if (!session || session.user.role !== 'system admin') {
+    if (!session || !isAdmin(session.user.role)) {
       router.push('/');
       return;
     }

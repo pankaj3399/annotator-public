@@ -6,6 +6,7 @@ import { authOptions } from '@/auth';
 import Task from '@/models/Task';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
+import { isAdmin, isProjectManager } from '@/lib/userRoles';
 
 type UserRole = 'project manager' | 'system admin' | 'reviewer' | 'user';
 
@@ -220,7 +221,7 @@ async function canReview(projectId: string, userId: string): Promise<boolean> {
         }
 
         // If user is admin or project manager, they can always review
-        if (user.role === 'project manager' || user.role === 'system admin') {
+        if (isProjectManager(user.role) || isAdmin(user.role)) {
             return true;
         }
 

@@ -30,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Image from 'next/image';
 import Loader from '@/components/ui/NewLoader/Loader';
+import { isProjectManager } from '@/lib/userRoles';
 
 interface Video {
   title: string;
@@ -187,7 +188,7 @@ export default function CoursePage() {
     }
   };
 
-  if (!session || session.user.role !== 'project manager') {
+  if (!session || !isProjectManager(session.user.role)) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
         <div className="text-center p-8 bg-white rounded-lg shadow-lg">

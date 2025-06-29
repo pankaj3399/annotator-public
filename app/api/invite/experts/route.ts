@@ -5,6 +5,7 @@ import { User } from '@/models/User';
 import { InvitedUsers } from '@/models/InvitedUsers';
 import { Team } from '@/models/Team';
 import { sendEmail, getInvitationEmailTemplate } from '@/lib/email';
+import { isAgencyOwner, isProjectManager } from '@/lib/userRoles';
 
 export async function POST(req: Request) {
   console.log('=== INVITE EXPERTS API CALLED ===');
@@ -39,7 +40,7 @@ export async function POST(req: Request) {
     console.log(`Looking up user with email: ${session.user?.email}`);
     const currentUser = await User.findOne({ email: session.user?.email });
 
-    if (!currentUser || currentUser.role !== 'agency owner' && currentUser.role !== 'project manager') {
+    if (!currentUser || !isAgencyOwner(currentUser.role) && !isProjectManager(currentUser.role)) {
       console.log('Authorization failed: Not an agency owner');
       return NextResponse.json(
         { error: 'Not authorized to invite experts' },

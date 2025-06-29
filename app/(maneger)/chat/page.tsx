@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { ChatArea } from "./_components/chatArea"
 import { GroupList } from './_components/groupList'
 import MemberCombobox from "./_components/MemberCombobox"
+import { isProjectManager } from "@/lib/userRoles"
 
 type Message = {
   _id: string
@@ -205,7 +206,7 @@ export default function ChatUI() {
           <> {isMobile && (
             <Button
               variant="ghost"
-              className={`absolute top-5 ${session?.user.role == 'project manager' ? 'right-10 top-5' : 'right-2'} z-10`}
+              className={`absolute top-5 ${isProjectManager(session?.user.role) ? 'right-10 top-5' : 'right-2'} z-10`}
               onClick={() => setSelectedGroup(null)}
             >
               <X className="h-6 w-6" />
@@ -224,7 +225,7 @@ export default function ChatUI() {
                   </div>}
                 </div>
               </div>
-              {session?.user.role == 'project manager' && <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
+              {isProjectManager(session?.user.role) && <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">

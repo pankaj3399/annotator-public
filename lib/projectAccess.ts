@@ -2,6 +2,7 @@ import { connectToDatabase } from '@/lib/db';
 import { Project } from '@/models/Project';
 import { User } from '@/models/User';
 import { Training } from '@/models/Training';
+import { isAdmin, isAnnotator, isProjectManager } from './userRoles';
 
 export async function checkProjectAccess(projectId: string, userId: string): Promise<boolean> {
   try {
@@ -14,17 +15,17 @@ export async function checkProjectAccess(projectId: string, userId: string): Pro
     if (!project) return false;
 
     // Project manager has access to their own projects
-    if (user.role === 'project manager' && project.project_Manager.toString() === userId) {
+    if (isProjectManager(user.role) && project.project_Manager.toString() === userId) {
       return true;
     }
 
     // Annotators have access if they're assigned to the project
-    if (user.role === 'annotator') {
+    if (isAnnotator(user.role)) {
       return await checkAnnotatorProjectAccess(projectId, userId);
     }
 
     // System admin has access to all projects
-    if (user.role === 'system admin') {
+    if (isAdmin(user.role)) {
       return true;
     }
 
@@ -67,12 +68,12 @@ export async function getUserProjectRole(projectId: string, userId: string): Pro
 
     // Check if user is an annotator assigned to this project
     const hasAnnotatorAccess = await checkAnnotatorProjectAccess(projectId, userId);
-    if (hasAnnotatorAccess && user.role === 'annotator') {
+    if (hasAnnotatorAccess && isAnnotator(user.role)) {
       return 'annotator';
     }
 
     // System admin
-    if (user.role === 'system admin') {
+    if (isAdmin(user.role)) {
       return 'system_admin';
     }
 

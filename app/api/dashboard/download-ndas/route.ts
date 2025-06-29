@@ -6,6 +6,7 @@ import { User } from "@/models/User";
 import { Team } from "@/models/Team";
 import { connectToDatabase } from "@/lib/db";
 import JSZip from "jszip";
+import { isProjectManager } from "@/lib/userRoles";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email }).populate('team_id');
 
-    if (!currentUser || currentUser.role !== 'project manager') {
+    if (!currentUser || !isProjectManager(currentUser.role)) {
       return NextResponse.json(
         { error: "Access denied. Only project managers can download NDAs." },
         { status: 403 }

@@ -6,6 +6,7 @@ import { connectToDatabase } from "@/lib/db";
 import { User } from "@/models/User";
 import { Team } from "@/models/Team";
 import { getServerSession } from "next-auth";
+import { isAdmin } from "@/lib/userRoles";
 
 export interface RegistrationDataPoint {
   date: string;
@@ -39,7 +40,7 @@ export async function getAllExpertsRegistrationData() {
       throw new Error('User not found');
     }
 
-    if (currentUser.role !== 'system admin') {
+    if (!isAdmin(currentUser.role)) {
       throw new Error('Unauthorized: Only system admins can access this data');
     }
 
@@ -187,7 +188,7 @@ export async function getAllTeams() {
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email });
 
-    if (!currentUser || currentUser.role !== 'system admin') {
+    if (!currentUser || !isAdmin(currentUser.role)) {
       throw new Error('Unauthorized: Only system admins can access this data');
     }
 

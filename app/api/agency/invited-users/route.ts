@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { connectToDatabase } from '@/lib/db';
 import { User } from '@/models/User';
 import { InvitedUsers } from '@/models/InvitedUsers'; // Changed from Invitation to InvitedUsers
+import { isAgencyOwner, isProjectManager } from '@/lib/userRoles';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,7 @@ export async function GET(req: Request) {
 
     const currentUser = await User.findOne({ email: session.user?.email });
 
-    if (!currentUser || currentUser.role !== 'agency owner' && currentUser.role !== 'project manager') {
+    if (!currentUser || !isAgencyOwner(currentUser.role) && !isProjectManager(currentUser.role)) {
       return NextResponse.json(
         { error: 'Not authorized to view invited users' },
         { status: 403 }

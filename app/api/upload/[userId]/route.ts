@@ -6,6 +6,7 @@ import { UTApi } from "uploadthing/server";
 import { User } from "@/models/User";
 import { connectToDatabase } from "@/lib/db";
 import { UploadThingError } from "uploadthing/server";
+import { isAdmin } from "@/lib/userRoles";
 
 const utapi = new UTApi();
 
@@ -41,7 +42,7 @@ export async function POST(
     await connectToDatabase();
 
     // Move auth check after db connection
-    if (session.user.id !== userId && session.user.role !== "system admin") {
+    if (session.user.id !== userId && !isAdmin(session.user.role)) {
       return NextResponse.json(
         { error: "Forbidden" },
         { status: 403 }

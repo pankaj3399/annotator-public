@@ -7,6 +7,7 @@ import Task from "@/models/Task";
 import { getServerSession } from "next-auth";
 import mongoose from "mongoose";
 import { Project } from "@/models/Project";
+import { isProjectManager } from "@/lib/userRoles";
 
 // Simple in-memory cache for dashboard stats (5 min expiry)
 const dashboardCache = new Map<string, { data: any; expiry: number }>();
@@ -35,7 +36,7 @@ export async function getOnboardedExpertsForProject(projectId: string, dateRange
       throw new Error('User not found');
     }
 
-    if (currentUser.role !== 'project manager') {
+    if (!isProjectManager(currentUser.role)) {
       throw new Error('Access denied. Only project managers can view this dashboard.');
     }
 
@@ -205,7 +206,7 @@ export async function getDashboardStatsForProject(projectId: string, dateRange?:
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email });
 
-    if (!currentUser || currentUser.role !== 'project manager') {
+    if (!currentUser || !isProjectManager(currentUser.role)) {
       throw new Error('Access denied');
     }
 
@@ -342,7 +343,7 @@ export async function getTasksOverTimeDataForProject(
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email });
 
-    if (!currentUser || currentUser.role !== 'project manager') {
+    if (!currentUser || !isProjectManager(currentUser.role)) {
       throw new Error('Access denied');
     }
 
@@ -500,7 +501,7 @@ export async function getTeamExpertsWithStats(dateRange?: { start: Date; end: Da
       throw new Error('User not found');
     }
 
-    if (currentUser.role !== 'project manager') {
+    if (!isProjectManager(currentUser.role)) {
       throw new Error('Access denied. Only project managers can view this dashboard.');
     }
 
@@ -652,7 +653,7 @@ export async function getTasksOverTimeData(
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email });
 
-    if (!currentUser || currentUser.role !== 'project manager') {
+    if (!currentUser || !isProjectManager(currentUser.role)) {
       throw new Error('Access denied');
     }
 
@@ -841,7 +842,7 @@ export async function getNDAStatus() {
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email });
 
-    if (!currentUser || currentUser.role !== 'project manager') {
+    if (!currentUser || !isProjectManager(currentUser.role)) {
       throw new Error('Access denied');
     }
 
@@ -910,7 +911,7 @@ export async function getDashboardStats(dateRange?: { start: Date; end: Date }) 
     await connectToDatabase();
     const currentUser = await User.findOne({ email: session.user.email });
 
-    if (!currentUser || currentUser.role !== 'project manager') {
+    if (!currentUser || !isProjectManager(currentUser.role)) {
       throw new Error('Access denied');
     }
 
