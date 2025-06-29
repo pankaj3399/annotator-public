@@ -3,14 +3,35 @@ import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, AlertCircle, ChevronRight } from 'lucide-react';
 
+// Updated CustomField interface to include all new field types
 interface CustomField {
   _id: string;
   name: string;
   label: string;
-  type: 'text' | 'link' | 'file' | 'array';
+  type:
+    | 'text'
+    | 'link'
+    | 'file'
+    | 'array'
+    | 'select'
+    | 'multiselect'
+    | 'date'
+    | 'number'
+    | 'boolean'
+    | 'email'
+    | 'phone';
   isRequired: boolean;
   acceptedFileTypes: string | null;
   isActive: boolean;
+  options?: string[];
+  placeholder?: string;
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    dateFormat?: string;
+  };
+  referenceTab?: string;
 }
 
 interface UserData {
