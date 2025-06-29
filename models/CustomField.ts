@@ -12,7 +12,19 @@ const customFieldSchema = new Schema(
     },
     type: {
       type: String,
-      enum: ["text", "link", "file", "array"],
+      enum: [
+        "text",
+        "link",
+        "file",
+        "array",
+        "select",
+        "multiselect",
+        "date",
+        "number",
+        "boolean",
+        "email",
+        "phone"
+      ],
       required: true,
     },
     isRequired: {
@@ -34,6 +46,37 @@ const customFieldSchema = new Schema(
     forAllTeams: {
       type: Boolean,
       default: false,
+    },
+    // New fields for enhanced functionality
+    options: [{
+      type: String,
+    }], // For select/multiselect fields
+    placeholder: {
+      type: String,
+      default: null,
+    },
+    validation: {
+      min: {
+        type: Number,
+        default: null,
+      },
+      max: {
+        type: Number,
+        default: null,
+      },
+      pattern: {
+        type: String,
+        default: null,
+      },
+      dateFormat: {
+        type: String,
+        enum: ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"],
+        default: "MM/DD/YYYY",
+      },
+    },
+    referenceTab: {
+      type: String,
+      default: null, // For fields that reference external data sources
     },
     created_at: {
       type: Date,

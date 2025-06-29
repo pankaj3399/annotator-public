@@ -35,14 +35,35 @@ import { FileUpload } from '@/components/FileUpload';
 import CustomFields from '@/components/admin-panel/CustomFields';
 import ProfileCompletion from '@/components/ProfileCompletion';
 
+// Updated CustomField interface to include all new field types
 interface CustomField {
   _id: string;
   name: string;
   label: string;
-  type: 'text' | 'link' | 'file' | 'array';
+  type:
+    | 'text'
+    | 'link'
+    | 'file'
+    | 'array'
+    | 'select'
+    | 'multiselect'
+    | 'date'
+    | 'number'
+    | 'boolean'
+    | 'email'
+    | 'phone';
   isRequired: boolean;
   acceptedFileTypes: string | null;
   isActive: boolean;
+  options?: string[];
+  placeholder?: string;
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+    dateFormat?: string;
+  };
+  referenceTab?: string;
 }
 
 interface UserData {
@@ -84,7 +105,9 @@ const ProfilePage = () => {
           const userData = await userResponse.json();
 
           // Fetch custom fields
-          const fieldsResponse = await fetch(`/api/admin/custom-fields?teamId=${userData.team_id}`);
+          const fieldsResponse = await fetch(
+            `/api/admin/custom-fields?teamId=${userData.team_id}`
+          );
           if (!fieldsResponse.ok)
             throw new Error('Failed to fetch custom fields');
           const fieldsData = await fieldsResponse.json();
