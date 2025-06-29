@@ -6,6 +6,7 @@ import { connectToDatabase } from '@/lib/db';
 import { getServerSession } from "next-auth";
 import { authOptions } from '@/auth';
 import mongoose from "mongoose";
+import { isAdmin } from "@/lib/userRoles";
 
 // Define the CustomField type
 interface CustomFieldType {
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "system admin") {
+    if (!session || !isAdmin(session.user.role)) {
       return NextResponse.json(
         { message: "Unauthorized" },
         { status: 403 }

@@ -41,6 +41,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { isAdmin, isProjectManager } from '@/lib/userRoles';
 
 interface BenchmarkProposal {
   _id: string;
@@ -128,7 +129,7 @@ export default function BenchmarkProposalsPage() {
     if (!session?.user) return false;
 
     const user = session.user;
-    if (user.role === 'project manager' || user.role === 'system admin') {
+    if (isProjectManager(user.role) || isAdmin(user.role)) {
       return true;
     }
 
@@ -162,7 +163,7 @@ export default function BenchmarkProposalsPage() {
 
     if (
       !reviewPermissions[selectedProposal.project] &&
-      session.user.role !== 'system admin'
+      !isAdmin(session.user.role)
     ) {
       toast({
         title: 'Permission Denied',

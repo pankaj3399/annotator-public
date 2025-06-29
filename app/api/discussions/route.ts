@@ -1,6 +1,7 @@
 // app/api/discussions/route.ts
 import { authOptions } from '@/auth';
 import { connectToDatabase } from '@/lib/db';
+import { isAnnotator, isProjectManager } from '@/lib/userRoles';
 import { Discussion } from '@/models/Discussion';
 import { User } from '@/models/User';
 import { getServerSession } from 'next-auth';
@@ -37,7 +38,7 @@ export async function GET(req: Request) {
     }
 
     // Apply role-based filters
-    if (session.user.role === 'annotator') {
+    if (isAnnotator(session.user.role)) {
       // Show all discussions from team members regardless of role
       if (currentUser.team_id) {
         // Find all users in the same team
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
         // Show discussions from all team members
         filter.author = { $in: teamMemberIds };
       }
-    } else if (session.user.role === 'project manager') {
+    } else if (isProjectManager(session.user.role)) {
       // Project managers can see all discussions they create and public/internal from their team
       filter.$or = [
         { author: session.user.id }, // All discussions they created

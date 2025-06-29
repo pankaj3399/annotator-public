@@ -9,6 +9,7 @@ import { connectToDatabase } from "@/lib/db";
 import { authOptions } from "@/auth";
 import { ProductRequest } from "@/models/ProductRequest";
 import mongoose, { Types } from "mongoose";
+import { isAdmin, isAnnotator, isProjectManager } from "@/lib/userRoles";
 
 export type AddToWishlistParams = {
   productId?: string;
@@ -29,7 +30,7 @@ export type AddToWishlistParams = {
 export async function addProduct(formData: FormData) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "system admin") {
+    if (!session || !isAdmin(session.user.role)) {
       throw new Error("Unauthorized");
     }
 
@@ -57,7 +58,7 @@ export async function addToWishlist({
 }: AddToWishlistParams) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "annotator") {
+    if (!session || !isAnnotator(session.user.role)) {
       throw new Error("Unauthorized");
     }
 
@@ -128,7 +129,7 @@ export async function addToWishlist({
 export async function approveWishlistItem(wishlistId: string, itemId: string) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "project manager") {
+    if (!session || !isProjectManager(session.user.role)) {
       throw new Error("Unauthorized");
     }
 
@@ -165,7 +166,7 @@ export async function fetchProducts() {
 export async function updateStatus(itemId: string) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "project manager") {
+    if (!session || !isProjectManager(session.user.role)) {
       throw new Error("Unauthorized");
     }
 

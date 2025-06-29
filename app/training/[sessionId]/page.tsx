@@ -8,6 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Camera, Mic } from "lucide-react"; // Added Camera and Mic icons
 import Loader from '@/components/ui/NewLoader/Loader';
+import { isAnnotator, isProjectManager } from '@/lib/userRoles';
 
 export default function WebinarPage() {
     const params = useParams();
@@ -70,7 +71,7 @@ export default function WebinarPage() {
     
         if (authStatus === 'authenticated' && session?.user) {
             const user = session.user as { id: string; role: string; }; // Adjust type as needed
-            const requiredRole = user.role === 'project manager' || user.role === 'annotator';
+            const requiredRole = isProjectManager(user.role) || isAnnotator(user.role);
     
             if (!requiredRole) {
                 setError(`Access Denied: Role (${user.role}) not permitted.`);

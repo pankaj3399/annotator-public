@@ -23,6 +23,7 @@ import JobApplication from "@/models/JobApplication";
 import { Group, Message, UserGroup } from "@/models/chat";
 import { AIJob, AImodel } from "@/models/aiModel";
 import { getServerSession } from "next-auth";
+import { isAnnotator } from "@/lib/userRoles";
 
 export async function updateUserTeam(userId: string, teamId: string) {
   console.log("updateUserTeam action called:", { userId, teamId });
@@ -109,7 +110,7 @@ export async function deleteUser(userId: string) {
       return { success: false, error: "User not found" };
     }
 
-    if (user.role !== "annotator") {
+    if (!isAnnotator(user.role)) {
       await session.abortTransaction();
       session.endSession();
       return { success: false, error: "Only annotator users can be deleted with this function" };

@@ -6,6 +6,7 @@ import { InvitedUsers } from '@/models/InvitedUsers';
 import { Team } from '@/models/Team';
 import Papa from 'papaparse';
 import { sendEmail, getInvitationEmailTemplate } from '@/lib/email';
+import { isAdmin, isProjectManager } from '@/lib/userRoles';
 
 // Define helper function to read and process the uploaded file
 async function readCSVFile(file: File): Promise<string[]> {
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
     // Get the user details to verify they are an agency owner
     const currentUser = await User.findOne({ email: session.user?.email });
 
-    if (!currentUser || currentUser.role !== 'agency owner' && currentUser.role !== 'project manager') {
+    if (!currentUser || !isAdmin(currentUser.role) && !isProjectManager(currentUser.role)) {
       return NextResponse.json(
         { error: 'Not authorized to invite experts' },
         { status: 403 }

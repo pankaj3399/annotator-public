@@ -8,6 +8,7 @@ import { Team } from "./models/Team"; // Import Team model
 import { InvitedUsers } from "./models/InvitedUsers"; // Import InvitedUsers model
 import saltAndHashPassword from "./utils/password";
 import { auth } from "google-auth-library";
+import { isAnnotator } from "./lib/userRoles";
 
 interface JWTToken {
   id?: string;
@@ -40,7 +41,7 @@ export const authOptions: AuthOptions = {
         }
 
         // Update last login if user is an annotator
-        if (user.role === "annotator") {
+        if (isAnnotator(user.role)) {
           await User.updateOne({ _id: user._id }, { lastLogin: new Date() });
         }
 

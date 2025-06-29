@@ -5,6 +5,7 @@ import { Training } from '@/models/Training';
 import { getServerSession } from 'next-auth';
 import { revalidatePath } from 'next/cache';
 import { authOptions } from '@/auth';
+import { isProjectManager } from '@/lib/userRoles';
 
 export async function PUT(req: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function PUT(req: NextRequest) {
 
     // 2. Check role - only project managers can update status
     const user = session.user as { id: string; role: string };
-    if (user.role !== 'project manager') {
+    if (!isProjectManager(user.role)) {
       return NextResponse.json({ error: 'Only project managers can update webinar status' }, { status: 403 });
     }
 

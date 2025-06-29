@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { Checkbox } from '@/components/ui/checkbox'
 import axios from 'axios'
 import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel'
+import { isProjectManager } from '@/lib/userRoles'
 
 interface Props {
   element: EditorElement
@@ -584,7 +585,7 @@ const InputRecordAudioComponent: React.FC<Props> = (props) => {
               {status !== 'recording' && !mediaBlobUrl && (
                 <Button 
                   onClick={startRecording} 
-                  disabled={session.data?.user.role === 'project manager'}
+                  disabled={isProjectManager(session.data?.user.role)}
                   className="bg-primary hover:bg-primary/90"
                 >
                   <Mic className="mr-2 h-4 w-4" /> Start Recording

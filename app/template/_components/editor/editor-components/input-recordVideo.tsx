@@ -15,6 +15,7 @@ import { useReactMediaRecorder } from "react-media-recorder"
 import ReactPlayer from 'react-player'
 import { toast } from 'sonner'
 import PropertyPanel from '@/app/template/_components/editor/editor-components/propertypanel'
+import { isProjectManager } from "@/lib/userRoles"
 
 type Props = {
   element: EditorElement
@@ -243,7 +244,7 @@ const InputRecordVideoComponent = (props: Props) => {
               </div>
               <div className="flex justify-between items-center">
                 <Button 
-                  disabled={session.data?.user.role === 'project manager'}
+                  disabled={isProjectManager(session.data?.user.role)}
                   onClick={status === 'recording' ? stopRecording : startRecording}
                   variant={status === 'recording' ? "destructive" : "default"}
                 >

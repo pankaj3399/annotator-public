@@ -1,6 +1,7 @@
 // app/api/discussions/[id]/comment/route.ts
 import { authOptions } from '@/auth';
 import { connectToDatabase } from '@/lib/db';
+import { isAdmin, isProjectManager } from '@/lib/userRoles';
 import { Discussion } from '@/models/Discussion';
 import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
@@ -42,7 +43,7 @@ export async function POST(
     }
 
     // Check visibility restrictions
-    if (discussion.visibility === 'private' && session.user.role !== 'project manager' && session.user.role !== 'system admin') {
+    if (discussion.visibility === 'private' && !isProjectManager(session.user.role) && !isAdmin(session.user.role)) {
       return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
     }
 

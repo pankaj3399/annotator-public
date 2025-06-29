@@ -7,6 +7,7 @@ import { getServerSession } from 'next-auth';
 import Stripe from 'stripe';
 import { Payment } from '@/models/Payment';
 import { SUPPORTED_COUNTRIES, SupportedCountry } from '@/lib/constants';
+import { isAnnotator, isProjectManager } from '@/lib/userRoles';
 
 // Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -306,7 +307,7 @@ export async function createConnectAccount(country?: SupportedCountry) {
       return { error: 'User not found' };
     }
 
-    if (user.role !== 'annotator') {
+    if (!isAnnotator(user.role)) {
       return { error: 'Only annotators can create Connect accounts' };
     }
 
@@ -889,12 +890,12 @@ export async function getMyPayments() {
 
     let payments;
 
-    if (user.role === 'project manager') {
+    if (isProjectManager(user.role)) {
       payments = await Payment.find({ projectManager: user._id })
         .populate('expert', 'name email stripeAccountCountry')
         .populate('project', 'name')
         .sort({ created_at: -1 });
-    } else if (user.role === 'annotator') {
+    } else if (isAnnotator(user.role)) {
       payments = await Payment.find({ expert: user._id })
         .populate('projectManager', 'name email')
         .populate('project', 'name')
